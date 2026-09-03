@@ -42,7 +42,9 @@ export function IndicadorPageLayout({
             <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800">{error}</p>
           ) : null}
 
-          {kpis ? <div className="grid gap-3 sm:grid-cols-3">{kpis}</div> : null}
+          {kpis ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{kpis}</div>
+          ) : null}
 
           {chart}
 

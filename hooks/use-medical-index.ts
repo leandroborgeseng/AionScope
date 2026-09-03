@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { errorOf, usePbiQuery } from "@/hooks/use-pbi";
 import { startOfMonthISO, todayISO } from "@/lib/pbi/dates";
+import { buildEquipamentoIndex } from "@/lib/pbi/indicadores-os";
 import { buildMedicalIndex } from "@/lib/pbi/medical";
 import type { DashboardFilters } from "@/lib/pbi/filters";
 import type { EquipamentoItem } from "@/lib/pbi/types";
@@ -30,9 +31,12 @@ export function useMedicalIndex() {
 
   const items = query.data?.ok ? query.data.data : [];
   const index = useMemo(() => buildMedicalIndex(items), [items]);
+  const equipamentoIndex = useMemo(() => buildEquipamentoIndex(items), [items]);
 
   return {
     ...index,
+    items,
+    equipamentoIndex,
     loading: query.isLoading,
     ready: Boolean(query.data?.ok),
     error: errorOf(query.data)?.message ?? null,

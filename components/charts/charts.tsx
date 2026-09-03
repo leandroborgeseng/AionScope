@@ -454,6 +454,111 @@ export function DespesaParqueBarChart({
   );
 }
 
+export type SlaPrazoChartRow = {
+  name: string;
+  noPrazo: number;
+  foraPrazo: number;
+  comPrazo: number;
+  pctNoPrazo: number | null;
+  pctLabel: string;
+} & Record<string, string | number | null>;
+
+function SlaPrazoTooltip({ active, payload, label }: TooltipContentProps) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload as SlaPrazoChartRow | undefined;
+  if (!row) return null;
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-md">
+      <p className="font-semibold text-slate-800">{String(label)}</p>
+      <p className="mt-1 text-slate-700">
+        % no prazo: <span className="font-semibold tabular-nums">{row.pctLabel}</span>
+      </p>
+      <p className="text-slate-600">
+        No prazo: <span className="tabular-nums font-semibold text-emerald-800">{row.noPrazo}</span>
+      </p>
+      <p className="text-slate-600">
+        Fora do prazo: <span className="tabular-nums font-semibold text-rose-800">{row.foraPrazo}</span>
+      </p>
+      <p className="mt-1 text-slate-500">{row.comPrazo} OS com prazo calculável</p>
+    </div>
+  );
+}
+
+function SlaPctTopLabel({ value, viewBox }: RechartsLabelProps): ReactElement {
+  const text = String(value ?? "");
+  const box = labelBox(viewBox);
+  if (!box || !text || text === "—" || text === "–") return <g />;
+  return (
+    <text
+      x={box.x + box.width / 2}
+      y={box.y - 6}
+      textAnchor="middle"
+      fill="#0f172a"
+      fontSize={10}
+      fontWeight={700}
+      className="tabular-nums"
+    >
+      {text}
+    </text>
+  );
+}
+
+export function SlaPrazoBarChart({
+  data,
+  xKey,
+  className,
+  maxBarSize = 42,
+  onRowClick,
+}: {
+  data: SlaPrazoChartRow[];
+  xKey: string;
+  className?: string;
+  maxBarSize?: number;
+  onRowClick?: (row: SlaPrazoChartRow) => void;
+}) {
+  const resolveRow = (state: { activeIndex?: number | string | null; activeLabel?: string | number }) => {
+    const index = chartClickIndex(state.activeIndex);
+    return Number.isFinite(index) ? data[index] : data.find((item) => item[xKey] === state.activeLabel);
+  };
+
+  return (
+    <div className={cn("h-72 w-full", className)}>
+      <ResponsiveContainer width="100%" height="100%" minHeight={240} debounce={1}>
+        <BarChart
+          data={data}
+          margin={{ top: 22, right: 8, left: 0, bottom: 0 }}
+          barCategoryGap="22%"
+          onClick={(state) => {
+            const row = resolveRow(state);
+            if (row) onRowClick?.(row);
+          }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+          <XAxis dataKey={xKey} tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={60} />
+          <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+          <Tooltip content={SlaPrazoTooltip} />
+          <Legend />
+          <Bar dataKey="noPrazo" name="No prazo" fill="#0f766e" stackId="sla" maxBarSize={maxBarSize} cursor="pointer">
+            <LabelList position="center" content={SegmentInnerLabel} />
+          </Bar>
+          <Bar
+            dataKey="foraPrazo"
+            name="Fora do prazo"
+            fill="#be123c"
+            stackId="sla"
+            maxBarSize={maxBarSize}
+            radius={[3, 3, 0, 0]}
+            cursor="pointer"
+          >
+            <LabelList position="center" content={SegmentInnerLabel} />
+            <LabelList dataKey="pctLabel" content={SlaPctTopLabel} />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 export function SimpleLineChart({
   data,
   xKey,

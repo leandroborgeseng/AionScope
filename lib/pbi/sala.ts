@@ -1,4 +1,5 @@
 import { addDays, format } from "date-fns";
+import { BUSINESS_HOURS_LABEL, diffBusinessMs } from "./business-hours";
 import { nowInSaoPaulo, parsePbiDate } from "./dates";
 import { isCorretiva } from "./filters";
 import { classifyPlanoEc } from "./indicadores-os";
@@ -14,29 +15,28 @@ export const SALA_REFRESH_MS = 2 * 60_000;
 export const SALA_JANELA_DIAS = 30;
 export const SALA_FLUXO_15_DIAS = 15;
 
+/** Metas em milissegundos de horas úteis (08–17 seg–sex). */
 export const META_OK_MS = 4 * 60 * 60 * 1000;
 export const META_ATENCAO_MS = 24 * 60 * 60 * 1000;
 export const META_ATRASADA_MS = 72 * 60 * 60 * 1000;
 
 export const SALA_RECORTE_LINHA =
-  "eq. médicos · sem instrumental · sem sem-tag · fila 30d (Abertura) · semana seg–hoje SP · prev/TSE/calib devem fechar no mês";
+  `eq. médicos · sem instrumental · sem sem-tag · fila 30d (Abertura) · demanda (sem preventiva/TSE/calibração) · ${BUSINESS_HOURS_LABEL}`;
 
-export const SALA_TIPOS_ORDEM = ["corretiva", "preventiva", "tse", "calibracao", "outros"] as const;
+/** Só tipos de demanda operacional (plano prev/TSE/calib fica de fora). */
+export const SALA_TIPOS_ORDEM = ["corretiva", "outros"] as const;
 
 export const SALA_TIPO_LABEL: Record<(typeof SALA_TIPOS_ORDEM)[number], string> = {
   corretiva: "Corretiva",
-  preventiva: "Preventiva",
-  tse: "TSE",
-  calibracao: "Calibração",
   outros: "Outros",
 };
 export type FaixaIdade = "ok" | "atencao" | "atrasada" | "critica";
 
 export const FAIXAS_LEGENDA: Array<{ id: FaixaIdade; label: string; detalhe: string }> = [
-  { id: "ok", label: "ok", detalhe: "≤ 4h" },
-  { id: "atencao", label: "atenção", detalhe: "> 4h e ≤ 24h" },
-  { id: "atrasada", label: "atrasada", detalhe: "> 24h e ≤ 72h" },
-  { id: "critica", label: "crítica", detalhe: "> 72h" },
+  { id: "ok", label: "ok", detalhe: "≤ 4h úteis" },
+  { id: "atencao", label: "atenção", detalhe: "> 4h e ≤ 24h úteis" },
+  { id: "atrasada", label: "atrasada", detalhe: "> 24h e ≤ 72h úteis" },
+  { id: "critica", label: "crítica", detalhe: "> 72h úteis" },
 ];
 
 export type SalaOs = {
@@ -69,14 +69,12 @@ export type SalaSetorCount = {
   quantidade: number;
 };
 
-export type SalaTipoManutencao = (typeof SALA_TIPOS_ORDEM)[number];
+export type SalaTipoManutencao = (typeof SALA_TIPOS_ORDEM)[number] | "preventiva" | "tse" | "calibracao";
 
 export type SalaTipoCount = {
   id: SalaTipoManutencao;
   label: string;
   quantidade: number;
-  /** Prev/TSE/Calib abertas com Abertura antes do início da janela (anomalia vs fecha-no-mês). */
-  anomaliaMesAnterior: number;
   idadeMediaMs: number | null;
   idadeMediaLabel: string | null;
   idadeMaxMs: number | null;
@@ -126,6 +124,7 @@ export function faixaPorIdade(idadeMs: number): FaixaIdade {
   return "critica";
 }
 
+/** Formata duração em horas úteis (ms de expediente). */
 export function formatIdade(ms: number): string {
   const safe = Math.max(0, ms);
   const totalMin = Math.floor(safe / 60_000);
@@ -169,7 +168,7 @@ export function rotuloEquipamento(os: OsAnaliticoItem) {
 
 export function toSalaOs(item: OsAnaliticoItem, now: Date): SalaOs {
   const abertura = parsePbiDate(item.Abertura);
-  const idadeMs = abertura ? Math.max(0, now.getTime() - abertura.getTime()) : 0;
+  const idadeMs = abertura ? diffBusinessMs(abertura, now) : 0;
   const faixa = abertura ? faixaPorIdade(idadeMs) : "ok";
   return {
     item,
@@ -251,17 +250,24 @@ export function classifySalaTipo(tipo: string | null | undefined): SalaTipoManut
   return "outros";
 }
 
-export function isTipoPlanoFechaNoMes(tipo: SalaTipoManutencao) {
+/** Preventiva / TSE / Calibração — fora da contagem operacional da sala. */
+export function isTipoPlanoExcluidoSala(tipo: SalaTipoManutencao) {
   return tipo === "preventiva" || tipo === "tse" || tipo === "calibracao";
 }
 
-/** Recorte médico da sala: tipo operacional + tag no parque médico. */
+/** Demanda operacional (corretiva / assistência / outros) — sem plano prev/TSE/calib. */
+export function isOsSalaDemanda(item: Pick<OsAnaliticoItem, "TipoDeManutencao">) {
+  return !isTipoPlanoExcluidoSala(classifySalaTipo(item.TipoDeManutencao));
+}
+
+/** Recorte médico da sala: tipo operacional + demanda + tag no parque médico. */
 export function isOsSalaMedica(
   item: OsAnaliticoItem,
   medicalTags: Set<string>,
   medicalIds: Set<number> = new Set(),
 ) {
   if (!isTipoSalaOperacional(item.TipoDeManutencao)) return false;
+  if (!isOsSalaDemanda(item)) return false;
   const tag = (item.Tag ?? "").trim();
   if (!tag) return false;
   return linkedToMedicalPark(tag, undefined, medicalTags, medicalIds);
@@ -280,12 +286,11 @@ export function collectOsEcAbertas(
   });
 }
 
-function emptyTipoCount(id: SalaTipoManutencao): SalaTipoCount {
+function emptyTipoCount(id: (typeof SALA_TIPOS_ORDEM)[number]): SalaTipoCount {
   return {
     id,
     label: SALA_TIPO_LABEL[id],
     quantidade: 0,
-    anomaliaMesAnterior: 0,
     idadeMediaMs: null,
     idadeMediaLabel: null,
     idadeMaxMs: null,
@@ -293,21 +298,16 @@ function emptyTipoCount(id: SalaTipoManutencao): SalaTipoCount {
   };
 }
 
-function finalizeTipoCount(
-  id: SalaTipoManutencao,
-  quantidade: number,
-  anomaliaMesAnterior: number,
-  idadesMs: number[],
-): SalaTipoCount {
-  const idadeMediaMs = idadesMs.length
-    ? Math.round(idadesMs.reduce((acc, n) => acc + n, 0) / idadesMs.length)
+function finalizeTipoCount(id: (typeof SALA_TIPOS_ORDEM)[number], idadesMs: number[]): SalaTipoCount {
+  const quantidade = idadesMs.length;
+  const idadeMediaMs = quantidade
+    ? Math.round(idadesMs.reduce((acc, n) => acc + n, 0) / quantidade)
     : null;
-  const idadeMaxMs = idadesMs.length ? Math.max(...idadesMs) : null;
+  const idadeMaxMs = quantidade ? Math.max(...idadesMs) : null;
   return {
     id,
     label: SALA_TIPO_LABEL[id],
     quantidade,
-    anomaliaMesAnterior,
     idadeMediaMs,
     idadeMediaLabel: idadeMediaMs != null ? formatIdade(idadeMediaMs) : null,
     idadeMaxMs,
@@ -316,9 +316,8 @@ function finalizeTipoCount(
 }
 
 /**
- * OS ainda abertas com Abertura na janela, quebradas por tipo.
- * Anomalia (só relevante no bloco mês): prev/TSE/calib ainda abertas com
- * Abertura antes do mês calendário corrente (devem fechar no próprio mês).
+ * OS ainda abertas com Abertura na janela, quebradas por tipo de demanda
+ * (corretiva / outros). Plano prev/TSE/calib já foi filtrado em isOsSalaMedica.
  */
 export function buildEstratificacaoAbertas(
   osMedicas: OsAnaliticoItem[],
@@ -326,32 +325,23 @@ export function buildEstratificacaoAbertas(
   now: Date,
   meta: { id: SalaEstratificacao["id"]; label: string; hint: string },
 ): SalaEstratificacao {
-  const inicioMes = inicioMesCalendario(now);
-  const contarAnomaliaMes = meta.id === "mes";
-  const buckets: Record<SalaTipoManutencao, { naJanela: number[]; anomalia: number }> = {
-    corretiva: { naJanela: [], anomalia: 0 },
-    preventiva: { naJanela: [], anomalia: 0 },
-    tse: { naJanela: [], anomalia: 0 },
-    calibracao: { naJanela: [], anomalia: 0 },
-    outros: { naJanela: [], anomalia: 0 },
+  const buckets: Record<(typeof SALA_TIPOS_ORDEM)[number], number[]> = {
+    corretiva: [],
+    outros: [],
   };
 
   for (const item of osMedicas) {
     if (!isOsAberta(item)) continue;
     const abertura = parsePbiDate(item.Abertura);
-    if (!abertura) continue;
+    if (!abertura || abertura.getTime() < inicioJanela.getTime()) continue;
     const tipo = classifySalaTipo(item.TipoDeManutencao);
-    const idadeMs = Math.max(0, now.getTime() - abertura.getTime());
-    if (abertura.getTime() >= inicioJanela.getTime()) {
-      buckets[tipo].naJanela.push(idadeMs);
-    } else if (contarAnomaliaMes && isTipoPlanoFechaNoMes(tipo) && abertura.getTime() < inicioMes.getTime()) {
-      buckets[tipo].anomalia += 1;
-    }
+    if (tipo !== "corretiva" && tipo !== "outros") continue;
+    buckets[tipo].push(diffBusinessMs(abertura, now));
   }
 
-  const tipos = SALA_TIPOS_ORDEM.map((id) =>
-    finalizeTipoCount(id, buckets[id].naJanela.length, buckets[id].anomalia, buckets[id].naJanela),
-  ).filter((row) => row.id !== "outros" || row.quantidade > 0 || row.anomaliaMesAnterior > 0);
+  const tipos = SALA_TIPOS_ORDEM.map((id) => finalizeTipoCount(id, buckets[id])).filter(
+    (row) => row.id !== "outros" || row.quantidade > 0,
+  );
 
   const corretiva = tipos.find((row) => row.id === "corretiva") ?? emptyTipoCount("corretiva");
   const totalAbertas = tipos.reduce((acc, row) => acc + row.quantidade, 0);
@@ -371,12 +361,12 @@ export function buildEstratificacoesSala(osMedicas: OsAnaliticoItem[], now = now
     buildEstratificacaoAbertas(osMedicas, inicioJanelaSala(now, SALA_FLUXO_15_DIAS), now, {
       id: "dias15",
       label: "15 dias",
-      hint: "Ainda abertas · Abertura nos últimos 15 dias",
+      hint: "Ainda abertas · demanda · Abertura nos últimos 15 dias",
     }),
     buildEstratificacaoAbertas(osMedicas, inicioMesCalendario(now), now, {
       id: "mes",
       label: "Mês",
-      hint: "Ainda abertas · Abertura no mês calendário (SP)",
+      hint: "Ainda abertas · demanda · Abertura no mês calendário (SP)",
     }),
   ];
 }
@@ -390,20 +380,20 @@ export function buildFluxosSala(osMedicas: OsAnaliticoItem[], now = nowInSaoPaul
     {
       id: "hoje",
       label: "Hoje",
-      hint: "Abertura / fechamento no dia (SP)",
+      hint: "Demanda · abertura / fechamento no dia (SP)",
       inicio: inicioHoje,
       soHoje: true,
     },
     {
       id: "semana",
       label: "Esta semana",
-      hint: "Seg–hoje (calendário SP)",
+      hint: "Demanda · seg–hoje (calendário SP)",
       inicio: inicioSemana,
     },
     {
       id: "dias15",
       label: "15 dias",
-      hint: "Últimos 15 dias (inclusivo)",
+      hint: "Demanda · últimos 15 dias (inclusivo)",
       inicio: inicio15,
     },
   ];

@@ -7,7 +7,8 @@ export type FichaIndicadorId =
   | "os-abertas-fechadas"
   | "gasto-reparo-medicos"
   | "manutencoes-planejadas-executadas"
-  | "custo-manutencao-parque";
+  | "custo-manutencao-parque"
+  | "sla-corretiva-criticidade";
 
 export type FichaIndicador = {
   id: FichaIndicadorId;
@@ -154,6 +155,21 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
       "(Soma dos contratos ativos no mês + Soma do Custo das OS de reparo de eq. médicos fechadas no mês) / Valor de substituição do parque × 100",
     coletaDeDados:
       "Numerador: contratos no SQLite (ativos na vigência do mês) + OS analítica no recorte de gasto-reparo médico. Denominador: valorApi = soma ValorDeSubstituicao de TODOS os equipamentos (incluirCustoSubstituicao=true), persistido; override manual só se salvo explicitamente; env PARQUE_VALOR_SUBSTITUICAO opcional. ValorDeAquisicao não entra (outliers). Intervalo rolante de 12 meses.",
+    periodicidade: "Mensal",
+  },
+  "sla-corretiva-criticidade": {
+    id: "sla-corretiva-criticidade",
+    nomeDoIndicador: "% Corretivas no prazo (por criticidade)",
+    ...BASE,
+    finalidadeDoIndicador:
+      "Monitorar o cumprimento do tempo de manutenção corretiva conforme a criticidade definida (Qmentum item 6), evidenciando o percentual de OS corretivas de equipamentos médicos atendidas dentro do prazo.",
+    meta: "A definir com a supervisão / Qmentum",
+    referenciaDaMeta:
+      "Qmentum — item 6 (tempo de manutenção corretiva conforme criticidade). Meta operacional a validar na planilha oficial de indicadores da Eng. Clínica.",
+    formula:
+      "% no prazo = (Nº de OS corretivas com DataDoAtendimento ≤ limite / Nº de OS corretivas com atendimento e limite calculável) × 100. Limite = DataLimiteDoAtendimento se preenchida; senão Abertura + horas da Prioridade (ALTA 2h, MÉDIA 12h, BAIXA 72h, ou horas explícitas no texto). Criticidade do indicador: Criticidade do equipamento no parque quando a Tag casa; senão Prioridade da OS. OS sem limite calculável ficam fora do denominador (transparência em KPI separado).",
+    coletaDeDados:
+      "Effort GlobalThings — API listagem_analitica_das_os + cadastro de equipamentos (Criticidade). Recorte: isCorretiva(TipoDeManutencao) e Tag no índice de equipamentos médicos. Intervalo rolante de 12 meses (mês de Abertura). Limitação: DataLimiteDoAtendimento costuma vir vazia — o fallback por Prioridade passa a dominar.",
     periodicidade: "Mensal",
   },
   satisfacao: {
