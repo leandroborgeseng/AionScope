@@ -10,6 +10,7 @@ import {
   OrigemCampo,
   useChartFullscreen,
 } from "@/components/indicadores/chart-fullscreen";
+import { PageHeader } from "@/components/shell/page-header";
 import { FilterChip } from "@/components/indicadores/indicador-section";
 import { KpiCard } from "@/components/kpi/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
@@ -43,12 +44,14 @@ export function GastoReparoCard({
   bruta,
   loading,
   error,
+  headingAs = "section",
 }: {
   range: RollingYearRange;
   raw: OsAnaliticoItem[];
   bruta: number;
   loading: boolean;
   error: string | null;
+  headingAs?: "page" | "section";
 }) {
   const medical = useMedicalIndex();
   const [drill, setDrill] = useState<Drill>(null);
@@ -120,9 +123,11 @@ export function GastoReparoCard({
   const blockError = error || medicalError;
   const maioriaZerada = gasto.noIntervalo.length > 0 && gasto.osComCusto / gasto.noIntervalo.length < 0.5;
 
+  const Heading = headingAs === "page" ? PageHeader : IndicadorHeading;
+
   return (
     <section className="space-y-4">
-      <IndicadorHeading
+      <Heading
         title="Gasto mensal com reparo de eq. médicos"
         description={`Soma do Custo das OS de reparo de equipamentos médicos · ${range.label}. Só entra OS com data de fechamento (Fechamento; senão DataDaSolucao) — reparo ainda aberto não conta no mês.`}
       />
@@ -199,7 +204,7 @@ export function GastoReparoCard({
             />
           </ChartCard>
 
-          <Card className="border-teal-200 bg-teal-50/40">
+          <Card className="border-aion-line bg-aion-mist/50">
             <CardHeader>
               <CardTitle>Recorte: reparo de equipamentos médicos</CardTitle>
             </CardHeader>
@@ -369,7 +374,7 @@ export function GastoReparoCard({
       <ChartFullscreenDialog
         open={open}
         title={`Gasto por mês · ${range.label}`}
-        subtitle="Mesmo gráfico da home, em tela cheia. Clique no mês para ver a lista."
+        subtitle="Mesmo gráfico, em tela cheia. Clique no mês para ver a lista."
         onClose={closeFullscreen}
         ready={ready}
         chips={

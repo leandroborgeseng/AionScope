@@ -21,14 +21,15 @@ export function IndicadorSection({
   children: ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-teal-900/10 bg-white shadow-sm">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-teal-900/10 bg-gradient-to-r from-teal-900 via-teal-800 to-sky-800 px-5 py-4 text-white">
+    <section className="overflow-hidden rounded-xl border border-aion-line bg-white shadow-[var(--aion-shadow)]">
+      <div className="aion-bar" />
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-aion-line bg-white px-5 py-4">
         <div>
           {eyebrow ? (
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-teal-200">{eyebrow}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-aion-blue">{eyebrow}</p>
           ) : null}
-          <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-          {description ? <p className="mt-1 max-w-3xl text-sm text-teal-100/90">{description}</p> : null}
+          <h2 className="text-lg font-semibold tracking-tight text-aion-ink">{title}</h2>
+          {description ? <p className="mt-1 max-w-3xl text-sm text-aion-muted">{description}</p> : null}
         </div>
         {actions ? <div className="shrink-0">{actions}</div> : null}
       </header>
@@ -42,7 +43,7 @@ export function IndicadorSection({
           <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="h-24 animate-pulse rounded-xl bg-slate-100" />
+                <div key={i} className="h-24 animate-pulse rounded-xl bg-aion-mist" />
               ))}
             </div>
             <ChartSkeleton />
@@ -71,7 +72,7 @@ export function FilterChip({
       onClick={onClick}
       className={cn(
         "rounded-full px-3 py-1 text-xs font-semibold transition",
-        active ? "bg-teal-700 text-white" : "border border-slate-300 bg-white text-slate-700 hover:border-teal-400",
+        active ? "bg-aion-blue text-white" : "border border-aion-line bg-white text-aion-ink hover:border-aion-blue",
       )}
     >
       {children}

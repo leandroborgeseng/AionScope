@@ -7,11 +7,11 @@ const badgeVariants = cva(
   {
     variants: {
       tone: {
-        default: "bg-slate-100 text-slate-700",
+        default: "bg-aion-mist text-aion-ink",
         ok: "bg-emerald-50 text-emerald-800",
         warn: "bg-amber-50 text-amber-800",
         danger: "bg-rose-50 text-rose-800",
-        info: "bg-teal-50 text-teal-800",
+        info: "bg-aion-mist text-aion-blue",
       },
     },
     defaultVariants: { tone: "default" },

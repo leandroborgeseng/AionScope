@@ -83,7 +83,7 @@ export default function DocumentacaoPage() {
       accessorKey: "anexo",
       header: "Anexo",
       cell: ({ row }) => (
-        <a href={row.original.link} target="_blank" rel="noreferrer" className="text-teal-800 hover:underline">
+        <a href={row.original.link} target="_blank" rel="noreferrer" className="text-aion-blue hover:underline">
           {row.original.anexo}
         </a>
       ),
@@ -141,7 +141,7 @@ export default function DocumentacaoPage() {
           <button
             key={id}
             onClick={() => setOrigem(id)}
-            className={`rounded-lg px-3 py-1.5 text-sm ${origem === id ? "bg-teal-700 text-white" : "bg-white border border-slate-300"}`}
+            className={`rounded-lg px-3 py-1.5 text-sm ${origem === id ? "bg-aion-blue text-white" : "bg-white border border-aion-line"}`}
           >
             {id === "todos" ? "Todos" : id === "equipamento" ? "Equipamentos" : "OS"}
           </button>

@@ -10,6 +10,7 @@ import {
   OrigemCampo,
   useChartFullscreen,
 } from "@/components/indicadores/chart-fullscreen";
+import { PageHeader } from "@/components/shell/page-header";
 import { FilterChip } from "@/components/indicadores/indicador-section";
 import { KpiCard } from "@/components/kpi/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
@@ -53,12 +54,14 @@ export function OsVolumeCard({
   bruta,
   loading,
   error,
+  headingAs = "section",
 }: {
   range: RollingYearRange;
   raw: OsAnaliticoItem[];
   bruta: number;
   loading: boolean;
   error: string | null;
+  headingAs?: "page" | "section";
 }) {
   const [drill, setDrill] = useState<Drill>(null);
   const [mesFiltro, setMesFiltro] = useState<VolumeEcMovimento | "Todas" | null>(null);
@@ -121,9 +124,11 @@ export function OsVolumeCard({
     { accessorKey: "SituacaoDaOS", header: "Situação" },
   ];
 
+  const Heading = headingAs === "page" ? PageHeader : IndicadorHeading;
+
   return (
     <section className="space-y-4">
-      <IndicadorHeading
+      <Heading
         title="OS abertas × fechadas"
         description={`Volume da oficina de Engenharia Clínica · ${range.label}. Recorte só por tipo de manutenção EC — este indicador não usa o filtro “somente eq. médicos”.`}
       />
@@ -201,7 +206,7 @@ export function OsVolumeCard({
             <SaldoStackBarChart data={chartData} xKey="name" onRowClick={openMesLista} />
           </ChartCard>
 
-          <Card className="border-teal-200 bg-teal-50/40">
+          <Card className="border-aion-line bg-aion-mist/50">
             <CardHeader>
               <CardTitle>Recorte Engenharia Clínica</CardTitle>
             </CardHeader>
@@ -309,7 +314,7 @@ export function OsVolumeCard({
       <ChartFullscreenDialog
         open={open}
         title={`Entrada × execução por mês · ${range.label}`}
-        subtitle="Mesmo gráfico da home, em tela cheia. Clique no mês para ver a lista."
+        subtitle="Mesmo gráfico, em tela cheia. Clique no mês para ver a lista."
         onClose={closeFullscreen}
         ready={ready}
         chips={

@@ -20,7 +20,7 @@ export function KpiCard({
   onClick?: () => void;
 }) {
   const toneClass = {
-    neutral: "border-slate-200",
+    neutral: "border-aion-line",
     ok: "border-emerald-200",
     warn: "border-amber-200",
     danger: "border-rose-200",
@@ -28,11 +28,11 @@ export function KpiCard({
 
   return (
     <Card
-      className={cn("p-4", toneClass, onClick && "cursor-pointer transition hover:border-teal-400")}
+      className={cn("p-4", toneClass, onClick && "cursor-pointer transition hover:border-aion-blue")}
       onClick={onClick}
       role={onClick ? "button" : undefined}
     >
-      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-aion-muted">{label}</p>
       {loading ? (
         <Skeleton className="mt-2 h-8 w-24" />
       ) : error ? (
@@ -44,13 +44,13 @@ export function KpiCard({
             tone === "ok" && "text-emerald-700",
             tone === "warn" && "text-amber-700",
             tone === "danger" && "text-rose-700",
-            tone === "neutral" && "text-slate-900",
+            tone === "neutral" && "text-aion-ink",
           )}
         >
           {value}
         </p>
       )}
-      {hint ? <p className="mt-1 text-xs text-slate-500">{hint}</p> : null}
+      {hint ? <p className="mt-1 text-xs text-aion-muted">{hint}</p> : null}
     </Card>
   );
 }

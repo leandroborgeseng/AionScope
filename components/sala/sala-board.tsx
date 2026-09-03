@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
+import { AionLogo } from "@/components/brand/aion-logo";
 import { Sheet } from "@/components/ui/sheet";
 import { formatDateTimeBR } from "@/lib/pbi/dates";
 import {
@@ -17,24 +18,24 @@ import {
 import { cn } from "@/lib/utils";
 
 const FAIXA_DOT: Record<FaixaIdade, string> = {
-  ok: "bg-emerald-400",
+  ok: "bg-emerald-500",
   atencao: "bg-amber-400",
   atrasada: "bg-orange-400",
   critica: "bg-rose-500",
 };
 
 const FAIXA_ROW: Record<FaixaIdade, string> = {
-  ok: "border-l-emerald-400 bg-emerald-500/5",
-  atencao: "border-l-amber-400 bg-amber-500/8",
-  atrasada: "border-l-orange-400 bg-orange-500/10",
-  critica: "border-l-rose-500 bg-rose-500/15",
+  ok: "border-l-emerald-500 bg-emerald-50/70",
+  atencao: "border-l-amber-400 bg-amber-50/80",
+  atrasada: "border-l-orange-400 bg-orange-50",
+  critica: "border-l-rose-500 bg-rose-50",
 };
 
 const KPI_TONE = {
-  novas: "border-cyan-400/30 bg-cyan-400/10 text-cyan-100",
-  fila: "border-white/15 bg-white/5 text-white",
-  velhas: "border-amber-400/30 bg-amber-400/10 text-amber-100",
-  graves: "border-rose-500/40 bg-rose-500/15 text-rose-100",
+  novas: "border-aion-cyan/35 bg-white text-aion-ink",
+  fila: "border-aion-line bg-white text-aion-ink",
+  velhas: "border-amber-300/80 bg-white text-aion-ink",
+  graves: "border-rose-300 bg-white text-aion-ink",
 } as const;
 
 const DETALHE_CAMPOS = [
@@ -79,27 +80,31 @@ export function SalaBoard({
   const valor = (n: number) => (loading && snapshot.fila.length === 0 ? "—" : String(n));
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-zinc-950 text-zinc-50">
-      <header className="flex shrink-0 items-start justify-between gap-4 px-6 pt-4 pb-2">
-        <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-teal-300">
-            SJH · Engenharia Clínica
-          </p>
-          <h1 className="text-2xl font-semibold tracking-tight">Sala operacional</h1>
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
+      <div className="aion-bar shrink-0" />
+      <header className="flex shrink-0 items-center justify-between gap-4 border-b border-aion-line bg-white px-6 py-3">
+        <div className="flex items-center gap-5">
+          <AionLogo imgClassName="h-12" />
+          <div className="border-l border-aion-line pl-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-aion-blue">
+              SJH · Engenharia Clínica
+            </p>
+            <h1 className="text-2xl font-semibold tracking-tight text-aion-ink">Sala operacional</h1>
+          </div>
         </div>
         <div className="flex items-center gap-5">
-          <p className="font-mono text-3xl tabular-nums text-zinc-200">{formatRelogioSala(clock)}</p>
+          <p className="font-mono text-3xl font-semibold tabular-nums text-aion-blue">{formatRelogioSala(clock)}</p>
           <Link
-            href="/"
-            aria-label="Voltar à visão geral"
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 text-zinc-400"
+            href="/indicadores"
+            aria-label="Voltar aos indicadores"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-aion-line text-aion-muted hover:bg-aion-mist hover:text-aion-blue"
           >
             <X className="h-5 w-5" />
           </Link>
         </div>
       </header>
 
-      <section className="grid shrink-0 grid-cols-4 gap-3 px-6 pb-3">
+      <section className="grid shrink-0 grid-cols-4 gap-3 px-6 py-3">
         <Kpi
           tone="novas"
           label="Novas hoje"
@@ -122,7 +127,7 @@ export function SalaBoard({
       </section>
 
       {error ? (
-        <p className="mx-6 mb-2 rounded-lg border border-rose-500/40 bg-rose-500/15 px-4 py-2 text-sm text-rose-100">
+        <p className="mx-6 mb-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">
           {error}
         </p>
       ) : null}
@@ -146,7 +151,7 @@ export function SalaBoard({
         </aside>
       </div>
 
-      <footer className="flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t border-white/10 px-6 py-2 text-[12px] text-zinc-400">
+      <footer className="flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t border-aion-line bg-white px-6 py-2 text-[12px] text-aion-muted">
         <p className="tabular-nums">
           {formatAtualizadoHa(dataUpdatedAt, nowMs)}
           {dataUpdatedAt ? ` · ${formatDateTimeBR(new Date(dataUpdatedAt))}` : ""}
@@ -191,10 +196,10 @@ function Kpi({
   tone: keyof typeof KPI_TONE;
 }) {
   return (
-    <div className={cn("rounded-2xl border px-5 py-3", KPI_TONE[tone])}>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] opacity-70">{label}</p>
-      <p className="mt-1 text-6xl font-semibold leading-none tabular-nums">{value}</p>
-      <p className="mt-2 text-sm opacity-70">{hint}</p>
+    <div className={cn("rounded-xl border px-5 py-3 shadow-[var(--aion-shadow)]", KPI_TONE[tone])}>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-aion-muted">{label}</p>
+      <p className="mt-1 text-6xl font-semibold leading-none tabular-nums text-aion-ink">{value}</p>
+      <p className="mt-2 text-sm text-aion-muted">{hint}</p>
     </div>
   );
 }
@@ -210,7 +215,7 @@ function FilaLista({
 }) {
   if (loading && snapshot.fila.length === 0) {
     return (
-      <div className="flex items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-lg text-zinc-400">
+      <div className="flex items-center justify-center rounded-xl border border-aion-line bg-white text-lg text-aion-muted shadow-[var(--aion-shadow)]">
         Carregando fila…
       </div>
     );
@@ -218,16 +223,16 @@ function FilaLista({
 
   if (snapshot.fila.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-2xl border border-emerald-400/30 bg-emerald-500/10 text-center">
-        <p className="text-3xl font-semibold text-emerald-200">Fila zerada</p>
-        <p className="mt-1 text-sm text-emerald-100/70">Nenhuma OS de eq. médico aberta neste recorte</p>
+      <div className="flex flex-col items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-center">
+        <p className="text-3xl font-semibold text-emerald-800">Fila zerada</p>
+        <p className="mt-1 text-sm text-emerald-700/80">Nenhuma OS de eq. médico aberta neste recorte</p>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/80">
-      <div className="grid grid-cols-[6.5rem_minmax(8rem,1.1fr)_minmax(8rem,1fr)_minmax(10rem,1.3fr)_7.5rem_6rem_3.5rem] gap-3 border-b border-white/10 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500">
+    <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-aion-line bg-white shadow-[var(--aion-shadow)]">
+      <div className="grid grid-cols-[6.5rem_minmax(8rem,1.1fr)_minmax(8rem,1fr)_minmax(10rem,1.3fr)_7.5rem_6rem_3.5rem] gap-3 border-b border-aion-line px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-aion-muted">
         <span>OS</span>
         <span>Tipo</span>
         <span>Setor</span>
@@ -247,15 +252,15 @@ function FilaLista({
                 FAIXA_ROW[row.faixa],
               )}
             >
-              <span className="font-mono font-semibold tabular-nums">{row.item.OS || "—"}</span>
+              <span className="font-mono font-semibold tabular-nums text-aion-ink">{row.item.OS || "—"}</span>
               <span className="truncate">{row.tipoResumo}</span>
-              <span className="truncate text-zinc-200">{row.local}</span>
-              <span className="truncate text-zinc-300">{row.equipamento}</span>
+              <span className="truncate text-aion-ink/80">{row.local}</span>
+              <span className="truncate text-aion-muted">{row.equipamento}</span>
               <span className="text-right font-semibold tabular-nums">{row.idadeLabel}</span>
-              <span className="truncate text-sm uppercase text-zinc-400">{row.prioridade || "—"}</span>
+              <span className="truncate text-sm uppercase text-aion-muted">{row.prioridade || "—"}</span>
               <span>
                 {row.novaHoje ? (
-                  <span className="rounded-full bg-cyan-400/20 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-cyan-200">
+                  <span className="rounded-full bg-aion-mist px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-aion-blue">
                     hoje
                   </span>
                 ) : null}
@@ -265,7 +270,7 @@ function FilaLista({
         ))}
       </ul>
       {snapshot.ocultas > 0 ? (
-        <p className="border-t border-white/10 px-4 py-2 text-sm font-medium text-zinc-300">
+        <p className="border-t border-aion-line px-4 py-2 text-sm font-medium text-aion-ink">
           +{snapshot.ocultas} na fila
         </p>
       ) : null}
@@ -287,10 +292,10 @@ function PainelLateral({
   onSelect: (row: SalaOs) => void;
 }) {
   return (
-    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-900/80 px-4 py-3">
-      <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">{titulo}</h2>
+    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-aion-line bg-white px-4 py-3 shadow-[var(--aion-shadow)]">
+      <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-aion-muted">{titulo}</h2>
       {items.length === 0 ? (
-        <p className="mt-3 text-sm text-zinc-500">{vazio}</p>
+        <p className="mt-3 text-sm text-aion-muted">{vazio}</p>
       ) : (
         <ul className="mt-2 space-y-1.5">
           {items.map((row) => (
@@ -298,11 +303,11 @@ function PainelLateral({
               <button
                 type="button"
                 onClick={() => onSelect(row)}
-                className="flex w-full items-baseline justify-between gap-3 rounded-lg px-1 py-1 text-left"
+                className="flex w-full items-baseline justify-between gap-3 rounded-lg px-1 py-1 text-left hover:bg-aion-mist"
               >
                 <span className="min-w-0">
-                  <span className="font-mono font-semibold tabular-nums">{row.item.OS || "—"}</span>
-                  <span className="mt-0.5 block truncate text-sm text-zinc-400">{row.local}</span>
+                  <span className="font-mono font-semibold tabular-nums text-aion-ink">{row.item.OS || "—"}</span>
+                  <span className="mt-0.5 block truncate text-sm text-aion-muted">{row.local}</span>
                 </span>
                 <span className="shrink-0 font-semibold tabular-nums">{row.idadeLabel}</span>
               </button>
@@ -310,7 +315,7 @@ function PainelLateral({
           ))}
         </ul>
       )}
-      {extra > 0 ? <p className="mt-auto pt-2 text-sm text-zinc-500">+{extra} novas</p> : null}
+      {extra > 0 ? <p className="mt-auto pt-2 text-sm text-aion-muted">+{extra} novas</p> : null}
     </section>
   );
 }
@@ -327,12 +332,12 @@ function OsCrua({ item }: { item: SalaOs }) {
 
   return (
     <dl className="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-2 text-sm">
-      <dt className="text-slate-500">Idade</dt>
+      <dt className="text-aion-muted">Idade</dt>
       <dd className="font-semibold tabular-nums">{item.idadeLabel}</dd>
       {rows.map((row) => (
         <div key={row.campo} className="contents">
-          <dt className="text-slate-500">{row.campo}</dt>
-          <dd className="break-words text-slate-900">{row.valor}</dd>
+          <dt className="text-aion-muted">{row.campo}</dt>
+          <dd className="break-words text-aion-ink">{row.valor}</dd>
         </div>
       ))}
     </dl>

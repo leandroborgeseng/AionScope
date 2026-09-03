@@ -1,15 +1,49 @@
 @import "tailwindcss";
 
+/*
+  Marca Aion (aion.eng.br + PNG oficial 550f9f_e894e581847f46369840fb5263546fd8).
+  Site live estava 523; tokens do wordmark/ícone + chrome claro do Wix
+  (header branco, CTA azul, acento lima — sem o dourado/navy do tema Wix).
+*/
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  --background: #f4f8fb;
+  --foreground: #24313c;
+  --aion-paper: #f4f8fb;
+  --aion-surface: #ffffff;
+  --aion-ink: #24313c;
+  --aion-muted: #5b6e7c;
+  --aion-line: #d5e4ef;
+  --aion-blue: #0168b0;
+  --aion-deep: #014a80;
+  --aion-navy: #014a80;
+  --aion-logo: #0168b0;
+  --aion-cyan: #3a9a88;
+  --aion-lime: #88c83a;
+  --aion-mist: #e8f2f8;
+  --primary: var(--aion-blue);
+  --primary-foreground: #ffffff;
+  --aion-shadow: 0 1px 2px rgba(1, 104, 176, 0.06), 0 10px 28px rgba(1, 104, 176, 0.05);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-aion-paper: var(--aion-paper);
+  --color-aion-surface: var(--aion-surface);
+  --color-aion-ink: var(--aion-ink);
+  --color-aion-muted: var(--aion-muted);
+  --color-aion-line: var(--aion-line);
+  --color-aion-blue: var(--aion-blue);
+  --color-aion-deep: var(--aion-deep);
+  --color-aion-navy: var(--aion-navy);
+  --color-aion-logo: var(--aion-logo);
+  --color-aion-cyan: var(--aion-cyan);
+  --color-aion-lime: var(--aion-lime);
+  --color-aion-mist: var(--aion-mist);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --font-sans: var(--font-outfit);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 html,
@@ -19,9 +53,14 @@ body {
 }
 
 body {
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
 }
 
 * {
   box-sizing: border-box;
+}
+
+.aion-bar {
+  height: 3px;
+  background: linear-gradient(90deg, #88c83a 0%, #3a9a88 46%, #0168b0 100%);
 }

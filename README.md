@@ -24,6 +24,15 @@ npm run dev
 
 Abra [http://localhost:3000](http://localhost:3000).
 
+## Docker e Railway
+
+```bash
+cp .env.example .env   # preencha os tokens PBI_* (o Compose lê `.env`, não `.env.local`)
+docker compose up --build
+```
+
+No Railway o Compose não é executado: cada serviço do YAML vira um serviço no projeto. New Project → arraste o `docker-compose.yml` no canvas, ou faça deploy deste repo (o `Dockerfile` na raiz é detectado automaticamente). Em **Variables**, defina as mesmas chaves do `.env.example` com os valores reais. O `PORT` é injetado pela plataforma; não commite `.env`, `.env.local` nem tokens.
+
 ## Páginas
 
 | Rota | Conteúdo |

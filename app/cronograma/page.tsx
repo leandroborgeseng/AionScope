@@ -336,10 +336,10 @@ export default function CronogramaPage() {
       ) : (
         <div className="overflow-auto rounded-xl border border-slate-200 bg-white shadow-sm">
           <table className="min-w-[1080px] w-full border-collapse text-sm">
-            <thead className="sticky top-0 z-20 bg-teal-900 text-white">
+            <thead className="sticky top-0 z-20 bg-aion-blue text-white">
               <tr>
-                <th className="sticky left-0 z-30 bg-teal-900 px-3 py-2.5 text-left font-semibold">Equipamento</th>
-                <th className="sticky left-[220px] z-30 bg-teal-900 px-2 py-2.5 text-left font-semibold">Plano</th>
+                <th className="sticky left-0 z-30 bg-aion-blue px-3 py-2.5 text-left font-semibold">Equipamento</th>
+                <th className="sticky left-[220px] z-30 bg-aion-blue px-2 py-2.5 text-left font-semibold">Plano</th>
                 {MESES_ABREV.map((mes) => (
                   <th key={mes} className="px-1 py-2.5 text-center font-semibold">
                     {mes}
@@ -468,16 +468,16 @@ function SetorBlock({
 }) {
   return (
     <>
-      <tr className="border-y border-teal-100 bg-teal-50">
-        <td colSpan={15} className="sticky left-0 bg-teal-50 p-0">
+      <tr className="border-y border-aion-line bg-aion-mist">
+        <td colSpan={15} className="sticky left-0 bg-aion-mist p-0">
           <button
             type="button"
             onClick={onToggle}
-            className="flex w-full items-center gap-2 px-3 py-2.5 text-left font-semibold text-teal-950 hover:bg-teal-100/80"
+            className="flex w-full items-center gap-2 px-3 py-2.5 text-left font-semibold text-aion-ink hover:bg-aion-line/50"
           >
             {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
             <span>{group.setor}</span>
-            <span className="text-xs font-medium text-teal-800/80">
+            <span className="text-xs font-medium text-aion-blue">
               {group.equipamentos.length} eq. · {group.realizadas}/{group.previstas} no ano
             </span>
           </button>
@@ -515,7 +515,7 @@ function EquipBlock({
             </td>
           ) : null}
           <td className="sticky left-[220px] z-10 w-[108px] border-r border-slate-100 bg-white px-2 py-1.5">
-            <button type="button" className="text-left text-xs font-semibold text-teal-800" onClick={() => onOpen({ equip, plan })}>
+            <button type="button" className="text-left text-xs font-semibold text-aion-blue" onClick={() => onOpen({ equip, plan })}>
               {plan.tipo}
             </button>
           </td>

@@ -44,8 +44,8 @@ export function MedicalScopeBar() {
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 bg-slate-50 px-4 py-2 text-sm">
-        <ListFilter className="h-4 w-4 text-teal-700" />
+      <div className="flex flex-wrap items-center gap-2 border-t border-aion-line bg-aion-paper px-4 py-2 text-sm">
+        <ListFilter className="h-4 w-4 text-aion-blue" />
         <span className="text-slate-700">
           <strong>O que está na tela:</strong> {medical.ready ? mostrando : "carregando classificação…"}
         </span>
@@ -88,14 +88,14 @@ export function MedicalScopeBar() {
             <button
               type="button"
               onClick={() => setTab("medicos")}
-              className={`rounded-lg px-3 py-1.5 text-sm ${tab === "medicos" ? "bg-teal-700 text-white" : "border border-slate-300 bg-white"}`}
+              className={`rounded-lg px-3 py-1.5 text-sm ${tab === "medicos" ? "bg-aion-blue text-white" : "border border-aion-line bg-white"}`}
             >
               Médicos ({medical.nomesMedicos.length})
             </button>
             <button
               type="button"
               onClick={() => setTab("excluidos")}
-              className={`rounded-lg px-3 py-1.5 text-sm ${tab === "excluidos" ? "bg-teal-700 text-white" : "border border-slate-300 bg-white"}`}
+              className={`rounded-lg px-3 py-1.5 text-sm ${tab === "excluidos" ? "bg-aion-blue text-white" : "border border-aion-line bg-white"}`}
             >
               Não médicos ({medical.nomesExcluidos.length})
             </button>

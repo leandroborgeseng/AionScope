@@ -173,14 +173,14 @@ export default function ParquePage() {
         <button
           type="button"
           onClick={() => setView("setor")}
-          className={`rounded-lg px-3 py-1.5 text-sm ${view === "setor" ? "bg-teal-700 text-white" : "border border-slate-300 bg-white"}`}
+          className={`rounded-lg px-3 py-1.5 text-sm ${view === "setor" ? "bg-aion-blue text-white" : "border border-aion-line bg-white"}`}
         >
           Por setor
         </button>
         <button
           type="button"
           onClick={() => setView("tabela")}
-          className={`rounded-lg px-3 py-1.5 text-sm ${view === "tabela" ? "bg-teal-700 text-white" : "border border-slate-300 bg-white"}`}
+          className={`rounded-lg px-3 py-1.5 text-sm ${view === "tabela" ? "bg-aion-blue text-white" : "border border-aion-line bg-white"}`}
         >
           Tabela única
         </button>
@@ -259,7 +259,7 @@ export default function ParquePage() {
               <ul className="space-y-2">
                 {anexos.map((a) => (
                   <li key={`${a.EquipamentoId}-${a.Anexo}-${a.DataHoraInclusao}`} className="rounded-lg border border-slate-200 p-3 text-sm">
-                    <a href={a.LinkAnexo} target="_blank" rel="noreferrer" className="font-medium text-teal-800 hover:underline">
+                    <a href={a.LinkAnexo} target="_blank" rel="noreferrer" className="font-medium text-aion-blue hover:underline">
                       {a.Anexo}
                     </a>
                     <div className="text-slate-500">{a.TipoAnexo || "Documento"} · {a.DataHoraInclusao}</div>

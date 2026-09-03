@@ -1,0 +1,39 @@
+# AionScope / IndicadoresEC — um serviço stateless (cache em memória).
+#
+# Local:  cp .env.example .env && docker compose up --build
+#         App em http://localhost:3000
+#
+# Railway NÃO executa este arquivo com `docker compose`.
+# Cada entrada em `services:` vira um serviço no projeto:
+#   - arraste o arquivo no canvas, ou faça deploy do repo (Dockerfile na raiz
+#     é detectado automaticamente);
+#   - `ports: 3000` vale só no Docker local — no Railway o PORT é injetado;
+#   - copie as chaves abaixo no painel Variables (valores reais, nunca no Git).
+
+services:
+  web:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      HOSTNAME: "0.0.0.0"
+      PORT: ${PORT:-3000}
+      PBI_BASE_URL: ${PBI_BASE_URL:-https://sjh.globalthings.net}
+      PBI_CACHE_SECONDS: ${PBI_CACHE_SECONDS:-900}
+      PBI_TOKEN_CRONOGRAMA: ${PBI_TOKEN_CRONOGRAMA}
+      PBI_TOKEN_TIPO_MANUTENCAO: ${PBI_TOKEN_TIPO_MANUTENCAO}
+      PBI_TOKEN_OS_ANALITICO: ${PBI_TOKEN_OS_ANALITICO}
+      PBI_TOKEN_EQUIPAMENTOS: ${PBI_TOKEN_EQUIPAMENTOS}
+      PBI_TOKEN_TMEF: ${PBI_TOKEN_TMEF}
+      PBI_TOKEN_TPM: ${PBI_TOKEN_TPM}
+      PBI_TOKEN_DISP_EQUIPAMENTO: ${PBI_TOKEN_DISP_EQUIPAMENTO}
+      PBI_TOKEN_DISP_EQUIPAMENTO_MES: ${PBI_TOKEN_DISP_EQUIPAMENTO_MES}
+      PBI_TOKEN_MONITOR_REACAO: ${PBI_TOKEN_MONITOR_REACAO}
+      PBI_TOKEN_MONITOR_ATENDIMENTO: ${PBI_TOKEN_MONITOR_ATENDIMENTO}
+      PBI_TOKEN_ANEXOS_EQUIPAMENTO: ${PBI_TOKEN_ANEXOS_EQUIPAMENTO}
+      PBI_TOKEN_ANEXOS_OS: ${PBI_TOKEN_ANEXOS_OS}
+      PBI_TOKEN_OS_ANALITICO_RESUMIDO: ${PBI_TOKEN_OS_ANALITICO_RESUMIDO}
+      PBI_TOKEN_OFICINA: ${PBI_TOKEN_OFICINA}
+      PBI_DEFAULT_EMPRESA_IDS: ${PBI_DEFAULT_EMPRESA_IDS}
+      NEXT_PUBLIC_ANEXOS_OBRIGATORIOS: ${NEXT_PUBLIC_ANEXOS_OBRIGATORIOS:-laudo,calibra,certificado,seguranca eletrica,segurança elétrica,tse}

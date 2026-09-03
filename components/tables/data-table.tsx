@@ -69,7 +69,7 @@ export function DataTable<T>({
                   key={row.id}
                   className={cn(
                     "border-t border-slate-100",
-                    onRowClick && "cursor-pointer hover:bg-teal-50/50",
+                    onRowClick && "cursor-pointer hover:bg-aion-mist/70",
                   )}
                   onClick={() => onRowClick?.(row.original)}
                 >

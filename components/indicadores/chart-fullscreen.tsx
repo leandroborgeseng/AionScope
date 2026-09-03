@@ -36,7 +36,7 @@ export function ChartFullscreenButton({ onClick }: { onClick: () => void }) {
       type="button"
       variant="ghost"
       size="icon"
-      className="-mr-1 -mt-1 h-8 w-8 shrink-0 text-slate-500"
+      className="-mr-1 -mt-1 h-8 w-8 shrink-0 text-aion-muted"
       aria-label="Tela cheia"
       title="Tela cheia"
       onClick={onClick}
@@ -65,7 +65,7 @@ export function ChartCard({
       </CardHeader>
       <CardContent>
         {children}
-        {hint ? <p className="mt-2 text-xs text-slate-500">{hint}</p> : null}
+        {hint ? <p className="mt-2 text-xs text-aion-muted">{hint}</p> : null}
       </CardContent>
     </Card>
   );
@@ -106,8 +106,8 @@ export function ChartFullscreenDialog({
 export function IndicadorHeading({ title, description }: { title: string; description?: string }) {
   return (
     <div className="mb-5">
-      <h2 className="text-2xl font-semibold tracking-tight text-slate-900">{title}</h2>
-      {description ? <p className="mt-1 max-w-3xl text-sm text-slate-500">{description}</p> : null}
+      <h2 className="text-2xl font-semibold tracking-tight text-aion-ink">{title}</h2>
+      {description ? <p className="mt-1 max-w-3xl text-sm text-aion-muted">{description}</p> : null}
     </div>
   );
 }

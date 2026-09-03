@@ -83,7 +83,7 @@ export function GlobalFilters() {
             className="w-[120px]"
           />
         </div>
-        <label className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-teal-200 bg-teal-50 px-3 text-sm font-medium text-teal-900">
+        <label className="flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-aion-line bg-aion-mist px-3 text-sm font-medium text-aion-ink">
           <input
             type="checkbox"
             checked={filters.somenteMedicos}
@@ -91,7 +91,7 @@ export function GlobalFilters() {
           />
           Somente eq. médicos
           {medical.ready ? (
-            <span className="font-normal text-teal-800/70">
+            <span className="font-normal text-aion-muted">
               ({medical.medicos}/{medical.total})
             </span>
           ) : null}

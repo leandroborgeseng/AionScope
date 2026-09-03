@@ -42,12 +42,12 @@ export function Dialog({
         aria-labelledby="chart-fullscreen-title"
         className="relative flex h-full w-full flex-col overflow-hidden bg-white shadow-2xl sm:rounded-2xl"
       >
-        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-slate-200 px-4 py-3 sm:px-5">
+        <header className="flex shrink-0 items-start justify-between gap-4 border-b border-aion-line px-4 py-3 sm:px-5">
           <div className="min-w-0">
-            <h2 id="chart-fullscreen-title" className="text-lg font-semibold text-slate-900">
+            <h2 id="chart-fullscreen-title" className="text-lg font-semibold text-aion-ink">
               {title}
             </h2>
-            {subtitle ? <p className="mt-1 text-sm text-slate-500">{subtitle}</p> : null}
+            {subtitle ? <p className="mt-1 text-sm text-aion-muted">{subtitle}</p> : null}
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar tela cheia">
             <X className="h-4 w-4" />
