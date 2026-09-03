@@ -67,6 +67,15 @@ export function SimpleBarChart({
   );
 }
 
+function chartClickIndex(activeIndex: number | string | null | undefined): number {
+  if (typeof activeIndex === "number") return activeIndex;
+  if (typeof activeIndex === "string" && activeIndex !== "") {
+    const n = Number(activeIndex);
+    return Number.isFinite(n) ? n : NaN;
+  }
+  return NaN;
+}
+
 const SALDO_STACK = "saldo";
 const INNER_LABEL_FONT = 10;
 const MIN_INNER_LABEL_H = 18;
@@ -147,6 +156,11 @@ export function SaldoStackBarChart({
   maxBarSize?: number;
   onRowClick?: (row: SaldoChartRow) => void;
 }) {
+  const resolveRow = (state: { activeIndex?: number | string | null; activeLabel?: string | number }) => {
+    const index = chartClickIndex(state.activeIndex);
+    return Number.isFinite(index) ? data[index] : data.find((item) => item[xKey] === state.activeLabel);
+  };
+
   return (
     <div className={cn("h-72 w-full", className)}>
       <ResponsiveContainer width="100%" height="100%" minHeight={240} debounce={1}>
@@ -155,8 +169,7 @@ export function SaldoStackBarChart({
           margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
           barCategoryGap="22%"
           onClick={(state) => {
-            const index = typeof state.activeIndex === "number" ? state.activeIndex : Number(state.activeIndex);
-            const row = Number.isFinite(index) ? data[index] : data.find((item) => item[xKey] === state.activeLabel);
+            const row = resolveRow(state);
             if (row) onRowClick?.(row);
           }}
         >
@@ -239,6 +252,11 @@ function GastoTooltip({ active, payload, label }: TooltipContentProps) {
   );
 }
 
+export type GastoChartClickMeta = {
+  /** Série clicada: gasto | gastoCorretiva | gastoOutro */
+  dataKey?: string;
+};
+
 export function GastoBarChart({
   data,
   xKey,
@@ -252,8 +270,13 @@ export function GastoBarChart({
   stacked?: boolean;
   className?: string;
   maxBarSize?: number;
-  onRowClick?: (row: GastoChartRow) => void;
+  onRowClick?: (row: GastoChartRow, meta?: GastoChartClickMeta) => void;
 }) {
+  const resolveRow = (state: { activeIndex?: number | string | null; activeLabel?: string | number }) => {
+    const index = chartClickIndex(state.activeIndex);
+    return Number.isFinite(index) ? data[index] : data.find((item) => item[xKey] === state.activeLabel);
+  };
+
   return (
     <div className={cn("h-72 w-full", className)}>
       <ResponsiveContainer width="100%" height="100%" minHeight={240} debounce={1}>
@@ -262,9 +285,10 @@ export function GastoBarChart({
           margin={{ top: 8, right: 8, left: 4, bottom: 0 }}
           barCategoryGap="22%"
           onClick={(state) => {
-            const index = typeof state.activeIndex === "number" ? state.activeIndex : Number(state.activeIndex);
-            const row = Number.isFinite(index) ? data[index] : data.find((item) => item[xKey] === state.activeLabel);
-            if (row) onRowClick?.(row);
+            const row = resolveRow(state);
+            if (!row) return;
+            const key = state.activeDataKey;
+            onRowClick?.(row, { dataKey: typeof key === "string" ? key : undefined });
           }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -274,7 +298,7 @@ export function GastoBarChart({
           {stacked ? <Legend /> : null}
           {stacked ? (
             <>
-              <Bar dataKey="gastoCorretiva" name="Corretiva" fill="#0f766e" stackId="gasto" maxBarSize={maxBarSize}>
+              <Bar dataKey="gastoCorretiva" name="Corretiva" fill="#0f766e" stackId="gasto" maxBarSize={maxBarSize} cursor="pointer">
                 <LabelList position="center" content={GastoInnerLabel} />
               </Bar>
               <Bar
@@ -284,12 +308,13 @@ export function GastoBarChart({
                 stackId="gasto"
                 maxBarSize={maxBarSize}
                 radius={[3, 3, 0, 0]}
+                cursor="pointer"
               >
                 <LabelList position="center" content={GastoInnerLabel} />
               </Bar>
             </>
           ) : (
-            <Bar dataKey="gasto" name="Gasto" fill="#0f766e" maxBarSize={maxBarSize} radius={[3, 3, 0, 0]}>
+            <Bar dataKey="gasto" name="Gasto" fill="#0f766e" maxBarSize={maxBarSize} radius={[3, 3, 0, 0]} cursor="pointer">
               <LabelList position="center" content={GastoInnerLabel} />
             </Bar>
           )}

@@ -13,21 +13,34 @@ export function FichaButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-export function FichaIndicadorView({ ficha }: { ficha: FichaIndicador }) {
+export function FichaIndicadorView({
+  ficha,
+  /** Quando true, omite o nome (já está no título da página). */
+  hideNome = false,
+}: {
+  ficha: FichaIndicador;
+  hideNome?: boolean;
+}) {
   const valueOf = (key: (typeof FICHA_CAMPOS)[number]["key"]) => {
     const value = ficha[key];
     return value === "" ? "—" : String(value);
   };
 
+  const campos = hideNome
+    ? FICHA_CAMPOS.filter((campo) => campo.key !== "nomeDoIndicador")
+    : FICHA_CAMPOS;
+
   return (
     <article className="overflow-hidden rounded-xl border border-aion-line bg-white">
       <div className="aion-bar" />
       <header className="border-b border-aion-line bg-white px-4 py-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-aion-blue">Ficha do Indicador</p>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-aion-blue">
+          Definição do indicador
+        </p>
         <h3 className="mt-1 text-base font-semibold text-aion-ink">{ficha.nomeDoIndicador}</h3>
       </header>
       <dl className="divide-y divide-aion-mist">
-        {FICHA_CAMPOS.map((campo) => (
+        {campos.map((campo) => (
           <div key={campo.key}>
             {campo.section ? (
               <p className="bg-aion-paper px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-aion-muted">

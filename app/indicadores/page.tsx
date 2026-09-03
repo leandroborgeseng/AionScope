@@ -8,7 +8,7 @@ export default function IndicadoresHubPage() {
     <div className="space-y-6">
       <PageHeader
         title="Indicadores"
-        description="Escolha um indicador. Cada página tem KPIs, gráfico (intervalo rolante de 1 ano), tela cheia e a origem dos dados."
+        description="Escolha um indicador. Em cada página: título, gráfico, lista de OS ao clicar, definição do indicador e detalhes técnicos na sanfona."
       />
       <div className="grid gap-4 md:grid-cols-2">
         {INDICADORES.map((item) => (

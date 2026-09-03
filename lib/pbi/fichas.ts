@@ -1,4 +1,11 @@
-export type FichaIndicadorId = "planejado" | "custo" | "sla" | "volume" | "satisfacao";
+export type FichaIndicadorId =
+  | "planejado"
+  | "custo"
+  | "sla"
+  | "volume"
+  | "satisfacao"
+  | "os-abertas-fechadas"
+  | "gasto-reparo-medicos";
 
 export type FichaIndicador = {
   id: FichaIndicadorId;
@@ -84,6 +91,36 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
       "Abertas = OS com Abertura no mês; Fechadas = OS com Fechamento (ou DataDaSolucao se Fechamento vazio) no mês; Processadas = Abertas + Fechadas. Média mensal = Processadas do período ÷ número de meses do recorte.",
     coletaDeDados:
       "Effort GlobalThings — API listagem_analitica_das_os (Abertura, Fechamento, Oficina, TipoDeManutencao). Recorte: Oficina contendo Engenharia/Clínica, se existir; senão tipos de EC (A -, calibração, TSE, instrumental). Exclui M - predial e O - obras. Respeita filtros globais e recorte médico.",
+    periodicidade: "Mensal",
+  },
+  "os-abertas-fechadas": {
+    id: "os-abertas-fechadas",
+    nomeDoIndicador: "OS abertas × fechadas",
+    ...BASE,
+    finalidadeDoIndicador:
+      "Comparar, mês a mês, a entrada de OS (abertura) com a execução (fechamento) da oficina de Engenharia Clínica, evidenciando déficit ou superávit de capacidade.",
+    meta: "Monitoramento (saldo próximo de zero)",
+    referenciaDaMeta:
+      "Indicador operacional de capacidade. Não consta como meta percentual na planilha IndicadoresEC-definicao.xlsx; o acompanhamento visa equilibrar entrada e execução.",
+    formula:
+      "Abertas no mês = OS com Abertura no mês. Fechadas no mês = OS com Fechamento (ou DataDaSolucao se Fechamento vazio) no mês. Coberto = min(abertas, fechadas). Déficit = max(0, abertas − fechadas). Superávit = max(0, fechadas − abertas). Saldo do período = total abertas − total fechadas.",
+    coletaDeDados:
+      "Effort GlobalThings — API listagem_analitica_das_os. Recorte só por TipoDeManutencao de Engenharia Clínica (inclui A -, calibração, TSE, instrumental; exclui M - predial e O - obras). Não aplica filtro de equipamentos médicos. Intervalo rolante de 12 meses.",
+    periodicidade: "Mensal",
+  },
+  "gasto-reparo-medicos": {
+    id: "gasto-reparo-medicos",
+    nomeDoIndicador: "Gasto mensal com reparo de equipamentos médicos",
+    ...BASE,
+    finalidadeDoIndicador:
+      "Acompanhar o custo das OS de reparo (corretiva, assistência técnica, man. externa / instrumental) de equipamentos médicos fechadas no mês, para gestão orçamentária da oficina.",
+    meta: "Monitoramento (sem meta percentual nesta ficha)",
+    referenciaDaMeta:
+      "Derivado do molde de custo da planilha IndicadoresEC-definicao.xlsx, restrito a reparos de eq. médicos. Meta percentual do parque permanece no indicador de custo total de manutenção.",
+    formula:
+      "Gasto do mês = soma do campo Custo das OS que: (1) têm Tag no índice de equipamentos médicos; (2) são tipo de reparo (corretiva / assistência / instrumental / man. externa — exclui calibração, TSE, preventiva); (3) têm Fechamento ou DataDaSolucao no mês. Média mensal = gasto total do período ÷ número de meses do gráfico.",
+    coletaDeDados:
+      "Effort GlobalThings — API listagem_analitica_das_os (Custo, Fechamento, DataDaSolucao, TipoDeManutencao, Tag) + índice médico via API de equipamentos. OS sem tag médica, sem data de fechamento ou fora do tipo reparo não entram. Intervalo rolante de 12 meses.",
     periodicidade: "Mensal",
   },
   satisfacao: {
