@@ -6,12 +6,12 @@ import { X } from "lucide-react";
 import { AionLogo } from "@/components/brand/aion-logo";
 import { Sheet } from "@/components/ui/sheet";
 import { formatDateTimeBR } from "@/lib/pbi/dates";
+import { BUSINESS_HOURS_LABEL } from "@/lib/pbi/business-hours";
 import {
   FAIXAS_LEGENDA,
   SALA_RECORTE_LINHA,
   formatAtualizadoHa,
   formatRelogioSala,
-  isTipoPlanoFechaNoMes,
   type FaixaIdade,
   type SalaEstratificacao,
   type SalaFluxoJanela,
@@ -97,7 +97,7 @@ export function SalaBoard({
         </div>
         <div className="flex items-center gap-5">
           <div className="hidden text-right sm:block">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-aion-muted">Fila · &gt;4h · &gt;72h</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-aion-muted">Fila · &gt;4h úteis · &gt;72h úteis</p>
             <p className="font-mono text-lg font-semibold tabular-nums text-aion-ink">
               {valor(kpis.filaAberta)} · {valor(kpis.envelhecidas)} · {valor(kpis.estouradasGraves)}
             </p>
@@ -140,10 +140,12 @@ export function SalaBoard({
           {formatAtualizadoHa(dataUpdatedAt, nowMs)}
           {dataUpdatedAt ? ` · ${formatDateTimeBR(new Date(dataUpdatedAt))}` : ""}
         </p>
-        <p className="max-w-[48rem] truncate" title={SALA_RECORTE_LINHA}>
+        <p className="max-w-[52rem] truncate" title={SALA_RECORTE_LINHA}>
           {SALA_RECORTE_LINHA}
         </p>
-        <p>Corretiva: tempo de atendimento · Prev/TSE/Calib: fechar no mês</p>
+        <p title={BUSINESS_HOURS_LABEL}>
+          Idade em horas úteis 8h–17h seg–sex · sem preventiva/TSE/calibração · sem feriados nacionais nesta versão
+        </p>
         <ul className="flex flex-wrap items-center gap-3">
           {FAIXAS_LEGENDA.map((faixa) => (
             <li key={faixa.id} className="flex items-center gap-1.5">
@@ -218,9 +220,6 @@ function EstratBloco({
   destaqueMes?: boolean;
 }) {
   const tiposVisiveis = estrat.tipos.filter((t) => t.id !== "outros" || t.quantidade > 0);
-  const anomalias = tiposVisiveis
-    .filter((t) => isTipoPlanoFechaNoMes(t.id) && t.anomaliaMesAnterior > 0)
-    .reduce((acc, t) => acc + t.anomaliaMesAnterior, 0);
 
   return (
     <section
@@ -256,34 +255,26 @@ function EstratBloco({
 
       {!empty && estrat.corretiva.quantidade > 0 ? (
         <p className="mt-2 rounded-md bg-rose-50 px-2.5 py-1.5 text-sm text-rose-900">
-          Corretivas: média {estrat.corretiva.idadeMediaLabel ?? "—"} · mais antiga{" "}
+          Corretivas (h úteis): média {estrat.corretiva.idadeMediaLabel ?? "—"} · mais antiga{" "}
           {estrat.corretiva.idadeMaxLabel ?? "—"}
         </p>
       ) : (
         <p className="mt-2 text-[11px] text-aion-muted">
-          Acompanhar tempo de atendimento das corretivas; prev/TSE/calib fecham no mês.
+          Tempo de atendimento das corretivas em horas úteis (8h–17h seg–sex).
         </p>
       )}
-
-      {!empty && destaqueMes && anomalias > 0 ? (
-        <p className="mt-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-sm font-medium text-amber-950">
-          {anomalias} prev/TSE/calib aberta(s) de mês anterior
-        </p>
-      ) : null}
     </section>
   );
 }
 
 function TipoLinha({ tipo, empty }: { tipo: SalaTipoCount; empty: boolean }) {
   const isCorretiva = tipo.id === "corretiva";
-  const alerta = isTipoPlanoFechaNoMes(tipo.id) && tipo.anomaliaMesAnterior > 0;
 
   return (
     <li
       className={cn(
         "rounded-lg border px-2.5 py-2",
         isCorretiva ? "border-rose-200 bg-rose-50/60" : "border-aion-line/80 bg-aion-mist/30",
-        alerta ? "ring-1 ring-amber-400" : "",
       )}
     >
       <div className="flex items-baseline justify-between gap-2">
@@ -296,9 +287,6 @@ function TipoLinha({ tipo, empty }: { tipo: SalaTipoCount; empty: boolean }) {
         <p className="mt-1 text-[11px] text-rose-800/90">
           méd. {tipo.idadeMediaLabel} · máx. {tipo.idadeMaxLabel}
         </p>
-      ) : null}
-      {alerta && !empty ? (
-        <p className="mt-1 text-[11px] font-medium text-amber-800">+{tipo.anomaliaMesAnterior} mês ant.</p>
       ) : null}
     </li>
   );
@@ -323,7 +311,7 @@ function SetoresPainel({
         </h2>
         <p className="font-mono text-sm tabular-nums text-aion-ink">{empty ? "—" : totalFila}</p>
       </div>
-      <p className="mt-0.5 text-[11px] text-aion-muted">Fila médica · 30 dias (Abertura)</p>
+      <p className="mt-0.5 text-[11px] text-aion-muted">Demanda · 30d · sem prev/TSE/calib</p>
       {empty ? (
         <p className="mt-4 text-sm text-aion-muted">Carregando…</p>
       ) : setores.length === 0 ? (
@@ -365,7 +353,7 @@ function FilaLista({
       <div className="flex flex-col items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-center">
         <p className="text-3xl font-semibold text-emerald-800">Fila zerada</p>
         <p className="mt-1 text-sm text-emerald-700/80">
-          Nenhuma OS de eq. médico aberta nos últimos 30 dias (por Abertura)
+          Nenhuma OS de demanda (eq. médico) aberta nos últimos 30 dias — sem preventiva/TSE/calibração
         </p>
       </div>
     );
@@ -378,7 +366,7 @@ function FilaLista({
         <span>Tipo</span>
         <span>Setor</span>
         <span>Equipamento</span>
-        <span className="text-right">Idade</span>
+        <span className="text-right">Idade (h úteis)</span>
         <span>Prioridade</span>
         <span />
       </div>
@@ -431,7 +419,7 @@ function OsCrua({ item }: { item: SalaOs }) {
 
   return (
     <dl className="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-2 text-sm">
-      <dt className="text-aion-muted">Idade</dt>
+      <dt className="text-aion-muted">Idade (h úteis)</dt>
       <dd className="font-semibold tabular-nums">{item.idadeLabel}</dd>
       {rows.map((row) => (
         <div key={row.campo} className="contents">

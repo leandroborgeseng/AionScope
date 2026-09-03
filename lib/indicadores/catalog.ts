@@ -21,6 +21,11 @@ export const INDICADORES = [
     label: "Custo manutenção / valor do parque",
     blurb: "Contratos + avulsos de OS ÷ valor de substituição (API todos os equipamentos; override manual opcional).",
   },
+  {
+    href: "/indicadores/sla-corretiva-criticidade",
+    label: "% Corretivas no prazo (criticidade)",
+    blurb: "Qmentum item 6: cumprimento do SLA de atendimento corretivo, quebrado por criticidade do equipamento / prioridade da OS.",
+  },
 ] as const;
 
 export const CADASTROS_HUB_HREF = "/cadastros";
