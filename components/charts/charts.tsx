@@ -91,6 +91,16 @@ type SaldoChartRow = {
   saldoLabel: string;
 } & Record<string, string | number>;
 
+export type SaldoStackLabels = {
+  entrada: string;
+  execucao: string;
+};
+
+const DEFAULT_SALDO_LABELS: SaldoStackLabels = {
+  entrada: "Entrou (abertas)",
+  execucao: "Executou (fechadas)",
+};
+
 function labelBox(viewBox: RechartsLabelProps["viewBox"]) {
   if (!viewBox || !("x" in viewBox) || !("width" in viewBox) || !("height" in viewBox)) return null;
   const x = Number(viewBox.x);
@@ -123,7 +133,12 @@ function SegmentInnerLabel({ value, viewBox }: RechartsLabelProps): ReactElement
   );
 }
 
-function SaldoTooltip({ active, payload, label }: TooltipContentProps) {
+function SaldoTooltip({
+  active,
+  payload,
+  label,
+  labels,
+}: TooltipContentProps & { labels: SaldoStackLabels }) {
   if (!active || !payload?.length) return null;
   const row = payload[0]?.payload as SaldoChartRow | undefined;
   if (!row) return null;
@@ -131,10 +146,10 @@ function SaldoTooltip({ active, payload, label }: TooltipContentProps) {
     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-md">
       <p className="font-semibold text-slate-800">{String(label)}</p>
       <p className="mt-1 text-slate-700">
-        Entrou (abertas): <span className="font-semibold tabular-nums">{row.abertas}</span>
+        {labels.entrada}: <span className="font-semibold tabular-nums">{row.abertas}</span>
       </p>
       <p className="text-slate-700">
-        Executou (fechadas): <span className="font-semibold tabular-nums">{row.fechadas}</span>
+        {labels.execucao}: <span className="font-semibold tabular-nums">{row.fechadas}</span>
       </p>
       <p className="mt-1 text-slate-800">
         Saldo: <span className="font-semibold tabular-nums">{fraseSaldo(row.saldo)}</span>
@@ -149,12 +164,14 @@ export function SaldoStackBarChart({
   className,
   maxBarSize = 42,
   onRowClick,
+  labels = DEFAULT_SALDO_LABELS,
 }: {
   data: SaldoChartRow[];
   xKey: string;
   className?: string;
   maxBarSize?: number;
   onRowClick?: (row: SaldoChartRow) => void;
+  labels?: SaldoStackLabels;
 }) {
   const resolveRow = (state: { activeIndex?: number | string | null; activeLabel?: string | number }) => {
     const index = chartClickIndex(state.activeIndex);
@@ -176,7 +193,7 @@ export function SaldoStackBarChart({
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
           <XAxis dataKey={xKey} tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={60} />
           <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-          <Tooltip content={SaldoTooltip} />
+          <Tooltip content={(props) => <SaldoTooltip {...props} labels={labels} />} />
           <Legend />
           <Bar dataKey="coberto" name="Coberto" fill="#0f766e" stackId={SALDO_STACK} maxBarSize={maxBarSize}>
             <LabelList position="center" content={SegmentInnerLabel} />
@@ -315,6 +332,119 @@ export function GastoBarChart({
             </>
           ) : (
             <Bar dataKey="gasto" name="Gasto" fill="#0f766e" maxBarSize={maxBarSize} radius={[3, 3, 0, 0]} cursor="pointer">
+              <LabelList position="center" content={GastoInnerLabel} />
+            </Bar>
+          )}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export type DespesaParqueChartRow = {
+  name: string;
+  contratos: number;
+  avulsos: number;
+  despesa: number;
+  pctParque: number | null;
+} & Record<string, string | number | null>;
+
+function DespesaParqueTooltip({ active, payload, label }: TooltipContentProps) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload as DespesaParqueChartRow | undefined;
+  if (!row) return null;
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-md">
+      <p className="font-semibold text-slate-800">{String(label)}</p>
+      <p className="mt-1 text-slate-700">
+        Despesa: <span className="font-semibold tabular-nums">{formatBRL(row.despesa)}</span>
+      </p>
+      <p className="text-slate-600">
+        Contratos: <span className="tabular-nums">{formatBRL(row.contratos)}</span>
+      </p>
+      <p className="text-slate-600">
+        Avulsos (OS): <span className="tabular-nums">{formatBRL(row.avulsos)}</span>
+      </p>
+      {row.pctParque != null ? (
+        <p className="mt-1 text-slate-600">
+          % do parque:{" "}
+          <span className="tabular-nums font-semibold">
+            {Number(row.pctParque).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%
+          </span>
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+export function DespesaParqueBarChart({
+  data,
+  xKey,
+  stacked = true,
+  className,
+  maxBarSize = 42,
+  onRowClick,
+}: {
+  data: DespesaParqueChartRow[];
+  xKey: string;
+  stacked?: boolean;
+  className?: string;
+  maxBarSize?: number;
+  onRowClick?: (row: DespesaParqueChartRow) => void;
+}) {
+  return (
+    <div className={cn("h-72 w-full", className)}>
+      <ResponsiveContainer width="100%" height="100%" minHeight={240} debounce={1}>
+        <BarChart
+          data={data}
+          margin={{ top: 8, right: 8, left: 4, bottom: 0 }}
+          barCategoryGap="22%"
+          onClick={(state) => {
+            const index = chartClickIndex(state.activeIndex);
+            const row = Number.isFinite(index)
+              ? data[index]
+              : data.find((item) => item[xKey] === state.activeLabel);
+            if (row) onRowClick?.(row);
+          }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+          <XAxis dataKey={xKey} tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={60} />
+          <YAxis tick={{ fontSize: 11 }} tickFormatter={formatGastoEixo} width={68} />
+          <Tooltip content={DespesaParqueTooltip} />
+          {stacked ? <Legend /> : null}
+          {stacked ? (
+            <>
+              <Bar
+                dataKey="contratos"
+                name="Contratos"
+                fill="#0369a1"
+                stackId="despesa"
+                maxBarSize={maxBarSize}
+                cursor="pointer"
+              >
+                <LabelList position="center" content={GastoInnerLabel} />
+              </Bar>
+              <Bar
+                dataKey="avulsos"
+                name="Avulsos (OS reparo)"
+                fill="#0f766e"
+                stackId="despesa"
+                maxBarSize={maxBarSize}
+                radius={[3, 3, 0, 0]}
+                cursor="pointer"
+              >
+                <LabelList position="center" content={GastoInnerLabel} />
+              </Bar>
+            </>
+          ) : (
+            <Bar
+              dataKey="despesa"
+              name="Despesa"
+              fill="#0f766e"
+              maxBarSize={maxBarSize}
+              radius={[3, 3, 0, 0]}
+              cursor="pointer"
+            >
               <LabelList position="center" content={GastoInnerLabel} />
             </Bar>
           )}

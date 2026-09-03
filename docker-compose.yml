@@ -1,24 +1,24 @@
-# AionScope / IndicadoresEC — um serviço stateless (cache em memória).
+# AionScope / IndicadoresEC
 #
 # Local:  cp .env.example .env && docker compose up --build
 #         App em http://localhost:3000
+#         SQLite em volume aion-data → /data/aionscope.sqlite
 #
-# Railway NÃO executa este arquivo com `docker compose`.
-# Cada entrada em `services:` vira um serviço no projeto:
-#   - arraste o arquivo no canvas, ou faça deploy do repo (Dockerfile na raiz
-#     é detectado automaticamente);
-#   - `ports: 3000` vale só no Docker local — no Railway o PORT é injetado;
-#   - copie as chaves abaixo no painel Variables (valores reais, nunca no Git).
+# Railway: Dockerfile na raiz + Volume montado em /data
+#   Variables: DATABASE_PATH=/data/aionscope.sqlite + tokens PBI_*
 
 services:
   web:
     build: .
     ports:
       - "3000:3000"
+    volumes:
+      - aion-data:/data
     environment:
       NODE_ENV: production
       HOSTNAME: "0.0.0.0"
       PORT: ${PORT:-3000}
+      DATABASE_PATH: ${DATABASE_PATH:-/data/aionscope.sqlite}
       PBI_BASE_URL: ${PBI_BASE_URL:-https://sjh.globalthings.net}
       PBI_CACHE_SECONDS: ${PBI_CACHE_SECONDS:-900}
       PBI_TOKEN_CRONOGRAMA: ${PBI_TOKEN_CRONOGRAMA}
@@ -37,3 +37,6 @@ services:
       PBI_TOKEN_OFICINA: ${PBI_TOKEN_OFICINA}
       PBI_DEFAULT_EMPRESA_IDS: ${PBI_DEFAULT_EMPRESA_IDS}
       NEXT_PUBLIC_ANEXOS_OBRIGATORIOS: ${NEXT_PUBLIC_ANEXOS_OBRIGATORIOS:-laudo,calibra,certificado,seguranca eletrica,segurança elétrica,tse}
+
+volumes:
+  aion-data:

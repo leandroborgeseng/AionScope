@@ -11,9 +11,14 @@ import {
   SALA_RECORTE_LINHA,
   formatAtualizadoHa,
   formatRelogioSala,
+  isTipoPlanoFechaNoMes,
   type FaixaIdade,
+  type SalaEstratificacao,
+  type SalaFluxoJanela,
   type SalaOs,
+  type SalaSetorCount,
   type SalaSnapshot,
+  type SalaTipoCount,
 } from "@/lib/pbi/sala";
 import { cn } from "@/lib/utils";
 
@@ -30,13 +35,6 @@ const FAIXA_ROW: Record<FaixaIdade, string> = {
   atrasada: "border-l-orange-400 bg-orange-50",
   critica: "border-l-rose-500 bg-rose-50",
 };
-
-const KPI_TONE = {
-  novas: "border-aion-cyan/35 bg-white text-aion-ink",
-  fila: "border-aion-line bg-white text-aion-ink",
-  velhas: "border-amber-300/80 bg-white text-aion-ink",
-  graves: "border-rose-300 bg-white text-aion-ink",
-} as const;
 
 const DETALHE_CAMPOS = [
   "OS",
@@ -76,8 +74,13 @@ export function SalaBoard({
   clock: Date;
 }) {
   const [selecionada, setSelecionada] = useState<SalaOs | null>(null);
-  const { kpis } = snapshot;
-  const valor = (n: number) => (loading && snapshot.fila.length === 0 ? "—" : String(n));
+  const { kpis, fluxos, estratificacoes } = snapshot;
+  const empty = loading && snapshot.fila.length === 0;
+  const valor = (n: number) => (empty ? "—" : String(n));
+  const fluxoHojeSemana = fluxos.filter((f) => f.id === "hoje" || f.id === "semana");
+  const fluxo15 = fluxos.find((f) => f.id === "dias15");
+  const estrat15 = estratificacoes.find((e) => e.id === "dias15");
+  const estratMes = estratificacoes.find((e) => e.id === "mes");
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background text-foreground">
@@ -93,6 +96,12 @@ export function SalaBoard({
           </div>
         </div>
         <div className="flex items-center gap-5">
+          <div className="hidden text-right sm:block">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-aion-muted">Fila · &gt;4h · &gt;72h</p>
+            <p className="font-mono text-lg font-semibold tabular-nums text-aion-ink">
+              {valor(kpis.filaAberta)} · {valor(kpis.envelhecidas)} · {valor(kpis.estouradasGraves)}
+            </p>
+          </div>
           <p className="font-mono text-3xl font-semibold tabular-nums text-aion-blue">{formatRelogioSala(clock)}</p>
           <Link
             href="/indicadores"
@@ -104,51 +113,26 @@ export function SalaBoard({
         </div>
       </header>
 
-      <section className="grid shrink-0 grid-cols-4 gap-3 px-6 py-3">
-        <Kpi
-          tone="novas"
-          label="Novas hoje"
-          value={valor(kpis.novasHoje)}
-          hint="Abertas hoje e ainda abertas"
-        />
-        <Kpi tone="fila" label="Fila aberta" value={valor(kpis.filaAberta)} hint="Eq. médicos sem fechamento nem solução" />
-        <Kpi
-          tone="velhas"
-          label="Envelhecidas"
-          value={valor(kpis.envelhecidas)}
-          hint="Acima da meta de 4h"
-        />
-        <Kpi
-          tone="graves"
-          label="Estouradas graves"
-          value={valor(kpis.estouradasGraves)}
-          hint="Abertas há mais de 72h"
-        />
-      </section>
-
       {error ? (
-        <p className="mx-6 mb-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">
+        <p className="mx-6 mt-2 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">
           {error}
         </p>
       ) : null}
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_20rem] gap-3 px-6 pb-2">
+      <section className="grid shrink-0 grid-cols-2 gap-3 px-6 pt-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+        <FluxoBloco fluxos={fluxoHojeSemana} empty={empty} />
+        {estrat15 ? <EstratBloco estrat={estrat15} fluxo={fluxo15} empty={empty} /> : null}
+        {estratMes ? <EstratBloco estrat={estratMes} empty={empty} destaqueMes /> : null}
+      </section>
+
+      <div className="grid min-h-0 flex-1 grid-cols-[16rem_minmax(0,1fr)] gap-3 px-6 py-3">
+        <SetoresPainel
+          setores={snapshot.setoresAbertos}
+          extras={snapshot.setoresExtras}
+          empty={empty}
+          totalFila={kpis.filaAberta}
+        />
         <FilaLista snapshot={snapshot} loading={loading} onSelect={setSelecionada} />
-        <aside className="flex min-h-0 flex-col gap-3">
-          <PainelLateral
-            titulo="Top 5 mais antigas"
-            vazio="Nenhuma OS aberta"
-            items={snapshot.topAntigas}
-            onSelect={setSelecionada}
-          />
-          <PainelLateral
-            titulo="Novas do dia"
-            vazio="Nenhuma nova hoje"
-            items={snapshot.novasHoje.slice(0, 6)}
-            extra={snapshot.novasHoje.length > 6 ? snapshot.novasHoje.length - 6 : 0}
-            onSelect={setSelecionada}
-          />
-        </aside>
       </div>
 
       <footer className="flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t border-aion-line bg-white px-6 py-2 text-[12px] text-aion-muted">
@@ -156,10 +140,10 @@ export function SalaBoard({
           {formatAtualizadoHa(dataUpdatedAt, nowMs)}
           {dataUpdatedAt ? ` · ${formatDateTimeBR(new Date(dataUpdatedAt))}` : ""}
         </p>
-        <p className="max-w-[42rem] truncate" title={SALA_RECORTE_LINHA}>
+        <p className="max-w-[48rem] truncate" title={SALA_RECORTE_LINHA}>
           {SALA_RECORTE_LINHA}
         </p>
-        <p>Fonte: listagem analítica das OS</p>
+        <p>Corretiva: tempo de atendimento · Prev/TSE/Calib: fechar no mês</p>
         <ul className="flex flex-wrap items-center gap-3">
           {FAIXAS_LEGENDA.map((faixa) => (
             <li key={faixa.id} className="flex items-center gap-1.5">
@@ -184,23 +168,178 @@ export function SalaBoard({
   );
 }
 
-function Kpi({
-  label,
-  value,
-  hint,
-  tone,
+function FluxoBloco({ fluxos, empty }: { fluxos: SalaFluxoJanela[]; empty: boolean }) {
+  return (
+    <section className="rounded-xl border border-aion-line bg-white px-4 py-3 shadow-[var(--aion-shadow)]">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-aion-muted">
+          Entrada × saída
+        </h2>
+        <p className="text-[11px] text-aion-muted">Abertura vs fechamento/solução</p>
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-3">
+        {fluxos.map((fluxo) => (
+          <div key={fluxo.id} className="rounded-lg border border-aion-line/80 bg-aion-mist/40 px-3 py-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-aion-blue">{fluxo.label}</p>
+            <div className="mt-1 flex items-end justify-between gap-2">
+              <div>
+                <p className="text-[10px] uppercase tracking-wide text-aion-muted">Abertas</p>
+                <p className="text-4xl font-semibold leading-none tabular-nums text-aion-ink">
+                  {empty ? "—" : fluxo.abertas}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] uppercase tracking-wide text-aion-muted">Fechadas</p>
+                <p className="text-4xl font-semibold leading-none tabular-nums text-aion-ink">
+                  {empty ? "—" : fluxo.fechadas}
+                </p>
+              </div>
+            </div>
+            <p className="mt-2 text-[11px] text-aion-muted">
+              {fluxo.hint}
+              {!empty ? ` · saldo ${fluxo.saldo > 0 ? "+" : ""}${fluxo.saldo}` : ""}
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function EstratBloco({
+  estrat,
+  fluxo,
+  empty,
+  destaqueMes = false,
 }: {
-  label: string;
-  value: string;
-  hint: string;
-  tone: keyof typeof KPI_TONE;
+  estrat: SalaEstratificacao;
+  fluxo?: SalaFluxoJanela;
+  empty: boolean;
+  destaqueMes?: boolean;
+}) {
+  const tiposVisiveis = estrat.tipos.filter((t) => t.id !== "outros" || t.quantidade > 0);
+  const anomalias = tiposVisiveis
+    .filter((t) => isTipoPlanoFechaNoMes(t.id) && t.anomaliaMesAnterior > 0)
+    .reduce((acc, t) => acc + t.anomaliaMesAnterior, 0);
+
+  return (
+    <section
+      className={cn(
+        "rounded-xl border bg-white px-4 py-3 shadow-[var(--aion-shadow)]",
+        destaqueMes ? "border-aion-cyan/40" : "border-aion-line",
+      )}
+    >
+      <div className="flex items-baseline justify-between gap-3">
+        <div>
+          <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-aion-muted">
+            Abertas · {estrat.label}
+          </h2>
+          <p className="text-[11px] text-aion-muted">{estrat.hint}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-3xl font-semibold tabular-nums text-aion-ink">
+            {empty ? "—" : estrat.totalAbertas}
+          </p>
+          {fluxo && !empty ? (
+            <p className="text-[11px] text-aion-muted">
+              fluxo {fluxo.abertas}↑ {fluxo.fechadas}↓
+            </p>
+          ) : null}
+        </div>
+      </div>
+
+      <ul className="mt-2 grid grid-cols-2 gap-2">
+        {tiposVisiveis.map((tipo) => (
+          <TipoLinha key={tipo.id} tipo={tipo} empty={empty} />
+        ))}
+      </ul>
+
+      {!empty && estrat.corretiva.quantidade > 0 ? (
+        <p className="mt-2 rounded-md bg-rose-50 px-2.5 py-1.5 text-sm text-rose-900">
+          Corretivas: média {estrat.corretiva.idadeMediaLabel ?? "—"} · mais antiga{" "}
+          {estrat.corretiva.idadeMaxLabel ?? "—"}
+        </p>
+      ) : (
+        <p className="mt-2 text-[11px] text-aion-muted">
+          Acompanhar tempo de atendimento das corretivas; prev/TSE/calib fecham no mês.
+        </p>
+      )}
+
+      {!empty && destaqueMes && anomalias > 0 ? (
+        <p className="mt-1.5 rounded-md border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-sm font-medium text-amber-950">
+          {anomalias} prev/TSE/calib aberta(s) de mês anterior
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+function TipoLinha({ tipo, empty }: { tipo: SalaTipoCount; empty: boolean }) {
+  const isCorretiva = tipo.id === "corretiva";
+  const alerta = isTipoPlanoFechaNoMes(tipo.id) && tipo.anomaliaMesAnterior > 0;
+
+  return (
+    <li
+      className={cn(
+        "rounded-lg border px-2.5 py-2",
+        isCorretiva ? "border-rose-200 bg-rose-50/60" : "border-aion-line/80 bg-aion-mist/30",
+        alerta ? "ring-1 ring-amber-400" : "",
+      )}
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-aion-muted">{tipo.label}</p>
+        <p className={cn("text-3xl font-semibold leading-none tabular-nums", isCorretiva ? "text-rose-800" : "text-aion-ink")}>
+          {empty ? "—" : tipo.quantidade}
+        </p>
+      </div>
+      {isCorretiva && !empty && tipo.quantidade > 0 ? (
+        <p className="mt-1 text-[11px] text-rose-800/90">
+          méd. {tipo.idadeMediaLabel} · máx. {tipo.idadeMaxLabel}
+        </p>
+      ) : null}
+      {alerta && !empty ? (
+        <p className="mt-1 text-[11px] font-medium text-amber-800">+{tipo.anomaliaMesAnterior} mês ant.</p>
+      ) : null}
+    </li>
+  );
+}
+
+function SetoresPainel({
+  setores,
+  extras,
+  empty,
+  totalFila,
+}: {
+  setores: SalaSetorCount[];
+  extras: number;
+  empty: boolean;
+  totalFila: number;
 }) {
   return (
-    <div className={cn("rounded-xl border px-5 py-3 shadow-[var(--aion-shadow)]", KPI_TONE[tone])}>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-aion-muted">{label}</p>
-      <p className="mt-1 text-6xl font-semibold leading-none tabular-nums text-aion-ink">{value}</p>
-      <p className="mt-2 text-sm text-aion-muted">{hint}</p>
-    </div>
+    <section className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-aion-line bg-white px-4 py-3 shadow-[var(--aion-shadow)]">
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-aion-muted">
+          Abertas por setor
+        </h2>
+        <p className="font-mono text-sm tabular-nums text-aion-ink">{empty ? "—" : totalFila}</p>
+      </div>
+      <p className="mt-0.5 text-[11px] text-aion-muted">Fila médica · 30 dias (Abertura)</p>
+      {empty ? (
+        <p className="mt-4 text-sm text-aion-muted">Carregando…</p>
+      ) : setores.length === 0 ? (
+        <p className="mt-4 text-sm text-aion-muted">Nenhuma OS aberta</p>
+      ) : (
+        <ul className="mt-2 min-h-0 flex-1 space-y-1 overflow-hidden">
+          {setores.map((row) => (
+            <li key={row.setor} className="flex items-baseline justify-between gap-2 border-b border-aion-line/60 py-1.5 last:border-0">
+              <span className="truncate text-base text-aion-ink">{row.setor}</span>
+              <span className="shrink-0 text-2xl font-semibold tabular-nums text-aion-ink">{row.quantidade}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      {extras > 0 ? <p className="mt-auto pt-2 text-sm text-aion-muted">+{extras} setores</p> : null}
+    </section>
   );
 }
 
@@ -225,7 +364,9 @@ function FilaLista({
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-center">
         <p className="text-3xl font-semibold text-emerald-800">Fila zerada</p>
-        <p className="mt-1 text-sm text-emerald-700/80">Nenhuma OS de eq. médico aberta neste recorte</p>
+        <p className="mt-1 text-sm text-emerald-700/80">
+          Nenhuma OS de eq. médico aberta nos últimos 30 dias (por Abertura)
+        </p>
       </div>
     );
   }
@@ -275,48 +416,6 @@ function FilaLista({
         </p>
       ) : null}
     </div>
-  );
-}
-
-function PainelLateral({
-  titulo,
-  vazio,
-  items,
-  extra = 0,
-  onSelect,
-}: {
-  titulo: string;
-  vazio: string;
-  items: SalaOs[];
-  extra?: number;
-  onSelect: (row: SalaOs) => void;
-}) {
-  return (
-    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-aion-line bg-white px-4 py-3 shadow-[var(--aion-shadow)]">
-      <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-aion-muted">{titulo}</h2>
-      {items.length === 0 ? (
-        <p className="mt-3 text-sm text-aion-muted">{vazio}</p>
-      ) : (
-        <ul className="mt-2 space-y-1.5">
-          {items.map((row) => (
-            <li key={`${titulo}-${row.item.CodigoSerialOS}-${row.item.OS}`}>
-              <button
-                type="button"
-                onClick={() => onSelect(row)}
-                className="flex w-full items-baseline justify-between gap-3 rounded-lg px-1 py-1 text-left hover:bg-aion-mist"
-              >
-                <span className="min-w-0">
-                  <span className="font-mono font-semibold tabular-nums text-aion-ink">{row.item.OS || "—"}</span>
-                  <span className="mt-0.5 block truncate text-sm text-aion-muted">{row.local}</span>
-                </span>
-                <span className="shrink-0 font-semibold tabular-nums">{row.idadeLabel}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      {extra > 0 ? <p className="mt-auto pt-2 text-sm text-aion-muted">+{extra} novas</p> : null}
-    </section>
   );
 }
 

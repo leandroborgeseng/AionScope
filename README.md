@@ -10,6 +10,7 @@ Dashboard interno do Hospital e Maternidade São Joaquim que consome as APIs RES
 - Tailwind CSS 4
 - TanStack Query + TanStack Table
 - Recharts
+- SQLite (`better-sqlite3`) para parque e contratos
 
 ## Como rodar
 
@@ -31,7 +32,9 @@ cp .env.example .env   # preencha os tokens PBI_* (o Compose lê `.env`, não `.
 docker compose up --build
 ```
 
-No Railway o Compose não é executado: cada serviço do YAML vira um serviço no projeto. New Project → arraste o `docker-compose.yml` no canvas, ou faça deploy deste repo (o `Dockerfile` na raiz é detectado automaticamente). Em **Variables**, defina as mesmas chaves do `.env.example` com os valores reais. O `PORT` é injetado pela plataforma; não commite `.env`, `.env.local` nem tokens.
+Persistência: SQLite em `/data/aionscope.sqlite` (Compose: volume `aion-data`). Localmente, se `/data` não existir, o app usa `data/aionscope.sqlite` no workspace.
+
+No Railway: deploy do `Dockerfile` + **Volume** montado em `/data` + `DATABASE_PATH=/data/aionscope.sqlite` nas Variables (junto com os tokens `PBI_*`). O `PORT` é injetado pela plataforma; não commite `.env` nem tokens.
 
 ## Páginas
 
