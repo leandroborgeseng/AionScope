@@ -1,5 +1,6 @@
 # Produção Next.js (standalone). Tokens PBI_* entram só em runtime — nunca como ARG/COPY.
-# Railway: Volume montado em /data + DATABASE_PATH=/data/aionscope.sqlite
+# Railway: criar Volume em Settings → Volumes com mount /data + DATABASE_PATH=/data/aionscope.sqlite
+# (não use VOLUME no Dockerfile — Railway não suporta essa instrução)
 # better-sqlite3: toolchain nativo (python3 make g++) no stage deps (Alpine).
 
 FROM node:22-alpine AS base
@@ -42,6 +43,5 @@ COPY --from=builder --chown=nextjs:nodejs /app/data ./data
 
 USER nextjs
 EXPOSE 3000
-VOLUME ["/data"]
 
 CMD ["node", "server.js"]

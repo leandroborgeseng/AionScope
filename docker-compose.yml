@@ -4,7 +4,7 @@
 #         App em http://localhost:3000
 #         SQLite em volume aion-data → /data/aionscope.sqlite
 #
-# Railway: Dockerfile na raiz + Volume montado em /data
+# Railway: Dockerfile na raiz + Volume em Settings → Volumes (mount /data); não use VOLUME no Dockerfile
 #   Variables: DATABASE_PATH=/data/aionscope.sqlite + tokens PBI_*
 
 services:
