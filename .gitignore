@@ -40,3 +40,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# sqlite (persistência local / volume)
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+/data/*.sqlite*
+
+# SQLite local (Railway usa /data)
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+/data/aionscope.sqlite*

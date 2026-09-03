@@ -1,0 +1,10 @@
+{
+  "valorSubstituicaoManual": null,
+  "valorApi": 49254346.04,
+  "fonte": "api",
+  "escopo": "todos",
+  "atualizadoEm": "2026-09-03T22:59:20.432Z",
+  "atualizadoPor": "seed-script",
+  "valorManualReferencia": 57000000,
+  "notas": "Soma ValorDeSubstituicao de todos os equipamentos (1873 itens). Seed JSON → SQLite na 1ª abertura."
+}

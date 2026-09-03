@@ -5,7 +5,9 @@ export type FichaIndicadorId =
   | "volume"
   | "satisfacao"
   | "os-abertas-fechadas"
-  | "gasto-reparo-medicos";
+  | "gasto-reparo-medicos"
+  | "manutencoes-planejadas-executadas"
+  | "custo-manutencao-parque";
 
 export type FichaIndicador = {
   id: FichaIndicadorId;
@@ -121,6 +123,37 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
       "Gasto do mês = soma do campo Custo das OS que: (1) têm Tag no índice de equipamentos médicos; (2) são tipo de reparo (corretiva / assistência / instrumental / man. externa — exclui calibração, TSE, preventiva); (3) têm Fechamento ou DataDaSolucao no mês. Média mensal = gasto total do período ÷ número de meses do gráfico.",
     coletaDeDados:
       "Effort GlobalThings — API listagem_analitica_das_os (Custo, Fechamento, DataDaSolucao, TipoDeManutencao, Tag) + índice médico via API de equipamentos. OS sem tag médica, sem data de fechamento ou fora do tipo reparo não entram. Intervalo rolante de 12 meses.",
+    periodicidade: "Mensal",
+  },
+  "manutencoes-planejadas-executadas": {
+    id: "manutencoes-planejadas-executadas",
+    nomeDoIndicador: "% Manutenções Planejadas x Realizadas",
+    ...BASE,
+    finalidadeDoIndicador:
+      "Avaliar a aderência ao plano de manutenção preventiva, medindo o volume de manutenções previstas no cronograma frente às efetivamente executadas (preventivas, calibrações e TSE) no período.",
+    meta: "> 90%",
+    referenciaDaMeta:
+      "Benchmarks nacionais (Rede D’Or, HIAE, ANVISA) e boas práticas de engenharia clínica recomendam ≥ 90% de execução das manutenções preventivas programadas.",
+    formula:
+      "Planejado no mês = ocorrências do cronograma (Preventiva / Calibração / TSE) cuja ProximaRealizacao (ou expansão por Perioridicade) cai no mês. Executado no mês = OS fechadas (Fechamento; senão DataDaSolucao) do mesmo tipo no mês. Coberto = min(planejado, executado). Déficit = max(0, planejado − executado). Superávit = max(0, executado − planejado). Cumprimento = (min(planejado, executado) / planejado) × 100. Contagem independente (não exige pareamento Tag a Tag no gráfico).",
+    coletaDeDados:
+      "Effort GlobalThings. Previsto: API cronograma (ProximaRealizacao — muitas vezes código YYYYMMDD nos 8 primeiros dígitos — + Perioridicade). Executado: API listagem_analitica_das_os. Intervalo rolante de 12 meses. Se Tag estiver preenchida em ≥50% das linhas, a lista pode correlacionar por Tag+tipo; o gráfico permanece em contagem independente para evidenciar déficit e superávit. Planos sem data válida não entram no denominador.",
+    periodicidade: "Mensal",
+  },
+  "custo-manutencao-parque": {
+    id: "custo-manutencao-parque",
+    nomeDoIndicador: "Custo de manutenção / valor do parque",
+    ...BASE,
+    cargo: "Engenharia Clínica",
+    finalidadeDoIndicador:
+      "Monitorar a despesa mensal de manutenção (contratos + custos avulsos de OS de reparo) em relação ao valor de substituição do parque tecnológico.",
+    meta: "≤ 4% do valor de substituição do parque (acumulado anual)",
+    referenciaDaMeta:
+      "Benchmark internacional (Joint Commission / ECRI) entre 4 e 6% do valor de substituição do parque.",
+    formula:
+      "(Soma dos contratos ativos no mês + Soma do Custo das OS de reparo de eq. médicos fechadas no mês) / Valor de substituição do parque × 100",
+    coletaDeDados:
+      "Numerador: contratos no SQLite (ativos na vigência do mês) + OS analítica no recorte de gasto-reparo médico. Denominador: valorApi = soma ValorDeSubstituicao de TODOS os equipamentos (incluirCustoSubstituicao=true), persistido; override manual só se salvo explicitamente; env PARQUE_VALOR_SUBSTITUICAO opcional. ValorDeAquisicao não entra (outliers). Intervalo rolante de 12 meses.",
     periodicidade: "Mensal",
   },
   satisfacao: {

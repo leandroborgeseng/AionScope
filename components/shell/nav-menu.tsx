@@ -1,9 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarClock, ChevronDown, LayoutDashboard, Tv } from "lucide-react";
+import { CalendarClock, ChevronDown, ClipboardList, LayoutDashboard, Tv } from "lucide-react";
 import { useEffect, useId, useState } from "react";
-import { INDICADORES, INDICADORES_HUB_HREF } from "@/lib/indicadores/catalog";
+import {
+  CADASTROS,
+  CADASTROS_HUB_HREF,
+  INDICADORES,
+  INDICADORES_HUB_HREF,
+} from "@/lib/indicadores/catalog";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -12,6 +17,14 @@ const NAV = [
     label: "Indicadores",
     icon: LayoutDashboard,
     children: INDICADORES,
+    openKey: "indicadores" as const,
+  },
+  {
+    href: CADASTROS_HUB_HREF,
+    label: "Cadastros",
+    icon: ClipboardList,
+    children: CADASTROS,
+    openKey: "cadastros" as const,
   },
   { href: "/cronograma", label: "Cronograma", icon: CalendarClock },
   { href: "/sala", label: "Sala", icon: Tv },
@@ -22,13 +35,20 @@ function pathMatches(pathname: string, href: string) {
 }
 
 export function NavMenu({ pathname, onNavigate }: { pathname: string; onNavigate: () => void }) {
-  const submenuId = useId();
+  const indicadoresSubId = useId();
+  const cadastrosSubId = useId();
   const inIndicadores = pathMatches(pathname, INDICADORES_HUB_HREF);
+  const inCadastros = pathMatches(pathname, CADASTROS_HUB_HREF);
   const [indicadoresOpen, setIndicadoresOpen] = useState(inIndicadores);
+  const [cadastrosOpen, setCadastrosOpen] = useState(inCadastros);
 
   useEffect(() => {
     if (inIndicadores) setIndicadoresOpen(true);
   }, [inIndicadores]);
+
+  useEffect(() => {
+    if (inCadastros) setCadastrosOpen(true);
+  }, [inCadastros]);
 
   return (
     <nav className="mt-1 space-y-1 px-3">
@@ -39,7 +59,7 @@ export function NavMenu({ pathname, onNavigate }: { pathname: string; onNavigate
         const parentExact = pathname === item.href;
         const parentActive = parentExact || childActive;
 
-        if (!children) {
+        if (!children || !("openKey" in item)) {
           const active = pathMatches(pathname, item.href);
           return (
             <Link
@@ -59,6 +79,11 @@ export function NavMenu({ pathname, onNavigate }: { pathname: string; onNavigate
             </Link>
           );
         }
+
+        const openKey = item.openKey;
+        const isOpen = openKey === "indicadores" ? indicadoresOpen : cadastrosOpen;
+        const setOpen = openKey === "indicadores" ? setIndicadoresOpen : setCadastrosOpen;
+        const submenuId = openKey === "indicadores" ? indicadoresSubId : cadastrosSubId;
 
         return (
           <div key={item.href}>
@@ -81,20 +106,20 @@ export function NavMenu({ pathname, onNavigate }: { pathname: string; onNavigate
               </Link>
               <button
                 type="button"
-                aria-expanded={indicadoresOpen}
+                aria-expanded={isOpen}
                 aria-controls={submenuId}
-                aria-label={indicadoresOpen ? "Recolher Indicadores" : "Expandir Indicadores"}
-                onClick={() => setIndicadoresOpen((open) => !open)}
+                aria-label={isOpen ? `Recolher ${item.label}` : `Expandir ${item.label}`}
+                onClick={() => setOpen((open) => !open)}
                 className={cn(
                   "rounded-lg p-2 text-aion-ink/60 transition-colors hover:bg-aion-mist hover:text-aion-blue",
                   parentActive && !parentExact && "text-aion-blue",
                   parentExact && "text-aion-blue",
                 )}
               >
-                <ChevronDown className={cn("h-4 w-4 transition-transform", indicadoresOpen && "rotate-180")} />
+                <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
               </button>
             </div>
-            {indicadoresOpen ? (
+            {isOpen ? (
               <div id={submenuId} className="mt-0.5 ml-4 space-y-0.5 border-l border-aion-line pl-2">
                 {children.map((child) => {
                   const active = pathMatches(pathname, child.href);
