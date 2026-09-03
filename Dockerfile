@@ -18,9 +18,7 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build \
   && mkdir -p .next/standalone/node_modules \
-  && cp -R node_modules/better-sqlite3 .next/standalone/node_modules/ \
-  && cp -R node_modules/bindings .next/standalone/node_modules/ \
-  && cp -R node_modules/file-uri-to-path .next/standalone/node_modules/
+  && cp -R node_modules/better-sqlite3 .next/standalone/node_modules/
 
 FROM base AS runner
 WORKDIR /app
