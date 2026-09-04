@@ -244,8 +244,9 @@ export function ManutencoesPlanejadasCard({
             <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Como contar</p>
             <ul className="list-disc space-y-1 pl-5">
               <li>
-                <strong>Planejado no mês:</strong> ProximaRealizacao (parser YYYYMMDD nos 8 primeiros dígitos) ou
-                DataDaUltima + Perioridicade → meses previstos no intervalo (mesmo motor do cronograma anual).
+                <strong>Planejado no mês:</strong> ProximaRealizacao (YYYYMMDD[+d] ou YYYYMM+id com dia inválido →
+                1º do mês) ou DataDaUltima + Perioridicade → meses previstos no intervalo (mesmo motor do
+                cronograma anual).
               </li>
               <li>
                 <strong>Executado no mês:</strong> OS com Fechamento (ou DataDaSolucao se vazio) naquele mês e tipo

@@ -4,6 +4,7 @@ import { nowInSaoPaulo, parsePbiDate } from "./dates";
 import { isCorretiva } from "./filters";
 import { classifyPlanoEc } from "./indicadores-os";
 import { linkedToMedicalPark } from "./medical";
+import { OFICINA_EC_REGRA_RESUMO, isOficinaEngenhariaClinica } from "./oficina-ec";
 import type { OsAnaliticoItem } from "./types";
 import { osFechamentoDate } from "./volume-ec";
 
@@ -21,7 +22,7 @@ export const META_ATENCAO_MS = 24 * 60 * 60 * 1000;
 export const META_ATRASADA_MS = 72 * 60 * 60 * 1000;
 
 export const SALA_RECORTE_LINHA =
-  `eq. médicos · sem instrumental · sem sem-tag · fila 30d (Abertura) · demanda (sem preventiva/TSE/calibração) · ${BUSINESS_HOURS_LABEL}`;
+  `eq. médicos · ${OFICINA_EC_REGRA_RESUMO} · sem instrumental · sem sem-tag · fila 30d (Abertura) · demanda (sem preventiva/TSE/calibração) · ${BUSINESS_HOURS_LABEL}`;
 
 /** Só tipos de demanda operacional (plano prev/TSE/calib fica de fora). */
 export const SALA_TIPOS_ORDEM = ["corretiva", "outros"] as const;
@@ -101,6 +102,8 @@ export type SalaSnapshot = {
   estratificacoes: SalaEstratificacao[];
   setoresAbertos: SalaSetorCount[];
   setoresExtras: number;
+  /** OS que passam o recorte médico/demanda da sala, mas caem fora pela oficina. */
+  foraPorOficina: number;
   kpis: {
     novasHoje: number;
     filaAberta: number;
@@ -260,8 +263,11 @@ export function isOsSalaDemanda(item: Pick<OsAnaliticoItem, "TipoDeManutencao">)
   return !isTipoPlanoExcluidoSala(classifySalaTipo(item.TipoDeManutencao));
 }
 
-/** Recorte médico da sala: tipo operacional + demanda + tag no parque médico. */
-export function isOsSalaMedica(
+/**
+ * Recorte médico/demanda da sala sem filtro de oficina
+ * (usado para medir quantas OS caem fora só pela oficina).
+ */
+export function isOsSalaMedicaExcetoOficina(
   item: OsAnaliticoItem,
   medicalTags: Set<string>,
   medicalIds: Set<number> = new Set(),
@@ -271,6 +277,16 @@ export function isOsSalaMedica(
   const tag = (item.Tag ?? "").trim();
   if (!tag) return false;
   return linkedToMedicalPark(tag, undefined, medicalTags, medicalIds);
+}
+
+/** Recorte médico da sala: oficina EC + tipo operacional + demanda + tag no parque médico. */
+export function isOsSalaMedica(
+  item: OsAnaliticoItem,
+  medicalTags: Set<string>,
+  medicalIds: Set<number> = new Set(),
+) {
+  if (!isOficinaEngenhariaClinica(item.Oficina)) return false;
+  return isOsSalaMedicaExcetoOficina(item, medicalTags, medicalIds);
 }
 
 export function collectOsEcAbertas(
@@ -446,6 +462,10 @@ export function buildSalaSnapshot(
   medicalIds: Set<number> = new Set(),
 ): SalaSnapshot {
   const osMedicas = os.filter((item) => isOsSalaMedica(item, medicalTags, medicalIds));
+  const foraPorOficina = os.filter(
+    (item) =>
+      isOsSalaMedicaExcetoOficina(item, medicalTags, medicalIds) && !isOficinaEngenhariaClinica(item.Oficina),
+  ).length;
   const fila = collectOsEcAbertas(os, medicalTags, medicalIds, now).map((item) => toSalaOs(item, now)).sort(compareUrgencia);
 
   const novasHoje = fila.filter((row) => row.novaHoje).sort((a, b) => {
@@ -468,6 +488,7 @@ export function buildSalaSnapshot(
     estratificacoes: buildEstratificacoesSala(osMedicas, now),
     setoresAbertos,
     setoresExtras,
+    foraPorOficina,
     kpis: {
       novasHoje: novasHoje.length,
       filaAberta: fila.length,

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarClock, ChevronDown, ClipboardList, LayoutDashboard, Tv } from "lucide-react";
+import { CalendarClock, ChevronDown, ClipboardList, LayoutDashboard, ShoppingCart, Tv } from "lucide-react";
 import { useEffect, useId, useState } from "react";
 import {
   CADASTROS,
@@ -28,6 +28,7 @@ const NAV = [
   },
   { href: "/cronograma", label: "Cronograma", icon: CalendarClock },
   { href: "/sala", label: "Sala", icon: Tv },
+  { href: "/compras", label: "Solicitações de compra", icon: ShoppingCart },
 ] as const;
 
 function pathMatches(pathname: string, href: string) {

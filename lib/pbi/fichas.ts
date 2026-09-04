@@ -47,7 +47,7 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     formula:
       "(Nº de manutenções preventivas, calibrações e TSE executadas no mês do plano / Nº total de manutenções previstas no cronograma) × 100",
     coletaDeDados:
-      "Effort GlobalThings. Previsto: API cronograma (ProximaRealizacao + Perioridicade no ano). Executado: API listagem_analitica_das_os — mesma Tag e tipo, com Fechamento ou DataDaSolucao no mês. Recorte médico (exclui M - / O -). Limitação: ProximaRealizacao às vezes vem como código (ex.: 202607275); planos sem data válida não entram no denominador.",
+      "Effort GlobalThings. Previsto: API cronograma (ProximaRealizacao + Perioridicade no ano; códigos YYYYMM+id com dia inválido ancoram no mês). Executado: API listagem_analitica_das_os — mesma Tag e tipo, com Fechamento ou DataDaSolucao no mês. Recorte médico (exclui M - / O -). Limitação: planos sem mês/data válida não entram no denominador.",
     periodicidade: "Mensal",
   },
   custo: {
@@ -138,7 +138,7 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     formula:
       "Planejado no mês = ocorrências do cronograma (Preventiva / Calibração / TSE) cuja ProximaRealizacao (ou expansão por Perioridicade) cai no mês. Executado no mês = OS fechadas (Fechamento; senão DataDaSolucao) do mesmo tipo no mês. Coberto = min(planejado, executado). Déficit = max(0, planejado − executado). Superávit = max(0, executado − planejado). Cumprimento = (min(planejado, executado) / planejado) × 100. Contagem independente (não exige pareamento Tag a Tag no gráfico).",
     coletaDeDados:
-      "Effort GlobalThings. Previsto: API cronograma (ProximaRealizacao — muitas vezes código YYYYMMDD nos 8 primeiros dígitos — + Perioridicade). Executado: API listagem_analitica_das_os. Intervalo rolante de 12 meses. Se Tag estiver preenchida em ≥50% das linhas, a lista pode correlacionar por Tag+tipo; o gráfico permanece em contagem independente para evidenciar déficit e superávit. Planos sem data válida não entram no denominador.",
+      "Effort GlobalThings. Previsto: API cronograma (ProximaRealizacao — YYYYMMDD[+d] ou YYYYMM+id quando o “dia” é inválido, ex. 202608678 → ago/2026 — + Perioridicade; fetch ±12 meses além do gráfico para a expansão). Executado: API listagem_analitica_das_os. Intervalo rolante de 12 meses. Se Tag estiver preenchida em ≥50% das linhas, a lista pode correlacionar por Tag+tipo; o gráfico permanece em contagem independente para evidenciar déficit e superávit. Planos sem data/mês válida não entram no denominador.",
     periodicidade: "Mensal",
   },
   "custo-manutencao-parque": {

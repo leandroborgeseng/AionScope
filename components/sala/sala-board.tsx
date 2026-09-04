@@ -20,6 +20,7 @@ import {
   type SalaSnapshot,
   type SalaTipoCount,
 } from "@/lib/pbi/sala";
+import { OFICINA_EC_REGRA_RESUMO, OFICINAS_EC_LABELS } from "@/lib/pbi/oficina-ec";
 import { cn } from "@/lib/utils";
 
 const FAIXA_DOT: Record<FaixaIdade, string> = {
@@ -142,6 +143,12 @@ export function SalaBoard({
         </p>
         <p className="max-w-[52rem] truncate" title={SALA_RECORTE_LINHA}>
           {SALA_RECORTE_LINHA}
+        </p>
+        <p title={`${OFICINA_EC_REGRA_RESUMO}. Aceitas: ${OFICINAS_EC_LABELS.join(", ")}`}>
+          Somente oficinas de Engenharia Clínica (equals)
+          {!empty && snapshot.foraPorOficina > 0
+            ? ` · ${snapshot.foraPorOficina} OS fora por oficina`
+            : ""}
         </p>
         <p title={BUSINESS_HOURS_LABEL}>
           Idade em horas úteis 8h–17h seg–sex · sem preventiva/TSE/calibração · sem feriados nacionais nesta versão
