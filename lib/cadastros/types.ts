@@ -41,25 +41,3 @@ export type ContratoInput = {
   ativo?: boolean;
   observacao?: string;
 };
-
-/** Acompanhamento local de equipamento TERCEIRO (médico / responsável). */
-export type EquipamentoTerceiroLocal = {
-  id: string;
-  tag: string;
-  descricao?: string;
-  medicoResponsavel?: string;
-  setor?: string;
-  observacao?: string;
-  ativo: boolean;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
-export type EquipamentoTerceiroInput = {
-  tag: string;
-  descricao?: string;
-  medicoResponsavel?: string;
-  setor?: string;
-  observacao?: string;
-  ativo?: boolean;
-};

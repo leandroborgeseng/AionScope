@@ -454,6 +454,105 @@ export function DespesaParqueBarChart({
   );
 }
 
+export type PrioridadeStackChartRow = {
+  name: string;
+  total: number;
+  alta: number;
+  media: number;
+  baixa: number;
+  semPrioridade: number;
+} & Record<string, string | number>;
+
+const PRIORIDADE_STACK = "prioridade";
+
+const PRIORIDADE_SERIES = [
+  { key: "alta", name: "Alta", fill: "#be123c" },
+  { key: "media", name: "Média", fill: "#d97706" },
+  { key: "baixa", name: "Baixa", fill: "#0f766e" },
+  { key: "semPrioridade", name: "Sem prioridade", fill: "#94a3b8" },
+] as const;
+
+function PrioridadeStackTooltip({ active, payload, label }: TooltipContentProps) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload as PrioridadeStackChartRow | undefined;
+  if (!row) return null;
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-md">
+      <p className="font-semibold text-slate-800">{String(label)}</p>
+      <p className="mt-1 text-slate-700">
+        Total: <span className="font-semibold tabular-nums">{row.total}</span>
+      </p>
+      <p className="text-slate-600">
+        Alta: <span className="tabular-nums font-semibold text-rose-800">{row.alta}</span>
+      </p>
+      <p className="text-slate-600">
+        Média: <span className="tabular-nums font-semibold text-amber-800">{row.media}</span>
+      </p>
+      <p className="text-slate-600">
+        Baixa: <span className="tabular-nums font-semibold text-teal-800">{row.baixa}</span>
+      </p>
+      <p className="text-slate-600">
+        Sem prioridade: <span className="tabular-nums font-semibold text-slate-700">{row.semPrioridade}</span>
+      </p>
+    </div>
+  );
+}
+
+export function PrioridadeStackBarChart({
+  data,
+  xKey,
+  className,
+  maxBarSize = 42,
+  onRowClick,
+}: {
+  data: PrioridadeStackChartRow[];
+  xKey: string;
+  className?: string;
+  maxBarSize?: number;
+  onRowClick?: (row: PrioridadeStackChartRow) => void;
+}) {
+  const resolveRow = (state: { activeIndex?: number | string | null; activeLabel?: string | number }) => {
+    const index = chartClickIndex(state.activeIndex);
+    return Number.isFinite(index) ? data[index] : data.find((item) => item[xKey] === state.activeLabel);
+  };
+
+  return (
+    <div className={cn("h-72 w-full", className)}>
+      <ResponsiveContainer width="100%" height="100%" minHeight={240} debounce={1}>
+        <BarChart
+          data={data}
+          margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+          barCategoryGap="22%"
+          onClick={(state) => {
+            const row = resolveRow(state);
+            if (row) onRowClick?.(row);
+          }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+          <XAxis dataKey={xKey} tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={60} />
+          <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+          <Tooltip content={PrioridadeStackTooltip} />
+          <Legend />
+          {PRIORIDADE_SERIES.map((serie, i) => (
+            <Bar
+              key={serie.key}
+              dataKey={serie.key}
+              name={serie.name}
+              fill={serie.fill}
+              stackId={PRIORIDADE_STACK}
+              maxBarSize={maxBarSize}
+              radius={i === PRIORIDADE_SERIES.length - 1 ? [3, 3, 0, 0] : undefined}
+              cursor="pointer"
+            >
+              <LabelList position="center" content={SegmentInnerLabel} />
+            </Bar>
+          ))}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 export type SlaPrazoChartRow = {
   name: string;
   noPrazo: number;
@@ -471,7 +570,7 @@ function SlaPrazoTooltip({ active, payload, label }: TooltipContentProps) {
     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-md">
       <p className="font-semibold text-slate-800">{String(label)}</p>
       <p className="mt-1 text-slate-700">
-        % no prazo: <span className="font-semibold tabular-nums">{row.pctLabel}</span>
+        % no prazo (1º atendimento): <span className="font-semibold tabular-nums">{row.pctLabel}</span>
       </p>
       <p className="text-slate-600">
         No prazo: <span className="tabular-nums font-semibold text-emerald-800">{row.noPrazo}</span>
@@ -479,7 +578,7 @@ function SlaPrazoTooltip({ active, payload, label }: TooltipContentProps) {
       <p className="text-slate-600">
         Fora do prazo: <span className="tabular-nums font-semibold text-rose-800">{row.foraPrazo}</span>
       </p>
-      <p className="mt-1 text-slate-500">{row.comPrazo} OS com prazo calculável</p>
+      <p className="mt-1 text-slate-500">{row.comPrazo} OS com 1º atendimento e limite calculável</p>
     </div>
   );
 }

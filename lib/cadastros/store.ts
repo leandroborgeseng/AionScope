@@ -1,7 +1,6 @@
 import { getDb } from "@/lib/db/client";
 import type {
   Contrato,
-  EquipamentoTerceiroLocal,
   ParqueEscopo,
   ParqueFonte,
   ParqueMeta,
@@ -27,18 +26,6 @@ type ContratoRow = {
   fim: string | null;
   ativo: number;
   observacao: string | null;
-};
-
-type TerceiroRow = {
-  id: string;
-  tag: string;
-  descricao: string | null;
-  medico_responsavel: string | null;
-  setor: string | null;
-  observacao: string | null;
-  ativo: number;
-  created_at: string;
-  updated_at: string;
 };
 
 const EMPTY_PARQUE: ParqueMeta = {
@@ -80,20 +67,6 @@ function mapContrato(row: ContratoRow): Contrato {
     fim: row.fim,
     ativo: row.ativo === 1,
     observacao: row.observacao ?? undefined,
-  };
-}
-
-function mapTerceiro(row: TerceiroRow): EquipamentoTerceiroLocal {
-  return {
-    id: row.id,
-    tag: row.tag,
-    descricao: row.descricao ?? undefined,
-    medicoResponsavel: row.medico_responsavel ?? undefined,
-    setor: row.setor ?? undefined,
-    observacao: row.observacao ?? undefined,
-    ativo: row.ativo === 1,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
   };
 }
 
@@ -233,54 +206,6 @@ export function upsertContrato(contrato: Contrato): Contrato {
 export function deleteContrato(id: string): boolean {
   const db = getDb();
   const result = db.prepare("DELETE FROM contratos WHERE id = ?").run(id);
-  return result.changes > 0;
-}
-
-export function readEquipamentosTerceiros(): EquipamentoTerceiroLocal[] {
-  const db = getDb();
-  const rows = db
-    .prepare("SELECT * FROM equipamentos_terceiros ORDER BY tag COLLATE NOCASE ASC")
-    .all() as TerceiroRow[];
-  return rows.map(mapTerceiro);
-}
-
-export function upsertEquipamentoTerceiro(item: EquipamentoTerceiroLocal): EquipamentoTerceiroLocal {
-  const db = getDb();
-  const now = new Date().toISOString();
-  const existing = db
-    .prepare("SELECT created_at FROM equipamentos_terceiros WHERE id = ?")
-    .get(item.id) as { created_at: string } | undefined;
-  db.prepare(
-    `INSERT INTO equipamentos_terceiros (
-      id, tag, descricao, medico_responsavel, setor, observacao, ativo, created_at, updated_at
-    ) VALUES (
-      @id, @tag, @descricao, @medico_responsavel, @setor, @observacao, @ativo, @created_at, @updated_at
-    )
-    ON CONFLICT(id) DO UPDATE SET
-      tag = excluded.tag,
-      descricao = excluded.descricao,
-      medico_responsavel = excluded.medico_responsavel,
-      setor = excluded.setor,
-      observacao = excluded.observacao,
-      ativo = excluded.ativo,
-      updated_at = excluded.updated_at`,
-  ).run({
-    id: item.id,
-    tag: item.tag,
-    descricao: item.descricao ?? null,
-    medico_responsavel: item.medicoResponsavel ?? null,
-    setor: item.setor ?? null,
-    observacao: item.observacao ?? null,
-    ativo: item.ativo ? 1 : 0,
-    created_at: existing?.created_at ?? item.createdAt ?? now,
-    updated_at: now,
-  });
-  return { ...item, createdAt: existing?.created_at ?? item.createdAt ?? now, updatedAt: now };
-}
-
-export function deleteEquipamentoTerceiro(id: string): boolean {
-  const db = getDb();
-  const result = db.prepare("DELETE FROM equipamentos_terceiros WHERE id = ?").run(id);
   return result.changes > 0;
 }
 

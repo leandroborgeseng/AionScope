@@ -4,8 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type {
   Contrato,
   ContratoInput,
-  EquipamentoTerceiroInput,
-  EquipamentoTerceiroLocal,
   ParqueFonte,
   ParqueMeta,
 } from "@/lib/cadastros/types";
@@ -140,79 +138,6 @@ export function useDeleteContrato() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["cadastros", "contratos"] });
-    },
-  });
-}
-
-export function useEquipamentosTerceiros() {
-  return useQuery({
-    queryKey: ["cadastros", "terceiros"],
-    queryFn: async () => {
-      const json = await getJson<EquipamentoTerceiroLocal[]>("/api/cadastros/terceiros");
-      if (!json.ok || !json.data) throw new Error(json.message ?? "Falha ao carregar terceiros.");
-      return json.data;
-    },
-    staleTime: 30_000,
-  });
-}
-
-export function useCreateEquipamentoTerceiro() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (body: EquipamentoTerceiroInput) => {
-      const res = await fetch("/api/cadastros/terceiros", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const json = (await res.json()) as {
-        ok: boolean;
-        data?: EquipamentoTerceiroLocal;
-        message?: string;
-      };
-      if (!json.ok || !json.data) throw new Error(json.message ?? "Falha ao criar.");
-      return json.data;
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["cadastros", "terceiros"] });
-    },
-  });
-}
-
-export function useUpdateEquipamentoTerceiro() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ id, ...body }: EquipamentoTerceiroInput & { id: string }) => {
-      const res = await fetch(`/api/cadastros/terceiros/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const json = (await res.json()) as {
-        ok: boolean;
-        data?: EquipamentoTerceiroLocal;
-        message?: string;
-      };
-      if (!json.ok || !json.data) throw new Error(json.message ?? "Falha ao atualizar.");
-      return json.data;
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["cadastros", "terceiros"] });
-    },
-  });
-}
-
-export function useDeleteEquipamentoTerceiro() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const res = await fetch(`/api/cadastros/terceiros/${id}`, { method: "DELETE" });
-      const json = (await res.json()) as { ok: boolean; message?: string };
-      if (!json.ok) throw new Error(json.message ?? "Falha ao excluir.");
-      return id;
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["cadastros", "terceiros"] });
     },
   });
 }

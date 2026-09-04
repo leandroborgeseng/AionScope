@@ -1,5 +1,5 @@
+import { parseBrNumber } from "@/lib/pbi/dates";
 import type { EquipamentoItem } from "@/lib/pbi/types";
-import type { EquipamentoTerceiroInput, EquipamentoTerceiroLocal } from "./types";
 
 /** Situação começa com TERCEIRO (ex.: "TERCEIRO", "TERCEIRO - SODEXO"). */
 export function isSituacaoTerceiro(situacao: string | null | undefined) {
@@ -22,37 +22,17 @@ export function filterEquipamentosTerceiro(items: EquipamentoItem[]) {
 }
 
 /**
- * Identificador do “terceiro” para filtro dinâmico (valores distintos dos registros):
- * 1. Sufixo de Situação após "TERCEIRO - …" (padrão real na API HSJ)
+ * Identificador do “terceiro” para filtro dinâmico:
+ * 1. Sufixo de Situação após "TERCEIRO - …"
  * 2. Fornecedor da API (quando preenchido)
- * 3. Médico/responsável do cadastro local
  */
 export function labelTerceiro(opts: {
   situacao?: string | null;
   fornecedorApi?: string | null;
-  medicoResponsavel?: string | null;
 }): string {
   const fromSit = terceiroFromSituacao(opts.situacao);
   if (fromSit) return fromSit;
-  const fornecedor = (opts.fornecedorApi ?? "").trim();
-  if (fornecedor) return fornecedor;
-  return (opts.medicoResponsavel ?? "").trim();
-}
-
-export function normalizeTerceiroInput(
-  input: EquipamentoTerceiroInput,
-): EquipamentoTerceiroInput | { error: string } {
-  const tag = (input.tag ?? "").trim();
-  if (!tag) return { error: "Tag é obrigatória." };
-
-  return {
-    tag,
-    descricao: (input.descricao ?? "").trim() || undefined,
-    medicoResponsavel: (input.medicoResponsavel ?? "").trim() || undefined,
-    setor: (input.setor ?? "").trim() || undefined,
-    observacao: (input.observacao ?? "").trim() || undefined,
-    ativo: input.ativo !== false,
-  };
+  return (opts.fornecedorApi ?? "").trim();
 }
 
 export type TerceiroListRow = {
@@ -63,62 +43,34 @@ export type TerceiroListRow = {
   /** Valor usado no filtro “por terceiro”. */
   terceiro: string;
   fornecedor: string;
-  medicoResponsavel: string;
   valorSubstituicao: string;
   situacao: string;
   status: string;
-  api: EquipamentoItem | null;
-  local: EquipamentoTerceiroLocal | null;
-  noApi: boolean;
-  noLocal: boolean;
+  api: EquipamentoItem;
 };
 
-export function mergeTerceirosLista(
-  apiItems: EquipamentoItem[],
-  locais: EquipamentoTerceiroLocal[],
-): TerceiroListRow[] {
+/** Lista somente equipamentos PBI com Situação TERCEIRO… */
+export function buildTerceirosLista(apiItems: EquipamentoItem[]): TerceiroListRow[] {
   const terceirosApi = filterEquipamentosTerceiro(apiItems);
-  const byTag = new Map<string, EquipamentoItem>();
-  for (const item of terceirosApi) {
-    const t = item.Tag?.trim();
-    if (t) byTag.set(t.toLocaleUpperCase("pt-BR"), item);
-  }
-
-  const localByTag = new Map<string, EquipamentoTerceiroLocal>();
-  for (const loc of locais) {
-    const t = loc.tag?.trim();
-    if (t) localByTag.set(t.toLocaleUpperCase("pt-BR"), loc);
-  }
-
-  const keys = new Set([...byTag.keys(), ...localByTag.keys()]);
   const rows: TerceiroListRow[] = [];
 
-  for (const key of keys) {
-    const api = byTag.get(key) ?? null;
-    const local = localByTag.get(key) ?? null;
-    const tag = api?.Tag?.trim() || local?.tag || key;
-    const fornecedor = (api?.Fornecedor ?? "").trim();
-    const medico = (local?.medicoResponsavel ?? "").trim();
-    const situacao = (api?.Situacao ?? "").trim();
+  for (const api of terceirosApi) {
+    const tag = (api.Tag ?? "").trim();
+    if (!tag) continue;
+    const key = tag.toLocaleUpperCase("pt-BR");
+    const fornecedor = (api.Fornecedor ?? "").trim();
+    const situacao = (api.Situacao ?? "").trim();
     rows.push({
       key: `t-${key}`,
       tag,
-      descricao: (api?.Equipamento || local?.descricao || "").trim() || "—",
-      setor: (api?.Setor || local?.setor || "").trim() || "—",
-      terceiro: labelTerceiro({
-        situacao,
-        fornecedorApi: fornecedor,
-        medicoResponsavel: medico,
-      }),
+      descricao: (api.Equipamento ?? "").trim() || "—",
+      setor: (api.Setor ?? "").trim() || "—",
+      terceiro: labelTerceiro({ situacao, fornecedorApi: fornecedor }),
       fornecedor: fornecedor || "—",
-      medicoResponsavel: medico || "—",
-      valorSubstituicao: api?.ValorDeSubstituicao ?? "",
-      situacao: situacao || (local ? "Local" : "—"),
-      status: api?.Status?.trim() || (local?.ativo === false ? "Inativo" : "—"),
+      valorSubstituicao: api.ValorDeSubstituicao ?? "",
+      situacao: situacao || "—",
+      status: (api.Status ?? "").trim() || "—",
       api,
-      local,
-      noApi: !api,
-      noLocal: !local,
     });
   }
 
@@ -133,4 +85,49 @@ export function distinctTerceiros(rows: TerceiroListRow[]): string[] {
     if (v) set.add(v);
   }
   return [...set].sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
+}
+
+export type TerceiroValorResumo = {
+  /** Mesmo discriminador do filtro (sufixo Situação / Fornecedor). */
+  terceiro: string;
+  quantidade: number;
+  /** Soma de ValorDeSubstituicao (> 0) do grupo. */
+  somaSubstituicao: number;
+};
+
+export type TerceirosValorTotais = {
+  porTerceiro: TerceiroValorResumo[];
+  quantidadeTotal: number;
+  somaSubstituicaoTotal: number;
+};
+
+/**
+ * Agrupa equipamentos de terceiros pelo mesmo label do filtro e soma ValorDeSubstituicao.
+ */
+export function resumirValorSubstituicaoPorTerceiro(rows: TerceiroListRow[]): TerceirosValorTotais {
+  const map = new Map<string, TerceiroValorResumo>();
+
+  for (const row of rows) {
+    const terceiro = row.terceiro.trim() || "(sem identificação)";
+    const atual = map.get(terceiro) ?? {
+      terceiro,
+      quantidade: 0,
+      somaSubstituicao: 0,
+    };
+    atual.quantidade += 1;
+    const n = parseBrNumber(row.valorSubstituicao);
+    if (n != null && n > 0) atual.somaSubstituicao += n;
+    map.set(terceiro, atual);
+  }
+
+  const porTerceiro = [...map.values()].sort((a, b) => {
+    if (b.somaSubstituicao !== a.somaSubstituicao) return b.somaSubstituicao - a.somaSubstituicao;
+    return a.terceiro.localeCompare(b.terceiro, "pt-BR", { sensitivity: "base" });
+  });
+
+  return {
+    porTerceiro,
+    quantidadeTotal: rows.length,
+    somaSubstituicaoTotal: porTerceiro.reduce((acc, g) => acc + g.somaSubstituicao, 0),
+  };
 }

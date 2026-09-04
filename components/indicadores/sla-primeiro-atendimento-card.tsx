@@ -25,54 +25,53 @@ import { formatDateBR } from "@/lib/pbi/dates";
 import { FICHAS } from "@/lib/pbi/fichas";
 import { formatPct, pct } from "@/lib/pbi/indicators";
 import {
-  CRITICIDADE_GRUPOS,
-  SLA_CORRETIVA_CAMPOS,
-  buildSlaCorretivaCriticidade,
-  filterSlaPorCriticidade,
+  PRIORIDADE_GRUPOS,
+  SLA_PRIMEIRO_ATENDIMENTO_CAMPOS,
+  buildSlaPrimeiroAtendimento,
+  filterSlaPorPrioridade,
   filterSlaPorStatus,
-  monthsFromRows,
+  monthsFromSlaRows,
   regraHorasPrioridade,
-  rotuloFonteCriticidade,
   rotuloLimiteOrigem,
-  slaCorretivaDoMes,
-  type CriticidadeGrupo,
-  type SlaCorretivaRow,
-  type SlaStatus,
-} from "@/lib/pbi/sla-corretiva-criticidade";
+  slaDoMes,
+  type PrioridadeGrupo,
+  type SlaAtendimentoStatus,
+  type SlaPrimeiroAtendimentoRow,
+} from "@/lib/pbi/sla-primeiro-atendimento";
 import type { OsAnaliticoItem } from "@/lib/pbi/types";
 import { VOLUME_EC_PERIODO_API, VOLUME_EC_TIPO_API, type RollingYearRange } from "@/lib/pbi/volume-ec";
 
-type CritFiltro = CriticidadeGrupo | "Todas";
-type StatusFiltro = SlaStatus | "Todas" | "Com prazo";
+type PrioFiltro = PrioridadeGrupo | "Todas";
+type StatusFiltro = SlaAtendimentoStatus | "Todas" | "Com prazo";
 
 type Drill = {
   title: string;
   subtitle?: string;
-  rows: SlaCorretivaRow[];
+  rows: SlaPrimeiroAtendimentoRow[];
   mesLabel?: string;
 } | null;
 
-const FICHA = FICHAS["sla-corretiva-criticidade"];
+const FICHA = FICHAS["sla-primeiro-atendimento"];
 
-function tituloLista(drill: Drill, crit: CritFiltro, status: StatusFiltro) {
+function tituloLista(drill: Drill, prio: PrioFiltro, status: StatusFiltro) {
   if (!drill) return undefined;
   const parts: string[] = [];
   if (drill.mesLabel) parts.push(drill.mesLabel);
-  if (crit !== "Todas") parts.push(crit);
+  if (prio !== "Todas") parts.push(prio);
   if (status !== "Todas" && status !== "Com prazo") parts.push(status);
-  if (status === "Com prazo") parts.push("com prazo");
+  if (status === "Com prazo") parts.push("com 1º atendimento + limite");
   if (!parts.length) return drill.title;
-  return `Corretivas · ${parts.join(" · ")}`;
+  return `1º atendimento · ${parts.join(" · ")}`;
 }
 
-function badgeToneStatus(status: SlaStatus): "ok" | "danger" | "warn" | "info" {
+function badgeToneStatus(status: SlaAtendimentoStatus): "ok" | "danger" | "warn" | "info" {
   if (status === "Dentro do prazo") return "ok";
   if (status === "Fora do prazo") return "danger";
-  if (status === "Sem atendimento") return "warn";
+  if (status === "Sem 1º atendimento") return "warn";
   return "info";
 }
 
-export function SlaCorretivaCriticidadeCard({
+export function SlaPrimeiroAtendimentoCard({
   range,
   raw,
   bruta,
@@ -89,22 +88,22 @@ export function SlaCorretivaCriticidadeCard({
 }) {
   const medical = useMedicalIndex();
   const [drill, setDrill] = useState<Drill>(null);
-  const [critFiltro, setCritFiltro] = useState<CritFiltro>("Todas");
+  const [prioFiltro, setPrioFiltro] = useState<PrioFiltro>("Todas");
   const [statusFiltro, setStatusFiltro] = useState<StatusFiltro>("Todas");
   const [sheetOpen, setSheetOpen] = useState(false);
   const { open, ready, openFullscreen, closeFullscreen } = useChartFullscreen();
 
   const dados = useMemo(
-    () => buildSlaCorretivaCriticidade(raw, medical.items, range, medical.tags, medical.ids),
-    [raw, medical.items, medical.tags, medical.ids, range],
+    () => buildSlaPrimeiroAtendimento(raw, range, medical.tags, medical.ids),
+    [raw, medical.tags, medical.ids, range],
   );
 
   const rowsVisiveis = useMemo(
-    () => filterSlaPorCriticidade(dados.noIntervalo, critFiltro),
-    [dados.noIntervalo, critFiltro],
+    () => filterSlaPorPrioridade(dados.noIntervalo, prioFiltro),
+    [dados.noIntervalo, prioFiltro],
   );
 
-  const monthsVisiveis = useMemo(() => monthsFromRows(range, rowsVisiveis), [range, rowsVisiveis]);
+  const monthsVisiveis = useMemo(() => monthsFromSlaRows(range, rowsVisiveis), [range, rowsVisiveis]);
 
   const chartData = useMemo(
     () =>
@@ -126,9 +125,18 @@ export function SlaCorretivaCriticidadeCard({
     const noPrazo = rowsVisiveis.filter((r) => r.noPrazo === true).length;
     const foraPrazo = rowsVisiveis.filter((r) => r.noPrazo === false).length;
     const semPrazo = rowsVisiveis.filter((r) => r.status === "Sem prazo calculável").length;
+    const semAtendimento = rowsVisiveis.filter((r) => r.status === "Sem 1º atendimento").length;
     const comPrazo = noPrazo + foraPrazo;
     const pctNoPrazo = pct(noPrazo, comPrazo);
-    return { noPrazo, foraPrazo, semPrazo, comPrazo, pctNoPrazo, pctLabel: formatPct(pctNoPrazo) };
+    return {
+      noPrazo,
+      foraPrazo,
+      semPrazo,
+      semAtendimento,
+      comPrazo,
+      pctNoPrazo,
+      pctLabel: formatPct(pctNoPrazo),
+    };
   }, [rowsVisiveis]);
 
   const clearSelection = useCallback(() => {
@@ -141,20 +149,26 @@ export function SlaCorretivaCriticidadeCard({
     (row: { name: string; year?: string | number; month?: string | number }) => {
       const year = Number(row.year);
       const month = Number(row.month);
-      const slot = monthsVisiveis.find((m) => m.year === year && m.month === month);
+      const base = filterSlaPorPrioridade(dados.noIntervalo, prioFiltro);
+      const doMes = slaDoMes(base, year, month);
+      const noPrazo = doMes.filter((r) => r.noPrazo === true).length;
+      const foraPrazo = doMes.filter((r) => r.noPrazo === false).length;
+      const semAtendimento = doMes.filter((r) => r.status === "Sem 1º atendimento").length;
+      const comPrazo = noPrazo + foraPrazo;
+      const pctLabel = formatPct(pct(noPrazo, comPrazo));
       setStatusFiltro("Todas");
       setDrill({
-        title: `Corretivas · ${row.name}`,
+        title: `1º atendimento · ${row.name}`,
         mesLabel: row.name,
-        subtitle: `${slot?.pctLabel ?? "—"} no prazo · ${slot?.noPrazo ?? 0} no prazo · ${slot?.foraPrazo ?? 0} fora · ${slot?.semPrazo ?? 0} sem prazo`,
-        rows: slaCorretivaDoMes(rowsVisiveis, year, month),
+        subtitle: `${pctLabel} no prazo · ${noPrazo} no prazo · ${foraPrazo} fora · ${semAtendimento} sem 1º atendimento`,
+        rows: doMes,
       });
     },
-    [monthsVisiveis, rowsVisiveis],
+    [dados.noIntervalo, prioFiltro],
   );
 
   const openPeriodo = useCallback(
-    (rows: SlaCorretivaRow[], title: string, subtitle: string, status: StatusFiltro = "Todas") => {
+    (rows: SlaPrimeiroAtendimentoRow[], title: string, subtitle: string, status: StatusFiltro = "Todas") => {
       setStatusFiltro(status);
       setDrill({ title, subtitle, rows });
     },
@@ -166,45 +180,22 @@ export function SlaCorretivaCriticidadeCard({
     return filterSlaPorStatus(drill.rows, statusFiltro);
   }, [drill, statusFiltro]);
 
-  const cols: ColumnDef<SlaCorretivaRow, unknown>[] = [
+  const cols: ColumnDef<SlaPrimeiroAtendimentoRow, unknown>[] = [
     { accessorKey: "OS", header: "OS" },
     {
       accessorKey: "status",
-      header: "SLA",
+      header: "SLA 1º atendimento",
       cell: ({ row }) => <Badge tone={badgeToneStatus(row.original.status)}>{row.original.status}</Badge>,
     },
     {
-      accessorKey: "criticidadeIndicador",
-      header: "Criticidade (indica.)",
-      cell: ({ row }) => (
-        <span title={rotuloFonteCriticidade(row.original.fonteCriticidade)}>
-          {row.original.criticidadeIndicador}
-          <span className="ml-1 text-[10px] uppercase text-slate-400">
-            {row.original.fonteCriticidade === "equipamento"
-              ? "eq."
-              : row.original.fonteCriticidade === "prioridade_os"
-                ? "prio."
-                : "—"}
-          </span>
-        </span>
-      ),
-    },
-    {
-      accessorKey: "criticidadeEquipamentoRaw",
-      header: "Crit. equipamento",
-      cell: ({ row }) => row.original.criticidadeEquipamentoRaw || "—",
+      accessorKey: "prioridadeGrupo",
+      header: "Prioridade",
+      cell: ({ row }) => row.original.prioridadeGrupo,
     },
     {
       accessorKey: "prioridadeRaw",
-      header: "Prioridade OS",
-      cell: ({ row }) => (
-        <span title={row.original.prioridadeGrupo}>
-          {row.original.prioridadeRaw}
-          {row.original.prioridadeGrupo !== "Sem criticidade" ? (
-            <span className="ml-1 text-[10px] text-slate-400">({row.original.prioridadeGrupo})</span>
-          ) : null}
-        </span>
-      ),
+      header: "Prioridade (API)",
+      cell: ({ row }) => row.original.prioridadeRaw,
     },
     { accessorKey: "TipoDeManutencao", header: "Tipo" },
     { accessorKey: "Tag", header: "Tag" },
@@ -216,7 +207,7 @@ export function SlaCorretivaCriticidadeCard({
     },
     {
       accessorKey: "DataDoAtendimento",
-      header: "Atendimento",
+      header: "1º atendimento",
       cell: ({ row }) => formatDateBR(row.original.atendimentoDate),
     },
     {
@@ -237,7 +228,7 @@ export function SlaCorretivaCriticidadeCard({
   const blockError = error || medicalError;
 
   const Heading = headingAs === "page" ? PageHeader : IndicadorHeading;
-  const listaTitle = tituloLista(drill, critFiltro, statusFiltro);
+  const listaTitle = tituloLista(drill, prioFiltro, statusFiltro);
 
   const filters = drill ? (
     <>
@@ -251,10 +242,10 @@ export function SlaCorretivaCriticidadeCard({
         Fora ({drill.rows.filter((r) => r.noPrazo === false).length})
       </FilterChip>
       <FilterChip
-        active={statusFiltro === "Sem prazo calculável"}
-        onClick={() => setStatusFiltro("Sem prazo calculável")}
+        active={statusFiltro === "Sem 1º atendimento"}
+        onClick={() => setStatusFiltro("Sem 1º atendimento")}
       >
-        Sem prazo ({drill.rows.filter((r) => r.status === "Sem prazo calculável").length})
+        Sem 1º atendimento ({drill.rows.filter((r) => r.status === "Sem 1º atendimento").length})
       </FilterChip>
       <Button type="button" variant="outline" size="sm" onClick={() => setSheetOpen(true)}>
         Abrir painel lateral
@@ -266,35 +257,23 @@ export function SlaCorretivaCriticidadeCard({
 
   const detalhesItems: Array<{ id: string; title: string; children: ReactNode }> = [
     {
-      id: "regra-criticidade",
-      title: "Criticidade do equipamento × Prioridade da OS",
+      id: "evento",
+      title: "Evento de prazo = somente 1º atendimento",
       children: (
         <div className="space-y-3 text-slate-700">
           <p className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sky-950">
-            <strong>Quem manda no indicador:</strong> Criticidade do equipamento no parque quando a{" "}
-            <strong>Tag</strong> casa com o cadastro e o campo Criticidade está preenchido. Se não houver match (ou
-            criticidade vazia), usa-se a <strong>Prioridade da OS</strong> (Alta / Média / Baixa). Não inventamos
-            criticidade.
+            O prazo mede se a <strong>DataDoAtendimento</strong> (1º atendimento) ocorreu até o limite.{" "}
+            <strong>Não</strong> usa Fechamento nem DataDaSolucao como evento de SLA.
           </p>
           <p>
-            A lista de OS mostra <strong>os dois</strong> campos lado a lado. Quando divergem, a coluna “Criticidade
-            (indica.)” deixa explícito se veio do equipamento ou da prioridade.
+            Limite: <strong>DataLimiteDoAtendimento</strong> se preenchida; senão Abertura + horas da Prioridade (
+            {regraHorasPrioridade()}). Na prática a API costuma deixar DataLimite vazia — o fallback por Prioridade
+            domina.
           </p>
-          <ul className="list-disc space-y-1 pl-5">
-            <li>
-              Fonte equipamento: <strong className="tabular-nums">{dados.fonteEquipamento}</strong> OS
-            </li>
-            <li>
-              Fonte prioridade da OS: <strong className="tabular-nums">{dados.fontePrioridade}</strong> OS
-            </li>
-            <li>
-              Sem criticidade/prioridade: <strong className="tabular-nums">{dados.fonteNenhuma}</strong> OS
-            </li>
-            <li>
-              Divergentes (eq. ≠ prioridade, ambos preenchidos):{" "}
-              <strong className="tabular-nums">{dados.divergentes.length}</strong> OS
-            </li>
-          </ul>
+          <p>
+            OS com limite mas sem DataDoAtendimento ficam em <strong>Sem 1º atendimento</strong> (fora do denominador
+            do %). Fechamento sozinho não “salva” o SLA.
+          </p>
         </div>
       ),
     },
@@ -304,27 +283,21 @@ export function SlaCorretivaCriticidadeCard({
       children: (
         <div className="space-y-3 text-slate-700">
           <p>
-            Mesma regra de <code className="rounded bg-white px-1 py-0.5 text-xs">isCorretiva</code> usada em{" "}
-            <Link href="/corretivas" className="font-medium text-aion-blue underline-offset-2 hover:underline">
-              /corretivas
-            </Link>
-            : TipoDeManutencao contendo “CORRET”.
+            Mesma regra de <code className="rounded bg-white px-1 py-0.5 text-xs">isCorretiva</code> + Tag no índice
+            médico. Quebra por <strong>Prioridade da OS</strong> (não criticidade do parque).
           </p>
           <p>
-            Só entram OS com <strong>Tag</strong> no índice de equipamentos médicos (
-            <code className="rounded bg-white px-1 py-0.5 text-xs">lib/pbi/medical.ts</code>). OS sem tag ou com tag
-            não médica ficam de fora.
-          </p>
-          <p>
-            O mês do gráfico é o mês de <strong>Abertura</strong> da OS (intervalo rolante {range.fromISO} a{" "}
-            {range.toISO}).
-          </p>
-          <p className="text-sm text-slate-600">
-            Detalhe operacional legado (SLA atendimento/solução, monitores, Pareto):{" "}
-            <Link href="/corretivas" className="font-medium text-aion-blue underline-offset-2 hover:underline">
-              ver /corretivas
+            Volume sem prazo:{" "}
+            <Link
+              href="/indicadores/corretivas-por-prioridade"
+              className="font-medium text-aion-blue underline-offset-2 hover:underline"
+            >
+              Corretivas por prioridade
             </Link>
             .
+          </p>
+          <p>
+            Mês do gráfico = mês de <strong>Abertura</strong> ({range.fromISO} a {range.toISO}).
           </p>
         </div>
       ),
@@ -338,9 +311,6 @@ export function SlaCorretivaCriticidadeCard({
             <OrigemCampo label="Endpoint">
               <span className="font-mono text-xs">GET /api/pbi/v1/listagem_analitica_das_os</span>
               <p className="mt-1 text-xs text-slate-500">via /api/pbi/os-analitico</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Parque / Criticidade: GET /api/pbi/v1/equipamentos via /api/pbi/equipamentos
-              </p>
             </OrigemCampo>
             <OrigemCampo label="Params enviados">
               <span className="font-mono text-xs">
@@ -348,11 +318,10 @@ export function SlaCorretivaCriticidadeCard({
               </span>
             </OrigemCampo>
             <OrigemCampo label="Filtro local">
-              Tag médica + isCorretiva + Abertura no intervalo. Limite e criticidade resolvidos localmente.
+              Tag médica + isCorretiva + Abertura no intervalo. Prazo só com DataDoAtendimento × limite.
             </OrigemCampo>
             <OrigemCampo label="Campos">
-              <span className="font-mono text-xs">{SLA_CORRETIVA_CAMPOS.join(", ")}</span>
-              <p className="mt-1 text-xs text-slate-500">+ Criticidade do cadastro de equipamentos (por Tag).</p>
+              <span className="font-mono text-xs">{SLA_PRIMEIRO_ATENDIMENTO_CAMPOS.join(", ")}</span>
             </OrigemCampo>
             <OrigemCampo label="Quantidade bruta (API)" valueClassName="mt-1 text-lg font-semibold tabular-nums">
               {bruta}
@@ -364,18 +333,14 @@ export function SlaCorretivaCriticidadeCard({
           </dl>
 
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Fórmula / prazo</p>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Fórmula</p>
             <ul className="list-disc space-y-1 pl-5">
               <li>
                 <strong>No prazo:</strong> DataDoAtendimento ≤ limite.
               </li>
               <li>
-                <strong>Limite:</strong> DataLimiteDoAtendimento se preenchida; senão Abertura + horas da Prioridade (
-                {regraHorasPrioridade()}).
-              </li>
-              <li>
-                <strong>% no prazo:</strong> noPrazo ÷ (noPrazo + foraPrazo). Sem prazo calculável e sem atendimento{" "}
-                <strong>não entram</strong> no denominador.
+                <strong>% no prazo:</strong> noPrazo ÷ (noPrazo + foraPrazo). Sem 1º atendimento e sem prazo calculável
+                não entram no denominador.
               </li>
             </ul>
           </div>
@@ -388,40 +353,42 @@ export function SlaCorretivaCriticidadeCard({
                 <strong className="tabular-nums">{dados.semTag.length + dados.tagForaDoIndice.length}</strong>
               </li>
               <li>
-                Com prazo calculável: <strong className="tabular-nums">{dados.comPrazo}</strong> (
+                Com 1º atendimento + limite: <strong className="tabular-nums">{dados.comPrazo}</strong> (
                 {dados.noPrazo} no prazo · {dados.foraPrazo} fora)
               </li>
               <li>
-                Sem prazo calculável: <strong className="tabular-nums">{dados.semPrazo}</strong>
+                Sem 1º atendimento (com limite): <strong className="tabular-nums">{dados.semAtendimento}</strong>
               </li>
               <li>
-                Sem atendimento (com limite): <strong className="tabular-nums">{dados.semAtendimento}</strong>
+                Sem prazo calculável: <strong className="tabular-nums">{dados.semPrazo}</strong>
               </li>
             </ul>
           </div>
 
           <div>
             <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              % no prazo por criticidade (indicador)
+              % no prazo por prioridade
             </p>
             <div className="overflow-auto rounded-lg border border-slate-200 bg-white">
               <table className="min-w-full text-left text-sm">
                 <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
-                    <th className="px-3 py-2">Criticidade</th>
+                    <th className="px-3 py-2">Prioridade</th>
                     <th className="px-3 py-2">% no prazo</th>
                     <th className="px-3 py-2">No prazo</th>
                     <th className="px-3 py-2">Fora</th>
+                    <th className="px-3 py-2">Sem 1º atend.</th>
                     <th className="px-3 py-2">Total OS</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {dados.porCriticidade.map((row) => (
+                  {dados.porPrioridade.map((row) => (
                     <tr key={row.grupo} className="border-t border-slate-100">
                       <td className="px-3 py-2 font-medium">{row.grupo}</td>
                       <td className="px-3 py-2 tabular-nums">{row.pctLabel}</td>
                       <td className="px-3 py-2 tabular-nums">{row.noPrazo}</td>
                       <td className="px-3 py-2 tabular-nums">{row.foraPrazo}</td>
+                      <td className="px-3 py-2 tabular-nums">{row.semAtendimento}</td>
                       <td className="px-3 py-2 tabular-nums">{row.total}</td>
                     </tr>
                   ))}
@@ -432,30 +399,28 @@ export function SlaCorretivaCriticidadeCard({
 
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Exemplos para conferir ({dados.exemplos.length} OS)
+              Exemplos ({dados.exemplos.length} OS)
             </p>
             {dados.exemplos.length === 0 ? (
-              <p className="text-slate-500">Nenhuma corretiva médica no intervalo para amostrar.</p>
+              <p className="text-slate-500">Nenhuma corretiva médica no intervalo.</p>
             ) : (
               <div className="overflow-auto rounded-lg border border-slate-200 bg-white">
                 <table className="min-w-full text-left text-sm">
                   <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                     <tr>
                       <th className="px-3 py-2">OS</th>
-                      <th className="px-3 py-2">Crit. ind.</th>
                       <th className="px-3 py-2">Prioridade</th>
                       <th className="px-3 py-2">Status</th>
-                      <th className="px-3 py-2">Abertura</th>
+                      <th className="px-3 py-2">1º atendimento</th>
                     </tr>
                   </thead>
                   <tbody>
                     {dados.exemplos.map((item) => (
                       <tr key={`${item.CodigoSerialOS}-${item.OS}`} className="border-t border-slate-100">
                         <td className="px-3 py-2 font-medium">{item.OS || "—"}</td>
-                        <td className="px-3 py-2">{item.criticidadeIndicador}</td>
-                        <td className="px-3 py-2">{item.Prioridade || "—"}</td>
+                        <td className="px-3 py-2">{item.prioridadeGrupo}</td>
                         <td className="px-3 py-2">{item.status}</td>
-                        <td className="px-3 py-2">{formatDateBR(item.aberturaDate)}</td>
+                        <td className="px-3 py-2">{formatDateBR(item.atendimentoDate)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -477,8 +442,8 @@ export function SlaCorretivaCriticidadeCard({
         detalhesItems={detalhesItems}
         heading={
           <Heading
-            title="% Corretivas no prazo (por criticidade)"
-            description={`Qmentum item 6 · cumprimento do tempo de atendimento corretivo · ${range.label}. Criticidade do equipamento manda quando a Tag casa no parque; senão Prioridade da OS.`}
+            title="% 1º atendimento no prazo (por prioridade)"
+            description={`SLA do primeiro atendimento corretivo (DataDoAtendimento ≤ limite) · ${range.label}. Não usa Fechamento. Quebra por Prioridade da OS.`}
           />
         }
         kpis={
@@ -486,7 +451,7 @@ export function SlaCorretivaCriticidadeCard({
             <KpiCard
               label="% no prazo"
               value={kpisVisiveis.pctLabel}
-              hint={`${kpisVisiveis.comPrazo} OS com prazo calculável${critFiltro !== "Todas" ? ` · ${critFiltro}` : ""}`}
+              hint={`${kpisVisiveis.comPrazo} OS com 1º atendimento + limite${prioFiltro !== "Todas" ? ` · ${prioFiltro}` : ""}`}
               tone={toneFromPct(kpisVisiveis.pctNoPrazo)}
               onClick={() =>
                 openPeriodo(
@@ -506,7 +471,7 @@ export function SlaCorretivaCriticidadeCard({
                 openPeriodo(
                   rowsVisiveis.filter((r) => r.noPrazo === true),
                   `No prazo · ${range.label}`,
-                  "Atendimento dentro do limite",
+                  "1º atendimento dentro do limite",
                   "Dentro do prazo",
                 )
               }
@@ -514,28 +479,28 @@ export function SlaCorretivaCriticidadeCard({
             <KpiCard
               label="Fora do prazo"
               value={String(kpisVisiveis.foraPrazo)}
-              hint="Atendimento após o limite"
+              hint="1º atendimento após o limite"
               tone={kpisVisiveis.foraPrazo > 0 ? "danger" : "neutral"}
               onClick={() =>
                 openPeriodo(
                   rowsVisiveis.filter((r) => r.noPrazo === false),
                   `Fora do prazo · ${range.label}`,
-                  "Atendimento depois do limite",
+                  "1º atendimento depois do limite",
                   "Fora do prazo",
                 )
               }
             />
             <KpiCard
-              label="Sem prazo calculável"
-              value={String(kpisVisiveis.semPrazo)}
-              hint="Sem DataLimite e sem horas na Prioridade — fora do %"
-              tone={kpisVisiveis.semPrazo > 0 ? "warn" : "neutral"}
+              label="Sem 1º atendimento"
+              value={String(kpisVisiveis.semAtendimento)}
+              hint="Com limite, sem DataDoAtendimento — fora do %"
+              tone={kpisVisiveis.semAtendimento > 0 ? "warn" : "neutral"}
               onClick={() =>
                 openPeriodo(
-                  rowsVisiveis.filter((r) => r.status === "Sem prazo calculável"),
-                  `Sem prazo · ${range.label}`,
-                  "Não entram no denominador do %",
-                  "Sem prazo calculável",
+                  rowsVisiveis.filter((r) => r.status === "Sem 1º atendimento"),
+                  `Sem 1º atendimento · ${range.label}`,
+                  "Não entram no denominador do % (Fechamento não conta)",
+                  "Sem 1º atendimento",
                 )
               }
             />
@@ -544,28 +509,28 @@ export function SlaCorretivaCriticidadeCard({
         chart={
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
-              <FilterChip active={critFiltro === "Todas"} onClick={() => setCritFiltro("Todas")}>
+              <FilterChip active={prioFiltro === "Todas"} onClick={() => setPrioFiltro("Todas")}>
                 Todas
               </FilterChip>
-              {CRITICIDADE_GRUPOS.map((g) => {
-                const row = dados.porCriticidade.find((r) => r.grupo === g);
+              {PRIORIDADE_GRUPOS.map((g) => {
+                const row = dados.porPrioridade.find((r) => r.grupo === g);
                 return (
-                  <FilterChip key={g} active={critFiltro === g} onClick={() => setCritFiltro(g)}>
-                    {g} ({row?.total ?? 0})
+                  <FilterChip key={g} active={prioFiltro === g} onClick={() => setPrioFiltro(g)}>
+                    {g} ({row?.pctLabel ?? "—"} · {row?.total ?? 0})
                   </FilterChip>
                 );
               })}
             </div>
             <ChartCard
-              title={`No prazo × fora do prazo por mês · ${range.label}`}
+              title={`1º atendimento no prazo × fora · ${range.label}`}
               onExpand={openFullscreen}
-              hint="Barras empilhadas com quantidade; rótulo no topo = % no prazo do mês. Clique no mês para listar as OS. Filtro de criticidade acima refiltra gráfico e KPIs."
+              hint="Barras empilhadas com quantidade; rótulo = % no prazo do mês (só OS com DataDoAtendimento + limite). Clique no mês para listar."
             >
               {dados.semAtendimento > 0 ? (
                 <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
                   Transparência: <strong className="tabular-nums">{dados.semAtendimento}</strong> OS corretivas no
                   período têm limite calculável mas <strong>sem DataDoAtendimento</strong> — ficam fora do % (nem no
-                  prazo, nem fora). O denominador usa só as {dados.comPrazo} com atendimento + limite.
+                  prazo, nem fora). Fechamento sozinho não entra. Denominador: {dados.comPrazo} OS.
                 </p>
               ) : null}
               <SlaPrazoBarChart data={chartData} xKey="name" onRowClick={openMesLista} />
@@ -588,7 +553,7 @@ export function SlaCorretivaCriticidadeCard({
 
       <ChartFullscreenDialog
         open={open}
-        title={`No prazo × fora do prazo · ${range.label}`}
+        title={`1º atendimento no prazo · ${range.label}`}
         subtitle="Mesmo gráfico, em tela cheia. Clique no mês para ver a lista na página."
         onClose={closeFullscreen}
         ready={ready}
@@ -607,7 +572,7 @@ export function SlaCorretivaCriticidadeCard({
         }
       >
         <SlaPrazoBarChart
-          key={`fullscreen-sla-${range.fromISO}-${range.toISO}-${critFiltro}`}
+          key={`fullscreen-sla-atend-${range.fromISO}-${range.toISO}-${prioFiltro}`}
           data={chartData}
           xKey="name"
           className="h-full min-h-[280px]"
@@ -636,6 +601,12 @@ export function SlaCorretivaCriticidadeCard({
               </FilterChip>
               <FilterChip active={statusFiltro === "Fora do prazo"} onClick={() => setStatusFiltro("Fora do prazo")}>
                 Fora
+              </FilterChip>
+              <FilterChip
+                active={statusFiltro === "Sem 1º atendimento"}
+                onClick={() => setStatusFiltro("Sem 1º atendimento")}
+              >
+                Sem 1º atendimento
               </FilterChip>
             </div>
             <DataTable data={drillVisible} columns={cols} pageSize={15} />

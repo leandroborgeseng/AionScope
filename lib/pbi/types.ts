@@ -280,6 +280,62 @@ export type AnexoOsItem = {
   DataHoraInclusao: string;
 };
 
+/** GET /api/pbi/v1/contratos — Web.Api.Queries.Message.ContratoPBIDTO */
+export type ContratoEquipDto = {
+  EquipamentoId?: number;
+  Descricao?: string;
+  Valor?: number;
+  Setor?: string;
+};
+
+export type ContratoSetorDto = {
+  SetorId?: number;
+  Descricao?: string;
+  Valor?: number;
+};
+
+export type ContratoParcelaDto = {
+  NumeroParcela?: number;
+  ValorMoeda?: number;
+  DataVencimento?: string;
+  DataPgto?: string;
+  ValorPgto?: number;
+  Status?: string;
+  Observacao?: string;
+};
+
+export type ContratoProdServicoDto = {
+  ProdutoServicoId?: number;
+  Descricao?: string;
+  Quantidade?: number;
+  Valor?: number;
+};
+
+export type ContratoPbiItem = {
+  ContratoId: number;
+  Numero?: string;
+  Descricao?: string;
+  Empresa?: string;
+  Fornecedor?: string;
+  ValorTotal?: number;
+  MetodoValor?: string;
+  CustoPrevisto?: number;
+  CustoRealizado?: number;
+  SaldoRestante?: number;
+  DataInicio?: string;
+  DataFim?: string;
+  DataFimVigencia?: string;
+  Situacao?: string;
+  Periodicidade?: string;
+  Moeda?: string;
+  Abrangencia?: string;
+  TipoContrato?: string;
+  Equipamentos?: ContratoEquipDto[];
+  Setores?: ContratoSetorDto[];
+  Parcelas?: ContratoParcelaDto[];
+  ProdutosServicos?: ContratoProdServicoDto[];
+};
+
 export type Lookups = {
   empresas: string[];
   setores: string[];

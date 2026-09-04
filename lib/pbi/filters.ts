@@ -140,6 +140,16 @@ export function toUpstreamParams(
       if (filters.empresaIds[0]) params.set("companyId", filters.empresaIds[0]);
       params.set("apenasAtivos", "true");
       break;
+    case "contratos":
+      // Datas opcionais: omitDates=true evita filtrar vigências longas no upstream.
+      if (extras?.omitDates !== "true") {
+        params.set("dataInicio", extras?.dataInicio ?? dataInicio);
+        params.set("dataFim", extras?.dataFim ?? dataFim);
+      }
+      appendAll("listaEmpresaId", filters.empresaIds);
+      params.set("pagina", extras?.pagina ?? "0");
+      params.set("qtdPorPagina", extras?.qtdPorPagina ?? "100000");
+      break;
     default:
       break;
   }

@@ -1,5 +1,10 @@
-import { somaContratosNoMes, contratosDoMes } from "@/lib/cadastros/contratos";
-import type { Contrato } from "@/lib/cadastros/types";
+import {
+  somaContratosNoMesPbi,
+  contratosDoMesPbi,
+  contratoMesLinha,
+  type ContratoMesLinha,
+} from "@/lib/pbi/contratos";
+import type { ContratoPbiItem } from "@/lib/pbi/types";
 import type { GastoReparoMonth, GastoReparoRow } from "@/lib/pbi/gasto-reparo";
 import { formatBRL } from "@/lib/pbi/indicators";
 import type { RollingYearRange } from "@/lib/pbi/volume-ec";
@@ -32,7 +37,7 @@ export type DespesaParqueBuild = {
 
 export function buildDespesaParque(opts: {
   range: RollingYearRange;
-  contratos: Contrato[];
+  contratos: ContratoPbiItem[];
   gastoMonths: GastoReparoMonth[];
   valorParque: number | null;
   fonteParque: "manual" | "api" | null;
@@ -40,7 +45,7 @@ export function buildDespesaParque(opts: {
   const gastoByKey = new Map(opts.gastoMonths.map((m) => [m.key, m]));
 
   const months: DespesaParqueMonth[] = opts.range.months.map((slot) => {
-    const contratos = somaContratosNoMes(opts.contratos, slot.year, slot.month);
+    const contratos = somaContratosNoMesPbi(opts.contratos, slot.year, slot.month);
     const gasto = gastoByKey.get(slot.key);
     const avulsos = gasto?.gasto ?? 0;
     const despesa = contratos + avulsos;
@@ -53,7 +58,7 @@ export function buildDespesaParque(opts: {
       despesa,
       pctParque,
       osCount: gasto?.osCount ?? 0,
-      contratosAtivos: contratosDoMes(opts.contratos, slot.year, slot.month).length,
+      contratosAtivos: contratosDoMesPbi(opts.contratos, slot.year, slot.month).length,
     };
   });
 
@@ -89,6 +94,14 @@ export function rotuloDespesaMes(month: DespesaParqueMonth) {
 }
 
 export type ListaDespesaMes = {
-  contratos: Contrato[];
+  contratos: ContratoMesLinha[];
   os: GastoReparoRow[];
 };
+
+export function contratosLinhaDoMes(
+  contratos: ContratoPbiItem[],
+  year: number,
+  month: number,
+): ContratoMesLinha[] {
+  return contratosDoMesPbi(contratos, year, month).map((c) => contratoMesLinha(c, year, month));
+}

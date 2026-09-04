@@ -11,12 +11,12 @@ const ITEMS = [
   {
     href: "/cadastros/contratos",
     label: "Contratos",
-    blurb: "Despesa mensal de contratos de manutenção (persistida em JSON local).",
+    blurb: "Contratos de manutenção da API GlobalThings (despesa mensal).",
   },
   {
     href: "/cadastros/terceiros",
     label: "Equipamentos de terceiros",
-    blurb: "Lista Situação TERCEIRO…, valor de substituição, anexos, preventivas e lançamento local.",
+    blurb: "Lista Situação TERCEIRO… da API (somente leitura), valor de substituição, anexos e preventivas.",
   },
 ] as const;
 
