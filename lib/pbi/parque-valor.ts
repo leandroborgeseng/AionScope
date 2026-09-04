@@ -93,16 +93,14 @@ export function resumirValorParqueApi(items: EquipamentoItem[]): ParqueValorResu
 }
 
 /**
- * Precedência: override manual (>0) → API persistida/live (todos) → null.
- * Env é tratado no store (resolveValorParque).
+ * Denominador = soma ValorDeSubstituicao (API, todos os equipamentos).
+ * Override manual é ignorado.
  */
 export function valorParqueEfetivo(opts: {
-  manual: number | null;
+  /** @deprecated ignorado — mantido só por compatibilidade de assinatura */
+  manual?: number | null;
   apiTodosSubstituicao: number | null;
-}): { valor: number | null; fonte: "manual" | "api" | null } {
-  if (opts.manual != null && opts.manual > 0) {
-    return { valor: opts.manual, fonte: "manual" };
-  }
+}): { valor: number | null; fonte: "api" | null } {
   if (opts.apiTodosSubstituicao != null && opts.apiTodosSubstituicao > 0) {
     return { valor: opts.apiTodosSubstituicao, fonte: "api" };
   }

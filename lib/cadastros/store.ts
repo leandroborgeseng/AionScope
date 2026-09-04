@@ -210,28 +210,13 @@ export function deleteContrato(id: string): boolean {
 }
 
 /**
- * Precedência do denominador:
- * 1. Override manual (> 0), se salvo explicitamente
- * 2. Env PARQUE_VALOR_SUBSTITUICAO (deploy)
- * 3. valorApi persistido (soma todos os equipamentos)
- * 4. null — caller pode usar soma live da API
+ * Denominador do parque: somente valorApi (soma ValorDeSubstituicao de todos).
+ * Override manual e env PARQUE_VALOR_SUBSTITUICAO são ignorados.
  */
 export function resolveValorParque(meta: ParqueMeta): {
   valor: number | null;
-  fonte: "manual" | "env" | "api" | null;
+  fonte: "api" | null;
 } {
-  if (
-    meta.valorSubstituicaoManual != null &&
-    Number.isFinite(meta.valorSubstituicaoManual) &&
-    meta.valorSubstituicaoManual > 0
-  ) {
-    return { valor: meta.valorSubstituicaoManual, fonte: "manual" };
-  }
-  const envRaw = process.env.PARQUE_VALOR_SUBSTITUICAO?.trim();
-  if (envRaw) {
-    const n = Number(envRaw.replace(/\./g, "").replace(",", "."));
-    if (Number.isFinite(n) && n > 0) return { valor: n, fonte: "env" };
-  }
   if (meta.valorApi != null && Number.isFinite(meta.valorApi) && meta.valorApi > 0) {
     return { valor: meta.valorApi, fonte: "api" };
   }

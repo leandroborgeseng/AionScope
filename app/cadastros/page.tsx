@@ -6,7 +6,7 @@ const ITEMS = [
   {
     href: "/cadastros/parque",
     label: "Valor do parque",
-    blurb: "Valor de substituição manual + comparação com a API de equipamentos.",
+    blurb: "Soma ValorDeSubstituicao de todos os equipamentos (API).",
   },
   {
     href: "/cadastros/contratos",

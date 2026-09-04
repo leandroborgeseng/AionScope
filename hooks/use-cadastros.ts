@@ -10,9 +10,9 @@ import type {
 
 type ParqueResponse = ParqueMeta & {
   valorEfetivo: number | null;
-  fonteEfetiva: ParqueFonte | "env" | null;
+  fonteEfetiva: ParqueFonte | null;
   valorEfetivoManual: number | null;
-  fonteManual: "manual" | "env" | null;
+  fonteManual: null;
   databasePath?: string;
   resumoApi?: {
     nTotal: number;
@@ -36,25 +36,6 @@ export function useParqueMeta() {
       return json.data;
     },
     staleTime: 30_000,
-  });
-}
-
-export function useSaveParqueMeta() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (body: { valorSubstituicaoManual: number | null; atualizadoPor?: string }) => {
-      const res = await fetch("/api/cadastros/parque", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const json = (await res.json()) as { ok: boolean; data?: ParqueResponse; message?: string };
-      if (!json.ok || !json.data) throw new Error(json.message ?? "Falha ao salvar.");
-      return json.data;
-    },
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["cadastros", "parque"] });
-    },
   });
 }
 

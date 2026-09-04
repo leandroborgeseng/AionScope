@@ -1,5 +1,5 @@
 import { atualizarParqueDaApi } from "@/lib/cadastros/parque-api";
-import { readParqueMeta, resolveValorParque, writeParqueMeta } from "@/lib/cadastros/store";
+import { readParqueMeta, resolveValorParque } from "@/lib/cadastros/store";
 import type { ParqueMeta } from "@/lib/cadastros/types";
 import { getDatabaseFilePath } from "@/lib/db/client";
 
@@ -12,9 +12,9 @@ function parquePayload(meta: ParqueMeta) {
     ...meta,
     valorEfetivo: resolved.valor,
     fonteEfetiva: resolved.fonte,
-    /** @deprecated alias */
-    valorEfetivoManual: resolved.fonte === "manual" || resolved.fonte === "env" ? resolved.valor : null,
-    fonteManual: resolved.fonte === "manual" || resolved.fonte === "env" ? resolved.fonte : null,
+    /** @deprecated alias — manual removido */
+    valorEfetivoManual: null,
+    fonteManual: null,
     databasePath: getDatabaseFilePath(),
   };
 }
@@ -53,52 +53,5 @@ export async function POST(request: Request) {
         substituicaoMedicos: result.resumo.substituicao.medicos.total,
       },
     },
-  });
-}
-
-export async function PUT(request: Request) {
-  let body: Partial<ParqueMeta> & {
-    valorSubstituicaoManual?: number | null;
-    atualizadoPor?: string | null;
-    limparManual?: boolean;
-  };
-  try {
-    body = (await request.json()) as typeof body;
-  } catch {
-    return Response.json({ ok: false, message: "JSON inválido." }, { status: 400 });
-  }
-
-  const current = readParqueMeta();
-  let valorManual = current.valorSubstituicaoManual;
-
-  if (body.limparManual) {
-    valorManual = null;
-  } else if (body.valorSubstituicaoManual !== undefined) {
-    const raw = body.valorSubstituicaoManual;
-    if (raw == null || raw === ("" as unknown)) {
-      valorManual = null;
-    } else {
-      const n = typeof raw === "number" ? raw : Number(String(raw).replace(/\./g, "").replace(",", "."));
-      if (!Number.isFinite(n) || n < 0) {
-        return Response.json({ ok: false, message: "Valor de substituição inválido." }, { status: 400 });
-      }
-      valorManual = n === 0 ? null : n;
-    }
-  }
-
-  const next = writeParqueMeta({
-    valorSubstituicaoManual: valorManual,
-    valorApi: current.valorApi,
-    fonte: valorManual != null && valorManual > 0 ? "manual" : "api",
-    escopo: current.escopo || "todos",
-    atualizadoEm: new Date().toISOString(),
-    atualizadoPor: body.atualizadoPor?.trim() || null,
-    valorManualReferencia: current.valorManualReferencia ?? 57_000_000,
-    notas: current.notas,
-  });
-
-  return Response.json({
-    ok: true,
-    data: parquePayload(next),
   });
 }

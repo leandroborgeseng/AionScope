@@ -37,11 +37,10 @@ export async function atualizarParqueDaApi(opts?: {
   const resumo = resumirValorParqueApi(result.data);
   const valorApi = Math.round(resumo.substituicao.todos.total * 100) / 100;
   const current = readParqueMeta();
-  const temManual =
-    current.valorSubstituicaoManual != null && current.valorSubstituicaoManual > 0;
   const meta = writeParqueMeta({
+    valorSubstituicaoManual: null,
     valorApi,
-    fonte: temManual ? "manual" : "api",
+    fonte: "api",
     escopo: "todos",
     atualizadoEm: new Date().toISOString(),
     atualizadoPor: opts?.atualizadoPor ?? null,

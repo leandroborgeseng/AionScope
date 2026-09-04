@@ -2,7 +2,7 @@ export type ParqueFonte = "api" | "manual";
 export type ParqueEscopo = "todos" | "medicos";
 
 export type ParqueMeta = {
-  /** Override opcional — só entra no cálculo se > 0 e salvo explicitamente. */
+  /** @deprecated coluna legado — ignorada no cálculo; limpa ao atualizar da API */
   valorSubstituicaoManual: number | null;
   /** Soma ValorDeSubstituicao (escopo) persistida da API. */
   valorApi: number | null;
