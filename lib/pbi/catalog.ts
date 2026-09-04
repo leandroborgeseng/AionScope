@@ -12,7 +12,8 @@ export type PbiResource =
   | "monitor-atendimento"
   | "anexos-equipamento"
   | "anexos-os"
-  | "oficina";
+  | "oficina"
+  | "contratos";
 
 export type PbiEndpoint = {
   resource: PbiResource;
@@ -124,6 +125,13 @@ export const PBI_ENDPOINTS: Record<PbiResource, PbiEndpoint> = {
     authHeader: "API-KEY",
     pending: true,
     pendingReason: "Endpoint retornou 401. Oficinas são derivadas da listagem de OS.",
+  },
+  contratos: {
+    resource: "contratos",
+    path: "/api/pbi/v1/contratos",
+    tokenEnv: "PBI_TOKEN_CONTRATOS",
+    authHeader: "X-API-KEY",
+    pending: false,
   },
 };
 

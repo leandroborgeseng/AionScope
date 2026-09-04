@@ -14,13 +14,16 @@ import { KpiCard } from "@/components/kpi/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
 import { Badge } from "@/components/ui/badge";
 import { DespesaParqueBarChart, type DespesaParqueChartRow } from "@/components/charts/charts";
-import { useContratos, useParqueMeta } from "@/hooks/use-cadastros";
+import { useParqueMeta } from "@/hooks/use-cadastros";
 import { useMedicalIndex } from "@/hooks/use-medical-index";
 import { useOsAnaliticoRollingYear } from "@/hooks/use-os-analitico-rolling-year";
-import { dataOf, usePbiQuery } from "@/hooks/use-pbi";
-import { contratosDoMes } from "@/lib/cadastros/contratos";
-import type { Contrato } from "@/lib/cadastros/types";
-import { buildDespesaParque, formatPctParque } from "@/lib/pbi/custo-manutencao-parque";
+import { dataOf, errorOf, usePbiQuery } from "@/hooks/use-pbi";
+import {
+  buildDespesaParque,
+  contratosLinhaDoMes,
+  formatPctParque,
+  type ListaDespesaMes,
+} from "@/lib/pbi/custo-manutencao-parque";
 import { FICHAS } from "@/lib/pbi/fichas";
 import { buildGastoReparo, gastoReparoDoMes, type GastoReparoRow } from "@/lib/pbi/gasto-reparo";
 import { formatBRL } from "@/lib/pbi/indicators";
@@ -31,7 +34,7 @@ import {
   resumirValorParqueApi,
   valorParqueEfetivo,
 } from "@/lib/pbi/parque-valor";
-import type { EquipamentoItem } from "@/lib/pbi/types";
+import type { ContratoPbiItem, EquipamentoItem } from "@/lib/pbi/types";
 
 const FICHA = FICHAS["custo-manutencao-parque"];
 
@@ -39,17 +42,28 @@ type Drill = {
   title: string;
   year: number;
   month: number;
-  contratos: Contrato[];
+  contratos: ListaDespesaMes["contratos"];
   os: GastoReparoRow[];
 } | null;
 
 export function CustoManutencaoParqueCard() {
   const { range, raw, bruta, loading: osLoading, error: osError } = useOsAnaliticoRollingYear();
   const medical = useMedicalIndex();
-  const contratosQ = useContratos();
   const parqueQ = useParqueMeta();
   const { open, ready, openFullscreen, closeFullscreen } = useChartFullscreen();
   const [drill, setDrill] = useState<Drill>(null);
+
+  const contratosQ = usePbiQuery<ContratoPbiItem[]>(
+    "contratos",
+    {
+      ...EMPTY_FILTERS,
+      from: range.fromISO,
+      to: range.toISO,
+      tipoManutencao: "Todos",
+      somenteMedicos: false,
+    },
+    { pagina: "0", qtdPorPagina: "100000", omitDates: "true" },
+  );
 
   const eqQ = usePbiQuery<EquipamentoItem[]>(
     "equipamentos",
@@ -66,6 +80,9 @@ export function CustoManutencaoParqueCard() {
       incluirCustoSubstituicao: "true",
     },
   );
+
+  const contratos = dataOf(contratosQ.data) ?? [];
+  const contratosErr = errorOf(contratosQ.data);
 
   const apiResumo = useMemo(() => {
     const items = dataOf(eqQ.data) ?? [];
@@ -90,12 +107,12 @@ export function CustoManutencaoParqueCard() {
     () =>
       buildDespesaParque({
         range,
-        contratos: contratosQ.data ?? [],
+        contratos,
         gastoMonths: gasto.months,
         valorParque: efetivo.valor,
         fonteParque: efetivo.fonte,
       }),
-    [range, contratosQ.data, gasto.months, efetivo.valor, efetivo.fonte],
+    [range, contratos, gasto.months, efetivo.valor, efetivo.fonte],
   );
 
   const chartData: DespesaParqueChartRow[] = useMemo(
@@ -117,10 +134,18 @@ export function CustoManutencaoParqueCard() {
 
   const loading =
     osLoading || medical.loading || contratosQ.isLoading || parqueQ.isLoading || eqQ.isLoading;
+
+  const contratosMsg = contratosErr
+    ? contratosErr.message.includes("PBI_TOKEN_CONTRATOS") ||
+      contratosErr.message.includes("Token ausente")
+      ? "Configure PBI_TOKEN_CONTRATOS no .env.local"
+      : contratosErr.message
+    : null;
+
   const error =
     osError ??
     medical.error ??
-    (contratosQ.error instanceof Error ? contratosQ.error.message : null) ??
+    contratosMsg ??
     (parqueQ.error instanceof Error ? parqueQ.error.message : null);
 
   function openMes(row: DespesaParqueChartRow) {
@@ -130,7 +155,7 @@ export function CustoManutencaoParqueCard() {
       title: `Despesa de ${row.name}`,
       year,
       month,
-      contratos: contratosDoMes(contratosQ.data ?? [], year, month),
+      contratos: contratosLinhaDoMes(contratos, year, month),
       os: gastoReparoDoMes(gasto.noIntervalo, year, month),
     });
   }
@@ -322,18 +347,26 @@ export function CustoManutencaoParqueCard() {
             children: (
               <div className="space-y-2 text-sm text-aion-ink/85">
                 <p>
-                  Contratos ativos no mês (cadastro local) + custo das OS de reparo de equipamentos
-                  médicos fechadas no mês (mesmo recorte de gasto-reparo).
+                  Contratos da API GlobalThings (vigência + parcelas no mês) + custo das OS de reparo
+                  de equipamentos médicos fechadas no mês (mesmo recorte de gasto-reparo).
                 </p>
                 <p>
-                  OS brutas no intervalo: {bruta}. Contratos cadastrados:{" "}
-                  {contratosQ.data?.length ?? 0}.
+                  No mês: soma <code className="text-xs">Parcelas.ValorMoeda</code> com{" "}
+                  <code className="text-xs">DataVencimento</code> no mês; sem parcelas, rateia{" "}
+                  <code className="text-xs">ValorTotal</code> / vigência (
+                  <code className="text-xs">DataInicio</code> →{" "}
+                  <code className="text-xs">DataFimVigencia</code> ou{" "}
+                  <code className="text-xs">DataFim</code>).
                 </p>
                 <p>
-                  Cadastro de contratos:{" "}
+                  OS brutas no intervalo: {bruta}. Contratos na API: {contratos.length}.
+                </p>
+                <p>
+                  Lista de contratos:{" "}
                   <Link href="/cadastros/contratos" className="text-aion-blue underline">
                     /cadastros/contratos
-                  </Link>
+                  </Link>{" "}
+                  (fonte: API GlobalThings).
                 </p>
               </div>
             ),

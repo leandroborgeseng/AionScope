@@ -22,9 +22,14 @@ export const INDICADORES = [
     blurb: "Contratos + avulsos de OS ÷ valor de substituição (API todos os equipamentos; override manual opcional).",
   },
   {
-    href: "/indicadores/sla-corretiva-criticidade",
-    label: "% Corretivas no prazo (criticidade)",
-    blurb: "Qmentum item 6: cumprimento do SLA de atendimento corretivo, quebrado por criticidade do equipamento / prioridade da OS.",
+    href: "/indicadores/corretivas-por-prioridade",
+    label: "Corretivas por prioridade",
+    blurb: "Volume de OS corretivas de eq. médicos por Prioridade (Alta / Média / Baixa / Sem prioridade), mês a mês — sem prazo.",
+  },
+  {
+    href: "/indicadores/sla-primeiro-atendimento",
+    label: "% 1º atendimento no prazo",
+    blurb: "SLA do primeiro atendimento (DataDoAtendimento ≤ limite), por Prioridade. Não usa Fechamento.",
   },
 ] as const;
 
@@ -39,12 +44,12 @@ export const CADASTROS = [
   {
     href: "/cadastros/contratos",
     label: "Contratos",
-    blurb: "Despesa mensal de contratos de manutenção.",
+    blurb: "Contratos de manutenção (API GlobalThings).",
   },
   {
     href: "/cadastros/terceiros",
     label: "Equipamentos de terceiros",
-    blurb: "Situação TERCEIRO…: valor de substituição, anexos, preventivas e acompanhamento local.",
+    blurb: "Situação TERCEIRO… (API, somente leitura): valor de substituição, anexos e preventivas.",
   },
 ] as const;
 

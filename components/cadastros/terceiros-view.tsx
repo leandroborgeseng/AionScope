@@ -7,26 +7,18 @@ import { PageHeader } from "@/components/shell/page-header";
 import { SectionError } from "@/components/pending/pending-banner";
 import { DataTable } from "@/components/tables/data-table";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Sheet } from "@/components/ui/sheet";
 import { TableSkeleton } from "@/components/ui/skeleton";
-import {
-  useCreateEquipamentoTerceiro,
-  useDeleteEquipamentoTerceiro,
-  useEquipamentosTerceiros,
-  useUpdateEquipamentoTerceiro,
-} from "@/hooks/use-cadastros";
 import { useOsAnaliticoRollingYear } from "@/hooks/use-os-analitico-rolling-year";
 import { dataOf, errorOf, usePbiQuery } from "@/hooks/use-pbi";
 import {
+  buildTerceirosLista,
   distinctTerceiros,
-  isSituacaoTerceiro,
-  mergeTerceirosLista,
+  resumirValorSubstituicaoPorTerceiro,
   type TerceiroListRow,
 } from "@/lib/cadastros/terceiros";
-import type { EquipamentoTerceiroInput } from "@/lib/cadastros/types";
 import { formatDateBR, formatDateTimeBR, parseBrNumber, startOfMonthISO, todayISO } from "@/lib/pbi/dates";
 import { EMPTY_FILTERS, isPreventiva } from "@/lib/pbi/filters";
 import { formatBRL } from "@/lib/pbi/indicators";
@@ -43,15 +35,6 @@ const EQ_FILTERS = {
   to: todayISO(),
   tipoManutencao: "Todos" as const,
   somenteMedicos: false,
-};
-
-const EMPTY_FORM: EquipamentoTerceiroInput = {
-  tag: "",
-  descricao: "",
-  medicoResponsavel: "",
-  setor: "",
-  observacao: "",
-  ativo: true,
 };
 
 function formatValorSubstituicao(raw: string | null | undefined) {
@@ -113,11 +96,6 @@ function AnexoList({
 }
 
 export function TerceirosCadastroView() {
-  const locaisQ = useEquipamentosTerceiros();
-  const create = useCreateEquipamentoTerceiro();
-  const update = useUpdateEquipamentoTerceiro();
-  const del = useDeleteEquipamentoTerceiro();
-
   const eqQ = usePbiQuery<EquipamentoItem[]>("equipamentos", EQ_FILTERS, {
     apenasAtivos: "true",
     incluirComponentes: "false",
@@ -130,14 +108,11 @@ export function TerceirosCadastroView() {
   const [busca, setBusca] = useState("");
   const [terceiroFiltro, setTerceiroFiltro] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [form, setForm] = useState<EquipamentoTerceiroInput>(EMPTY_FORM);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [msg, setMsg] = useState<string | null>(null);
 
   const apiItems = dataOf(eqQ.data) ?? [];
-  const locais = locaisQ.data ?? [];
-  const rows = useMemo(() => mergeTerceirosLista(apiItems, locais), [apiItems, locais]);
+  const rows = useMemo(() => buildTerceirosLista(apiItems), [apiItems]);
   const terceirosOpts = useMemo(() => distinctTerceiros(rows), [rows]);
+  const totaisValor = useMemo(() => resumirValorSubstituicaoPorTerceiro(rows), [rows]);
 
   const filtered = useMemo(() => {
     const q = busca.trim().toLocaleLowerCase("pt-BR");
@@ -145,7 +120,7 @@ export function TerceirosCadastroView() {
     return rows.filter((row) => {
       if (tFiltro && row.terceiro.toLocaleLowerCase("pt-BR") !== tFiltro) return false;
       if (!q) return true;
-      const hay = `${row.tag} ${row.descricao} ${row.setor} ${row.terceiro} ${row.fornecedor} ${row.medicoResponsavel}`.toLocaleLowerCase(
+      const hay = `${row.tag} ${row.descricao} ${row.setor} ${row.terceiro} ${row.fornecedor}`.toLocaleLowerCase(
         "pt-BR",
       );
       return hay.includes(q);
@@ -161,7 +136,7 @@ export function TerceirosCadastroView() {
     const all = dataOf(axEqQ.data) ?? [];
     if (!selected) return [];
     const tag = selected.tag.trim().toLocaleUpperCase("pt-BR");
-    const id = selected.api?.Id;
+    const id = selected.api.Id;
     return all.filter(
       (a) =>
         (a.Tag && a.Tag.trim().toLocaleUpperCase("pt-BR") === tag) ||
@@ -190,11 +165,6 @@ export function TerceirosCadastroView() {
     }
     return byCode;
   }, [axOsQ.data]);
-
-  const nTerceiroApi = useMemo(
-    () => apiItems.filter((i) => isSituacaoTerceiro(i.Situacao)).length,
-    [apiItems],
-  );
 
   const columns: ColumnDef<TerceiroListRow, unknown>[] = [
     {
@@ -225,74 +195,20 @@ export function TerceirosCadastroView() {
       ),
     },
     {
-      id: "origem",
-      header: "Origem",
-      cell: ({ row }) => (
-        <div className="flex flex-wrap gap-1">
-          {!row.original.noApi ? <Badge tone="info">API</Badge> : <Badge tone="warn">Só local</Badge>}
-          {!row.original.noLocal ? <Badge tone="ok">Local</Badge> : null}
-        </div>
-      ),
+      accessorKey: "situacao",
+      header: "Situação",
+      cell: ({ row }) => row.original.situacao || "—",
     },
   ];
 
-  function loadEdit(row: TerceiroListRow) {
-    if (!row.local) {
-      setEditingId(null);
-      setForm({
-        tag: row.tag,
-        descricao: row.descricao === "—" ? "" : row.descricao,
-        medicoResponsavel: "",
-        setor: row.setor === "—" ? "" : row.setor,
-        observacao: "",
-        ativo: true,
-      });
-      setMsg(null);
-      return;
-    }
-    setEditingId(row.local.id);
-    setForm({
-      tag: row.local.tag,
-      descricao: row.local.descricao ?? "",
-      medicoResponsavel: row.local.medicoResponsavel ?? "",
-      setor: row.local.setor ?? "",
-      observacao: row.local.observacao ?? "",
-      ativo: row.local.ativo,
-    });
-    setMsg(null);
-  }
-
-  function resetForm() {
-    setEditingId(null);
-    setForm(EMPTY_FORM);
-    setMsg(null);
-  }
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setMsg(null);
-    try {
-      if (editingId) {
-        await update.mutateAsync({ id: editingId, ...form });
-        setMsg("Acompanhamento local atualizado.");
-      } else {
-        await create.mutateAsync(form);
-        setMsg("Acompanhamento local criado.");
-      }
-      resetForm();
-    } catch (err) {
-      setMsg(err instanceof Error ? err.message : "Erro ao salvar.");
-    }
-  }
-
   const eqError = errorOf(eqQ.data);
-  const loading = eqQ.isLoading || locaisQ.isLoading;
+  const loading = eqQ.isLoading;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Equipamentos de terceiros"
-        description="Situação começa com TERCEIRO na API (ex.: TERCEIRO - SODEXO), com ValorDeSubstituicao via incluirCustoSubstituicao=true. Filtro de terceiro = sufixo da Situação (ou Fornecedor / médico local). Lançamento local em SQLite."
+        description="Fonte: API GlobalThings — somente leitura. Situação começa com TERCEIRO (ex.: TERCEIRO - SODEXO), com ValorDeSubstituicao via incluirCustoSubstituicao=true. Filtro de terceiro = sufixo da Situação (ou Fornecedor)."
         actions={
           <Link
             href="/cadastros"
@@ -304,103 +220,83 @@ export function TerceirosCadastroView() {
       />
 
       {eqError ? <SectionError message={`Equipamentos: ${eqError.message}`} /> : null}
-      {locaisQ.error ? (
-        <SectionError
-          message={`Cadastro local: ${locaisQ.error instanceof Error ? locaisQ.error.message : "Erro desconhecido"}`}
-        />
-      ) : null}
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Card>
           <CardHeader className="p-4 pb-2">
             <CardDescription>TERCEIRO na API</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">{eqQ.isLoading ? "…" : nTerceiroApi}</CardTitle>
+            <CardTitle className="text-2xl tabular-nums">{eqQ.isLoading ? "…" : rows.length}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="p-4 pb-2">
-            <CardDescription>Acompanhamento local</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">{locaisQ.isLoading ? "…" : locais.length}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="p-4 pb-2">
-            <CardDescription>Lista mesclada (filtro atual)</CardDescription>
+            <CardDescription>Lista (filtro atual)</CardDescription>
             <CardTitle className="text-2xl tabular-nums">{filtered.length}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="p-4 pb-2">
+            <CardDescription>Total substituição</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">
+              {eqQ.isLoading ? "…" : formatBRL(totaisValor.somaSubstituicaoTotal)}
+            </CardTitle>
           </CardHeader>
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{editingId ? "Editar acompanhamento local" : "Lançar acompanhamento local"}</CardTitle>
-          <CardDescription>
-            Registra Tag + médico/responsável no SQLite. Ao abrir o detalhe, cruza com a API por Tag (anexos e
-            preventivas).
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSubmit} className="grid gap-3 md:grid-cols-2">
-            <label className="grid gap-1 text-sm">
-              <span className="font-medium">Tag *</span>
-              <Input
-                required
-                value={form.tag}
-                onChange={(e) => setForm((f) => ({ ...f, tag: e.target.value }))}
-                placeholder="Ex.: 0101120391"
-              />
-            </label>
-            <label className="grid gap-1 text-sm">
-              <span className="font-medium">Médico / responsável</span>
-              <Input
-                value={form.medicoResponsavel ?? ""}
-                onChange={(e) => setForm((f) => ({ ...f, medicoResponsavel: e.target.value }))}
-                placeholder="Nome do médico ou responsável"
-              />
-            </label>
-            <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="font-medium">Descrição</span>
-              <Input
-                value={form.descricao ?? ""}
-                onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
-              />
-            </label>
-            <label className="grid gap-1 text-sm">
-              <span className="font-medium">Setor</span>
-              <Input
-                value={form.setor ?? ""}
-                onChange={(e) => setForm((f) => ({ ...f, setor: e.target.value }))}
-              />
-            </label>
-            <label className="flex items-center gap-2 self-end pb-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.ativo !== false}
-                onChange={(e) => setForm((f) => ({ ...f, ativo: e.target.checked }))}
-              />
-              Ativo no acompanhamento
-            </label>
-            <label className="grid gap-1 text-sm md:col-span-2">
-              <span className="font-medium">Observação</span>
-              <Input
-                value={form.observacao ?? ""}
-                onChange={(e) => setForm((f) => ({ ...f, observacao: e.target.value }))}
-              />
-            </label>
-            <div className="flex flex-wrap items-center gap-2 md:col-span-2">
-              <Button type="submit" disabled={create.isPending || update.isPending}>
-                {editingId ? "Salvar" : "Lançar"}
-              </Button>
-              {editingId ? (
-                <Button type="button" variant="outline" onClick={resetForm}>
-                  Cancelar edição
-                </Button>
-              ) : null}
-              {msg ? <span className="text-sm text-aion-ink/70">{msg}</span> : null}
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      {!eqQ.isLoading && totaisValor.porTerceiro.length > 0 ? (
+        <Card>
+          <CardHeader className="p-4 pb-2">
+            <CardTitle>Valor de substituição por terceiro</CardTitle>
+            <CardDescription>
+              Soma de ValorDeSubstituicao agrupada pelo sufixo de Situação (ex.: SODEXO) — mesmo critério do filtro.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="overflow-x-auto pt-2">
+            <table className="w-full min-w-[28rem] text-left text-sm">
+              <thead>
+                <tr className="border-b border-aion-line text-xs tracking-wide text-aion-ink/50 uppercase">
+                  <th className="py-2 pr-3 font-medium">Terceiro</th>
+                  <th className="py-2 pr-3 text-right font-medium">Qtd</th>
+                  <th className="py-2 text-right font-medium">Soma substituição</th>
+                </tr>
+              </thead>
+              <tbody>
+                {totaisValor.porTerceiro.map((g) => (
+                  <tr key={g.terceiro} className="border-b border-aion-line/70 last:border-0">
+                    <td className="py-2 pr-3 text-aion-ink">
+                      <button
+                        type="button"
+                        className="text-left font-medium text-aion-blue hover:underline"
+                        onClick={() => setTerceiroFiltro(g.terceiro === "(sem identificação)" ? "" : g.terceiro)}
+                      >
+                        {g.terceiro}
+                      </button>
+                    </td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-aion-ink">{g.quantidade}</td>
+                    <td className="py-2 text-right tabular-nums text-aion-ink">
+                      {g.somaSubstituicao > 0 ? formatBRL(g.somaSubstituicao) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-aion-line">
+                  <td className="pt-2.5 pr-3 font-semibold text-aion-ink">Total geral</td>
+                  <td className="pt-2.5 pr-3 text-right font-semibold tabular-nums text-aion-ink">
+                    {totaisValor.quantidadeTotal}
+                  </td>
+                  <td className="pt-2.5 text-right font-semibold tabular-nums text-aion-ink">
+                    {formatBRL(totaisValor.somaSubstituicaoTotal)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <p className="text-sm text-aion-ink/60">Fonte: API GlobalThings — somente leitura</p>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <label className="grid min-w-0 flex-1 gap-1 text-sm">
@@ -426,7 +322,7 @@ export function TerceirosCadastroView() {
             ))}
           </select>
           <span className="text-[11px] text-aion-ink/50">
-            Opções = sufixo de Situação após &quot;TERCEIRO -&quot; (API), senão Fornecedor ou médico local.
+            Opções = sufixo de Situação após &quot;TERCEIRO -&quot; (API), senão Fornecedor.
           </span>
         </label>
       </div>
@@ -454,107 +350,58 @@ export function TerceirosCadastroView() {
         {selected ? (
           <div className="space-y-6">
             <div className="flex flex-wrap gap-2">
-              {!selected.noApi ? <Badge tone="info">Na API</Badge> : <Badge tone="warn">Sem match na API</Badge>}
-              {!selected.noLocal ? (
-                <Badge tone="ok">No acompanhamento local</Badge>
-              ) : (
-                <Badge>Sem lançamento local</Badge>
-              )}
-              <Button type="button" size="sm" variant="outline" onClick={() => loadEdit(selected)}>
-                {selected.local ? "Editar local" : "Lançar no local"}
-              </Button>
-              {selected.local ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={async () => {
-                    if (!selected.local) return;
-                    if (!confirm(`Remover acompanhamento local da Tag ${selected.tag}?`)) return;
-                    try {
-                      await del.mutateAsync(selected.local.id);
-                      setMsg("Acompanhamento local removido.");
-                    } catch (err) {
-                      setMsg(err instanceof Error ? err.message : "Erro ao excluir.");
-                    }
-                  }}
-                >
-                  Remover local
-                </Button>
-              ) : null}
+              <Badge tone="info">API GlobalThings</Badge>
+              <Badge>Somente leitura</Badge>
             </div>
 
             <section>
               <h3 className="mb-3 text-sm font-semibold text-aion-ink">Dados gerais</h3>
-              {selected.api ? (
-                <dl className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Tag" value={selected.api.Tag} />
-                  <Field label="Descrição" value={selected.api.Equipamento} />
-                  <Field label="Modelo" value={selected.api.Modelo} />
-                  <Field label="Fabricante" value={selected.api.Fabricante} />
-                  <Field label="Patrimônio" value={selected.api.Patrimonio} />
-                  <Field label="Nº série" value={selected.api.NSerie} />
-                  <Field label="Setor" value={selected.api.Setor} />
-                  <Field label="Grupo de setores" value={selected.api.GrupoDeSetores} />
-                  <Field label="Fornecedor" value={selected.api.Fornecedor || "—"} />
-                  <Field
-                    label="Terceiro (da Situação)"
-                    value={selected.terceiro || "—"}
-                  />
-                  <Field label="Situação" value={selected.api.Situacao} />
-                  <Field label="Status" value={selected.api.Status} />
-                  <Field label="Criticidade" value={selected.api.Criticidade} />
-                  <Field label="Registro ANVISA" value={selected.api.RegistroAnvisa} />
-                  <Field
-                    label="Validade ANVISA"
-                    value={formatDateBR(selected.api.ValidadeDoRegistroAnvisa)}
-                  />
-                  <Field
-                    label="Valor de substituição"
-                    value={
-                      <span className="tabular-nums font-medium">
-                        {formatValorSubstituicao(selected.api.ValorDeSubstituicao)}
-                      </span>
-                    }
-                  />
-                  <Field
-                    label="Valor de aquisição"
-                    value={
-                      <span className="tabular-nums">
-                        {formatValorSubstituicao(selected.api.ValorDeAquisicao)}
-                      </span>
-                    }
-                  />
-                  <Field label="Nota fiscal" value={selected.api.NotaFiscal} />
-                  <Field label="Data aquisição" value={formatDateBR(selected.api.DataDeAquisicao)} />
-                  <Field
-                    label="Data instalação"
-                    value={formatDateBR(selected.api["DataDeInstalação"])}
-                  />
-                  <Field label="Data cadastro" value={formatDateBR(selected.api.DataDeCadastro)} />
-                  <Field label="Centro de custo" value={selected.api.CentroDeCusto} />
-                  <Field label="Cliente" value={selected.api.Cliente} />
-                  <Field label="Observação API" value={selected.api.Observacao} />
-                </dl>
-              ) : (
-                <dl className="grid gap-3 sm:grid-cols-2">
-                  <Field label="Tag" value={selected.tag} />
-                  <Field label="Descrição (local)" value={selected.local?.descricao} />
-                  <Field label="Médico / responsável" value={selected.local?.medicoResponsavel} />
-                  <Field label="Setor (local)" value={selected.local?.setor} />
-                  <Field label="Observação" value={selected.local?.observacao} />
-                  <Field
-                    label="Valor de substituição"
-                    value="Indisponível (Tag não encontrada na API TERCEIRO)"
-                  />
-                </dl>
-              )}
-              {selected.local && selected.api ? (
-                <p className="mt-3 text-sm text-aion-ink/65">
-                  Local: médico/responsável <strong>{selected.local.medicoResponsavel || "—"}</strong>
-                  {selected.local.observacao ? ` · ${selected.local.observacao}` : ""}
-                </p>
-              ) : null}
+              <dl className="grid gap-3 sm:grid-cols-2">
+                <Field label="Tag" value={selected.api.Tag} />
+                <Field label="Descrição" value={selected.api.Equipamento} />
+                <Field label="Modelo" value={selected.api.Modelo} />
+                <Field label="Fabricante" value={selected.api.Fabricante} />
+                <Field label="Patrimônio" value={selected.api.Patrimonio} />
+                <Field label="Nº série" value={selected.api.NSerie} />
+                <Field label="Setor" value={selected.api.Setor} />
+                <Field label="Grupo de setores" value={selected.api.GrupoDeSetores} />
+                <Field label="Fornecedor" value={selected.api.Fornecedor || "—"} />
+                <Field label="Terceiro (da Situação)" value={selected.terceiro || "—"} />
+                <Field label="Situação" value={selected.api.Situacao} />
+                <Field label="Status" value={selected.api.Status} />
+                <Field label="Criticidade" value={selected.api.Criticidade} />
+                <Field label="Registro ANVISA" value={selected.api.RegistroAnvisa} />
+                <Field
+                  label="Validade ANVISA"
+                  value={formatDateBR(selected.api.ValidadeDoRegistroAnvisa)}
+                />
+                <Field
+                  label="Valor de substituição"
+                  value={
+                    <span className="tabular-nums font-medium">
+                      {formatValorSubstituicao(selected.api.ValorDeSubstituicao)}
+                    </span>
+                  }
+                />
+                <Field
+                  label="Valor de aquisição"
+                  value={
+                    <span className="tabular-nums">
+                      {formatValorSubstituicao(selected.api.ValorDeAquisicao)}
+                    </span>
+                  }
+                />
+                <Field label="Nota fiscal" value={selected.api.NotaFiscal} />
+                <Field label="Data aquisição" value={formatDateBR(selected.api.DataDeAquisicao)} />
+                <Field
+                  label="Data instalação"
+                  value={formatDateBR(selected.api["DataDeInstalação"])}
+                />
+                <Field label="Data cadastro" value={formatDateBR(selected.api.DataDeCadastro)} />
+                <Field label="Centro de custo" value={selected.api.CentroDeCusto} />
+                <Field label="Cliente" value={selected.api.Cliente} />
+                <Field label="Observação API" value={selected.api.Observacao} />
+              </dl>
             </section>
 
             <section>

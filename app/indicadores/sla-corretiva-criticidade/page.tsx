@@ -1,19 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { SlaCorretivaCriticidadeCard } from "@/components/indicadores/sla-corretiva-criticidade-card";
-import { useOsAnaliticoRollingYear } from "@/hooks/use-os-analitico-rolling-year";
-
-export default function SlaCorretivaCriticidadePage() {
-  const { range, raw, bruta, loading, error } = useOsAnaliticoRollingYear();
-
-  return (
-    <SlaCorretivaCriticidadeCard
-      headingAs="page"
-      range={range}
-      raw={raw}
-      bruta={bruta}
-      loading={loading}
-      error={error}
-    />
-  );
+/** Rota antiga → % 1º atendimento no prazo (por prioridade). */
+export default function SlaCorretivaCriticidadeRedirect() {
+  redirect("/indicadores/sla-primeiro-atendimento");
 }
