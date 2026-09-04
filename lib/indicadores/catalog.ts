@@ -19,7 +19,7 @@ export const INDICADORES = [
   {
     href: "/indicadores/custo-manutencao-parque",
     label: "Custo manutenção / valor do parque",
-    blurb: "Contratos + avulsos de OS ÷ valor de substituição (API todos os equipamentos; override manual opcional).",
+    blurb: "Contratos + avulsos de OS ÷ valor de substituição (API: todos os equipamentos).",
   },
   {
     href: "/indicadores/corretivas-por-prioridade",
@@ -39,7 +39,7 @@ export const CADASTROS = [
   {
     href: "/cadastros/parque",
     label: "Valor do parque",
-    blurb: "Soma da API (todos os equipamentos) com override manual opcional.",
+    blurb: "Soma ValorDeSubstituicao de todos os equipamentos (API).",
   },
   {
     href: "/cadastros/contratos",

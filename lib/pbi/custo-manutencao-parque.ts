@@ -32,7 +32,7 @@ export type DespesaParqueBuild = {
   mediaPctParque: number | null;
   pctParquePeriodo: number | null;
   valorParque: number | null;
-  fonteParque: "manual" | "api" | null;
+  fonteParque: "api" | null;
 };
 
 export function buildDespesaParque(opts: {
@@ -40,7 +40,7 @@ export function buildDespesaParque(opts: {
   contratos: ContratoPbiItem[];
   gastoMonths: GastoReparoMonth[];
   valorParque: number | null;
-  fonteParque: "manual" | "api" | null;
+  fonteParque: "api" | null;
 }): DespesaParqueBuild {
   const gastoByKey = new Map(opts.gastoMonths.map((m) => [m.key, m]));
 

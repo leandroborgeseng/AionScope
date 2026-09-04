@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shell/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useParqueMeta, useRefreshParqueApi, useSaveParqueMeta } from "@/hooks/use-cadastros";
+import { useParqueMeta, useRefreshParqueApi } from "@/hooks/use-cadastros";
 import { dataOf, errorOf, usePbiQuery } from "@/hooks/use-pbi";
 import { startOfMonthISO, todayISO } from "@/lib/pbi/dates";
 import { formatBRL } from "@/lib/pbi/indicators";
@@ -15,33 +15,11 @@ import { EMPTY_FILTERS } from "@/lib/pbi/filters";
 import { PARQUE_META_REFERENCIA, resumirValorParqueApi } from "@/lib/pbi/parque-valor";
 import type { EquipamentoItem } from "@/lib/pbi/types";
 
-function parseMoneyInput(raw: string): number | null {
-  const t = raw.trim();
-  if (!t) return null;
-  const normalized = t.includes(",")
-    ? t.replace(/\./g, "").replace(",", ".")
-    : t.replace(/[^\d.]/g, "");
-  const n = Number(normalized);
-  return Number.isFinite(n) ? n : NaN;
-}
-
 export function ParqueCadastroForm() {
   const parqueQ = useParqueMeta();
-  const save = useSaveParqueMeta();
   const refreshApi = useRefreshParqueApi();
-  const [valorStr, setValorStr] = useState("");
   const [por, setPor] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!parqueQ.data) return;
-    setValorStr(
-      parqueQ.data.valorSubstituicaoManual != null
-        ? String(parqueQ.data.valorSubstituicaoManual)
-        : "",
-    );
-    setPor(parqueQ.data.atualizadoPor ?? "");
-  }, [parqueQ.data]);
 
   const eqQ = usePbiQuery<EquipamentoItem[]>(
     "equipamentos",
@@ -69,29 +47,6 @@ export function ParqueCadastroForm() {
   const fonteEfetiva = parqueQ.data?.fonteEfetiva ?? parqueQ.data?.fonte ?? null;
   const valorEfetivo = parqueQ.data?.valorEfetivo ?? valorPersistido;
 
-  async function onSave(e: React.FormEvent) {
-    e.preventDefault();
-    setMsg(null);
-    const n = parseMoneyInput(valorStr);
-    if (valorStr.trim() && Number.isNaN(n as number)) {
-      setMsg("Valor inválido.");
-      return;
-    }
-    try {
-      await save.mutateAsync({
-        valorSubstituicaoManual: n,
-        atualizadoPor: por.trim() || undefined,
-      });
-      setMsg(
-        n != null && n > 0
-          ? "Override manual salvo (passa a ser o denominador)."
-          : "Manual limpo — denominador volta para o valor da API.",
-      );
-    } catch (err) {
-      setMsg(err instanceof Error ? err.message : "Erro ao salvar.");
-    }
-  }
-
   async function onRefreshApi() {
     setMsg(null);
     try {
@@ -107,7 +62,7 @@ export function ParqueCadastroForm() {
     <div className="space-y-6">
       <PageHeader
         title="Valor do parque"
-        description="Valor puxado do cadastro de equipamentos (substituição, todos os cadastrados). Override manual só se salvar explicitamente."
+        description="Denominador = soma ValorDeSubstituicao de todos os equipamentos (API). Sem override manual."
         actions={
           <Link
             href="/cadastros"
@@ -151,54 +106,19 @@ export function ParqueCadastroForm() {
           {parqueQ.data?.notas ? (
             <p className="text-xs text-aion-muted">{parqueQ.data.notas}</p>
           ) : null}
-          <div className="flex flex-wrap gap-2">
+          <label className="grid max-w-sm gap-1 text-sm">
+            <span className="font-medium text-aion-ink">Atualizado por (opcional)</span>
+            <Input value={por} onChange={(e) => setPor(e.target.value)} placeholder="Nome" />
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
             <Button type="button" onClick={onRefreshApi} disabled={refreshApi.isPending}>
               {refreshApi.isPending ? "Atualizando…" : "Atualizar da API"}
             </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Override manual (opcional)</CardTitle>
-          <CardDescription>
-            Se preenchido e salvo, substitui o valor da API. Deixe vazio e salve para voltar à API.
-            Referência antiga (não usada): {formatBRL(PARQUE_META_REFERENCIA)}.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onSave} className="grid max-w-xl gap-3">
-            <label className="grid gap-1 text-sm">
-              <span className="font-medium text-aion-ink">Valor manual (R$)</span>
-              <Input
-                inputMode="decimal"
-                placeholder="deixe vazio para usar a API"
-                value={valorStr}
-                onChange={(e) => setValorStr(e.target.value)}
-              />
-            </label>
-            <label className="grid gap-1 text-sm">
-              <span className="font-medium text-aion-ink">Atualizado por (opcional)</span>
-              <Input value={por} onChange={(e) => setPor(e.target.value)} placeholder="Nome" />
-            </label>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button type="submit" disabled={save.isPending}>
-                {save.isPending ? "Salvando…" : "Salvar override"}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => setValorStr("")}
-              >
-                Limpar campo
-              </Button>
-            </div>
-            {msg ? <p className="text-sm text-aion-ink/80">{msg}</p> : null}
-            {parqueQ.error ? (
-              <p className="text-sm text-rose-700">{(parqueQ.error as Error).message}</p>
-            ) : null}
-          </form>
+          {msg ? <p className="text-sm text-aion-ink/80">{msg}</p> : null}
+          {parqueQ.error ? (
+            <p className="text-sm text-rose-700">{(parqueQ.error as Error).message}</p>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -207,7 +127,8 @@ export function ParqueCadastroForm() {
           <CardTitle>Auditoria da API (live)</CardTitle>
           <CardDescription>
             GET equipamentos com <code className="text-xs">incluirCustoSubstituicao=true</code>. O
-            cálculo usa a soma de <strong>todos</strong>; médicos só para comparação.
+            cálculo usa a soma de <strong>todos</strong>; médicos só para comparação. Referência
+            antiga (não usada): {formatBRL(PARQUE_META_REFERENCIA)}.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">

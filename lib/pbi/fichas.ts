@@ -155,7 +155,7 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     formula:
       "(Soma dos contratos ativos no mês + Soma do Custo das OS de reparo de eq. médicos fechadas no mês) / Valor de substituição do parque × 100",
     coletaDeDados:
-      "Numerador: contratos da API GlobalThings (GET /api/pbi/v1/contratos via /api/pbi/contratos) — no mês, soma Parcelas.ValorMoeda com DataVencimento no mês; sem parcelas, rateia ValorTotal (ou CustoPrevisto) pela vigência DataInicio→DataFimVigencia/DataFim quando Periodicidade não é mensal. + OS analítica no recorte de gasto-reparo médico. Denominador: valorApi = soma ValorDeSubstituicao de TODOS os equipamentos (incluirCustoSubstituicao=true), persistido; override manual só se salvo explicitamente; env PARQUE_VALOR_SUBSTITUICAO opcional. ValorDeAquisicao não entra (outliers). Intervalo rolante de 12 meses.",
+      "Numerador: contratos da API GlobalThings (GET /api/pbi/v1/contratos via /api/pbi/contratos) — no mês, soma Parcelas.ValorMoeda com DataVencimento no mês; sem parcelas, rateia ValorTotal (ou CustoPrevisto) pela vigência DataInicio→DataFimVigencia/DataFim quando Periodicidade não é mensal. + OS analítica no recorte de gasto-reparo médico. Denominador: valorApi = soma ValorDeSubstituicao de TODOS os equipamentos (incluirCustoSubstituicao=true), persistido — sem override manual nem env. ValorDeAquisicao não entra (outliers). Intervalo rolante de 12 meses.",
     periodicidade: "Mensal",
   },
   "corretivas-por-prioridade": {

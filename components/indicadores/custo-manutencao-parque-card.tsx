@@ -94,12 +94,10 @@ export function CustoManutencaoParqueCard() {
     [raw, range, medical.tags, medical.ids],
   );
 
-  const manual = parqueQ.data?.valorSubstituicaoManual ?? null;
   const apiPersistida = parqueQ.data?.valorApi ?? null;
   const apiLiveTodos = apiResumo?.substituicao.todos.total ?? null;
 
   const efetivo = valorParqueEfetivo({
-    manual,
     apiTodosSubstituicao: apiPersistida ?? apiLiveTodos,
   });
 
@@ -193,11 +191,9 @@ export function CustoManutencaoParqueCard() {
               label="% do parque (período)"
               value={formatPctParque(despesa.pctParquePeriodo)}
               hint={
-                efetivo.fonte === "manual"
-                  ? `Override manual ${formatBRL(efetivo.valor)}`
-                  : efetivo.fonte === "api"
-                    ? `API (todos) ${formatBRL(efetivo.valor)}`
-                    : "Atualize o valor do parque pela API"
+                efetivo.fonte === "api"
+                  ? `API (todos) ${formatBRL(efetivo.valor)}`
+                  : "Atualize o valor do parque pela API"
               }
               tone={
                 despesa.pctParquePeriodo == null
@@ -229,8 +225,6 @@ export function CustoManutencaoParqueCard() {
                   </Link>
                   .
                 </span>
-              ) : efetivo.fonte === "manual" ? (
-                "Barras: contratos + avulsos (OS reparo médicos). Denominador = override manual."
               ) : efetivo.fonte == null ? (
                 <span className="text-amber-800">
                   Sem valor do parque — % fica vazio.{" "}
@@ -302,15 +296,15 @@ export function CustoManutencaoParqueCard() {
               <div className="space-y-2 text-sm text-aion-ink/85">
                 <p>
                   Fonte efetiva:{" "}
-                  <Badge tone={efetivo.fonte === "api" ? "ok" : efetivo.fonte === "manual" ? "warn" : "warn"}>
+                  <Badge tone={efetivo.fonte === "api" ? "ok" : "warn"}>
                     {efetivo.fonte ?? "nenhuma"}
                   </Badge>{" "}
                   · {formatBRL(efetivo.valor)}
                 </p>
                 <p>
                   Valor puxado do cadastro de equipamentos (substituição, todos os cadastrados).
-                  Persistido: {formatBRL(apiPersistida)}. Override manual: {formatBRL(manual)}. Ref.
-                  antiga 57 mi: {formatBRL(PARQUE_META_REFERENCIA)} (não usada no cálculo).
+                  Persistido: {formatBRL(apiPersistida)}. Ref. antiga 57 mi:{" "}
+                  {formatBRL(PARQUE_META_REFERENCIA)} (não usada no cálculo).
                 </p>
                 {apiResumo ? (
                   <>
