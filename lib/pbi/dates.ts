@@ -61,10 +61,20 @@ export function parsePbiDate(value: string | null | undefined): Date | null {
     return isValid(date) ? date : null;
   }
 
-  // Alguns cronogramas vêm como YYYYMMDD + dígito extra (ex: 202607275).
+  // Cronograma: às vezes YYYYMMDD + dígito (ex: 202607275 → 27/07/2026);
+  // às vezes YYYYMM + id de 3 dígitos (ex: 202608678 → ago/2026; "dia" 67 inválido).
   if (/^20\d{7}$/.test(raw)) {
-    const date = parse(raw.slice(0, 8), "yyyyMMdd", new Date());
-    if (isValid(date) && date.getDate() === Number(raw.slice(6, 8))) return date;
+    const y = Number(raw.slice(0, 4));
+    const mo = Number(raw.slice(4, 6));
+    const d = Number(raw.slice(6, 8));
+    if (mo >= 1 && mo <= 12) {
+      if (d >= 1 && d <= 31) {
+        const date = parse(raw.slice(0, 8), "yyyyMMdd", new Date());
+        if (isValid(date) && date.getDate() === d) return date;
+      }
+      const monthOnly = new Date(y, mo - 1, 1);
+      if (isValid(monthOnly)) return monthOnly;
+    }
   }
 
   return null;

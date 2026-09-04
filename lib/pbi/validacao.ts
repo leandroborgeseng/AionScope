@@ -9,7 +9,10 @@ import {
 import { parseBrNumber, parsePbiDate } from "./dates";
 import { extractPrazoHoras } from "./indicadores-os";
 import { pct } from "./indicators";
+import { isOficinaEngenhariaClinica } from "./oficina-ec";
 import type { CronogramaItem, EquipamentoItem, OsAnaliticoItem } from "./types";
+
+export { isOficinaEngenhariaClinica } from "./oficina-ec";
 
 function filled(value: string | null | undefined) {
   const v = (value ?? "").trim().toLocaleUpperCase("pt-BR");
@@ -278,11 +281,6 @@ function normalize(value: string | null | undefined) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLocaleLowerCase("pt-BR")
     .trim();
-}
-
-export function isOficinaEngenhariaClinica(oficina: string | null | undefined) {
-  const v = normalize(oficina);
-  return v.includes("engenharia") || v.includes("clinica");
 }
 
 export function isTipoManutencaoOficinaEc(tipo: string | null | undefined) {
