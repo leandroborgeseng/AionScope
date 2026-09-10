@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { KpiCard } from "@/components/kpi/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
 import { Badge } from "@/components/ui/badge";
+import { OsRelatoBloco } from "@/components/os/os-relato-bloco";
 import { Sheet } from "@/components/ui/sheet";
 import { useMedicalIndex } from "@/hooks/use-medical-index";
 import { dataOf, errorOf, usePbiQuery } from "@/hooks/use-pbi";
@@ -546,22 +547,7 @@ export function MotivosCorretivasCard({
                 }
               />
             </dl>
-            {(selectedMauUso.os.ObservacaoDaOS || selectedMauUso.os.Servico) && (
-              <div className="space-y-2 text-sm">
-                {selectedMauUso.os.ObservacaoDaOS ? (
-                  <p>
-                    <span className="font-semibold text-aion-muted">Observação: </span>
-                    {selectedMauUso.os.ObservacaoDaOS}
-                  </p>
-                ) : null}
-                {selectedMauUso.os.Servico ? (
-                  <p>
-                    <span className="font-semibold text-aion-muted">Serviço: </span>
-                    {selectedMauUso.os.Servico}
-                  </p>
-                ) : null}
-              </div>
-            )}
+            <OsRelatoBloco item={selectedMauUso.os} />
             <div>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-aion-muted">Anexos</p>
               {selectedMauUso.anexos.length === 0 ? (

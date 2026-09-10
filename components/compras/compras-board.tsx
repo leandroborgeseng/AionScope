@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Sheet } from "@/components/ui/sheet";
 import { TableSkeleton } from "@/components/ui/skeleton";
+import { OsRelatoBloco } from "@/components/os/os-relato-bloco";
 import {
   COMPRAS_FECHADAS_DIAS,
   COMPRAS_REGRA_UI,
@@ -40,6 +41,11 @@ const DETAIL_SKIP = new Set([
   "diasEspera",
   "abertaHaLabel",
   "diasAteFechar",
+  // Exibidos em destaque em OsRelatoBloco
+  "ObservacaoDaRequisicao",
+  "ObservacaoDaOS",
+  "Servico",
+  "Requisitante",
 ]);
 
 export function ComprasBoard({
@@ -253,6 +259,7 @@ export function ComprasBoard({
                 GlobalThings — não há deep-link estável na API.
               </span>
             </div>
+            <OsRelatoBloco item={selected} />
             <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
               {Object.entries(selected)
                 .filter(([key]) => !DETAIL_SKIP.has(key))
