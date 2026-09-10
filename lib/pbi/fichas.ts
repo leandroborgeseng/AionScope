@@ -9,7 +9,10 @@ export type FichaIndicadorId =
   | "manutencoes-planejadas-executadas"
   | "custo-manutencao-parque"
   | "corretivas-por-prioridade"
-  | "sla-primeiro-atendimento";
+  | "sla-primeiro-atendimento"
+  | "sla-criticidade"
+  | "gap-preventiva"
+  | "motivos-corretivas";
 
 export type FichaIndicador = {
   id: FichaIndicadorId;
@@ -186,6 +189,51 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
       "% no prazo = (OS com DataDoAtendimento ≤ limite / OS com DataDoAtendimento e limite calculável) × 100. Limite = DataLimiteDoAtendimento se preenchida; senão Abertura + horas da Prioridade (ALTA 2h, MÉDIA 12h, BAIXA 72h, ou horas explícitas). OS sem 1º atendimento ficam fora do denominador (KPI transparente). Fechamento e DataDaSolucao não entram na fórmula.",
     coletaDeDados:
       "Effort GlobalThings — API listagem_analitica_das_os. Recorte: isCorretiva + Tag médica. Intervalo rolante de 12 meses (mês de Abertura). Quebra por Prioridade da OS. Limitação: DataLimiteDoAtendimento costuma vir vazia — o fallback por Prioridade domina.",
+    periodicidade: "Mensal",
+  },
+  "sla-criticidade": {
+    id: "sla-criticidade",
+    nomeDoIndicador: "% 1º atendimento no prazo (por criticidade do equipamento)",
+    ...BASE,
+    finalidadeDoIndicador:
+      "Monitorar o tempo até o 1º atendimento corretivo alinhado à QMentum, por faixa de criticidade do parque (Crítico / Semicrítico / Não crítico) — sem usar Fechamento.",
+    meta: "Crítico ≤ 4h úteis · Semicrítico ≤ 24h úteis · Não crítico ≤ 72h úteis (default; editável depois)",
+    referenciaDaMeta:
+      "QMentum — metas institucionais por criticidade do equipamento. Horas úteis 8h–17h seg–sex (America/Sao_Paulo), sem feriados nesta versão. Valores default documentados na UI até validação com a supervisão.",
+    formula:
+      "% no prazo = (OS com DataDoAtendimento e horas úteis ≤ meta da faixa / OS com 1º atendimento e faixa mapeada) × 100. Faixa = Criticidade do cadastro (Tag): ALTA/CRÍTICO→Crítico, MÉDIA/SEMICRÍTICO→Semicrítico, BAIXA/NÃO CRÍTICO→Não crítico. Evento = somente DataDoAtendimento. Fechamento não entra.",
+    coletaDeDados:
+      "Effort GlobalThings — OS analítica + cadastro de equipamentos (Criticidade). Recorte: isCorretiva + Tag médica. Intervalo rolante 12 meses (mês de Abertura). Limitação: Criticidade vazia → Sem faixa (fora do % por meta).",
+    periodicidade: "Mensal",
+  },
+  "gap-preventiva": {
+    id: "gap-preventiva",
+    nomeDoIndicador: "Equipamentos sem preventiva no plano",
+    ...BASE,
+    finalidadeDoIndicador:
+      "Listar o parque médico ativo que ainda não tem Preventiva no cronograma — cobertura obrigatória na QMentum. Calibração e TSE aparecem só como informação.",
+    meta: "0 equipamentos médicos ativos sem Preventiva no plano (meta operacional)",
+    referenciaDaMeta:
+      "Regra de negócio: equipamentos precisam de preventiva. Calibração e TSE são extras (não obrigatórios para todos).",
+    formula:
+      "Sem preventiva = Tag do parque médico ativo sem linha de Preventiva no cronograma (classificação loose: TipoDeManutencao OU PlanoDeManutencao). Tipo vazio não zera cobertura se o nome do Plano classificar.",
+    coletaDeDados:
+      "API equipamentos (apenasAtivos) + API cronograma na janela operacional (2025–2027 enquanto vigente). Fonte só API.",
+    periodicidade: "Sob demanda / reunião",
+  },
+  "motivos-corretivas": {
+    id: "motivos-corretivas",
+    nomeDoIndicador: "Motivos das manutenções corretivas",
+    ...BASE,
+    finalidadeDoIndicador:
+      "Monitorar Causa/Ocorrência das corretivas médicas e a recorrência por Tag, subsidiando melhorias (PDCA em versão futura).",
+    meta: "Acompanhar top causas e Tags recorrentes (sem meta percentual nesta versão)",
+    referenciaDaMeta:
+      "QMentum — monitorar motivos e gerar melhorias. Esta tela cobre o monitoramento; plano de ação / PDCA fica como próximo passo.",
+    formula:
+      "Pareto = contagem de Causa (ou Ocorrencia) nas OS corretivas médicas com Abertura nos últimos 12 meses. Recorrência = contagem por Tag.",
+    coletaDeDados:
+      "Effort GlobalThings — listagem_analitica_das_os. Recorte: isCorretiva + Tag médica. Qualidade depende do preenchimento de Causa/Ocorrencia no CMMS.",
     periodicidade: "Mensal",
   },
   satisfacao: {

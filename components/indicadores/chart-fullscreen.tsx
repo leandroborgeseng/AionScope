@@ -53,7 +53,7 @@ export function ChartCard({
   children,
 }: {
   title: string;
-  onExpand: () => void;
+  onExpand?: () => void;
   hint?: ReactNode;
   children: ReactNode;
 }) {
@@ -61,7 +61,7 @@ export function ChartCard({
     <Card>
       <CardHeader className="flex-row items-start justify-between gap-3">
         <CardTitle>{title}</CardTitle>
-        <ChartFullscreenButton onClick={onExpand} />
+        {onExpand ? <ChartFullscreenButton onClick={onExpand} /> : null}
       </CardHeader>
       <CardContent>
         {children}
