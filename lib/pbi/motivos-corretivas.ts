@@ -19,6 +19,10 @@ export const MOTIVOS_CORRETIVAS_CAMPOS = [
   "TipoDeManutencao",
   "OS",
   "SituacaoDaOS",
+  "ObservacaoDaOS",
+  "Servico",
+  "Pendencia",
+  "JustificativaEncerramento",
 ] as const;
 
 export type MotivoParetoRow = {
