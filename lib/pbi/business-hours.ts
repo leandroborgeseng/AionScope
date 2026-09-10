@@ -52,3 +52,40 @@ export function diffBusinessMs(from: Date, to: Date): number {
 export function diffBusinessHours(from: Date, to: Date): number {
   return diffBusinessMs(from, to) / 3_600_000;
 }
+
+/**
+ * Soma `hours` horas úteis a `from` (seg–sex 08:00–17:00).
+ * Inverso aproximado de `diffBusinessHours` (sem feriados).
+ */
+export function addBusinessHours(from: Date, hours: number): Date {
+  if (Number.isNaN(from.getTime()) || !Number.isFinite(hours) || hours <= 0) {
+    return new Date(from.getTime());
+  }
+
+  let remaining = Math.round(hours * 3_600_000);
+  let cursor = new Date(from.getTime());
+
+  for (let guard = 0; guard < 10_000 && remaining > 0; guard++) {
+    const day = startOfCalendarDay(cursor);
+    const window = businessWindowOn(day);
+    if (!window) {
+      cursor = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1, BUSINESS_DAY_START_HOUR, 0, 0, 0);
+      continue;
+    }
+    if (cursor.getTime() < window.start.getTime()) {
+      cursor = new Date(window.start.getTime());
+    }
+    if (cursor.getTime() >= window.end.getTime()) {
+      cursor = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1, BUSINESS_DAY_START_HOUR, 0, 0, 0);
+      continue;
+    }
+    const available = window.end.getTime() - cursor.getTime();
+    if (remaining <= available) {
+      return new Date(cursor.getTime() + remaining);
+    }
+    remaining -= available;
+    cursor = new Date(day.getFullYear(), day.getMonth(), day.getDate() + 1, BUSINESS_DAY_START_HOUR, 0, 0, 0);
+  }
+
+  return cursor;
+}

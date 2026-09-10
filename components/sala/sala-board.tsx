@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { AionLogo } from "@/components/brand/aion-logo";
+import {
+  OsCountdownBadge,
+  OsPrazoPrimeiroAtendimentoBloco,
+} from "@/components/os/os-prazo-primeiro-atendimento";
 import { OsRelatoBloco } from "@/components/os/os-relato-bloco";
 import { Sheet } from "@/components/ui/sheet";
 import { formatDateTimeBR } from "@/lib/pbi/dates";
@@ -11,6 +15,7 @@ import { BUSINESS_HOURS_LABEL } from "@/lib/pbi/business-hours";
 import {
   FAIXAS_LEGENDA,
   SALA_MAX_LINHAS,
+  SALA_PRAZO_LEGENDA,
   SALA_RECORTE_LINHA,
   formatAtualizadoHa,
   formatRelogioSala,
@@ -98,6 +103,15 @@ export function SalaBoard({
   );
   const ocultasFiltradas = Math.max(0, filaFiltrada.length - visiveisFiltradas.length);
 
+  /** Mantém o sheet sincronizado com o countdown ao vivo da fila. */
+  const selecionadaViva = useMemo(() => {
+    if (!selecionada) return null;
+    const key = `${selecionada.item.CodigoSerialOS}-${selecionada.item.OS}`;
+    return (
+      snapshot.fila.find((row) => `${row.item.CodigoSerialOS}-${row.item.OS}` === key) ?? selecionada
+    );
+  }, [selecionada, snapshot.fila]);
+
   const toggleSetor = (setor: string) => {
     setSetorSelecionado((atual) => (atual === setor ? null : setor));
   };
@@ -117,7 +131,9 @@ export function SalaBoard({
         </div>
         <div className="flex items-center gap-5">
           <div className="hidden text-right sm:block">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-aion-muted">Fila · &gt;4h úteis · &gt;72h úteis</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-aion-muted">
+              Fila · fora do prazo · atraso grave
+            </p>
             <p className="font-mono text-lg font-semibold tabular-nums text-aion-ink">
               {valor(kpis.filaAberta)} · {valor(kpis.envelhecidas)} · {valor(kpis.estouradasGraves)}
             </p>
@@ -172,7 +188,7 @@ export function SalaBoard({
           {formatAtualizadoHa(dataUpdatedAt, nowMs)}
           {dataUpdatedAt ? ` · ${formatDateTimeBR(new Date(dataUpdatedAt))}` : ""}
         </p>
-        <p className="max-w-[52rem] truncate" title={SALA_RECORTE_LINHA}>
+        <p className="max-w-[40rem] truncate" title={SALA_RECORTE_LINHA}>
           {SALA_RECORTE_LINHA}
         </p>
         <p title={`${OFICINA_EC_REGRA_RESUMO}. Aceitas: ${OFICINAS_EC_LABELS.join(", ")}`}>
@@ -181,8 +197,8 @@ export function SalaBoard({
             ? ` · ${snapshot.foraPorOficina} OS fora por oficina`
             : ""}
         </p>
-        <p title={BUSINESS_HOURS_LABEL}>
-          Idade em horas úteis 8h–17h seg–sex · sem preventiva/TSE/calibração · sem feriados nacionais nesta versão
+        <p className="max-w-[36rem] truncate" title={SALA_PRAZO_LEGENDA}>
+          Prazo 1º at. por criticidade · {BUSINESS_HOURS_LABEL}
         </p>
         <ul className="flex flex-wrap items-center gap-3">
           {FAIXAS_LEGENDA.map((faixa) => (
@@ -197,12 +213,16 @@ export function SalaBoard({
       </footer>
 
       <Sheet
-        open={!!selecionada}
-        title={selecionada ? `OS ${selecionada.item.OS || "—"}` : ""}
-        subtitle={selecionada ? `${selecionada.tipoResumo} · ${selecionada.idadeLabel} · aberta` : undefined}
+        open={!!selecionadaViva}
+        title={selecionadaViva ? `OS ${selecionadaViva.item.OS || "—"}` : ""}
+        subtitle={
+          selecionadaViva
+            ? `${selecionadaViva.tipoResumo} · ${selecionadaViva.prazo.labelCurto} · aberta`
+            : undefined
+        }
         onClose={() => setSelecionada(null)}
       >
-        {selecionada ? <OsCrua item={selecionada} /> : null}
+        {selecionadaViva ? <OsCrua item={selecionadaViva} /> : null}
       </Sheet>
     </div>
   );
@@ -481,12 +501,13 @@ function FilaLista({
           </p>
         ) : null}
       </div>
-      <div className="grid grid-cols-[6.5rem_minmax(8rem,1.1fr)_minmax(8rem,1fr)_minmax(10rem,1.3fr)_7.5rem_6rem_3.5rem] gap-3 border-b border-aion-line px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-aion-muted">
+      <div className="grid grid-cols-[5.5rem_minmax(7rem,1fr)_minmax(7rem,0.9fr)_minmax(8rem,1.1fr)_5.5rem_minmax(7.5rem,1fr)_5rem_3rem] gap-2 border-b border-aion-line px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-aion-muted">
         <span>OS</span>
         <span>Tipo</span>
         <span>Setor</span>
         <span>Equipamento</span>
-        <span className="text-right">Idade (h úteis)</span>
+        <span>Abertura</span>
+        <span className="text-right">Prazo 1º at.</span>
         <span>Prioridade</span>
         <span />
       </div>
@@ -497,7 +518,7 @@ function FilaLista({
               type="button"
               onClick={() => onSelect(row)}
               className={cn(
-                "grid w-full grid-cols-[6.5rem_minmax(8rem,1.1fr)_minmax(8rem,1fr)_minmax(10rem,1.3fr)_7.5rem_6rem_3.5rem] items-center gap-3 border-l-4 px-4 py-2 text-left text-lg",
+                "grid w-full grid-cols-[5.5rem_minmax(7rem,1fr)_minmax(7rem,0.9fr)_minmax(8rem,1.1fr)_5.5rem_minmax(7.5rem,1fr)_5rem_3rem] items-center gap-2 border-l-4 px-4 py-2 text-left text-base",
                 FAIXA_ROW[row.faixa],
               )}
             >
@@ -505,7 +526,12 @@ function FilaLista({
               <span className="truncate">{row.tipoResumo}</span>
               <span className="truncate text-aion-ink/80">{row.local}</span>
               <span className="truncate text-aion-muted">{row.equipamento}</span>
-              <span className="text-right font-semibold tabular-nums">{row.idadeLabel}</span>
+              <span className="font-mono text-sm tabular-nums text-aion-ink" title={row.prazo.abertura ? formatDateTimeBR(row.prazo.abertura) : undefined}>
+                {row.prazo.aberturaHoraLabel}
+              </span>
+              <span className="text-right text-sm">
+                <OsCountdownBadge prazo={row.prazo} />
+              </span>
               <span className="truncate text-sm uppercase text-aion-muted">{row.prioridade || "—"}</span>
               <span>
                 {row.novaHoje ? (
@@ -540,6 +566,7 @@ function OsCrua({ item }: { item: SalaOs }) {
   return (
     <div className="space-y-4">
       <OsRelatoBloco item={item.item} />
+      <OsPrazoPrimeiroAtendimentoBloco prazo={item.prazo} />
       <dl className="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-2 text-sm">
         <dt className="text-aion-muted">Idade (h úteis)</dt>
         <dd className="font-semibold tabular-nums">{item.idadeLabel}</dd>

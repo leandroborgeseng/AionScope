@@ -15,6 +15,8 @@ export default function SalaPage() {
   const range = useMemo(() => rollingYearRange(today), [today]);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const [clock, setClock] = useState(() => nowInSaoPaulo());
+  /** Countdown da fila/detalhe: atualiza a cada 30s (relógio visual continua em 1s). */
+  const [prazoNow, setPrazoNow] = useState(() => nowInSaoPaulo());
 
   const osFilters: DashboardFilters = useMemo(
     () => ({
@@ -40,11 +42,21 @@ export default function SalaPage() {
     return () => window.clearInterval(id);
   }, []);
 
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setPrazoNow(nowInSaoPaulo());
+    }, 30_000);
+    return () => window.clearInterval(id);
+  }, []);
+
   const medical = useMedicalIndex();
   const raw = dataOf(osQ.data) ?? [];
   const snapshot = useMemo(
-    () => (medical.ready ? buildSalaSnapshot(raw, medical.tags, clock, medical.ids) : buildSalaSnapshot([], new Set(), clock)),
-    [raw, clock, medical.ready, medical.tags, medical.ids],
+    () =>
+      medical.ready
+        ? buildSalaSnapshot(raw, medical.tags, prazoNow, medical.ids, medical.equipamentoIndex)
+        : buildSalaSnapshot([], new Set(), prazoNow),
+    [raw, prazoNow, medical.ready, medical.tags, medical.ids, medical.equipamentoIndex],
   );
   const error = errorOf(osQ.data)?.message ?? medical.error;
 
