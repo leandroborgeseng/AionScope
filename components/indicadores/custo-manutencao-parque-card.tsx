@@ -133,18 +133,20 @@ export function CustoManutencaoParqueCard() {
   const loading =
     osLoading || medical.loading || contratosQ.isLoading || parqueQ.isLoading || eqQ.isLoading;
 
+  const contratosTokenAusente =
+    Boolean(contratosErr) &&
+    (contratosErr!.message.includes("PBI_TOKEN_CONTRATOS") ||
+      contratosErr!.message.includes("Token ausente"));
   const contratosMsg = contratosErr
-    ? contratosErr.message.includes("PBI_TOKEN_CONTRATOS") ||
-      contratosErr.message.includes("Token ausente")
+    ? contratosTokenAusente
       ? "Configure PBI_TOKEN_CONTRATOS no .env.local"
       : contratosErr.message
     : null;
+  /** Sem contratos confiáveis: não publicar % do parque como se o numerador estivesse completo. */
+  const contratosIndisponiveis = Boolean(contratosMsg);
 
   const error =
-    osError ??
-    medical.error ??
-    contratosMsg ??
-    (parqueQ.error instanceof Error ? parqueQ.error.message : null);
+    osError ?? medical.error ?? (parqueQ.error instanceof Error ? parqueQ.error.message : null);
 
   function openMes(row: DespesaParqueChartRow) {
     const year = Number(row.year);
@@ -182,21 +184,43 @@ export function CustoManutencaoParqueCard() {
         }
         kpis={
           <>
+            {contratosIndisponiveis ? (
+              <div className="sm:col-span-2 xl:col-span-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                Contratos indisponíveis ({contratosMsg}). Mostramos só avulsos de OS;{" "}
+                <strong>não</strong> publicamos % do parque com numerador incompleto.{" "}
+                <Link href="/cadastros/contratos" className="underline">
+                  Ver cadastro de contratos
+                </Link>
+                .
+              </div>
+            ) : null}
             <KpiCard
               label="Despesa do período"
-              value={formatBRL(despesa.despesaTotal)}
-              hint={`${formatBRL(despesa.contratosTotal)} contratos · ${formatBRL(despesa.avulsosTotal)} avulsos`}
+              value={
+                contratosIndisponiveis
+                  ? formatBRL(despesa.avulsosTotal)
+                  : formatBRL(despesa.despesaTotal)
+              }
+              hint={
+                contratosIndisponiveis
+                  ? `${formatBRL(despesa.avulsosTotal)} avulsos · contratos pendentes de token`
+                  : `${formatBRL(despesa.contratosTotal)} contratos · ${formatBRL(despesa.avulsosTotal)} avulsos`
+              }
             />
             <KpiCard
               label="% do parque (período)"
-              value={formatPctParque(despesa.pctParquePeriodo)}
+              value={
+                contratosIndisponiveis ? "—" : formatPctParque(despesa.pctParquePeriodo)
+              }
               hint={
-                efetivo.fonte === "api"
-                  ? `API (todos) ${formatBRL(efetivo.valor)}`
-                  : "Atualize o valor do parque pela API"
+                contratosIndisponiveis
+                  ? "Indisponível sem contratos na API"
+                  : efetivo.fonte === "api"
+                    ? `API (todos) ${formatBRL(efetivo.valor)}`
+                    : "Atualize o valor do parque pela API"
               }
               tone={
-                despesa.pctParquePeriodo == null
+                contratosIndisponiveis || despesa.pctParquePeriodo == null
                   ? "neutral"
                   : despesa.pctParquePeriodo <= 4
                     ? "ok"
@@ -207,8 +231,20 @@ export function CustoManutencaoParqueCard() {
             />
             <KpiCard
               label="Média mensal"
-              value={formatBRL(despesa.mediaMensal)}
-              hint={`Média % do parque: ${formatPctParque(despesa.mediaPctParque)}`}
+              value={
+                contratosIndisponiveis
+                  ? formatBRL(
+                      despesa.months.length
+                        ? despesa.avulsosTotal / despesa.months.length
+                        : 0,
+                    )
+                  : formatBRL(despesa.mediaMensal)
+              }
+              hint={
+                contratosIndisponiveis
+                  ? "Média só de avulsos — % do parque omitido"
+                  : `Média % do parque: ${formatPctParque(despesa.mediaPctParque)}`
+              }
             />
           </>
         }
@@ -217,7 +253,11 @@ export function CustoManutencaoParqueCard() {
             title={`Despesa mensal · ${range.label}`}
             onExpand={openFullscreen}
             hint={
-              efetivo.fonte === "api" ? (
+              contratosIndisponiveis ? (
+                <span className="text-amber-800">
+                  Só avulsos de OS no gráfico — contratos ausentes; % do parque não é KPI oficial neste estado.
+                </span>
+              ) : efetivo.fonte === "api" ? (
                 <span>
                   Valor puxado do cadastro de equipamentos (substituição, todos os cadastrados).{" "}
                   <Link href="/cadastros/parque" className="underline">

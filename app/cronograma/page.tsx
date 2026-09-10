@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { CsvButton } from "@/components/export/csv-button";
-import { KpiCard, toneFromPct } from "@/components/kpi/kpi-card";
+import { KpiCard } from "@/components/kpi/kpi-card";
 import { PendingBanner, SectionError } from "@/components/pending/pending-banner";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +32,7 @@ import {
   type MesCellStatus,
 } from "@/lib/pbi/cronograma-anual";
 import { formatDateBR, nowInSaoPaulo, toApiDateTime } from "@/lib/pbi/dates";
-import { cronogramaStatus, formatPct } from "@/lib/pbi/indicators";
+import { cronogramaStatus } from "@/lib/pbi/indicators";
 import type { CronogramaItem, EquipamentoItem, OsAnaliticoItem, OsResumidaItem } from "@/lib/pbi/types";
 import { cn, uniqueSorted } from "@/lib/utils";
 
@@ -257,7 +257,12 @@ export default function CronogramaPage() {
         </div>
       ) : null}
 
-      <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+        Contagens abaixo usam OS no mês previsto (Fechamento/DataDaSolucao) — proxy operacional da matriz,{" "}
+        <strong>não</strong> KPI oficial de cumprimento por laudo. Para cobertura do plano, use o gap em QMentum.
+      </div>
+
+      <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <KpiCard
           label="Previstas no ano"
           value={String(allKpi.previstas)}
@@ -265,24 +270,15 @@ export default function CronogramaPage() {
           loading={loading}
         />
         <KpiCard
-          label="Realizadas"
+          label="Com OS no mês"
           value={String(allKpi.realizadas)}
-          hint="OS de preventiva, calibração ou TSE no mês previsto"
-          tone="ok"
+          hint="Proxy: preventiva, calibração ou TSE com OS no mês previsto — não é emissão de laudo"
           loading={loading}
         />
         <KpiCard
-          label="Não realizadas"
+          label="Sem OS no mês"
           value={String(allKpi.naoRealizadas)}
-          hint="Previstas no ano ainda sem OS no mês"
-          tone={allKpi.naoRealizadas ? "danger" : "ok"}
-          loading={loading}
-        />
-        <KpiCard
-          label="% cumprimento"
-          value={formatPct(allKpi.cumprimento)}
-          hint="Realizadas ÷ previstas no ano"
-          tone={toneFromPct(allKpi.cumprimento)}
+          hint="Previstas no ano ainda sem OS no mês (matriz âmbar/vermelho)"
           loading={loading}
         />
       </div>
@@ -295,7 +291,7 @@ export default function CronogramaPage() {
               {loading ? "…" : `${kpi.realizadas}/${kpi.previstas}`}
             </p>
             <p className="text-xs text-slate-500">
-              {formatPct(kpi.cumprimento)} cumprimento · {kpi.naoRealizadas} em aberto
+              Com OS no mês / previstas · {kpi.naoRealizadas} sem OS
               {kpi.semData ? ` · ${kpi.semData} sem data` : ""}
             </p>
           </Card>
