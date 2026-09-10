@@ -2,6 +2,11 @@
 
 export type QmentumStatus = "Coberto" | "Parcial" | "Fora";
 
+export type QmentumLink = {
+  href: string;
+  label: string;
+};
+
 export type QmentumChecklistItem = {
   id: number;
   titulo: string;
@@ -12,6 +17,8 @@ export type QmentumChecklistItem = {
   appMostra: string;
   href?: string;
   linkLabel?: string;
+  /** Links extras (ex.: evidências alternativas). */
+  links?: QmentumLink[];
 };
 
 export const QMENTUM_HUB_HREF = "/qmentum";
@@ -33,7 +40,7 @@ export const QMENTUM_CHECKLIST: QmentumChecklistItem[] = [
     auditoriaOlha:
       "Por que quebra, recorrência por Tag, erro operacional, instalação, fim de vida, falha de preventiva.",
     appMostra:
-      "Pareto de Causa/Ocorrência + recorrência por Tag (últimos 12 meses). PDCA / plano de ação ainda não — placeholder honesto na tela.",
+      "Pareto de Causa/Ocorrência + recorrência por Tag + aba Mau uso (keywords + anexos/foto) nos últimos 12 meses. PDCA / plano de ação ainda não — placeholder honesto na tela.",
     href: "/qmentum/motivos-corretivas",
     linkLabel: "Abrir motivos das corretivas",
   },
@@ -62,9 +69,9 @@ export const QMENTUM_CHECKLIST: QmentumChecklistItem[] = [
     status: "Parcial",
     auditoriaOlha: "Histórico + evidência (laudos/certificados) com método definido pela instituição.",
     appMostra:
-      "Auditoria de leitura (cronograma × OS). Gravação e laudos com data ficam no GlobalThings — o app não grava no CMMS.",
-    href: "/indicadores/manutencoes-planejadas-executadas",
-    linkLabel: "Abrir planejadas × executadas",
+      "Histórico via cronograma × OS no CMMS. Data de emissão do laudo não vem na API PBI — não há KPI oficial de cumprimento por laudo.",
+    href: "/cronograma",
+    linkLabel: "Abrir cronograma (leitura)",
   },
   {
     id: 6,
@@ -79,13 +86,15 @@ export const QMENTUM_CHECKLIST: QmentumChecklistItem[] = [
   {
     id: 7,
     titulo: "Cumprimento das preventivas (+ gap no plano)",
-    status: "Coberto",
+    status: "Parcial",
     auditoriaOlha:
       "Indicador estrela: aderência ao plano. Equipamentos precisam de preventiva; calibração/TSE são extras informativos.",
     appMostra:
-      "Planejadas × executadas + lista de parque médico ativo sem Preventiva no cronograma (janela do plano).",
-    href: "/qmentum/sem-preventiva",
-    linkLabel: "Abrir gap sem preventiva",
+      "Parcial / indisponível: executado por fechamento de OS distorce; aguardando data de laudo na API. Evidências alternativas: cronograma e lista de parque médico ativo sem Preventiva no plano.",
+    links: [
+      { href: "/cronograma", label: "Abrir cronograma" },
+      { href: "/qmentum/sem-preventiva", label: "Abrir gap sem preventiva" },
+    ],
   },
   {
     id: 8,
@@ -105,7 +114,7 @@ export const QMENTUM_NAV = [
   {
     href: "/qmentum/motivos-corretivas",
     label: "Motivos das corretivas",
-    blurb: "Pareto Causa/Ocorrência e recorrência por Tag (12 meses).",
+    blurb: "Pareto Causa/Ocorrência, recorrência por Tag e recorte de mau uso (12 meses).",
   },
   {
     href: "/indicadores/sla-criticidade",

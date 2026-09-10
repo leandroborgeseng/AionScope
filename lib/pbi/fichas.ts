@@ -132,18 +132,18 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
   },
   "manutencoes-planejadas-executadas": {
     id: "manutencoes-planejadas-executadas",
-    nomeDoIndicador: "% Manutenções Planejadas x Realizadas",
+    nomeDoIndicador: "% Manutenções Planejadas x Realizadas (DESATIVADO)",
     ...BASE,
     finalidadeDoIndicador:
-      "Avaliar a aderência ao plano de manutenção preventiva, medindo o volume de manutenções previstas no cronograma frente às efetivamente executadas (preventivas, calibrações e TSE) no período.",
-    meta: "> 90%",
+      "DESATIVADO na UI: a API não expõe data de emissão do laudo. Contar executado por Fechamento/DataDaSolucao distorce o cumprimento e não deve ser usado em auditoria. Reativar quando houver campo confiável de emissão de laudo.",
+    meta: "> 90% (quando reativado)",
     referenciaDaMeta:
-      "Benchmarks nacionais (Rede D’Or, HIAE, ANVISA) e boas práticas de engenharia clínica recomendam ≥ 90% de execução das manutenções preventivas programadas.",
+      "Benchmarks nacionais (Rede D’Or, HIAE, ANVISA) e boas práticas de engenharia clínica recomendam ≥ 90% de execução das manutenções preventivas programadas — desde que o evento seja a emissão do laudo, não o fechamento da OS.",
     formula:
-      "Planejado no mês = ocorrências do cronograma (Preventiva / Calibração / TSE) cuja ProximaRealizacao (ou expansão por Perioridicade) cai no mês. Executado no mês = OS fechadas (Fechamento; senão DataDaSolucao) do mesmo tipo no mês. Coberto = min(planejado, executado). Déficit = max(0, planejado − executado). Superávit = max(0, executado − planejado). Cumprimento = (min(planejado, executado) / planejado) × 100. Contagem independente (não exige pareamento Tag a Tag no gráfico).",
+      "Planejado no mês = ocorrências do cronograma (Preventiva / Calibração / TSE). Executado desejado = data de emissão do laudo (indisponível na API). NÃO usar Fechamento/DataDaSolucao como proxy oficial.",
     coletaDeDados:
-      "Effort GlobalThings. Previsto: API cronograma (ProximaRealizacao — YYYYMMDD[+d] ou YYYYMM+id quando o “dia” é inválido, ex. 202608678 → ago/2026 — + Perioridicade; fetch ±12 meses além do gráfico para a expansão). Executado: API listagem_analitica_das_os. Intervalo rolante de 12 meses. Se Tag estiver preenchida em ≥50% das linhas, a lista pode correlacionar por Tag+tipo; o gráfico permanece em contagem independente para evidenciar déficit e superávit. Planos sem data/mês válida não entram no denominador.",
-    periodicidade: "Mensal",
+      "Probe 2026-03: os-analitico sem campos de laudo/emissão; anexos_os/anexos_equipamento só DataHoraInclusao; TipoAnexo vazio; 0% das OS preventivas fechadas com anexo laudoish pareado; nomes sem padrão LAUDO_YYYY-MM-DD. Evidências alternativas: /cronograma e /qmentum/sem-preventiva. Lib mantida em lib/pbi/manutencoes-planejadas.ts.",
+    periodicidade: "Mensal (quando reativado)",
   },
   "custo-manutencao-parque": {
     id: "custo-manutencao-parque",
@@ -226,14 +226,14 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     nomeDoIndicador: "Motivos das manutenções corretivas",
     ...BASE,
     finalidadeDoIndicador:
-      "Monitorar Causa/Ocorrência das corretivas médicas e a recorrência por Tag, subsidiando melhorias (PDCA em versão futura).",
-    meta: "Acompanhar top causas e Tags recorrentes (sem meta percentual nesta versão)",
+      "Monitorar Causa/Ocorrência das corretivas médicas, a recorrência por Tag e o recorte de mau uso (texto + anexos), subsidiando melhorias (PDCA em versão futura).",
+    meta: "Acompanhar top causas, Tags recorrentes e corretivas por mau uso (sem meta percentual nesta versão)",
     referenciaDaMeta:
       "QMentum — monitorar motivos e gerar melhorias. Esta tela cobre o monitoramento; plano de ação / PDCA fica como próximo passo.",
     formula:
-      "Pareto = contagem de Causa (ou Ocorrencia) nas OS corretivas médicas com Abertura nos últimos 12 meses. Recorrência = contagem por Tag.",
+      "Pareto = contagem de Causa (ou Ocorrencia) nas OS corretivas médicas com Abertura nos últimos 12 meses. Recorrência = contagem por Tag. Mau uso = keywords em Causa/Ocorrencia/ObservacaoDaOS/Servico/Pendencia/JustificativaEncerramento; foto = anexo jpg/png/IMG_ em anexos_os.",
     coletaDeDados:
-      "Effort GlobalThings — listagem_analitica_das_os. Recorte: isCorretiva + Tag médica. Qualidade depende do preenchimento de Causa/Ocorrencia no CMMS.",
+      "Effort GlobalThings — listagem_analitica_das_os + anexos_os. Recorte: isCorretiva + Tag médica. Qualidade depende do preenchimento de Causa/Ocorrencia no CMMS e do upload de anexos.",
     periodicidade: "Mensal",
   },
   satisfacao: {

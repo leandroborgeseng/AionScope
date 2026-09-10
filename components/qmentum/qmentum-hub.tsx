@@ -72,13 +72,26 @@ export function QmentumHubView() {
                   <p className="mt-1 text-sm leading-relaxed text-aion-ink/80">{item.appMostra}</p>
                 </div>
               </div>
-              {item.href ? (
-                <Link
-                  href={item.href}
-                  className="inline-flex w-fit text-sm font-medium text-aion-blue underline-offset-2 hover:underline"
-                >
-                  {item.linkLabel ?? "Abrir tela"} →
-                </Link>
+              {item.href || item.links?.length ? (
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  {item.href ? (
+                    <Link
+                      href={item.href}
+                      className="inline-flex w-fit text-sm font-medium text-aion-blue underline-offset-2 hover:underline"
+                    >
+                      {item.linkLabel ?? "Abrir tela"} →
+                    </Link>
+                  ) : null}
+                  {(item.links ?? []).map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className="inline-flex w-fit text-sm font-medium text-aion-blue underline-offset-2 hover:underline"
+                    >
+                      {link.label} →
+                    </Link>
+                  ))}
+                </div>
               ) : null}
             </CardHeader>
           </Card>
