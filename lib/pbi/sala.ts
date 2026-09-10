@@ -2,9 +2,15 @@ import { addDays, format } from "date-fns";
 import { BUSINESS_HOURS_LABEL, diffBusinessMs } from "./business-hours";
 import { nowInSaoPaulo, parsePbiDate } from "./dates";
 import { isCorretiva } from "./filters";
-import { classifyPlanoEc } from "./indicadores-os";
+import { classifyPlanoEc, type EquipamentoIndex } from "./indicadores-os";
 import { linkedToMedicalPark } from "./medical";
 import { OFICINA_EC_REGRA_RESUMO, isOficinaEngenhariaClinica } from "./oficina-ec";
+import {
+  REGRA_PRAZO_1AT_CRITICIDADE,
+  buildPrazoPrimeiroAtendimentoCriticidade,
+  type PrazoPrimeiroAtendimentoCriticidade,
+} from "./prazo-primeiro-atendimento-criticidade";
+import { regraMetasCriticidade } from "./sla-criticidade";
 import type { OsAnaliticoItem } from "./types";
 import { osFechamentoDate } from "./volume-ec";
 
@@ -16,13 +22,15 @@ export const SALA_REFRESH_MS = 2 * 60_000;
 export const SALA_JANELA_DIAS = 30;
 export const SALA_FLUXO_15_DIAS = 15;
 
-/** Metas em milissegundos de horas úteis (08–17 seg–sex). */
+/** Metas em milissegundos de horas úteis (08–17 seg–sex) — referência legada / estratificação. */
 export const META_OK_MS = 4 * 60 * 60 * 1000;
 export const META_ATENCAO_MS = 24 * 60 * 60 * 1000;
 export const META_ATRASADA_MS = 72 * 60 * 60 * 1000;
 
 export const SALA_RECORTE_LINHA =
   `eq. médicos · ${OFICINA_EC_REGRA_RESUMO} · sem instrumental · sem sem-tag · fila 30d (Abertura) · demanda (sem preventiva/TSE/calibração) · ${BUSINESS_HOURS_LABEL}`;
+
+export const SALA_PRAZO_LEGENDA = `${regraMetasCriticidade()} · ${REGRA_PRAZO_1AT_CRITICIDADE}`;
 
 /** Só tipos de demanda operacional (plano prev/TSE/calib fica de fora). */
 export const SALA_TIPOS_ORDEM = ["corretiva", "outros"] as const;
@@ -33,11 +41,12 @@ export const SALA_TIPO_LABEL: Record<(typeof SALA_TIPOS_ORDEM)[number], string> 
 };
 export type FaixaIdade = "ok" | "atencao" | "atrasada" | "critica";
 
+/** Legenda da fila: cores do countdown vs meta por criticidade (não idade fixa). */
 export const FAIXAS_LEGENDA: Array<{ id: FaixaIdade; label: string; detalhe: string }> = [
-  { id: "ok", label: "ok", detalhe: "≤ 4h úteis" },
-  { id: "atencao", label: "atenção", detalhe: "> 4h e ≤ 24h úteis" },
-  { id: "atrasada", label: "atrasada", detalhe: "> 24h e ≤ 72h úteis" },
-  { id: "critica", label: "crítica", detalhe: "> 72h úteis" },
+  { id: "ok", label: "no prazo", detalhe: "restante > 25% da meta" },
+  { id: "atencao", label: "atenção", detalhe: "restante ≤ 25% da meta" },
+  { id: "atrasada", label: "atrasada", detalhe: "passou o prazo 1º at." },
+  { id: "critica", label: "crítica", detalhe: "atraso > 1× a meta" },
 ];
 
 export type SalaOs = {
@@ -52,6 +61,8 @@ export type SalaOs = {
   local: string;
   equipamento: string;
   prioridade: string;
+  /** Prazo 1º atendimento por criticidade do parque (ou fallback Prioridade). */
+  prazo: PrazoPrimeiroAtendimentoCriticidade;
 };
 
 export type SalaFluxoId = "hoje" | "semana" | "dias15";
@@ -127,6 +138,22 @@ export function faixaPorIdade(idadeMs: number): FaixaIdade {
   return "critica";
 }
 
+/** Converte tone do countdown + atraso relativo à meta em faixa visual da fila. */
+export function faixaPorPrazo(prazo: PrazoPrimeiroAtendimentoCriticidade): FaixaIdade {
+  if (prazo.jaAtendido) {
+    if (prazo.atendidoNoPrazo === false) return "atrasada";
+    return "ok";
+  }
+  if (prazo.restanteMs == null || prazo.metaHorasUteis == null) return "ok";
+  const metaMs = prazo.metaHorasUteis * 3_600_000;
+  if (prazo.restanteMs < 0) {
+    if (-prazo.restanteMs > metaMs) return "critica";
+    return "atrasada";
+  }
+  if (prazo.tone === "atencao") return "atencao";
+  return "ok";
+}
+
 /** Formata duração em horas úteis (ms de expediente). */
 export function formatIdade(ms: number): string {
   const safe = Math.max(0, ms);
@@ -169,27 +196,41 @@ export function rotuloEquipamento(os: OsAnaliticoItem) {
   return nome || tag || "—";
 }
 
-export function toSalaOs(item: OsAnaliticoItem, now: Date): SalaOs {
+export function toSalaOs(
+  item: OsAnaliticoItem,
+  now: Date,
+  equipamentoIndex: EquipamentoIndex | null = null,
+): SalaOs {
   const abertura = parsePbiDate(item.Abertura);
   const idadeMs = abertura ? diffBusinessMs(abertura, now) : 0;
-  const faixa = abertura ? faixaPorIdade(idadeMs) : "ok";
+  const prazo = buildPrazoPrimeiroAtendimentoCriticidade(item, now, equipamentoIndex);
+  const faixa = faixaPorPrazo(prazo);
+  const acimaDaMeta =
+    Boolean(prazo.jaAtendido && prazo.atendidoNoPrazo === false) ||
+    Boolean(!prazo.jaAtendido && prazo.restanteMs != null && prazo.restanteMs < 0);
   return {
     item,
     abertura,
     idadeMs,
     idadeLabel: abertura ? formatIdade(idadeMs) : "—",
     faixa,
-    acimaDaMeta: Boolean(abertura && idadeMs > META_OK_MS),
+    acimaDaMeta,
     novaHoje: Boolean(abertura && sameCalendarDay(abertura, now)),
     tipoResumo: resumoTipo(item.TipoDeManutencao),
     local: rotuloLocal(item),
     equipamento: rotuloEquipamento(item),
     prioridade: texto(item.Prioridade),
+    prazo,
   };
 }
 
 export function compareUrgencia(a: SalaOs, b: SalaOs) {
   if (a.acimaDaMeta !== b.acimaDaMeta) return a.acimaDaMeta ? -1 : 1;
+  const ra = a.prazo.restanteMs;
+  const rb = b.prazo.restanteMs;
+  if (ra != null && rb != null && ra !== rb) return ra - rb; // mais atrasado / menos restante primeiro
+  if (ra == null && rb != null) return 1;
+  if (ra != null && rb == null) return -1;
   if (b.idadeMs !== a.idadeMs) return b.idadeMs - a.idadeMs;
   return (a.item.OS || "").localeCompare(b.item.OS || "", "pt-BR");
 }
@@ -460,13 +501,16 @@ export function buildSalaSnapshot(
   medicalTags: Set<string>,
   now = nowInSaoPaulo(),
   medicalIds: Set<number> = new Set(),
+  equipamentoIndex: EquipamentoIndex | null = null,
 ): SalaSnapshot {
   const osMedicas = os.filter((item) => isOsSalaMedica(item, medicalTags, medicalIds));
   const foraPorOficina = os.filter(
     (item) =>
       isOsSalaMedicaExcetoOficina(item, medicalTags, medicalIds) && !isOficinaEngenhariaClinica(item.Oficina),
   ).length;
-  const fila = collectOsEcAbertas(os, medicalTags, medicalIds, now).map((item) => toSalaOs(item, now)).sort(compareUrgencia);
+  const fila = collectOsEcAbertas(os, medicalTags, medicalIds, now)
+    .map((item) => toSalaOs(item, now, equipamentoIndex))
+    .sort(compareUrgencia);
 
   const novasHoje = fila.filter((row) => row.novaHoje).sort((a, b) => {
     const ta = a.abertura?.getTime() ?? 0;
