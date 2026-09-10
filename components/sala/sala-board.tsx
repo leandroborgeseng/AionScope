@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { AionLogo } from "@/components/brand/aion-logo";
+import { OsRelatoBloco } from "@/components/os/os-relato-bloco";
 import { Sheet } from "@/components/ui/sheet";
 import { formatDateTimeBR } from "@/lib/pbi/dates";
 import { BUSINESS_HOURS_LABEL } from "@/lib/pbi/business-hours";
@@ -537,15 +538,18 @@ function OsCrua({ item }: { item: SalaOs }) {
   );
 
   return (
-    <dl className="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-2 text-sm">
-      <dt className="text-aion-muted">Idade (h úteis)</dt>
-      <dd className="font-semibold tabular-nums">{item.idadeLabel}</dd>
-      {rows.map((row) => (
-        <div key={row.campo} className="contents">
-          <dt className="text-aion-muted">{row.campo}</dt>
-          <dd className="break-words text-aion-ink">{row.valor}</dd>
-        </div>
-      ))}
-    </dl>
+    <div className="space-y-4">
+      <OsRelatoBloco item={item.item} />
+      <dl className="grid grid-cols-[10rem_1fr] gap-x-4 gap-y-2 text-sm">
+        <dt className="text-aion-muted">Idade (h úteis)</dt>
+        <dd className="font-semibold tabular-nums">{item.idadeLabel}</dd>
+        {rows.map((row) => (
+          <div key={row.campo} className="contents">
+            <dt className="text-aion-muted">{row.campo}</dt>
+            <dd className="break-words whitespace-pre-wrap text-aion-ink">{row.valor}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
