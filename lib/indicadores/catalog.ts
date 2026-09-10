@@ -31,6 +31,11 @@ export const INDICADORES = [
     label: "% 1º atendimento no prazo",
     blurb: "SLA do primeiro atendimento (DataDoAtendimento ≤ limite), por Prioridade. Não usa Fechamento.",
   },
+  {
+    href: "/indicadores/sla-criticidade",
+    label: "% 1º atendimento × criticidade",
+    blurb: "SLA QMentum por faixa do parque (Crítico / Semicrítico / Não crítico) em horas úteis. Evento = DataDoAtendimento.",
+  },
 ] as const;
 
 export const CADASTROS_HUB_HREF = "/cadastros";
