@@ -12,11 +12,6 @@ export const INDICADORES = [
     blurb: "Soma do Custo das OS de reparo de equipamentos médicos fechadas no intervalo.",
   },
   {
-    href: "/indicadores/manutencoes-planejadas-executadas",
-    label: "Manutenções planejadas × executadas",
-    blurb: "Preventivas, calibrações e TSE: plano do cronograma × OS fechadas, mês a mês (coberto, déficit e superávit).",
-  },
-  {
     href: "/indicadores/custo-manutencao-parque",
     label: "Custo manutenção / valor do parque",
     blurb: "Contratos + avulsos de OS ÷ valor de substituição (API: todos os equipamentos).",
