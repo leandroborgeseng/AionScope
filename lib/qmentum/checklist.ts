@@ -40,7 +40,7 @@ export const QMENTUM_CHECKLIST: QmentumChecklistItem[] = [
     auditoriaOlha:
       "Por que quebra, recorrência por Tag, erro operacional, instalação, fim de vida, falha de preventiva.",
     appMostra:
-      "Pareto de Causa/Ocorrência + recorrência por Tag + aba Mau uso (keywords + anexos/foto) nos últimos 12 meses. PDCA / plano de ação ainda não — placeholder honesto na tela.",
+      "Recorrência por Tag agrupada por tipo (gráfico) + Pareto Causa/Ocorrência em sanfona + aba Mau uso (keywords + anexos/foto) nos últimos 12 meses. PDCA / plano de ação ainda não — placeholder honesto na tela.",
     href: "/qmentum/motivos-corretivas",
     linkLabel: "Abrir motivos das corretivas",
   },
@@ -114,7 +114,7 @@ export const QMENTUM_NAV = [
   {
     href: "/qmentum/motivos-corretivas",
     label: "Motivos das corretivas",
-    blurb: "Pareto Causa/Ocorrência, recorrência por Tag e recorte de mau uso (12 meses).",
+    blurb: "Recorrência por Tag agrupada por tipo, Pareto em sanfona e recorte de mau uso (12 meses).",
   },
   {
     href: "/indicadores/sla-criticidade",

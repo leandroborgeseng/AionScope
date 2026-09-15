@@ -14,6 +14,7 @@ import { FilterChip } from "@/components/indicadores/indicador-section";
 import { PageHeader } from "@/components/shell/page-header";
 import { KpiCard } from "@/components/kpi/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
+import { Accordion } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { OsRelatoBloco } from "@/components/os/os-relato-bloco";
 import { Sheet } from "@/components/ui/sheet";
@@ -24,10 +25,15 @@ import { EMPTY_FILTERS, type DashboardFilters } from "@/lib/pbi/filters";
 import { FICHAS } from "@/lib/pbi/fichas";
 import {
   MOTIVOS_CORRETIVAS_CAMPOS,
+  RECORRENCIA_MIN_OS,
+  RECORRENCIA_TIPOS_TOP,
   buildMotivosCorretivas,
   filterOsPorCausa,
   filterOsPorOcorrencia,
   filterOsPorTag,
+  filterOsPorTipo,
+  type RecorrenciaTagRow,
+  type RecorrenciaTipoRow,
 } from "@/lib/pbi/motivos-corretivas";
 import {
   MAU_USO_KEYWORDS,
@@ -37,12 +43,14 @@ import {
 import type { AnexoOsItem, OsAnaliticoItem } from "@/lib/pbi/types";
 import { VOLUME_EC_PERIODO_API, VOLUME_EC_TIPO_API, type RollingYearRange } from "@/lib/pbi/volume-ec";
 
-type Aba = "causa" | "ocorrencia" | "mau-uso";
+type Aba = "recorrencia" | "mau-uso";
+type ParetoAba = "causa" | "ocorrencia";
 
 type Drill =
   | { kind: "causa"; title: string; rows: OsAnaliticoItem[] }
   | { kind: "ocorrencia"; title: string; rows: OsAnaliticoItem[] }
   | { kind: "tag"; title: string; rows: OsAnaliticoItem[] }
+  | { kind: "tipo"; title: string; rows: OsAnaliticoItem[]; tipo: string }
   | { kind: "mau-uso"; title: string; rows: OsAnaliticoItem[] }
   | null;
 
@@ -63,6 +71,10 @@ function Dl({ label, value }: { label: string; value: ReactNode }) {
       <dd className="mt-0.5 text-sm break-words text-aion-ink">{value || "—"}</dd>
     </div>
   );
+}
+
+function truncateLabel(name: string, max = 28) {
+  return name.length > max ? `${name.slice(0, max - 2)}…` : name;
 }
 
 export function MotivosCorretivasCard({
@@ -86,12 +98,21 @@ export function MotivosCorretivasCard({
   const anexosError = errorOf(axOsQ.data)?.message ?? null;
 
   const [drill, setDrill] = useState<Drill>(null);
-  const [aba, setAba] = useState<Aba>("causa");
+  const [aba, setAba] = useState<Aba>("recorrencia");
+  const [paretoAba, setParetoAba] = useState<ParetoAba>("causa");
+  const [selectedTipo, setSelectedTipo] = useState<string | null>(null);
   const [selectedMauUso, setSelectedMauUso] = useState<MauUsoOsRow | null>(null);
 
   const dados = useMemo(
-    () => buildMotivosCorretivas(raw, range, medical.tags, medical.ids),
-    [raw, range, medical.tags, medical.ids],
+    () =>
+      buildMotivosCorretivas(
+        raw,
+        range,
+        medical.tags,
+        medical.ids,
+        medical.equipamentoIndex,
+      ),
+    [raw, range, medical.tags, medical.ids, medical.equipamentoIndex],
   );
 
   const mauUso = useMemo(() => buildMauUso(dados.noIntervalo, anexos), [dados.noIntervalo, anexos]);
@@ -137,6 +158,20 @@ export function MotivosCorretivasCard({
     [dados.noIntervalo],
   );
 
+  const openTipo = useCallback(
+    (tipo: string) => {
+      setSelectedMauUso(null);
+      setSelectedTipo(tipo);
+      setDrill({
+        kind: "tipo",
+        title: `Tipo · ${tipo}`,
+        tipo,
+        rows: filterOsPorTipo(dados.noIntervalo, tipo, medical.equipamentoIndex),
+      });
+    },
+    [dados.noIntervalo, medical.equipamentoIndex],
+  );
+
   const openMauUsoLista = useCallback(() => {
     setSelectedMauUso(null);
     setAba("mau-uso");
@@ -151,19 +186,41 @@ export function MotivosCorretivasCard({
     setAba(next);
     setDrill(null);
     setSelectedMauUso(null);
+    if (next !== "recorrencia") setSelectedTipo(null);
   }, []);
 
-  const pareto = aba === "causa" ? dados.causas : dados.ocorrencias;
+  const tiposChart = useMemo(() => {
+    const top = dados.recorrenciaTipos.slice(0, RECORRENCIA_TIPOS_TOP);
+    return top.map((r) => ({
+      name: truncateLabel(r.tipo),
+      fullName: r.tipo,
+      count: r.osCount,
+      tagsRecorrentes: r.tagsRecorrentes,
+      tagsCount: r.tagsCount,
+    }));
+  }, [dados.recorrenciaTipos]);
 
-  const chartData = useMemo(
+  const pareto = paretoAba === "causa" ? dados.causas : dados.ocorrencias;
+
+  const paretoChartData = useMemo(
     () =>
       pareto.map((r) => ({
-        name: r.name.length > 28 ? `${r.name.slice(0, 26)}…` : r.name,
+        name: truncateLabel(r.name),
         fullName: r.name,
         count: r.count,
       })),
     [pareto],
   );
+
+  const tipoSelecionado: RecorrenciaTipoRow | null = useMemo(() => {
+    if (!selectedTipo) return null;
+    return dados.recorrenciaTipos.find((t) => t.tipo === selectedTipo) ?? null;
+  }, [dados.recorrenciaTipos, selectedTipo]);
+
+  const tagsTabela: RecorrenciaTagRow[] = useMemo(() => {
+    if (tipoSelecionado) return tipoSelecionado.tags;
+    return dados.recorrenciaTags.filter((t) => t.recorrente).slice(0, 20);
+  }, [tipoSelecionado, dados.recorrenciaTags]);
 
   const mauUsoByOs = useMemo(() => {
     const map = new Map<string, MauUsoOsRow>();
@@ -254,8 +311,8 @@ export function MotivosCorretivasCard({
       title: "Melhorias / PDCA (próximo)",
       children: (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
-          Placeholder honesto: esta tela cobre o <strong>monitoramento</strong> (Pareto + recorrência + mau uso). O plano
-          de ação / PDCA (ação, responsável, prazo) ainda não está no app — fica para a próxima entrega.
+          Placeholder honesto: esta tela cobre o <strong>monitoramento</strong> (recorrência por tipo + Pareto + mau
+          uso). O plano de ação / PDCA (ação, responsável, prazo) ainda não está no app — fica para a próxima entrega.
         </p>
       ),
     },
@@ -266,7 +323,9 @@ export function MotivosCorretivasCard({
         <div className="space-y-3 text-sm text-slate-700">
           <p>
             Corretiva médica no intervalo de 12 meses cujo texto em{" "}
-            <span className="font-mono text-xs">Causa / Ocorrencia / ObservacaoDaOS / Servico / Pendencia / JustificativaEncerramento</span>{" "}
+            <span className="font-mono text-xs">
+              Causa / Ocorrencia / ObservacaoDaOS / Servico / Pendencia / JustificativaEncerramento
+            </span>{" "}
             contém alguma keyword (substring, sem acento). Foto = anexo da OS com extensão de imagem ou prefixo{" "}
             <span className="font-mono text-xs">IMG_</span>, cruzado por <span className="font-mono text-xs">CodigoOS</span>{" "}
             / <span className="font-mono text-xs">OSId</span>.
@@ -280,7 +339,9 @@ export function MotivosCorretivasCard({
             ))}
           </div>
           {anexosError ? (
-            <p className="text-amber-800">Anexos indisponíveis: {anexosError}. A lista de mau uso segue sem badge de foto.</p>
+            <p className="text-amber-800">
+              Anexos indisponíveis: {anexosError}. A lista de mau uso segue sem badge de foto.
+            </p>
           ) : null}
         </div>
       ),
@@ -300,15 +361,20 @@ export function MotivosCorretivasCard({
             <OrigemCampo label="Anexos">
               <span className="font-mono text-xs">GET /api/pbi/anexos-os</span>
             </OrigemCampo>
+            <OrigemCampo label="Tipo de equipamento">
+              Nome genérico do parque (cadastro) → fallback no campo Equipamento da OS. Agrupa Tags sob o mesmo tipo.
+            </OrigemCampo>
             <OrigemCampo label="Filtro local">
-              Tag médica + isCorretiva + Abertura no intervalo rolante de 12 meses.
+              Tag médica + isCorretiva + Abertura no intervalo rolante de 12 meses. Tag recorrente = ≥{" "}
+              {RECORRENCIA_MIN_OS} OS.
             </OrigemCampo>
             <OrigemCampo label="Campos">
               <span className="font-mono text-xs">{MOTIVOS_CORRETIVAS_CAMPOS.join(", ")}</span>
             </OrigemCampo>
             <OrigemCampo label="Funil" valueClassName="mt-1 text-sm font-semibold tabular-nums">
-              {bruta} brutas · {dados.aposMedico} tag médica · {dados.total} corretivas no intervalo · {mauUso.total} mau
-              uso · {mauUso.comFoto} com foto · {dados.semCausa} sem Causa · {dados.semOcorrencia} sem Ocorrência
+              {bruta} brutas · {dados.aposMedico} tag médica · {dados.total} corretivas no intervalo ·{" "}
+              {dados.tiposComCorretiva} tipos · {dados.tagsRecorrentes} tags recorrentes · {mauUso.total} mau uso ·{" "}
+              {mauUso.comFoto} com foto · {dados.semCausa} sem Causa · {dados.semOcorrencia} sem Ocorrência
             </OrigemCampo>
           </dl>
           <p className="text-sm">
@@ -330,7 +396,7 @@ export function MotivosCorretivasCard({
         heading={
           <Heading
             title="Motivos das corretivas"
-            description={`Pareto Causa/Ocorrência, recorrência por Tag e mau uso · corretivas médicas · ${range.label}. Melhorias (PDCA) = próximo.`}
+            description={`Recorrência por Tag agrupada por tipo, Pareto Causa/Ocorrência e mau uso · corretivas médicas · ${range.label}. Melhorias (PDCA) = próximo.`}
           />
         }
         kpis={
@@ -354,26 +420,21 @@ export function MotivosCorretivasCard({
                 hint="Anexo imagem (jpg/png/IMG_)"
                 tone={mauUso.comFoto > 0 ? "ok" : "neutral"}
               />
-              <KpiCard
-                label="Corretivas (12m)"
-                value={String(dados.total)}
-                hint="Denominador do %"
-              />
+              <KpiCard label="Corretivas (12m)" value={String(dados.total)} hint="Denominador do %" />
             </>
           ) : (
             <>
               <KpiCard label="Corretivas (12m)" value={String(dados.total)} hint="Tag médica + isCorretiva" />
               <KpiCard
-                label="Sem Causa"
-                value={String(dados.semCausa)}
-                hint="Campo vazio no CMMS"
-                tone={dados.semCausa > 0 ? "warn" : "ok"}
+                label="Tipos com corretiva"
+                value={String(dados.tiposComCorretiva)}
+                hint={`Top ${RECORRENCIA_TIPOS_TOP} no gráfico`}
               />
               <KpiCard
-                label="Sem Ocorrência"
-                value={String(dados.semOcorrencia)}
-                hint="Campo vazio no CMMS"
-                tone={dados.semOcorrencia > 0 ? "warn" : "ok"}
+                label="Tags recorrentes"
+                value={String(dados.tagsRecorrentes)}
+                hint={`≥ ${RECORRENCIA_MIN_OS} OS no período`}
+                tone={dados.tagsRecorrentes > 0 ? "warn" : "ok"}
               />
               <KpiCard
                 label="Mau uso"
@@ -388,11 +449,8 @@ export function MotivosCorretivasCard({
         chart={
           <div className="space-y-3">
             <div className="flex flex-wrap gap-2">
-              <FilterChip active={aba === "causa"} onClick={() => setAbaAndClear("causa")}>
-                Pareto Causa
-              </FilterChip>
-              <FilterChip active={aba === "ocorrencia"} onClick={() => setAbaAndClear("ocorrencia")}>
-                Pareto Ocorrência
+              <FilterChip active={aba === "recorrencia"} onClick={() => setAbaAndClear("recorrencia")}>
+                Recorrência por tipo
               </FilterChip>
               <FilterChip active={aba === "mau-uso"} onClick={() => setAbaAndClear("mau-uso")}>
                 Mau uso ({mauUso.total})
@@ -439,50 +497,136 @@ export function MotivosCorretivasCard({
             ) : (
               <>
                 <ChartCard
-                  title={aba === "causa" ? "Pareto · Causa" : "Pareto · Ocorrência"}
-                  hint="Clique na barra para listar as OS."
+                  title="Recorrência por Tag agrupado por tipo"
+                  hint="Barras = OS corretivas por tipo de equipamento (nome genérico do parque). Clique na barra para listar as OS; nas Tags abaixo para filtrar por Tag."
                 >
-                  <SimpleBarChart
-                    data={chartData}
-                    xKey="name"
-                    yKey="count"
-                    color="#0168b0"
-                    onRowClick={(row) => {
-                      const full = String(row.fullName ?? row.name);
-                      if (aba === "causa") openCausa(full);
-                      else openOcorrencia(full);
-                    }}
-                  />
-                </ChartCard>
+                  {tiposChart.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-aion-line bg-aion-mist/40 px-4 py-8 text-center text-sm text-aion-muted">
+                      Nenhuma corretiva médica no intervalo para agrupar por tipo.
+                    </p>
+                  ) : (
+                    <SimpleBarChart
+                      data={tiposChart}
+                      xKey="name"
+                      yKey="count"
+                      color="#0168b0"
+                      onRowClick={(row) => {
+                        const full = String(row.fullName ?? row.name);
+                        openTipo(full);
+                      }}
+                    />
+                  )}
 
-                <ChartCard title="Recorrência por Tag (top 20)" hint="Equipamentos que mais abrem corretiva.">
-                  <div className="overflow-auto rounded-lg border border-slate-200">
-                    <table className="min-w-full text-left text-sm">
-                      <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
-                        <tr>
-                          <th className="px-3 py-2">Tag</th>
-                          <th className="px-3 py-2">Equipamento</th>
-                          <th className="px-3 py-2">Setor</th>
-                          <th className="px-3 py-2">OS</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {dados.recorrenciaTags.map((r) => (
-                          <tr
-                            key={r.tag}
-                            className="cursor-pointer border-t border-slate-100 hover:bg-aion-mist/60"
-                            onClick={() => openTag(r.tag)}
-                          >
-                            <td className="px-3 py-2 font-medium text-aion-blue">{r.tag}</td>
-                            <td className="px-3 py-2">{r.equipamento}</td>
-                            <td className="px-3 py-2">{r.setor}</td>
-                            <td className="px-3 py-2 tabular-nums">{r.count}</td>
+                  <div className="mt-4">
+                    <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        {tipoSelecionado
+                          ? `Tags · ${tipoSelecionado.tipo} (${tipoSelecionado.tagsCount} tags · ${tipoSelecionado.tagsRecorrentes} recorrentes)`
+                          : `Tags recorrentes (top 20 · ≥ ${RECORRENCIA_MIN_OS} OS)`}
+                      </p>
+                      {tipoSelecionado ? (
+                        <button
+                          type="button"
+                          className="text-xs font-medium text-aion-blue hover:underline"
+                          onClick={() => {
+                            setSelectedTipo(null);
+                            if (drill?.kind === "tipo") clearSelection();
+                          }}
+                        >
+                          Limpar tipo
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="overflow-auto rounded-lg border border-slate-200">
+                      <table className="min-w-full text-left text-sm">
+                        <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                          <tr>
+                            <th className="px-3 py-2">Tag</th>
+                            {!tipoSelecionado ? <th className="px-3 py-2">Tipo</th> : null}
+                            <th className="px-3 py-2">Setor</th>
+                            <th className="px-3 py-2">OS</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {tagsTabela.length === 0 ? (
+                            <tr>
+                              <td
+                                colSpan={tipoSelecionado ? 3 : 4}
+                                className="px-3 py-6 text-center text-aion-muted"
+                              >
+                                Nenhuma Tag neste recorte.
+                              </td>
+                            </tr>
+                          ) : (
+                            tagsTabela.map((r) => (
+                              <tr
+                                key={r.tag}
+                                className="cursor-pointer border-t border-slate-100 hover:bg-aion-mist/60"
+                                onClick={() => openTag(r.tag)}
+                              >
+                                <td className="px-3 py-2 font-medium text-aion-blue">{r.tag}</td>
+                                {!tipoSelecionado ? <td className="px-3 py-2">{r.tipo}</td> : null}
+                                <td className="px-3 py-2">{r.setor}</td>
+                                <td className="px-3 py-2 tabular-nums">
+                                  {r.count}
+                                  {r.recorrente ? (
+                                    <Badge tone="warn" className="ml-2 normal-case tracking-normal">
+                                      recorrente
+                                    </Badge>
+                                  ) : null}
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 </ChartCard>
+
+                <Accordion
+                  defaultOpenIds={[]}
+                  items={[
+                    {
+                      id: "pareto",
+                      title: "Pareto de causa / ocorrência (detalhe)",
+                      children: (
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap gap-2">
+                            <FilterChip
+                              active={paretoAba === "causa"}
+                              onClick={() => setParetoAba("causa")}
+                            >
+                              Causa
+                            </FilterChip>
+                            <FilterChip
+                              active={paretoAba === "ocorrencia"}
+                              onClick={() => setParetoAba("ocorrencia")}
+                            >
+                              Ocorrência
+                            </FilterChip>
+                          </div>
+                          <ChartCard
+                            title={paretoAba === "causa" ? "Pareto · Causa" : "Pareto · Ocorrência"}
+                            hint="Clique na barra para listar as OS."
+                          >
+                            <SimpleBarChart
+                              data={paretoChartData}
+                              xKey="name"
+                              yKey="count"
+                              color="#0f766e"
+                              onRowClick={(row) => {
+                                const full = String(row.fullName ?? row.name);
+                                if (paretoAba === "causa") openCausa(full);
+                                else openOcorrencia(full);
+                              }}
+                            />
+                          </ChartCard>
+                        </div>
+                      ),
+                    },
+                  ]}
+                />
               </>
             )}
           </div>
@@ -495,7 +639,7 @@ export function MotivosCorretivasCard({
             emptyHint={
               aba === "mau-uso"
                 ? "Clique em uma OS da lista de mau uso para ver o detalhe."
-                : "Clique em uma barra do Pareto ou em uma Tag para listar as OS."
+                : "Clique em uma barra do gráfico (tipo), em uma Tag ou no Pareto (sanfona) para listar as OS."
             }
             onClear={clearSelection}
           >
