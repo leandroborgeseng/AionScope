@@ -12,7 +12,7 @@ import {
 } from "./prazo-primeiro-atendimento-criticidade";
 import { regraMetasCriticidade } from "./sla-criticidade";
 import type { OsAnaliticoItem } from "./types";
-import { osFechamentoDate } from "./volume-ec";
+import { isOsCancelada, osFechamentoDate } from "./volume-ec";
 
 export const SALA_MAX_LINHAS = 13;
 export const SALA_TOP_ANTIGAS = 5;
@@ -122,8 +122,14 @@ export type SalaSnapshot = {
     estouradasGraves: number;
   };
 };
-/** OS aberta = sem Fechamento e sem DataDaSolucao parseáveis. Não usa “em atendimento”. */
-export function isOsAberta(os: Pick<OsAnaliticoItem, "Fechamento" | "DataDaSolucao">) {
+/**
+ * OS aberta = sem Fechamento/DataDaSolucao parseáveis e não cancelada.
+ * Cancelada (SituacaoDaOS) não entra na fila — alinhado ao volume abertas × fechadas.
+ */
+export function isOsAberta(
+  os: Pick<OsAnaliticoItem, "Fechamento" | "DataDaSolucao" | "SituacaoDaOS">,
+) {
+  if (isOsCancelada(os)) return false;
   return osFechamentoDate(os) == null;
 }
 

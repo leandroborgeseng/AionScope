@@ -4,13 +4,14 @@ export const INDICADORES = [
   {
     href: "/indicadores/os-abertas-fechadas",
     label: "OS abertas × fechadas",
-    blurb: "Volume da oficina de Engenharia Clínica: entrada × execução por mês (coberto, déficit e superávit).",
+    blurb:
+      "Ano vigente (Jan–Dez): volume da oficina de Engenharia Clínica — entrada × execução por mês (coberto, déficit e superávit).",
   },
   {
     href: "/indicadores/oficinas-plano-abertas-fechadas",
     label: "Oficinas de plano — abertas × fechadas",
     blurb:
-      "Ano vigente (Jan–Dez): total Preventiva + Calibração + Segurança elétrica (filtro na página). Uma barra = % executada (fechadas÷abertas) — proxy operacional, não laudo Tag a Tag.",
+      "Ano vigente (Jan–Dez): total Preventiva + Calibração + Segurança elétrica (filtro na página). Uma barra = % executada (fechadas÷abertas).",
   },
   {
     href: "/indicadores/gasto-reparo-equipamentos-medicos",

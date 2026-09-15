@@ -31,7 +31,7 @@ import {
   VOLUME_EC_TIPO_API,
   buildVolumeAbertasFechadas,
   fraseSaldo,
-  osFechamentoDate,
+  osDataFechadaIndicador,
   pctExecutadaMes,
   rotuloSaldo,
   volumeEcDoMes,
@@ -225,14 +225,12 @@ export function OsVolumeCard({
   const Heading = headingAs === "page" ? PageHeader : IndicadorHeading;
   const listaTitle = tituloListaVolume(drill, mesFiltro);
 
-  const intervaloOrigemTexto = porOficina
-    ? `ano civil vigente (${range.start.getFullYear()}): ${range.fromISO} a ${range.toISO} (1º de janeiro → fim do mês atual; eixo do gráfico Jan–Dez, meses futuros zerados)`
-    : `intervalo ${range.fromISO} a ${range.toISO} (início do mês de 12 meses atrás até o fim do mês atual)`;
+  const intervaloOrigemTexto = `ano civil vigente (${range.start.getFullYear()}): ${range.fromISO} a ${range.toISO} (1º de janeiro → fim do mês atual; eixo do gráfico Jan–Dez, meses futuros zerados)`;
 
   const defaultDescription = multiOficina
-    ? `Soma das oficinas de plano (Preventiva + Calibração + Segurança elétrica) · ${range.label}. Proxy operacional de capacidade — não cumprimento de plano Tag a Tag.`
+    ? `Soma das oficinas de plano (Preventiva + Calibração + Segurança elétrica) · ${range.label}.`
     : porOficina
-      ? `Fluxo da oficina ${oficinaExibida} · ${range.label}. Conta abertura × fechamento nessa oficina — proxy operacional de capacidade, não cumprimento de plano Tag a Tag.`
+      ? `Fluxo da oficina ${oficinaExibida} · ${range.label}. Conta abertura × fechamento nessa oficina.`
       : `Volume da oficina de Engenharia Clínica · ${range.label}. Recorte só por tipo de manutenção EC — este indicador não usa o filtro “somente eq. médicos”.`;
 
   const handleOficinaFilter = useCallback(
@@ -298,8 +296,8 @@ export function OsVolumeCard({
           </p>
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
             Isto mede o <strong>fluxo consolidado</strong> das oficinas de plano (quantas OS entraram vs quantas
-            fecharam no mês). <strong>Não</strong> mede laudo emitido nem cumprimento do plano Tag a Tag. Use os chips
-            Todas / Preventiva / Calibração / Segurança elétrica para individualizar.
+            fecharam no mês) no <strong>ano vigente</strong>. Use os chips Todas / Preventiva / Calibração / Segurança
+            elétrica para individualizar.
           </p>
         </div>
       ) : porOficina ? (
@@ -309,10 +307,8 @@ export function OsVolumeCard({
             a <span className="font-mono text-xs">{oficinaExibida}</span>.
           </p>
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
-            Isto mede o <strong>fluxo da oficina</strong> (quantas OS entraram vs quantas fecharam no mês).{" "}
-            <strong>Não</strong> mede laudo emitido nem cumprimento do plano Tag a Tag. É um proxy operacional útil de
-            capacidade — melhor do que um KPI genérico de “preventiva fechada” sem recorte de oficina, mas não substitui
-            evidência de execução do plano.
+            Isto mede o <strong>fluxo da oficina</strong> (quantas OS entraram vs quantas fecharam no mês) no{" "}
+            <strong>ano vigente</strong> — melhor do que um KPI genérico de “preventiva fechada” sem recorte de oficina.
           </p>
         </div>
       ) : (
@@ -323,7 +319,8 @@ export function OsVolumeCard({
           <p>Excluir tipos que começam com {RECORTE_EC_EXCLUIR.join(" ou ")}.</p>
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
             Este indicador <strong>não usa</strong> o recorte “somente eq. médicos”. Só o tipo de manutenção EC. O
-            objetivo é validar o volume da oficina, não só o parque médico.
+            objetivo é validar o volume da oficina no <strong>ano vigente</strong> (Jan–Dez; meses futuros zerados), não
+            só o parque médico.
           </p>
         </div>
       ),
@@ -369,8 +366,12 @@ export function OsVolumeCard({
                 <strong>Aberta no mês:</strong> campo Abertura (parsePbiDate) cai naquele mês.
               </li>
               <li>
-                <strong>Fechada no mês:</strong> Fechamento se preenchido; senão DataDaSolucao. Sem as duas, não conta
-                como fechada.
+                <strong>Fechada no mês:</strong> Fechamento se preenchido; senão DataDaSolucao. OS com{" "}
+                <strong>SituacaoDaOS = Cancelada</strong> entram como fechadas; se cancelada sem
+                Fechamento/DataDaSolucao, usa-se a <strong>Abertura</strong> como mês.
+              </li>
+              <li>
+                <strong>Aberta (estoque / Sala):</strong> sem Fechamento/DataDaSolucao e não cancelada.
               </li>
               {porOficina ? (
                 <li>
@@ -388,7 +389,8 @@ export function OsVolumeCard({
             </p>
             <p>
               Abra o GlobalThings, busque pelo código da OS (campo <strong>OS</strong>). Confira Oficina, Tipo de
-              manutenção, data de abertura e data de fechamento (ou data da solução se o fechamento estiver vazio).
+              manutenção, Situação (cancelada conta como fechada), data de abertura e data de fechamento (ou data da
+              solução se o fechamento estiver vazio).
             </p>
           </div>
 
@@ -417,7 +419,7 @@ export function OsVolumeCard({
                         <td className="px-3 py-2">{item.Oficina || "—"}</td>
                         <td className="px-3 py-2">{item.TipoDeManutencao || "—"}</td>
                         <td className="px-3 py-2">{formatDateBR(item.Abertura)}</td>
-                        <td className="px-3 py-2">{formatDateBR(osFechamentoDate(item))}</td>
+                        <td className="px-3 py-2">{formatDateBR(osDataFechadaIndicador(item))}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -436,7 +438,7 @@ export function OsVolumeCard({
     : `Entrada × execução por mês · ${range.label}`;
   const chartHint = porOficina
     ? "Uma barra = % executada (fechadas÷abertas×100). Rótulo no topo; se abertas=0 → barra 0 e label —. Eixo Jan–Dez; meses futuros zerados. Clique no mês para listar as OS."
-    : "Cada coluna empilha o volume pareado (coberto) e o saldo do mês. Clique no mês para listar as OS abaixo.";
+    : "Cada coluna empilha o volume pareado (coberto) e o saldo do mês. Eixo Jan–Dez do ano vigente; meses futuros zerados. Clique no mês para listar as OS abaixo.";
 
   const chartNode = porOficina ? (
     <AbertasFechadasPctChart data={chartData} xKey="name" onRowClick={openMesLista} />
@@ -459,7 +461,7 @@ export function OsVolumeCard({
             <KpiCard
               label="Abertas no período"
               value={String(volume.totalAbertas)}
-              hint={porOficina ? `Abertura no ${range.label}` : "Abertura no intervalo rolante"}
+              hint={`Abertura no ${range.label}`}
               onClick={() =>
                 openPeriodo("aberta", `OS abertas · ${range.label}`, "Abertura parseada cai no intervalo")
               }
