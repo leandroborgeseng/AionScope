@@ -10,7 +10,7 @@ export const INDICADORES = [
     href: "/indicadores/oficinas-plano-abertas-fechadas",
     label: "Oficinas de plano — abertas × fechadas",
     blurb:
-      "Ano vigente (Jan–Dez): total Preventiva + Calibração + Segurança elétrica (filtro na página). Abertas × fechadas × % executada — proxy operacional, não laudo Tag a Tag.",
+      "Ano vigente (Jan–Dez): total Preventiva + Calibração + Segurança elétrica (filtro na página). Uma barra = % executada (fechadas÷abertas) — proxy operacional, não laudo Tag a Tag.",
   },
   {
     href: "/indicadores/gasto-reparo-equipamentos-medicos",

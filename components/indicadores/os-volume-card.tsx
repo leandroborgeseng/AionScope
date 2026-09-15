@@ -127,6 +127,7 @@ export function OsVolumeCard({
     () =>
       volume.months.map((m) => {
         const pct = pctExecutadaMes(m.abertas, m.fechadas);
+        const pctRounded = Math.round(pct * 10) / 10;
         return {
           name: m.label,
           key: m.key,
@@ -139,7 +140,12 @@ export function OsVolumeCard({
           superavit: m.superavit,
           saldo: m.saldo,
           saldoLabel: m.saldo === 0 ? "" : rotuloSaldo(m.saldo),
-          pctExecutada: Math.round(pct * 10) / 10,
+          pctExecutada: pctRounded,
+          // Sem abertas: barra 0 e label "—" (não 0%) — % indefinido.
+          pctLabel:
+            m.abertas <= 0
+              ? "—"
+              : `${pctRounded.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`,
         };
       }),
     [volume.months],
@@ -170,7 +176,7 @@ export function OsVolumeCard({
       const fechadas = slot?.fechadas ?? Number(row.fechadas) ?? 0;
       const pct = pctExecutadaMes(abertas, fechadas);
       const pctTexto =
-        abertas <= 0 ? "—%" : `${pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+        abertas <= 0 ? "—" : `${pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
       setMesFiltro("Todas");
       setDrill({
         title: `OS · ${row.name}`,
@@ -368,9 +374,9 @@ export function OsVolumeCard({
               </li>
               {porOficina ? (
                 <li>
-                  <strong>% executada no mês:</strong> fechadas ÷ abertas × 100. Se abertas = 0, o gráfico usa{" "}
-                  <strong>0</strong> e o tooltip exibe <strong>—</strong> (sem abertas). Linha no eixo Y secundário
-                  (0–100%), sem rótulos numéricos sobre a série.
+                  <strong>% executada no mês:</strong> fechadas ÷ abertas × 100. Gráfico: uma barra por mês com o
+                  percentual (rótulo no topo, ex. <strong>85%</strong>). Se abertas = 0, barra = 0 e label{" "}
+                  <strong>—</strong> (sem abertas; não usar 0%). Clique no mês lista abertas e fechadas.
                 </li>
               ) : null}
             </ul>
@@ -426,10 +432,10 @@ export function OsVolumeCard({
 
   const chartKey = oficinaEquals ?? oficinaEqualsIn?.join("|") ?? "ec";
   const chartTitle = porOficina
-    ? `Abertas × fechadas × % executada · ${range.label}`
+    ? `% executada por mês · ${range.label}`
     : `Entrada × execução por mês · ${range.label}`;
   const chartHint = porOficina
-    ? "Barras = quantidade abertas e fechadas no mês. Linha = % executada (fechadas÷abertas×100; se abertas=0 → 0 / —). Eixo direito 0–100%. Clique no mês para listar as OS."
+    ? "Uma barra = % executada (fechadas÷abertas×100). Rótulo no topo; se abertas=0 → barra 0 e label —. Eixo Jan–Dez; meses futuros zerados. Clique no mês para listar as OS."
     : "Cada coluna empilha o volume pareado (coberto) e o saldo do mês. Clique no mês para listar as OS abaixo.";
 
   const chartNode = porOficina ? (

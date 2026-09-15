@@ -64,7 +64,7 @@ export function fraseSaldo(saldo: number): string {
 
 /**
  * % executada no mês = fechadas / abertas × 100.
- * Se abertas = 0 → 0 (no tooltip/UI pode exibir "—"; no gráfico a linha usa 0).
+ * Se abertas = 0 → 0 na série (barra zerada); UI/label preferem "—" (sem abertas), não "0%".
  */
 export function pctExecutadaMes(abertas: number, fechadas: number): number {
   if (abertas <= 0) return 0;
@@ -283,7 +283,7 @@ export const OFICINAS_VOLUME_PLANO = [
     oficinaEquals: "PREVENTIVA EQUIPAMENTOS",
     oficinaLabel: "PREVENTIVA EQUIPAMENTOS",
     titulo: "Preventiva · OS abertas × fechadas",
-    blurb: "Fluxo da oficina Preventiva: aberturas × fechamentos no mês (proxy operacional, não laudo Tag a Tag).",
+    blurb: "Fluxo da oficina Preventiva: % executada mês a mês (fechadas÷abertas; proxy operacional, não laudo Tag a Tag).",
   },
   {
     slug: "oficina-calibracao-abertas-fechadas",
@@ -292,7 +292,7 @@ export const OFICINAS_VOLUME_PLANO = [
     oficinaEquals: "CALIBRACAO DE EQUIPAMENTOS",
     oficinaLabel: "CALIBRAÇÃO DE EQUIPAMENTOS",
     titulo: "Calibração · OS abertas × fechadas",
-    blurb: "Fluxo da oficina Calibração: aberturas × fechamentos no mês (proxy operacional, não laudo Tag a Tag).",
+    blurb: "Fluxo da oficina Calibração: % executada mês a mês (fechadas÷abertas; proxy operacional, não laudo Tag a Tag).",
   },
   {
     slug: "oficina-seguranca-eletrica-abertas-fechadas",
@@ -301,7 +301,7 @@ export const OFICINAS_VOLUME_PLANO = [
     oficinaEquals: "SEGURANCA ELETRICA",
     oficinaLabel: "SEGURANÇA ELÉTRICA",
     titulo: "Segurança elétrica (TSE) · OS abertas × fechadas",
-    blurb: "Fluxo da oficina Segurança Elétrica (TSE): aberturas × fechamentos no mês (proxy operacional, não laudo Tag a Tag).",
+    blurb: "Fluxo da oficina Segurança Elétrica (TSE): % executada mês a mês (fechadas÷abertas; proxy operacional, não laudo Tag a Tag).",
   },
 ] as const;
 
