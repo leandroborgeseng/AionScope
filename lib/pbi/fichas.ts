@@ -8,6 +8,7 @@ export type FichaIndicadorId =
   | "oficina-preventiva-abertas-fechadas"
   | "oficina-calibracao-abertas-fechadas"
   | "oficina-seguranca-eletrica-abertas-fechadas"
+  | "oficinas-plano-abertas-fechadas"
   | "gasto-reparo-medicos"
   | "manutencoes-planejadas-executadas"
   | "custo-manutencao-parque"
@@ -123,14 +124,14 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     nomeDoIndicador: "Preventiva · OS abertas × fechadas",
     ...BASE,
     finalidadeDoIndicador:
-      "Proxy operacional do fluxo da oficina PREVENTIVA EQUIPAMENTOS: comparar aberturas e fechamentos no mês. Não substitui cumprimento de plano Tag a Tag / emissão de laudo.",
-    meta: "Monitoramento (saldo próximo de zero)",
+      "Proxy operacional do fluxo da oficina PREVENTIVA EQUIPAMENTOS: comparar aberturas e fechamentos no mês e o % executado (fechadas÷abertas). Não substitui cumprimento de plano Tag a Tag / emissão de laudo.",
+    meta: "Monitoramento (% executada e equilíbrio entrada × execução)",
     referenciaDaMeta:
       "Indicador de capacidade da oficina. Útil enquanto não há campo confiável de laudo; não deve ser usado como meta oficial de execução do plano.",
     formula:
-      "Recorte: Oficina equals PREVENTIVA EQUIPAMENTOS (normalizado). Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês. Coberto / déficit / superávit como no volume EC.",
+      "Recorte: Oficina equals PREVENTIVA EQUIPAMENTOS (normalizado). Abertas no mês = OS com Abertura no mês. Fechadas no mês = OS com Fechamento (ou DataDaSolucao se Fechamento vazio) no mês. % executada = fechadas ÷ abertas × 100 (se abertas = 0 → 0 no gráfico / “—” na UI). Proxy de fluxo da oficina — não laudo Tag a Tag.",
     coletaDeDados:
-      "Effort GlobalThings — listagem_analitica_das_os. Filtro local por Oficina (equals). Intervalo rolante de 12 meses. Não filtra por Tag médica nem por tipo de manutenção.",
+      "Effort GlobalThings — listagem_analitica_das_os. Filtro local por Oficina (equals). Ano civil vigente (America/Sao_Paulo): contagem de 1º de janeiro ao fim do mês atual; eixo do gráfico Jan–Dez (meses futuros zerados). Não filtra por Tag médica nem por tipo de manutenção.",
     periodicidade: "Mensal",
   },
   "oficina-calibracao-abertas-fechadas": {
@@ -138,14 +139,14 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     nomeDoIndicador: "Calibração · OS abertas × fechadas",
     ...BASE,
     finalidadeDoIndicador:
-      "Proxy operacional do fluxo da oficina CALIBRAÇÃO DE EQUIPAMENTOS: aberturas × fechamentos no mês. Não mede laudo nem plano Tag a Tag.",
-    meta: "Monitoramento (saldo próximo de zero)",
+      "Proxy operacional do fluxo da oficina CALIBRAÇÃO DE EQUIPAMENTOS: aberturas × fechamentos no mês e % executado. Não mede laudo nem plano Tag a Tag.",
+    meta: "Monitoramento (% executada e equilíbrio entrada × execução)",
     referenciaDaMeta:
       "Indicador de capacidade da oficina. Complementa o gap de execução de plano sem comprometer auditoria com fechamento genérico.",
     formula:
-      "Recorte: Oficina equals CALIBRAÇÃO DE EQUIPAMENTOS (normalizado). Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês.",
+      "Recorte: Oficina equals CALIBRAÇÃO DE EQUIPAMENTOS (normalizado). Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês. % executada = fechadas ÷ abertas × 100 (abertas = 0 → 0 / “—”). Proxy de fluxo — não laudo.",
     coletaDeDados:
-      "Effort GlobalThings — listagem_analitica_das_os. Filtro local por Oficina (equals). Intervalo rolante de 12 meses.",
+      "Effort GlobalThings — listagem_analitica_das_os. Filtro local por Oficina (equals). Ano civil vigente (America/Sao_Paulo): 1º jan → fim do mês atual na contagem; eixo Jan–Dez (meses futuros zerados).",
     periodicidade: "Mensal",
   },
   "oficina-seguranca-eletrica-abertas-fechadas": {
@@ -153,14 +154,29 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     nomeDoIndicador: "Segurança elétrica (TSE) · OS abertas × fechadas",
     ...BASE,
     finalidadeDoIndicador:
-      "Proxy operacional do fluxo da oficina SEGURANÇA ELÉTRICA (TSE): aberturas × fechamentos no mês. Não mede laudo nem plano Tag a Tag.",
-    meta: "Monitoramento (saldo próximo de zero)",
+      "Proxy operacional do fluxo da oficina SEGURANÇA ELÉTRICA (TSE): aberturas × fechamentos no mês e % executado. Não mede laudo nem plano Tag a Tag.",
+    meta: "Monitoramento (% executada e equilíbrio entrada × execução)",
     referenciaDaMeta:
       "Indicador de capacidade da oficina TSE/segurança elétrica. Não há oficina nomeada “TSE” na API — o match é SEGURANÇA ELÉTRICA.",
     formula:
-      "Recorte: Oficina equals SEGURANÇA ELÉTRICA (normalizado). Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês.",
+      "Recorte: Oficina equals SEGURANÇA ELÉTRICA (normalizado). Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês. % executada = fechadas ÷ abertas × 100 (abertas = 0 → 0 / “—”). Proxy de fluxo — não laudo.",
     coletaDeDados:
-      "Effort GlobalThings — listagem_analitica_das_os. Filtro local por Oficina (equals). Intervalo rolante de 12 meses.",
+      "Effort GlobalThings — listagem_analitica_das_os. Filtro local por Oficina (equals). Ano civil vigente (America/Sao_Paulo): 1º jan → fim do mês atual na contagem; eixo Jan–Dez (meses futuros zerados).",
+    periodicidade: "Mensal",
+  },
+  "oficinas-plano-abertas-fechadas": {
+    id: "oficinas-plano-abertas-fechadas",
+    nomeDoIndicador: "Oficinas de plano — OS abertas × fechadas",
+    ...BASE,
+    finalidadeDoIndicador:
+      "Proxy operacional do fluxo totalizado das oficinas de plano (Preventiva + Calibração + Segurança elétrica): aberturas × fechamentos no mês e % executado. Não substitui cumprimento de plano Tag a Tag / emissão de laudo.",
+    meta: "Monitoramento (% executada e equilíbrio entrada × execução)",
+    referenciaDaMeta:
+      "Soma das três oficinas de plano. Não inclui OFICINA GERAL. Útil como visão consolidada de capacidade; o filtro da página permite voltar a cada oficina individual.",
+    formula:
+      "Recorte: Oficina equals (normalizado) PREVENTIVA EQUIPAMENTOS ∪ CALIBRAÇÃO DE EQUIPAMENTOS ∪ SEGURANÇA ELÉTRICA. Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês. % executada = fechadas ÷ abertas × 100 (abertas = 0 → 0 / “—”). Proxy de fluxo consolidado — não laudo Tag a Tag.",
+    coletaDeDados:
+      "Effort GlobalThings — listagem_analitica_das_os. Filtro local por união das três oficinas (equals). Ano civil vigente (America/Sao_Paulo): 1º jan → fim do mês atual na contagem; eixo Jan–Dez (meses futuros zerados). Não filtra por Tag médica nem por tipo de manutenção.",
     periodicidade: "Mensal",
   },
   "gasto-reparo-medicos": {

@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { SaldoStackBarChart } from "@/components/charts/charts";
+import { SaldoStackBarChart, AbertasFechadasPctChart } from "@/components/charts/charts";
 import {
   ChartCard,
   ChartFullscreenDialog,
@@ -23,6 +23,7 @@ import { formatDateBR } from "@/lib/pbi/dates";
 import { FICHAS, type FichaIndicadorId } from "@/lib/pbi/fichas";
 import type { OsAnaliticoItem } from "@/lib/pbi/types";
 import {
+  OFICINAS_VOLUME_PLANO,
   RECORTE_EC_EXCLUIR,
   RECORTE_EC_INCLUIR,
   VOLUME_EC_CAMPOS,
@@ -31,9 +32,11 @@ import {
   buildVolumeAbertasFechadas,
   fraseSaldo,
   osFechamentoDate,
+  pctExecutadaMes,
   rotuloSaldo,
   volumeEcDoMes,
   volumeEcDoPeriodo,
+  type OficinaPlanoFilterKey,
   type RollingYearRange,
   type VolumeEcMovimento,
   type VolumeEcRow,
@@ -71,10 +74,13 @@ export function OsVolumeCard({
   error,
   headingAs = "section",
   oficinaEquals,
+  oficinaEqualsIn,
   oficinaLabel,
   title = "OS abertas × fechadas",
   description,
   fichaId = "os-abertas-fechadas",
+  oficinaFilterKey,
+  onOficinaFilterChange,
 }: {
   range: RollingYearRange;
   raw: OsAnaliticoItem[];
@@ -84,42 +90,64 @@ export function OsVolumeCard({
   headingAs?: "page" | "section";
   /** Recorte por Oficina equals (normalizado). Se omitido, usa o filtro de tipo EC. */
   oficinaEquals?: string;
+  /** União de oficinas (equals). Usado no total Preventiva + Calibração + Segurança elétrica. */
+  oficinaEqualsIn?: string[];
   /** Nome exibido da oficina (com acento), para títulos e documentação. */
   oficinaLabel?: string;
   title?: string;
   description?: string;
   fichaId?: FichaIndicadorId;
+  /** Chips Todas / Preventiva / Calibração / Segurança elétrica no topo do gráfico. */
+  oficinaFilterKey?: OficinaPlanoFilterKey;
+  onOficinaFilterChange?: (key: OficinaPlanoFilterKey) => void;
 }) {
   const [drill, setDrill] = useState<Drill>(null);
   const [mesFiltro, setMesFiltro] = useState<VolumeEcMovimento | "Todas" | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const { open, ready, openFullscreen, closeFullscreen } = useChartFullscreen();
 
-  const porOficina = Boolean(oficinaEquals);
+  const porOficina = Boolean(oficinaEquals || oficinaEqualsIn?.length);
+  const multiOficina = Boolean(!oficinaEquals && oficinaEqualsIn && oficinaEqualsIn.length > 1);
   const oficinaExibida = oficinaLabel ?? oficinaEquals ?? "Engenharia Clínica";
   const FICHA = FICHAS[fichaId];
+  const showOficinaFilters = Boolean(oficinaFilterKey && onOficinaFilterChange);
+
+  const volumeOptions = useMemo(() => {
+    if (oficinaEquals) return { oficinaEquals };
+    if (oficinaEqualsIn?.length) return { oficinaEqualsIn };
+    return undefined;
+  }, [oficinaEquals, oficinaEqualsIn]);
 
   const volume = useMemo(
-    () => buildVolumeAbertasFechadas(raw, range, oficinaEquals ? { oficinaEquals } : undefined),
-    [raw, range, oficinaEquals],
+    () => buildVolumeAbertasFechadas(raw, range, volumeOptions),
+    [raw, range, volumeOptions],
   );
 
   const chartData = useMemo(
     () =>
-      volume.months.map((m) => ({
-        name: m.label,
-        key: m.key,
-        year: m.year,
-        month: m.month,
-        abertas: m.abertas,
-        fechadas: m.fechadas,
-        coberto: m.coberto,
-        deficit: m.deficit,
-        superavit: m.superavit,
-        saldo: m.saldo,
-        saldoLabel: m.saldo === 0 ? "" : rotuloSaldo(m.saldo),
-      })),
+      volume.months.map((m) => {
+        const pct = pctExecutadaMes(m.abertas, m.fechadas);
+        return {
+          name: m.label,
+          key: m.key,
+          year: m.year,
+          month: m.month,
+          abertas: m.abertas,
+          fechadas: m.fechadas,
+          coberto: m.coberto,
+          deficit: m.deficit,
+          superavit: m.superavit,
+          saldo: m.saldo,
+          saldoLabel: m.saldo === 0 ? "" : rotuloSaldo(m.saldo),
+          pctExecutada: Math.round(pct * 10) / 10,
+        };
+      }),
     [volume.months],
+  );
+
+  const pctPeriodo = useMemo(
+    () => pctExecutadaMes(volume.totalAbertas, volume.totalFechadas),
+    [volume.totalAbertas, volume.totalFechadas],
   );
 
   const clearSelection = useCallback(() => {
@@ -128,16 +156,26 @@ export function OsVolumeCard({
     setSheetOpen(false);
   }, []);
 
+  useEffect(() => {
+    if (oficinaFilterKey === undefined) return;
+    clearSelection();
+  }, [oficinaFilterKey, clearSelection]);
+
   const openMesLista = useCallback(
-    (row: { name: string; year?: string | number; month?: string | number }) => {
+    (row: { name: string; year?: string | number; month?: string | number; abertas?: number; fechadas?: number }) => {
       const year = Number(row.year);
       const month = Number(row.month);
       const slot = volume.months.find((m) => m.year === year && m.month === month);
+      const abertas = slot?.abertas ?? Number(row.abertas) ?? 0;
+      const fechadas = slot?.fechadas ?? Number(row.fechadas) ?? 0;
+      const pct = pctExecutadaMes(abertas, fechadas);
+      const pctTexto =
+        abertas <= 0 ? "—%" : `${pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
       setMesFiltro("Todas");
       setDrill({
         title: `OS · ${row.name}`,
         mesLabel: row.name,
-        subtitle: `${slot?.abertas ?? 0} entrou · ${slot?.fechadas ?? 0} executou · ${fraseSaldo(slot?.saldo ?? 0)}`,
+        subtitle: `${abertas} abertas · ${fechadas} fechadas · ${pctTexto} executada · ${fraseSaldo(slot?.saldo ?? abertas - fechadas)}`,
         rows: volumeEcDoMes(volume.aposEc, year, month),
       });
     },
@@ -181,9 +219,40 @@ export function OsVolumeCard({
   const Heading = headingAs === "page" ? PageHeader : IndicadorHeading;
   const listaTitle = tituloListaVolume(drill, mesFiltro);
 
-  const defaultDescription = porOficina
-    ? `Fluxo da oficina ${oficinaExibida} · ${range.label}. Conta abertura × fechamento nessa oficina — proxy operacional de capacidade, não cumprimento de plano Tag a Tag.`
-    : `Volume da oficina de Engenharia Clínica · ${range.label}. Recorte só por tipo de manutenção EC — este indicador não usa o filtro “somente eq. médicos”.`;
+  const intervaloOrigemTexto = porOficina
+    ? `ano civil vigente (${range.start.getFullYear()}): ${range.fromISO} a ${range.toISO} (1º de janeiro → fim do mês atual; eixo do gráfico Jan–Dez, meses futuros zerados)`
+    : `intervalo ${range.fromISO} a ${range.toISO} (início do mês de 12 meses atrás até o fim do mês atual)`;
+
+  const defaultDescription = multiOficina
+    ? `Soma das oficinas de plano (Preventiva + Calibração + Segurança elétrica) · ${range.label}. Proxy operacional de capacidade — não cumprimento de plano Tag a Tag.`
+    : porOficina
+      ? `Fluxo da oficina ${oficinaExibida} · ${range.label}. Conta abertura × fechamento nessa oficina — proxy operacional de capacidade, não cumprimento de plano Tag a Tag.`
+      : `Volume da oficina de Engenharia Clínica · ${range.label}. Recorte só por tipo de manutenção EC — este indicador não usa o filtro “somente eq. médicos”.`;
+
+  const handleOficinaFilter = useCallback(
+    (key: OficinaPlanoFilterKey) => {
+      clearSelection();
+      onOficinaFilterChange?.(key);
+    },
+    [clearSelection, onOficinaFilterChange],
+  );
+
+  const oficinaToolbar = showOficinaFilters ? (
+    <>
+      <FilterChip active={oficinaFilterKey === "todas"} onClick={() => handleOficinaFilter("todas")}>
+        Todas
+      </FilterChip>
+      {OFICINAS_VOLUME_PLANO.map((item) => (
+        <FilterChip
+          key={item.filterKey}
+          active={oficinaFilterKey === item.filterKey}
+          onClick={() => handleOficinaFilter(item.filterKey)}
+        >
+          {item.chipLabel}
+        </FilterChip>
+      ))}
+    </>
+  ) : null;
 
   const filters = drill ? (
     <>
@@ -207,8 +276,27 @@ export function OsVolumeCard({
   const detalhesItems: Array<{ id: string; title: string; children: ReactNode }> = [
     {
       id: "recorte",
-      title: porOficina ? `Recorte oficina ${oficinaExibida}` : "Recorte Engenharia Clínica",
-      children: porOficina ? (
+      title: multiOficina
+        ? "Recorte oficinas de plano (total)"
+        : porOficina
+          ? `Recorte oficina ${oficinaExibida}`
+          : "Recorte Engenharia Clínica",
+      children: multiOficina ? (
+        <div className="space-y-3 text-slate-700">
+          <p>
+            Incluir OS cujo campo <strong>Oficina</strong> é equals (texto normalizado) a uma destas três:{" "}
+            <span className="font-mono text-xs">PREVENTIVA EQUIPAMENTOS</span>,{" "}
+            <span className="font-mono text-xs">CALIBRAÇÃO DE EQUIPAMENTOS</span>,{" "}
+            <span className="font-mono text-xs">SEGURANÇA ELÉTRICA</span>.{" "}
+            <strong>Não</strong> inclui OFICINA GERAL.
+          </p>
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+            Isto mede o <strong>fluxo consolidado</strong> das oficinas de plano (quantas OS entraram vs quantas
+            fecharam no mês). <strong>Não</strong> mede laudo emitido nem cumprimento do plano Tag a Tag. Use os chips
+            Todas / Preventiva / Calibração / Segurança elétrica para individualizar.
+          </p>
+        </div>
+      ) : porOficina ? (
         <div className="space-y-3 text-slate-700">
           <p>
             Incluir somente OS cujo campo <strong>Oficina</strong> é equals (texto normalizado: sem acento, maiúsculas)
@@ -250,9 +338,11 @@ export function OsVolumeCard({
               </span>
             </OrigemCampo>
             <OrigemCampo label="Filtro local">
-              {porOficina
-                ? `Oficina equals “${oficinaExibida}” + intervalo ${range.fromISO} a ${range.toISO} (início do mês de 12 meses atrás até o fim do mês atual).`
-                : `Recorte EC (tipo) + intervalo ${range.fromISO} a ${range.toISO} (início do mês de 12 meses atrás até o fim do mês atual).`}
+              {multiOficina
+                ? `União das 3 oficinas de plano + ${intervaloOrigemTexto}.`
+                : porOficina
+                  ? `Oficina equals “${oficinaExibida}” + ${intervaloOrigemTexto}.`
+                  : `Recorte EC (tipo) + ${intervaloOrigemTexto}.`}
             </OrigemCampo>
             <OrigemCampo label="Campos">
               <span className="font-mono text-xs">{VOLUME_EC_CAMPOS.join(", ")}</span>
@@ -261,7 +351,8 @@ export function OsVolumeCard({
               {bruta}
             </OrigemCampo>
             <OrigemCampo label="Após filtro" valueClassName="mt-1 text-lg font-semibold tabular-nums">
-              {volume.aposEc.length} {porOficina ? "na oficina" : "EC"} · {volume.noIntervalo.length} no intervalo
+              {volume.aposEc.length} {multiOficina ? "nas oficinas de plano" : porOficina ? "na oficina" : "EC"} ·{" "}
+              {volume.noIntervalo.length} no intervalo
             </OrigemCampo>
           </dl>
 
@@ -275,6 +366,13 @@ export function OsVolumeCard({
                 <strong>Fechada no mês:</strong> Fechamento se preenchido; senão DataDaSolucao. Sem as duas, não conta
                 como fechada.
               </li>
+              {porOficina ? (
+                <li>
+                  <strong>% executada no mês:</strong> fechadas ÷ abertas × 100. Se abertas = 0, o gráfico usa{" "}
+                  <strong>0</strong> e o tooltip exibe <strong>—</strong> (sem abertas). Linha no eixo Y secundário
+                  (0–100%), sem rótulos numéricos sobre a série.
+                </li>
+              ) : null}
             </ul>
           </div>
 
@@ -326,6 +424,20 @@ export function OsVolumeCard({
     },
   ];
 
+  const chartKey = oficinaEquals ?? oficinaEqualsIn?.join("|") ?? "ec";
+  const chartTitle = porOficina
+    ? `Abertas × fechadas × % executada · ${range.label}`
+    : `Entrada × execução por mês · ${range.label}`;
+  const chartHint = porOficina
+    ? "Barras = quantidade abertas e fechadas no mês. Linha = % executada (fechadas÷abertas×100; se abertas=0 → 0 / —). Eixo direito 0–100%. Clique no mês para listar as OS."
+    : "Cada coluna empilha o volume pareado (coberto) e o saldo do mês. Clique no mês para listar as OS abaixo.";
+
+  const chartNode = porOficina ? (
+    <AbertasFechadasPctChart data={chartData} xKey="name" onRowClick={openMesLista} />
+  ) : (
+    <SaldoStackBarChart data={chartData} xKey="name" onRowClick={openMesLista} />
+  );
+
   return (
     <>
       <IndicadorPageLayout
@@ -341,7 +453,7 @@ export function OsVolumeCard({
             <KpiCard
               label="Abertas no período"
               value={String(volume.totalAbertas)}
-              hint="Abertura no intervalo rolante"
+              hint={porOficina ? `Abertura no ${range.label}` : "Abertura no intervalo rolante"}
               onClick={() =>
                 openPeriodo("aberta", `OS abertas · ${range.label}`, "Abertura parseada cai no intervalo")
               }
@@ -359,34 +471,54 @@ export function OsVolumeCard({
                 )
               }
             />
-            <KpiCard
-              label="Saldo do período"
-              value={rotuloSaldo(volume.saldo)}
-              hint={
-                volume.saldo > 0
-                  ? `Faltou ${volume.saldo} — entrou mais do que executou`
-                  : volume.saldo < 0
-                    ? `Superávit ${Math.abs(volume.saldo)} — executou mais do que entrou`
-                    : "Empate — entrada e execução iguais"
-              }
-              tone={volume.saldo > 0 ? "warn" : "ok"}
-              onClick={() =>
-                openPeriodo(
-                  "todas",
-                  `Movimento · ${range.label}`,
-                  "OS com abertura ou fechamento no intervalo",
-                )
-              }
-            />
+            {porOficina ? (
+              <KpiCard
+                label="% executada no período"
+                value={
+                  volume.totalAbertas <= 0
+                    ? "—"
+                    : `${pctPeriodo.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`
+                }
+                hint={
+                  volume.totalAbertas <= 0
+                    ? "Sem abertas no ano vigente — % indefinido (—)"
+                    : `fechadas ÷ abertas × 100 no ${range.label}`
+                }
+                tone={volume.totalAbertas <= 0 ? undefined : pctPeriodo >= 100 ? "ok" : "warn"}
+                onClick={() =>
+                  openPeriodo(
+                    "todas",
+                    `Movimento · ${range.label}`,
+                    "OS com abertura ou fechamento no intervalo",
+                  )
+                }
+              />
+            ) : (
+              <KpiCard
+                label="Saldo do período"
+                value={rotuloSaldo(volume.saldo)}
+                hint={
+                  volume.saldo > 0
+                    ? `Faltou ${volume.saldo} — entrou mais do que executou`
+                    : volume.saldo < 0
+                      ? `Superávit ${Math.abs(volume.saldo)} — executou mais do que entrou`
+                      : "Empate — entrada e execução iguais"
+                }
+                tone={volume.saldo > 0 ? "warn" : "ok"}
+                onClick={() =>
+                  openPeriodo(
+                    "todas",
+                    `Movimento · ${range.label}`,
+                    "OS com abertura ou fechamento no intervalo",
+                  )
+                }
+              />
+            )}
           </>
         }
         chart={
-          <ChartCard
-            title={`Entrada × execução por mês · ${range.label}`}
-            onExpand={openFullscreen}
-            hint="Cada coluna empilha o volume pareado (coberto) e o saldo do mês. Clique no mês para listar as OS abaixo."
-          >
-            <SaldoStackBarChart data={chartData} xKey="name" onRowClick={openMesLista} />
+          <ChartCard title={chartTitle} onExpand={openFullscreen} toolbar={oficinaToolbar} hint={chartHint}>
+            {chartNode}
           </ChartCard>
         }
         selectionList={
@@ -405,35 +537,61 @@ export function OsVolumeCard({
 
       <ChartFullscreenDialog
         open={open}
-        title={`Entrada × execução por mês · ${range.label}`}
+        title={chartTitle}
         subtitle="Mesmo gráfico, em tela cheia. Clique no mês para ver a lista na página."
         onClose={closeFullscreen}
         ready={ready}
         chips={
           <>
+            {oficinaToolbar}
             <span className="rounded-md bg-slate-50 px-2.5 py-1 text-slate-600">
               Abertas <strong className="tabular-nums text-slate-900">{volume.totalAbertas}</strong>
             </span>
             <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-slate-600">
               Fechadas <strong className="tabular-nums text-emerald-800">{volume.totalFechadas}</strong>
             </span>
-            <span className="rounded-md bg-slate-50 px-2.5 py-1 text-slate-600">
-              Saldo <strong className="tabular-nums text-slate-900">{rotuloSaldo(volume.saldo)}</strong>
-            </span>
+            {porOficina ? (
+              <span className="rounded-md bg-amber-50 px-2.5 py-1 text-slate-600">
+                % executada{" "}
+                <strong className="tabular-nums text-amber-900">
+                  {volume.totalAbertas <= 0
+                    ? "—"
+                    : `${pctPeriodo.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`}
+                </strong>
+              </span>
+            ) : (
+              <span className="rounded-md bg-slate-50 px-2.5 py-1 text-slate-600">
+                Saldo <strong className="tabular-nums text-slate-900">{rotuloSaldo(volume.saldo)}</strong>
+              </span>
+            )}
           </>
         }
       >
-        <SaldoStackBarChart
-          key={`fullscreen-volume-${range.fromISO}-${range.toISO}-${oficinaEquals ?? "ec"}`}
-          data={chartData}
-          xKey="name"
-          className="h-full min-h-[280px]"
-          maxBarSize={80}
-          onRowClick={(row) => {
-            openMesLista(row);
-            closeFullscreen();
-          }}
-        />
+        {porOficina ? (
+          <AbertasFechadasPctChart
+            key={`fullscreen-oficina-${range.fromISO}-${range.toISO}-${chartKey}`}
+            data={chartData}
+            xKey="name"
+            className="h-full min-h-[280px]"
+            maxBarSize={48}
+            onRowClick={(row) => {
+              openMesLista(row);
+              closeFullscreen();
+            }}
+          />
+        ) : (
+          <SaldoStackBarChart
+            key={`fullscreen-volume-${range.fromISO}-${range.toISO}-${chartKey}`}
+            data={chartData}
+            xKey="name"
+            className="h-full min-h-[280px]"
+            maxBarSize={80}
+            onRowClick={(row) => {
+              openMesLista(row);
+              closeFullscreen();
+            }}
+          />
+        )}
       </ChartFullscreenDialog>
 
       <Sheet

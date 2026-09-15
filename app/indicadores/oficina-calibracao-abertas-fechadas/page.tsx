@@ -1,26 +1,7 @@
-"use client";
+import { redirect } from "next/navigation";
+import { oficinasPlanoCanonicalHref } from "@/lib/pbi/volume-ec";
 
-import { OsVolumeCard } from "@/components/indicadores/os-volume-card";
-import { useOsAnaliticoRollingYear } from "@/hooks/use-os-analitico-rolling-year";
-import { oficinaVolumePlanoBySlug } from "@/lib/pbi/volume-ec";
-
-const cfg = oficinaVolumePlanoBySlug("oficina-calibracao-abertas-fechadas")!;
-
-export default function OficinaCalibracaoAbertasFechadasPage() {
-  const { range, raw, bruta, loading, error } = useOsAnaliticoRollingYear();
-
-  return (
-    <OsVolumeCard
-      headingAs="page"
-      range={range}
-      raw={raw}
-      bruta={bruta}
-      loading={loading}
-      error={error}
-      oficinaEquals={cfg.oficinaEquals}
-      oficinaLabel={cfg.oficinaLabel}
-      title={cfg.titulo}
-      fichaId="oficina-calibracao-abertas-fechadas"
-    />
-  );
+/** Rota antiga → página canônica com filtro Calibração. */
+export default function OficinaCalibracaoAbertasFechadasRedirect() {
+  redirect(oficinasPlanoCanonicalHref("calibracao"));
 }

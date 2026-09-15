@@ -62,6 +62,15 @@ export function fraseSaldo(saldo: number): string {
   return "0 (empatou)";
 }
 
+/**
+ * % executada no mês = fechadas / abertas × 100.
+ * Se abertas = 0 → 0 (no tooltip/UI pode exibir "—"; no gráfico a linha usa 0).
+ */
+export function pctExecutadaMes(abertas: number, fechadas: number): number {
+  if (abertas <= 0) return 0;
+  return (fechadas / abertas) * 100;
+}
+
 export function rotuloSaldo(saldo: number): string {
   if (saldo > 0) return `−${saldo}`;
   if (saldo < 0) return `+${Math.abs(saldo)}`;
@@ -139,6 +148,34 @@ export function rollingYearRange(today = nowInSaoPaulo()): RollingYearRange {
   };
 }
 
+/**
+ * Ano civil vigente (America/Sao_Paulo):
+ * - eixo do gráfico: Jan–Dez (meses futuros ainda não ocorridos ficam zerados);
+ * - contagem / API: 1º de janeiro → fim do mês atual (inclusive).
+ */
+export function currentCalendarYearRange(today = nowInSaoPaulo()): RollingYearRange {
+  const year = today.getFullYear();
+  const start = new Date(year, 0, 1);
+  const end = new Date(year, today.getMonth() + 1, 0, 23, 59, 59, 999);
+  const months: RollingYearRange["months"] = [];
+  for (let month = 0; month < 12; month += 1) {
+    months.push({
+      year,
+      month,
+      key: monthKey(year, month),
+      label: monthLabel(year, month),
+    });
+  }
+  return {
+    start,
+    end,
+    fromISO: format(start, "yyyy-MM-dd"),
+    toISO: format(new Date(year, today.getMonth() + 1, 0), "yyyy-MM-dd"),
+    label: `ano vigente (${year})`,
+    months,
+  };
+}
+
 function inRange(date: Date | null, start: Date, end: Date) {
   if (!date) return false;
   return date.getTime() >= start.getTime() && date.getTime() <= end.getTime();
@@ -163,12 +200,26 @@ export function filterOsOficinaEquals(os: OsAnaliticoItem[], oficinaEquals: stri
   return os.filter((item) => isOficinaEquals(item.Oficina, oficinaEquals));
 }
 
+/** União de várias oficinas (equals normalizado). Não inclui OFICINA GERAL. */
+export function filterOsOficinaEqualsIn(os: OsAnaliticoItem[], oficinaEqualsIn: string[]) {
+  const wants = new Set(
+    oficinaEqualsIn.map((item) => normalizeOficina(item)).filter(Boolean),
+  );
+  if (wants.size === 0) return [];
+  return os.filter((item) => wants.has(normalizeOficina(item.Oficina)));
+}
+
 export type VolumeAbertasFechadasOptions = {
   /**
    * Se definido, recorta por Oficina equals (normalizado) em vez do filtro de tipo EC.
    * Útil para fluxo operacional de uma oficina específica (Preventiva / Calibração / TSE).
    */
   oficinaEquals?: string;
+  /**
+   * União de oficinas (equals normalizado). Tem prioridade menor que `oficinaEquals`.
+   * Usado no total das oficinas de plano (Preventiva + Calibração + Segurança elétrica).
+   */
+  oficinaEqualsIn?: string[];
 };
 
 export function sampleOsParaConferencia(items: OsAnaliticoItem[], n = 5) {
@@ -181,14 +232,18 @@ export function sampleOsParaConferencia(items: OsAnaliticoItem[], n = 5) {
     .slice(0, n);
 }
 
+function resolveOsParaVolume(os: OsAnaliticoItem[], options?: VolumeAbertasFechadasOptions) {
+  if (options?.oficinaEquals) return filterOsOficinaEquals(os, options.oficinaEquals);
+  if (options?.oficinaEqualsIn?.length) return filterOsOficinaEqualsIn(os, options.oficinaEqualsIn);
+  return filterOsTipoEc(os);
+}
+
 export function buildVolumeAbertasFechadas(
   os: OsAnaliticoItem[],
   range: RollingYearRange,
   options?: VolumeAbertasFechadasOptions,
 ) {
-  const aposEc = options?.oficinaEquals
-    ? filterOsOficinaEquals(os, options.oficinaEquals)
-    : filterOsTipoEc(os);
+  const aposEc = resolveOsParaVolume(os, options);
   const noIntervalo = aposEc.filter((item) => {
     const abertura = parsePbiDate(item.Abertura);
     const fechamento = osFechamentoDate(item);
@@ -223,6 +278,8 @@ export function buildVolumeAbertasFechadas(
 export const OFICINAS_VOLUME_PLANO = [
   {
     slug: "oficina-preventiva-abertas-fechadas",
+    filterKey: "preventiva",
+    chipLabel: "Preventiva",
     oficinaEquals: "PREVENTIVA EQUIPAMENTOS",
     oficinaLabel: "PREVENTIVA EQUIPAMENTOS",
     titulo: "Preventiva · OS abertas × fechadas",
@@ -230,6 +287,8 @@ export const OFICINAS_VOLUME_PLANO = [
   },
   {
     slug: "oficina-calibracao-abertas-fechadas",
+    filterKey: "calibracao",
+    chipLabel: "Calibração",
     oficinaEquals: "CALIBRACAO DE EQUIPAMENTOS",
     oficinaLabel: "CALIBRAÇÃO DE EQUIPAMENTOS",
     titulo: "Calibração · OS abertas × fechadas",
@@ -237,6 +296,8 @@ export const OFICINAS_VOLUME_PLANO = [
   },
   {
     slug: "oficina-seguranca-eletrica-abertas-fechadas",
+    filterKey: "seguranca-eletrica",
+    chipLabel: "Segurança elétrica",
     oficinaEquals: "SEGURANCA ELETRICA",
     oficinaLabel: "SEGURANÇA ELÉTRICA",
     titulo: "Segurança elétrica (TSE) · OS abertas × fechadas",
@@ -246,9 +307,53 @@ export const OFICINAS_VOLUME_PLANO = [
 
 export type OficinaVolumePlano = (typeof OFICINAS_VOLUME_PLANO)[number];
 export type OficinaVolumePlanoSlug = OficinaVolumePlano["slug"];
+export type OficinaPlanoFilterKey = "todas" | OficinaVolumePlano["filterKey"];
+
+export const OFICINAS_PLANO_EQUALS = OFICINAS_VOLUME_PLANO.map((item) => item.oficinaEquals);
+
+export const OFICINAS_PLANO_CANONICAL_HREF = "/indicadores/oficinas-plano-abertas-fechadas";
 
 export function oficinaVolumePlanoBySlug(slug: string): OficinaVolumePlano | undefined {
   return OFICINAS_VOLUME_PLANO.find((item) => item.slug === slug);
+}
+
+export function oficinaVolumePlanoByFilterKey(key: string): OficinaVolumePlano | undefined {
+  return OFICINAS_VOLUME_PLANO.find((item) => item.filterKey === key);
+}
+
+export function parseOficinaPlanoFilterKey(raw: string | null | undefined): OficinaPlanoFilterKey {
+  if (!raw || raw === "todas" || raw === "all") return "todas";
+  const hit = oficinaVolumePlanoByFilterKey(raw);
+  return hit ? hit.filterKey : "todas";
+}
+
+export function oficinasPlanoCanonicalHref(filterKey: OficinaPlanoFilterKey = "todas") {
+  if (filterKey === "todas") return OFICINAS_PLANO_CANONICAL_HREF;
+  return `${OFICINAS_PLANO_CANONICAL_HREF}?oficina=${filterKey}`;
+}
+
+export function resolveOficinaPlanoVolumeOptions(filterKey: OficinaPlanoFilterKey): {
+  oficinaEquals?: string;
+  oficinaEqualsIn?: string[];
+  oficinaLabel: string;
+  titulo: string;
+  fichaSlug: OficinaVolumePlanoSlug | "oficinas-plano-abertas-fechadas";
+} {
+  if (filterKey === "todas") {
+    return {
+      oficinaEqualsIn: [...OFICINAS_PLANO_EQUALS],
+      oficinaLabel: "Preventiva + Calibração + Segurança elétrica",
+      titulo: "Oficinas de plano — abertas × fechadas",
+      fichaSlug: "oficinas-plano-abertas-fechadas",
+    };
+  }
+  const cfg = oficinaVolumePlanoByFilterKey(filterKey)!;
+  return {
+    oficinaEquals: cfg.oficinaEquals,
+    oficinaLabel: cfg.oficinaLabel,
+    titulo: cfg.titulo,
+    fichaSlug: cfg.slug,
+  };
 }
 
 export function volumeEcDoMes(items: OsAnaliticoItem[], year: number, month: number): VolumeEcRow[] {
