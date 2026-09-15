@@ -50,11 +50,13 @@ export function ChartCard({
   title,
   onExpand,
   hint,
+  toolbar,
   children,
 }: {
   title: string;
   onExpand?: () => void;
   hint?: ReactNode;
+  toolbar?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -64,6 +66,7 @@ export function ChartCard({
         {onExpand ? <ChartFullscreenButton onClick={onExpand} /> : null}
       </CardHeader>
       <CardContent>
+        {toolbar ? <div className="mb-3 flex flex-wrap gap-2">{toolbar}</div> : null}
         {children}
         {hint ? <p className="mt-2 text-xs text-aion-muted">{hint}</p> : null}
       </CardContent>

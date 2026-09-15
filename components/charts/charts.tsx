@@ -7,6 +7,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
   LabelList,
   Legend,
   Line,
@@ -205,6 +206,122 @@ export function SaldoStackBarChart({
             <LabelList position="center" content={SegmentInnerLabel} />
           </Bar>
         </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+export type AbertasFechadasPctChartRow = {
+  name: string;
+  abertas: number;
+  fechadas: number;
+  /** fechadas/abertas×100; se abertas=0 → 0 (tooltip exibe "—"). */
+  pctExecutada: number;
+} & Record<string, string | number>;
+
+function AbertasFechadasPctTooltip({ active, payload, label }: TooltipContentProps) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload as AbertasFechadasPctChartRow | undefined;
+  if (!row) return null;
+  const pctTexto =
+    row.abertas <= 0
+      ? "— (sem abertas)"
+      : `${row.pctExecutada.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-md">
+      <p className="font-semibold text-slate-800">{String(label)}</p>
+      <p className="mt-1 text-slate-700">
+        Abertas: <span className="font-semibold tabular-nums">{row.abertas}</span>
+      </p>
+      <p className="text-slate-700">
+        Fechadas: <span className="font-semibold tabular-nums">{row.fechadas}</span>
+      </p>
+      <p className="mt-1 text-slate-800">
+        % executada: <span className="font-semibold tabular-nums">{pctTexto}</span>
+      </p>
+    </div>
+  );
+}
+
+/** Barras Abertas/Fechadas + linha % executada (eixo Y secundário 0–100%). Sem rótulos na série %. */
+export function AbertasFechadasPctChart({
+  data,
+  xKey,
+  className,
+  maxBarSize = 28,
+  onRowClick,
+}: {
+  data: AbertasFechadasPctChartRow[];
+  xKey: string;
+  className?: string;
+  maxBarSize?: number;
+  onRowClick?: (row: AbertasFechadasPctChartRow) => void;
+}) {
+  const resolveRow = (state: { activeIndex?: number | string | null; activeLabel?: string | number }) => {
+    const index = chartClickIndex(state.activeIndex);
+    return Number.isFinite(index) ? data[index] : data.find((item) => item[xKey] === state.activeLabel);
+  };
+
+  return (
+    <div className={cn("h-72 w-full", className)}>
+      <ResponsiveContainer width="100%" height="100%" minHeight={240} debounce={1}>
+        <ComposedChart
+          data={data}
+          margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
+          barCategoryGap="18%"
+          onClick={(state) => {
+            const row = resolveRow(state);
+            if (row) onRowClick?.(row);
+          }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+          <XAxis dataKey={xKey} tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={60} />
+          <YAxis
+            yAxisId="qtd"
+            tick={{ fontSize: 11 }}
+            allowDecimals={false}
+            width={40}
+          />
+          <YAxis
+            yAxisId="pct"
+            orientation="right"
+            domain={[0, 100]}
+            tick={{ fontSize: 11 }}
+            width={44}
+            tickFormatter={(v) => `${v}%`}
+          />
+          <Tooltip content={AbertasFechadasPctTooltip} />
+          <Legend />
+          <Bar
+            yAxisId="qtd"
+            dataKey="abertas"
+            name="Abertas"
+            fill="#0369a1"
+            maxBarSize={maxBarSize}
+            radius={[3, 3, 0, 0]}
+            cursor="pointer"
+          />
+          <Bar
+            yAxisId="qtd"
+            dataKey="fechadas"
+            name="Fechadas"
+            fill="#0f766e"
+            maxBarSize={maxBarSize}
+            radius={[3, 3, 0, 0]}
+            cursor="pointer"
+          />
+          <Line
+            yAxisId="pct"
+            type="monotone"
+            dataKey="pctExecutada"
+            name="% executada"
+            stroke="#b45309"
+            strokeWidth={2}
+            dot={{ r: 3, fill: "#b45309", strokeWidth: 0 }}
+            activeDot={{ r: 5 }}
+            // Sem LabelList — pedido: sem números sobre a série percentual.
+          />
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   );

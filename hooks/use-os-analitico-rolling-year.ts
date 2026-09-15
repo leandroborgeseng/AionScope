@@ -5,12 +5,24 @@ import { dataOf, errorOf, usePbiQuery } from "@/hooks/use-pbi";
 import { EMPTY_FILTERS, type DashboardFilters } from "@/lib/pbi/filters";
 import { nowInSaoPaulo } from "@/lib/pbi/dates";
 import type { OsAnaliticoItem } from "@/lib/pbi/types";
-import { VOLUME_EC_PERIODO_API, VOLUME_EC_TIPO_API, rollingYearRange } from "@/lib/pbi/volume-ec";
+import {
+  VOLUME_EC_PERIODO_API,
+  VOLUME_EC_TIPO_API,
+  currentCalendarYearRange,
+  rollingYearRange,
+  type RollingYearRange,
+} from "@/lib/pbi/volume-ec";
 
-/** Mesma consulta da antiga home: OS analítica no intervalo rolante de 1 ano. */
-export function useOsAnaliticoRollingYear() {
+export type OsAnaliticoRangeMode = "rolling" | "calendarYear";
+
+function buildRange(mode: OsAnaliticoRangeMode, today: Date): RollingYearRange {
+  return mode === "calendarYear" ? currentCalendarYearRange(today) : rollingYearRange(today);
+}
+
+/** Mesma consulta da antiga home: OS analítica no intervalo escolhido (rolante ou ano civil). */
+export function useOsAnaliticoRollingYear(mode: OsAnaliticoRangeMode = "rolling") {
   const today = useMemo(() => nowInSaoPaulo(), []);
-  const range = useMemo(() => rollingYearRange(today), [today]);
+  const range = useMemo(() => buildRange(mode, today), [mode, today]);
 
   const osFilters: DashboardFilters = useMemo(
     () => ({
