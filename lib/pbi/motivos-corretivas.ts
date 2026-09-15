@@ -1,8 +1,8 @@
 /**
- * Motivos das corretivas médicas: Pareto Causa/Ocorrência + recorrência por Tag.
+ * Motivos das corretivas médicas: recorrência por Tag agrupada por tipo + Pareto Causa/Ocorrência.
  */
 import { isCorretiva } from "./filters";
-import { osTemEquipamento } from "./indicadores-os";
+import { findEquipamento, osTemEquipamento, type EquipamentoIndex } from "./indicadores-os";
 import { formatPct, pct, pareto } from "./indicators";
 import { linkedToMedicalPark } from "./medical";
 import { parsePbiDate } from "./dates";
@@ -25,6 +25,9 @@ export const MOTIVOS_CORRETIVAS_CAMPOS = [
   "JustificativaEncerramento",
 ] as const;
 
+export const RECORRENCIA_MIN_OS = 2;
+export const RECORRENCIA_TIPOS_TOP = 15;
+
 export type MotivoParetoRow = {
   name: string;
   count: number;
@@ -38,8 +41,18 @@ export type MotivoParetoRow = {
 export type RecorrenciaTagRow = {
   tag: string;
   equipamento: string;
+  tipo: string;
   setor: string;
   count: number;
+  recorrente: boolean;
+};
+
+export type RecorrenciaTipoRow = {
+  tipo: string;
+  osCount: number;
+  tagsCount: number;
+  tagsRecorrentes: number;
+  tags: RecorrenciaTagRow[];
 };
 
 export type MotivosCorretivasResult = {
@@ -47,6 +60,10 @@ export type MotivosCorretivasResult = {
   causas: MotivoParetoRow[];
   ocorrencias: MotivoParetoRow[];
   recorrenciaTags: RecorrenciaTagRow[];
+  recorrenciaTipos: RecorrenciaTipoRow[];
+  tagsRecorrentes: number;
+  osEmTagsRecorrentes: number;
+  tiposComCorretiva: number;
   total: number;
   semCausa: number;
   semOcorrencia: number;
@@ -57,6 +74,30 @@ export type MotivosCorretivasResult = {
 function inRange(date: Date | null, start: Date, end: Date) {
   if (!date) return false;
   return date.getTime() >= start.getTime() && date.getTime() <= end.getTime();
+}
+
+function normalizeTipoKey(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleUpperCase("pt-BR")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** Nome genérico do equipamento (tipo/família), não a Tag. Preferência: parque → OS. */
+export function resolveTipoEquipamento(
+  item: Pick<OsAnaliticoItem, "Tag" | "Equipamento" | "Setor">,
+  index?: EquipamentoIndex | null,
+): string {
+  if (index) {
+    const cadastro = findEquipamento(index, item.Tag, item.Equipamento, item.Setor);
+    const doParque = (cadastro?.Equipamento ?? "").trim();
+    if (doParque) return doParque;
+  }
+  const daOs = (item.Equipamento ?? "").trim();
+  if (daOs) return daOs;
+  return "Sem tipo";
 }
 
 function buildParetoWithAcumulado(values: Array<string | null | undefined>, top = 15): MotivoParetoRow[] {
@@ -84,6 +125,7 @@ export function buildMotivosCorretivas(
   range: RollingYearRange,
   medicalTags: Set<string>,
   medicalIds: Set<number>,
+  equipamentoIndex?: EquipamentoIndex | null,
 ): MotivosCorretivasResult {
   let aposMedico = 0;
   const aposCorretiva: OsAnaliticoItem[] = [];
@@ -111,30 +153,83 @@ export function buildMotivosCorretivas(
     15,
   );
 
-  const byTag = new Map<string, { count: number; equipamento: string; setor: string }>();
+  const byTag = new Map<
+    string,
+    { count: number; equipamento: string; tipo: string; setor: string; tipoKey: string }
+  >();
   for (const item of noIntervalo) {
     const tag = (item.Tag ?? "").trim() || "—";
+    const tipoRaw = resolveTipoEquipamento(item, equipamentoIndex);
+    const tipoKey = normalizeTipoKey(tipoRaw) || "SEM TIPO";
     const cur = byTag.get(tag) ?? {
       count: 0,
-      equipamento: (item.Equipamento ?? "").trim() || "—",
+      equipamento: (item.Equipamento ?? "").trim() || tipoRaw || "—",
+      tipo: tipoRaw,
       setor: (item.Setor ?? "").trim() || "—",
+      tipoKey,
     };
     cur.count += 1;
     if (cur.equipamento === "—" && item.Equipamento) cur.equipamento = item.Equipamento.trim();
     if (cur.setor === "—" && item.Setor) cur.setor = item.Setor.trim();
+    if ((!cur.tipo || cur.tipo === "Sem tipo") && tipoRaw !== "Sem tipo") {
+      cur.tipo = tipoRaw;
+      cur.tipoKey = tipoKey;
+    }
     byTag.set(tag, cur);
   }
 
   const recorrenciaTags: RecorrenciaTagRow[] = [...byTag.entries()]
-    .map(([tag, v]) => ({ tag, ...v }))
-    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, "pt-BR"))
-    .slice(0, 20);
+    .map(([tag, v]) => ({
+      tag,
+      equipamento: v.equipamento,
+      tipo: v.tipo,
+      setor: v.setor,
+      count: v.count,
+      recorrente: v.count >= RECORRENCIA_MIN_OS,
+    }))
+    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, "pt-BR"));
+
+  const byTipo = new Map<
+    string,
+    { tipo: string; osCount: number; tags: RecorrenciaTagRow[] }
+  >();
+  for (const row of recorrenciaTags) {
+    const key = normalizeTipoKey(row.tipo) || "SEM TIPO";
+    const cur = byTipo.get(key) ?? { tipo: row.tipo, osCount: 0, tags: [] };
+    cur.osCount += row.count;
+    cur.tags.push(row);
+    byTipo.set(key, cur);
+  }
+
+  const recorrenciaTipos: RecorrenciaTipoRow[] = [...byTipo.values()]
+    .map((g) => {
+      const tags = [...g.tags].sort(
+        (a, b) => b.count - a.count || a.tag.localeCompare(b.tag, "pt-BR"),
+      );
+      return {
+        tipo: g.tipo,
+        osCount: g.osCount,
+        tagsCount: tags.length,
+        tagsRecorrentes: tags.filter((t) => t.recorrente).length,
+        tags,
+      };
+    })
+    .sort((a, b) => b.osCount - a.osCount || a.tipo.localeCompare(b.tipo, "pt-BR"));
+
+  const tagsRecorrentes = recorrenciaTags.filter((t) => t.recorrente).length;
+  const osEmTagsRecorrentes = recorrenciaTags
+    .filter((t) => t.recorrente)
+    .reduce((sum, t) => sum + t.count, 0);
 
   return {
     noIntervalo,
     causas,
     ocorrencias,
     recorrenciaTags,
+    recorrenciaTipos,
+    tagsRecorrentes,
+    osEmTagsRecorrentes,
+    tiposComCorretiva: recorrenciaTipos.length,
     total: noIntervalo.length,
     semCausa: noIntervalo.filter((o) => !(o.Causa ?? "").trim()).length,
     semOcorrencia: noIntervalo.filter((o) => !(o.Ocorrencia ?? "").trim()).length,
@@ -153,4 +248,16 @@ export function filterOsPorOcorrencia(rows: OsAnaliticoItem[], ocorrencia: strin
 
 export function filterOsPorTag(rows: OsAnaliticoItem[], tag: string) {
   return rows.filter((o) => ((o.Tag ?? "").trim() || "—") === tag);
+}
+
+export function filterOsPorTipo(
+  rows: OsAnaliticoItem[],
+  tipo: string,
+  equipamentoIndex?: EquipamentoIndex | null,
+) {
+  const key = normalizeTipoKey(tipo) || "SEM TIPO";
+  return rows.filter((o) => {
+    const resolved = resolveTipoEquipamento(o, equipamentoIndex);
+    return (normalizeTipoKey(resolved) || "SEM TIPO") === key;
+  });
 }

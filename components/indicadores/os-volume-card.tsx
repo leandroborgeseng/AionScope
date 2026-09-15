@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet } from "@/components/ui/sheet";
 import { formatDateBR } from "@/lib/pbi/dates";
-import { FICHAS } from "@/lib/pbi/fichas";
+import { FICHAS, type FichaIndicadorId } from "@/lib/pbi/fichas";
 import type { OsAnaliticoItem } from "@/lib/pbi/types";
 import {
   RECORTE_EC_EXCLUIR,
@@ -46,8 +46,6 @@ type Drill = {
   mesLabel?: string;
 } | null;
 
-const FICHA = FICHAS["os-abertas-fechadas"];
-
 const movimentoTone = (value: VolumeEcMovimento) => {
   if (value === "Fechada") return "ok" as const;
   if (value === "Ambas") return "info" as const;
@@ -72,6 +70,11 @@ export function OsVolumeCard({
   loading,
   error,
   headingAs = "section",
+  oficinaEquals,
+  oficinaLabel,
+  title = "OS abertas × fechadas",
+  description,
+  fichaId = "os-abertas-fechadas",
 }: {
   range: RollingYearRange;
   raw: OsAnaliticoItem[];
@@ -79,13 +82,27 @@ export function OsVolumeCard({
   loading: boolean;
   error: string | null;
   headingAs?: "page" | "section";
+  /** Recorte por Oficina equals (normalizado). Se omitido, usa o filtro de tipo EC. */
+  oficinaEquals?: string;
+  /** Nome exibido da oficina (com acento), para títulos e documentação. */
+  oficinaLabel?: string;
+  title?: string;
+  description?: string;
+  fichaId?: FichaIndicadorId;
 }) {
   const [drill, setDrill] = useState<Drill>(null);
   const [mesFiltro, setMesFiltro] = useState<VolumeEcMovimento | "Todas" | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const { open, ready, openFullscreen, closeFullscreen } = useChartFullscreen();
 
-  const volume = useMemo(() => buildVolumeAbertasFechadas(raw, range), [raw, range]);
+  const porOficina = Boolean(oficinaEquals);
+  const oficinaExibida = oficinaLabel ?? oficinaEquals ?? "Engenharia Clínica";
+  const FICHA = FICHAS[fichaId];
+
+  const volume = useMemo(
+    () => buildVolumeAbertasFechadas(raw, range, oficinaEquals ? { oficinaEquals } : undefined),
+    [raw, range, oficinaEquals],
+  );
 
   const chartData = useMemo(
     () =>
@@ -154,7 +171,7 @@ export function OsVolumeCard({
       cell: ({ row }) => <Badge tone={movimentoTone(row.original.movimento)}>{row.original.movimento}</Badge>,
     },
     { accessorKey: "TipoDeManutencao", header: "Tipo" },
-    { accessorKey: "Oficina", header: "Tag / setor" },
+    { accessorKey: "Oficina", header: "Oficina" },
     { accessorKey: "Abertura", header: "Abertura" },
     { accessorKey: "Fechamento", header: "Fechamento" },
     { accessorKey: "DataDaSolucao", header: "Solução" },
@@ -163,6 +180,10 @@ export function OsVolumeCard({
 
   const Heading = headingAs === "page" ? PageHeader : IndicadorHeading;
   const listaTitle = tituloListaVolume(drill, mesFiltro);
+
+  const defaultDescription = porOficina
+    ? `Fluxo da oficina ${oficinaExibida} · ${range.label}. Conta abertura × fechamento nessa oficina — proxy operacional de capacidade, não cumprimento de plano Tag a Tag.`
+    : `Volume da oficina de Engenharia Clínica · ${range.label}. Recorte só por tipo de manutenção EC — este indicador não usa o filtro “somente eq. médicos”.`;
 
   const filters = drill ? (
     <>
@@ -186,8 +207,21 @@ export function OsVolumeCard({
   const detalhesItems: Array<{ id: string; title: string; children: ReactNode }> = [
     {
       id: "recorte",
-      title: "Recorte Engenharia Clínica",
-      children: (
+      title: porOficina ? `Recorte oficina ${oficinaExibida}` : "Recorte Engenharia Clínica",
+      children: porOficina ? (
+        <div className="space-y-3 text-slate-700">
+          <p>
+            Incluir somente OS cujo campo <strong>Oficina</strong> é equals (texto normalizado: sem acento, maiúsculas)
+            a <span className="font-mono text-xs">{oficinaExibida}</span>.
+          </p>
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
+            Isto mede o <strong>fluxo da oficina</strong> (quantas OS entraram vs quantas fecharam no mês).{" "}
+            <strong>Não</strong> mede laudo emitido nem cumprimento do plano Tag a Tag. É um proxy operacional útil de
+            capacidade — melhor do que um KPI genérico de “preventiva fechada” sem recorte de oficina, mas não substitui
+            evidência de execução do plano.
+          </p>
+        </div>
+      ) : (
         <div className="space-y-3 text-slate-700">
           <p>
             Incluir OS cujo <strong>TipoDeManutencao</strong> {RECORTE_EC_INCLUIR.join(" ")}.
@@ -216,8 +250,9 @@ export function OsVolumeCard({
               </span>
             </OrigemCampo>
             <OrigemCampo label="Filtro local">
-              Recorte EC (tipo) + intervalo {range.fromISO} a {range.toISO} (início do mês de 12 meses atrás até o fim
-              do mês atual).
+              {porOficina
+                ? `Oficina equals “${oficinaExibida}” + intervalo ${range.fromISO} a ${range.toISO} (início do mês de 12 meses atrás até o fim do mês atual).`
+                : `Recorte EC (tipo) + intervalo ${range.fromISO} a ${range.toISO} (início do mês de 12 meses atrás até o fim do mês atual).`}
             </OrigemCampo>
             <OrigemCampo label="Campos">
               <span className="font-mono text-xs">{VOLUME_EC_CAMPOS.join(", ")}</span>
@@ -226,7 +261,7 @@ export function OsVolumeCard({
               {bruta}
             </OrigemCampo>
             <OrigemCampo label="Após filtro" valueClassName="mt-1 text-lg font-semibold tabular-nums">
-              {volume.aposEc.length} EC · {volume.noIntervalo.length} no intervalo
+              {volume.aposEc.length} {porOficina ? "na oficina" : "EC"} · {volume.noIntervalo.length} no intervalo
             </OrigemCampo>
           </dl>
 
@@ -248,8 +283,8 @@ export function OsVolumeCard({
               Como conferir uma OS no GlobalThings
             </p>
             <p>
-              Abra o GlobalThings, busque pelo código da OS (campo <strong>OS</strong>). Confira Tipo de manutenção, data
-              de abertura e data de fechamento (ou data da solução se o fechamento estiver vazio).
+              Abra o GlobalThings, busque pelo código da OS (campo <strong>OS</strong>). Confira Oficina, Tipo de
+              manutenção, data de abertura e data de fechamento (ou data da solução se o fechamento estiver vazio).
             </p>
           </div>
 
@@ -265,6 +300,7 @@ export function OsVolumeCard({
                   <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                     <tr>
                       <th className="px-3 py-2">OS</th>
+                      <th className="px-3 py-2">Oficina</th>
                       <th className="px-3 py-2">Tipo</th>
                       <th className="px-3 py-2">Abertura</th>
                       <th className="px-3 py-2">Fechamento</th>
@@ -274,6 +310,7 @@ export function OsVolumeCard({
                     {volume.exemplos.map((item) => (
                       <tr key={`${item.CodigoSerialOS}-${item.OS}`} className="border-t border-slate-100">
                         <td className="px-3 py-2 font-medium">{item.OS || "—"}</td>
+                        <td className="px-3 py-2">{item.Oficina || "—"}</td>
                         <td className="px-3 py-2">{item.TipoDeManutencao || "—"}</td>
                         <td className="px-3 py-2">{formatDateBR(item.Abertura)}</td>
                         <td className="px-3 py-2">{formatDateBR(osFechamentoDate(item))}</td>
@@ -297,10 +334,7 @@ export function OsVolumeCard({
         ficha={FICHA}
         detalhesItems={detalhesItems}
         heading={
-          <Heading
-            title="OS abertas × fechadas"
-            description={`Volume da oficina de Engenharia Clínica · ${range.label}. Recorte só por tipo de manutenção EC — este indicador não usa o filtro “somente eq. médicos”.`}
-          />
+          <Heading title={title} description={description ?? defaultDescription} />
         }
         kpis={
           <>
@@ -390,7 +424,7 @@ export function OsVolumeCard({
         }
       >
         <SaldoStackBarChart
-          key={`fullscreen-volume-${range.fromISO}-${range.toISO}`}
+          key={`fullscreen-volume-${range.fromISO}-${range.toISO}-${oficinaEquals ?? "ec"}`}
           data={chartData}
           xKey="name"
           className="h-full min-h-[280px]"

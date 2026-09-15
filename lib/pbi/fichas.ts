@@ -5,6 +5,9 @@ export type FichaIndicadorId =
   | "volume"
   | "satisfacao"
   | "os-abertas-fechadas"
+  | "oficina-preventiva-abertas-fechadas"
+  | "oficina-calibracao-abertas-fechadas"
+  | "oficina-seguranca-eletrica-abertas-fechadas"
   | "gasto-reparo-medicos"
   | "manutencoes-planejadas-executadas"
   | "custo-manutencao-parque"
@@ -113,6 +116,51 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
       "Abertas no mês = OS com Abertura no mês. Fechadas no mês = OS com Fechamento (ou DataDaSolucao se Fechamento vazio) no mês. Coberto = min(abertas, fechadas). Déficit = max(0, abertas − fechadas). Superávit = max(0, fechadas − abertas). Saldo do período = total abertas − total fechadas.",
     coletaDeDados:
       "Effort GlobalThings — API listagem_analitica_das_os. Recorte só por TipoDeManutencao de Engenharia Clínica (inclui A -, calibração, TSE, instrumental; exclui M - predial e O - obras). Não aplica filtro de equipamentos médicos. Intervalo rolante de 12 meses.",
+    periodicidade: "Mensal",
+  },
+  "oficina-preventiva-abertas-fechadas": {
+    id: "oficina-preventiva-abertas-fechadas",
+    nomeDoIndicador: "Preventiva · OS abertas × fechadas",
+    ...BASE,
+    finalidadeDoIndicador:
+      "Proxy operacional do fluxo da oficina PREVENTIVA EQUIPAMENTOS: comparar aberturas e fechamentos no mês. Não substitui cumprimento de plano Tag a Tag / emissão de laudo.",
+    meta: "Monitoramento (saldo próximo de zero)",
+    referenciaDaMeta:
+      "Indicador de capacidade da oficina. Útil enquanto não há campo confiável de laudo; não deve ser usado como meta oficial de execução do plano.",
+    formula:
+      "Recorte: Oficina equals PREVENTIVA EQUIPAMENTOS (normalizado). Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês. Coberto / déficit / superávit como no volume EC.",
+    coletaDeDados:
+      "Effort GlobalThings — listagem_analitica_das_os. Filtro local por Oficina (equals). Intervalo rolante de 12 meses. Não filtra por Tag médica nem por tipo de manutenção.",
+    periodicidade: "Mensal",
+  },
+  "oficina-calibracao-abertas-fechadas": {
+    id: "oficina-calibracao-abertas-fechadas",
+    nomeDoIndicador: "Calibração · OS abertas × fechadas",
+    ...BASE,
+    finalidadeDoIndicador:
+      "Proxy operacional do fluxo da oficina CALIBRAÇÃO DE EQUIPAMENTOS: aberturas × fechamentos no mês. Não mede laudo nem plano Tag a Tag.",
+    meta: "Monitoramento (saldo próximo de zero)",
+    referenciaDaMeta:
+      "Indicador de capacidade da oficina. Complementa o gap de execução de plano sem comprometer auditoria com fechamento genérico.",
+    formula:
+      "Recorte: Oficina equals CALIBRAÇÃO DE EQUIPAMENTOS (normalizado). Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês.",
+    coletaDeDados:
+      "Effort GlobalThings — listagem_analitica_das_os. Filtro local por Oficina (equals). Intervalo rolante de 12 meses.",
+    periodicidade: "Mensal",
+  },
+  "oficina-seguranca-eletrica-abertas-fechadas": {
+    id: "oficina-seguranca-eletrica-abertas-fechadas",
+    nomeDoIndicador: "Segurança elétrica (TSE) · OS abertas × fechadas",
+    ...BASE,
+    finalidadeDoIndicador:
+      "Proxy operacional do fluxo da oficina SEGURANÇA ELÉTRICA (TSE): aberturas × fechamentos no mês. Não mede laudo nem plano Tag a Tag.",
+    meta: "Monitoramento (saldo próximo de zero)",
+    referenciaDaMeta:
+      "Indicador de capacidade da oficina TSE/segurança elétrica. Não há oficina nomeada “TSE” na API — o match é SEGURANÇA ELÉTRICA.",
+    formula:
+      "Recorte: Oficina equals SEGURANÇA ELÉTRICA (normalizado). Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês.",
+    coletaDeDados:
+      "Effort GlobalThings — listagem_analitica_das_os. Filtro local por Oficina (equals). Intervalo rolante de 12 meses.",
     periodicidade: "Mensal",
   },
   "gasto-reparo-medicos": {
@@ -226,14 +274,14 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     nomeDoIndicador: "Motivos das manutenções corretivas",
     ...BASE,
     finalidadeDoIndicador:
-      "Monitorar Causa/Ocorrência das corretivas médicas, a recorrência por Tag e o recorte de mau uso (texto + anexos), subsidiando melhorias (PDCA em versão futura).",
-    meta: "Acompanhar top causas, Tags recorrentes e corretivas por mau uso (sem meta percentual nesta versão)",
+      "Priorizar recorrência por Tag agrupada por tipo de equipamento, com Pareto Causa/Ocorrência e recorte de mau uso (texto + anexos), subsidiando melhorias (PDCA em versão futura).",
+    meta: "Acompanhar tipos com mais corretivas, Tags recorrentes e mau uso (sem meta percentual nesta versão)",
     referenciaDaMeta:
       "QMentum — monitorar motivos e gerar melhorias. Esta tela cobre o monitoramento; plano de ação / PDCA fica como próximo passo.",
     formula:
-      "Pareto = contagem de Causa (ou Ocorrencia) nas OS corretivas médicas com Abertura nos últimos 12 meses. Recorrência = contagem por Tag. Mau uso = keywords em Causa/Ocorrencia/ObservacaoDaOS/Servico/Pendencia/JustificativaEncerramento; foto = anexo jpg/png/IMG_ em anexos_os.",
+      "Recorrência por tipo = contagem de OS corretivas médicas (Abertura nos últimos 12 meses) agrupadas pelo nome genérico do Equipamento (parque → OS). Tag recorrente = ≥ 2 OS na mesma Tag. Pareto = contagem de Causa (ou Ocorrencia). Mau uso = keywords em Causa/Ocorrencia/ObservacaoDaOS/Servico/Pendencia/JustificativaEncerramento; foto = anexo jpg/png/IMG_ em anexos_os.",
     coletaDeDados:
-      "Effort GlobalThings — listagem_analitica_das_os + anexos_os. Recorte: isCorretiva + Tag médica. Qualidade depende do preenchimento de Causa/Ocorrencia no CMMS e do upload de anexos.",
+      "Effort GlobalThings — listagem_analitica_das_os + anexos_os + equipamentos (tipo). Recorte: isCorretiva + Tag médica. Qualidade depende do preenchimento de Causa/Ocorrencia no CMMS e do upload de anexos.",
     periodicidade: "Mensal",
   },
   satisfacao: {

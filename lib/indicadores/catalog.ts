@@ -7,6 +7,21 @@ export const INDICADORES = [
     blurb: "Volume da oficina de Engenharia Clínica: entrada × execução por mês (coberto, déficit e superávit).",
   },
   {
+    href: "/indicadores/oficina-preventiva-abertas-fechadas",
+    label: "Preventiva · abertas × fechadas",
+    blurb: "Fluxo da oficina PREVENTIVA EQUIPAMENTOS (proxy operacional — não laudo Tag a Tag).",
+  },
+  {
+    href: "/indicadores/oficina-calibracao-abertas-fechadas",
+    label: "Calibração · abertas × fechadas",
+    blurb: "Fluxo da oficina CALIBRAÇÃO DE EQUIPAMENTOS (proxy operacional — não laudo Tag a Tag).",
+  },
+  {
+    href: "/indicadores/oficina-seguranca-eletrica-abertas-fechadas",
+    label: "Segurança elétrica · abertas × fechadas",
+    blurb: "Fluxo da oficina SEGURANÇA ELÉTRICA / TSE (proxy operacional — não laudo Tag a Tag).",
+  },
+  {
     href: "/indicadores/gasto-reparo-equipamentos-medicos",
     label: "Gasto mensal com reparo de eq. médicos",
     blurb: "Soma do Custo das OS de reparo de equipamentos médicos fechadas no intervalo.",
