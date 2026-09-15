@@ -11,6 +11,7 @@ export const VOLUME_EC_CAMPOS = [
   "Abertura",
   "Fechamento",
   "DataDaSolucao",
+  "SituacaoDaOS",
   "TipoDeManutencao",
   "Oficina",
   "OS",
@@ -106,9 +107,24 @@ function monthLabel(year: number, month: number) {
   return `${MESES_ABREV[month]}/${String(year).slice(2)}`;
 }
 
-/** Data de fechamento: Fechamento se preenchido, senão DataDaSolucao. */
+/** Situação cancelada (ex.: “Cancelada”). Campo `Status` não traz cancelamento. */
+export function isOsCancelada(os: Pick<OsAnaliticoItem, "SituacaoDaOS">) {
+  return normalizeTipo(os.SituacaoDaOS).includes("CANCELAD");
+}
+
+/** Data de fechamento “real”: Fechamento se preenchido, senão DataDaSolucao. */
 export function osFechamentoDate(os: Pick<OsAnaliticoItem, "Fechamento" | "DataDaSolucao">) {
   return parsePbiDate(os.Fechamento) || parsePbiDate(os.DataDaSolucao);
+}
+
+/**
+ * Data para “fechada no mês” (volume abertas × fechadas).
+ * Fechamento → DataDaSolucao → se cancelada e sem as duas, Abertura.
+ */
+export function osDataFechadaIndicador(
+  os: Pick<OsAnaliticoItem, "Fechamento" | "DataDaSolucao" | "Abertura" | "SituacaoDaOS">,
+) {
+  return osFechamentoDate(os) || (isOsCancelada(os) ? parsePbiDate(os.Abertura) : null);
 }
 
 export function isTipoManutencaoEc(tipo: string | null | undefined) {
@@ -246,7 +262,7 @@ export function buildVolumeAbertasFechadas(
   const aposEc = resolveOsParaVolume(os, options);
   const noIntervalo = aposEc.filter((item) => {
     const abertura = parsePbiDate(item.Abertura);
-    const fechamento = osFechamentoDate(item);
+    const fechamento = osDataFechadaIndicador(item);
     return inRange(abertura, range.start, range.end) || inRange(fechamento, range.start, range.end);
   });
 
@@ -255,13 +271,15 @@ export function buildVolumeAbertasFechadas(
     let fechadas = 0;
     for (const item of aposEc) {
       if (inMonth(parsePbiDate(item.Abertura), slot.year, slot.month)) abertas += 1;
-      if (inMonth(osFechamentoDate(item), slot.year, slot.month)) fechadas += 1;
+      if (inMonth(osDataFechadaIndicador(item), slot.year, slot.month)) fechadas += 1;
     }
     return { ...slot, abertas, fechadas, ...composeSaldoMes(abertas, fechadas) };
   });
 
   const totalAbertas = aposEc.filter((item) => inRange(parsePbiDate(item.Abertura), range.start, range.end)).length;
-  const totalFechadas = aposEc.filter((item) => inRange(osFechamentoDate(item), range.start, range.end)).length;
+  const totalFechadas = aposEc.filter((item) =>
+    inRange(osDataFechadaIndicador(item), range.start, range.end),
+  ).length;
 
   return {
     aposEc,
@@ -283,7 +301,7 @@ export const OFICINAS_VOLUME_PLANO = [
     oficinaEquals: "PREVENTIVA EQUIPAMENTOS",
     oficinaLabel: "PREVENTIVA EQUIPAMENTOS",
     titulo: "Preventiva · OS abertas × fechadas",
-    blurb: "Fluxo da oficina Preventiva: % executada mês a mês (fechadas÷abertas; proxy operacional, não laudo Tag a Tag).",
+    blurb: "Fluxo da oficina Preventiva: % executada mês a mês (fechadas÷abertas).",
   },
   {
     slug: "oficina-calibracao-abertas-fechadas",
@@ -292,7 +310,7 @@ export const OFICINAS_VOLUME_PLANO = [
     oficinaEquals: "CALIBRACAO DE EQUIPAMENTOS",
     oficinaLabel: "CALIBRAÇÃO DE EQUIPAMENTOS",
     titulo: "Calibração · OS abertas × fechadas",
-    blurb: "Fluxo da oficina Calibração: % executada mês a mês (fechadas÷abertas; proxy operacional, não laudo Tag a Tag).",
+    blurb: "Fluxo da oficina Calibração: % executada mês a mês (fechadas÷abertas).",
   },
   {
     slug: "oficina-seguranca-eletrica-abertas-fechadas",
@@ -301,7 +319,7 @@ export const OFICINAS_VOLUME_PLANO = [
     oficinaEquals: "SEGURANCA ELETRICA",
     oficinaLabel: "SEGURANÇA ELÉTRICA",
     titulo: "Segurança elétrica (TSE) · OS abertas × fechadas",
-    blurb: "Fluxo da oficina Segurança Elétrica (TSE): % executada mês a mês (fechadas÷abertas; proxy operacional, não laudo Tag a Tag).",
+    blurb: "Fluxo da oficina Segurança Elétrica (TSE): % executada mês a mês (fechadas÷abertas).",
   },
 ] as const;
 
@@ -360,7 +378,7 @@ export function volumeEcDoMes(items: OsAnaliticoItem[], year: number, month: num
   const rows: VolumeEcRow[] = [];
   for (const item of items) {
     const abriu = inMonth(parsePbiDate(item.Abertura), year, month);
-    const fechou = inMonth(osFechamentoDate(item), year, month);
+    const fechou = inMonth(osDataFechadaIndicador(item), year, month);
     if (!abriu && !fechou) continue;
     rows.push({
       ...item,
@@ -378,7 +396,7 @@ export function volumeEcDoPeriodo(
   const rows: VolumeEcRow[] = [];
   for (const item of items) {
     const abriu = inRange(parsePbiDate(item.Abertura), range.start, range.end);
-    const fechou = inRange(osFechamentoDate(item), range.start, range.end);
+    const fechou = inRange(osDataFechadaIndicador(item), range.start, range.end);
     if (tipo === "aberta" && !abriu) continue;
     if (tipo === "fechada" && !fechou) continue;
     if (tipo === "todas" && !abriu && !fechou) continue;

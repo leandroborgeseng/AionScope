@@ -4,7 +4,8 @@ import { OsVolumeCard } from "@/components/indicadores/os-volume-card";
 import { useOsAnaliticoRollingYear } from "@/hooks/use-os-analitico-rolling-year";
 
 export default function OsAbertasFechadasPage() {
-  const { range, raw, bruta, loading, error } = useOsAnaliticoRollingYear();
+  const { range, raw, bruta, loading, error } = useOsAnaliticoRollingYear("calendarYear");
+  const year = range.start.getFullYear();
 
   return (
     <OsVolumeCard
@@ -14,6 +15,7 @@ export default function OsAbertasFechadasPage() {
       bruta={bruta}
       loading={loading}
       error={error}
+      title={`OS abertas × fechadas · ano vigente (${year})`}
     />
   );
 }
