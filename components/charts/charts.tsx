@@ -7,7 +7,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  ComposedChart,
   LabelList,
   Legend,
   Line,
@@ -215,40 +214,58 @@ export type AbertasFechadasPctChartRow = {
   name: string;
   abertas: number;
   fechadas: number;
-  /** fechadas/abertas×100; se abertas=0 → 0 (tooltip exibe "—"). */
+  /** fechadas/abertas×100; se abertas=0 → 0 (label/tooltip usam "—"). */
   pctExecutada: number;
+  /** Rótulo no topo da barra: "85%", "—" se abertas=0. */
+  pctLabel: string;
 } & Record<string, string | number>;
 
 function AbertasFechadasPctTooltip({ active, payload, label }: TooltipContentProps) {
   if (!active || !payload?.length) return null;
   const row = payload[0]?.payload as AbertasFechadasPctChartRow | undefined;
   if (!row) return null;
-  const pctTexto =
-    row.abertas <= 0
-      ? "— (sem abertas)"
-      : `${row.pctExecutada.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+  const pctTexto = row.abertas <= 0 ? "— (sem abertas)" : row.pctLabel;
   return (
     <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-md">
       <p className="font-semibold text-slate-800">{String(label)}</p>
-      <p className="mt-1 text-slate-700">
-        Abertas: <span className="font-semibold tabular-nums">{row.abertas}</span>
-      </p>
-      <p className="text-slate-700">
-        Fechadas: <span className="font-semibold tabular-nums">{row.fechadas}</span>
-      </p>
       <p className="mt-1 text-slate-800">
         % executada: <span className="font-semibold tabular-nums">{pctTexto}</span>
+      </p>
+      <p className="mt-1 text-slate-600">
+        Abertas: <span className="tabular-nums font-semibold">{row.abertas}</span>
+        {" · "}
+        Fechadas: <span className="tabular-nums font-semibold">{row.fechadas}</span>
       </p>
     </div>
   );
 }
 
-/** Barras Abertas/Fechadas + linha % executada (eixo Y secundário 0–100%). Sem rótulos na série %. */
+/** Label no topo: percentual ou "—" quando não há abertas (barra 0). */
+function PctExecutadaTopLabel({ value, viewBox }: RechartsLabelProps): ReactElement {
+  const text = String(value ?? "");
+  const box = labelBox(viewBox);
+  if (!box || !text) return <g />;
+  return (
+    <text
+      x={box.x + box.width / 2}
+      y={box.y - 6}
+      textAnchor="middle"
+      fill="#0f172a"
+      fontSize={10}
+      fontWeight={700}
+      className="tabular-nums"
+    >
+      {text}
+    </text>
+  );
+}
+
+/** Uma barra por mês = % executada (fechadas÷abertas×100). Sem barras de qtd nem linha. */
 export function AbertasFechadasPctChart({
   data,
   xKey,
   className,
-  maxBarSize = 28,
+  maxBarSize = 36,
   onRowClick,
 }: {
   data: AbertasFechadasPctChartRow[];
@@ -262,13 +279,16 @@ export function AbertasFechadasPctChart({
     return Number.isFinite(index) ? data[index] : data.find((item) => item[xKey] === state.activeLabel);
   };
 
+  const yMax = Math.max(100, ...data.map((row) => (row.abertas <= 0 ? 0 : row.pctExecutada)));
+  const yDomainMax = Math.ceil(yMax / 10) * 10 || 100;
+
   return (
     <div className={cn("h-72 w-full", className)}>
       <ResponsiveContainer width="100%" height="100%" minHeight={240} debounce={1}>
-        <ComposedChart
+        <BarChart
           data={data}
-          margin={{ top: 8, right: 12, left: 0, bottom: 0 }}
-          barCategoryGap="18%"
+          margin={{ top: 22, right: 8, left: 0, bottom: 0 }}
+          barCategoryGap="22%"
           onClick={(state) => {
             const row = resolveRow(state);
             if (row) onRowClick?.(row);
@@ -277,51 +297,23 @@ export function AbertasFechadasPctChart({
           <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
           <XAxis dataKey={xKey} tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={60} />
           <YAxis
-            yAxisId="qtd"
-            tick={{ fontSize: 11 }}
-            allowDecimals={false}
-            width={40}
-          />
-          <YAxis
-            yAxisId="pct"
-            orientation="right"
-            domain={[0, 100]}
+            domain={[0, yDomainMax]}
             tick={{ fontSize: 11 }}
             width={44}
             tickFormatter={(v) => `${v}%`}
           />
           <Tooltip content={AbertasFechadasPctTooltip} />
-          <Legend />
           <Bar
-            yAxisId="qtd"
-            dataKey="abertas"
-            name="Abertas"
-            fill="#0369a1"
-            maxBarSize={maxBarSize}
-            radius={[3, 3, 0, 0]}
-            cursor="pointer"
-          />
-          <Bar
-            yAxisId="qtd"
-            dataKey="fechadas"
-            name="Fechadas"
+            dataKey="pctExecutada"
+            name="% executada"
             fill="#0f766e"
             maxBarSize={maxBarSize}
             radius={[3, 3, 0, 0]}
             cursor="pointer"
-          />
-          <Line
-            yAxisId="pct"
-            type="monotone"
-            dataKey="pctExecutada"
-            name="% executada"
-            stroke="#b45309"
-            strokeWidth={2}
-            dot={{ r: 3, fill: "#b45309", strokeWidth: 0 }}
-            activeDot={{ r: 5 }}
-            // Sem LabelList — pedido: sem números sobre a série percentual.
-          />
-        </ComposedChart>
+          >
+            <LabelList dataKey="pctLabel" content={PctExecutadaTopLabel} />
+          </Bar>
+        </BarChart>
       </ResponsiveContainer>
     </div>
   );

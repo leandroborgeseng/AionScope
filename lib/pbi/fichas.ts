@@ -129,7 +129,7 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     referenciaDaMeta:
       "Indicador de capacidade da oficina. Útil enquanto não há campo confiável de laudo; não deve ser usado como meta oficial de execução do plano.",
     formula:
-      "Recorte: Oficina equals PREVENTIVA EQUIPAMENTOS (normalizado). Abertas no mês = OS com Abertura no mês. Fechadas no mês = OS com Fechamento (ou DataDaSolucao se Fechamento vazio) no mês. % executada = fechadas ÷ abertas × 100 (se abertas = 0 → 0 no gráfico / “—” na UI). Proxy de fluxo da oficina — não laudo Tag a Tag.",
+      "Recorte: Oficina equals PREVENTIVA EQUIPAMENTOS (normalizado). Abertas no mês = OS com Abertura no mês. Fechadas no mês = OS com Fechamento (ou DataDaSolucao se Fechamento vazio) no mês. % executada = fechadas ÷ abertas × 100. Gráfico: uma barra por mês com rótulo no topo; se abertas = 0 → barra 0 e label “—” (não 0%). Proxy de fluxo da oficina — não laudo Tag a Tag.",
     coletaDeDados:
       "Effort GlobalThings — listagem_analitica_das_os. Filtro local por Oficina (equals). Ano civil vigente (America/Sao_Paulo): contagem de 1º de janeiro ao fim do mês atual; eixo do gráfico Jan–Dez (meses futuros zerados). Não filtra por Tag médica nem por tipo de manutenção.",
     periodicidade: "Mensal",
@@ -144,7 +144,7 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     referenciaDaMeta:
       "Indicador de capacidade da oficina. Complementa o gap de execução de plano sem comprometer auditoria com fechamento genérico.",
     formula:
-      "Recorte: Oficina equals CALIBRAÇÃO DE EQUIPAMENTOS (normalizado). Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês. % executada = fechadas ÷ abertas × 100 (abertas = 0 → 0 / “—”). Proxy de fluxo — não laudo.",
+      "Recorte: Oficina equals CALIBRAÇÃO DE EQUIPAMENTOS (normalizado). Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês. % executada = fechadas ÷ abertas × 100. Gráfico: uma barra/mês com rótulo; abertas = 0 → barra 0 e “—”. Proxy de fluxo — não laudo.",
     coletaDeDados:
       "Effort GlobalThings — listagem_analitica_das_os. Filtro local por Oficina (equals). Ano civil vigente (America/Sao_Paulo): 1º jan → fim do mês atual na contagem; eixo Jan–Dez (meses futuros zerados).",
     periodicidade: "Mensal",
@@ -159,7 +159,7 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     referenciaDaMeta:
       "Indicador de capacidade da oficina TSE/segurança elétrica. Não há oficina nomeada “TSE” na API — o match é SEGURANÇA ELÉTRICA.",
     formula:
-      "Recorte: Oficina equals SEGURANÇA ELÉTRICA (normalizado). Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês. % executada = fechadas ÷ abertas × 100 (abertas = 0 → 0 / “—”). Proxy de fluxo — não laudo.",
+      "Recorte: Oficina equals SEGURANÇA ELÉTRICA (normalizado). Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês. % executada = fechadas ÷ abertas × 100. Gráfico: uma barra/mês com rótulo; abertas = 0 → barra 0 e “—”. Proxy de fluxo — não laudo.",
     coletaDeDados:
       "Effort GlobalThings — listagem_analitica_das_os. Filtro local por Oficina (equals). Ano civil vigente (America/Sao_Paulo): 1º jan → fim do mês atual na contagem; eixo Jan–Dez (meses futuros zerados).",
     periodicidade: "Mensal",
@@ -174,7 +174,7 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     referenciaDaMeta:
       "Soma das três oficinas de plano. Não inclui OFICINA GERAL. Útil como visão consolidada de capacidade; o filtro da página permite voltar a cada oficina individual.",
     formula:
-      "Recorte: Oficina equals (normalizado) PREVENTIVA EQUIPAMENTOS ∪ CALIBRAÇÃO DE EQUIPAMENTOS ∪ SEGURANÇA ELÉTRICA. Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês. % executada = fechadas ÷ abertas × 100 (abertas = 0 → 0 / “—”). Proxy de fluxo consolidado — não laudo Tag a Tag.",
+      "Recorte: Oficina equals (normalizado) PREVENTIVA EQUIPAMENTOS ∪ CALIBRAÇÃO DE EQUIPAMENTOS ∪ SEGURANÇA ELÉTRICA. Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês. % executada = fechadas ÷ abertas × 100. Gráfico: uma barra por mês com rótulo no topo; se abertas = 0 → barra 0 e label “—” (não 0%). Proxy de fluxo consolidado — não laudo Tag a Tag.",
     coletaDeDados:
       "Effort GlobalThings — listagem_analitica_das_os. Filtro local por união das três oficinas (equals). Ano civil vigente (America/Sao_Paulo): 1º jan → fim do mês atual na contagem; eixo Jan–Dez (meses futuros zerados). Não filtra por Tag médica nem por tipo de manutenção.",
     periodicidade: "Mensal",
