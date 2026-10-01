@@ -22,10 +22,14 @@ Resumo do que já está no ar (branch + `main` Coolify):
    - KPI oficial = só custo de OS ÷ valor de substituição
    - Contratos informativos / fora do plano da Sala
 
+5. **Envelhecimento**
+   - “Sem movimento” ≈ dias desde `DataDoAtendimento` (ou Abertura se ainda sem 1º)
+   - KPI “> 7 dias” deixa de ser sempre “—”
+
 ## Ainda depende de você
 
 - Credenciais M365 (`M365_TENANT_ID`, `M365_CLIENT_ID`, `M365_CLIENT_SECRET`) para importar e-mail de verdade
-- Merge/refresh Coolify se o deploy não pegou o último `main`
+- Coolify redeploy a partir de `main` (já recebe os commits)
 
 ## Próximo quando voltar
 
