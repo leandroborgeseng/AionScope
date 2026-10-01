@@ -14,17 +14,17 @@ Nada abaixo será inventado na tela. Onde não houver dado, o bloco mostra "—"
 1. **Lançamento de mão de obra.** Sem data do primeiro, data do último nem técnico de cada lançamento. `HorasTrabalhadas` é só um total.
 2. **Etapa "contrato".** A situação da OS não tem esse valor.
 3. **Etapa "teste e devolução".** O tipo "AGUARDANDO DEVOLUÇÃO AO SETOR" existe no cadastro e quase não aparece nas OS.
-4. **Início e fim da parada.** A disponibilidade mensal do HSJ (empresa `2`) responde, com `DiasParado` e `PossuiOSParadaSemFuncionamento` (2 equipamentos no último mês). Não traz a data de início nem de fim. Na OS, `Parada` tem 7 registros e `Funcionamento` tem 4. A API sem mês continua 404.
+4. **Início e fim da parada.** Proxy aprovado: Abertura→Fechamento da OS. Disponibilidade mensal tem `DiasParado` / flag, sem instante.
 5. **TPM.** Endpoint 404. A TV usa **TMEF/MTBF** (mediana) no cartão correspondente.
 6. **Oficina como API.** Endpoint 404. O nome da oficina já vem em cada OS.
 7. **Fabricante descontinuado / sem peça.** Usa `EndOfService`: se a data já passou, conta como “sem peça / descontinuado” no ciclo de vida.
 8. **Vida útil em anos.** Só as datas `EndOfLife` e `EndOfService`.
-9. **Data do plano.** `ProximaRealizacao` é código; o parser ancora no mês (`parsePbiDate`). Cumprimento da TV usa previsto (cronograma no mês) × executado (OS fechadas no mês). Laudo anexado ainda não entra.
-10. **Laudo.** Anexo não tem tipo nem data de emissão.
-11. **Impedimento operacional** (motivo + nova data).
-12. **Compras por e-mail** (envio, SC, cobrar). Fase 9. No Effort só aparece "S.C." solto na observação da pendência.
-13. **P04 aquisições, P05 obras, P06 participantes/evidência, P07 recall, melhorias do item 15.** Previstos como registro manual (Fase 6).
-14. **Contratos.** Token vazio. Sem custo de contrato na TV até o suporte liberar.
+9. **Data do plano.** `ProximaRealizacao` é código; o parser ancora no mês. Cumprimento = previsto (cronograma) × executado (OS fechadas). Laudo = ciclo da OS.
+10. **Laudo.** Anexo não tem tipo nem data de emissão → proxy = OS fechada.
+11. **Impedimento operacional** (motivo + nova data) — registro manual em `/sala/registros`.
+12. ~~**Compras por e-mail**~~ → **feito:** sync M365 + CRUD em `/sala/pedidos`; TV em `/sala/compras`.
+13. **P04–P07** aquisições/obras/treinamento/recall — manuais em registros; **fora dos cartões da TV** (só P01–P03).
+14. **Contratos.** Token vazio. **Fora do KPI custo/parque e da TV.**
 15. **Id `1` não é o HSJ.** O id correto é `2`.
 
 ## ⚠️ existe, mas não é o que o desenho pede

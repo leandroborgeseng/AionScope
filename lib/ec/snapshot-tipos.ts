@@ -53,6 +53,7 @@ export type SalaSnapshot = {
     foraDoPrazo: number;
     semPrimeiro: number;
     parados: number | null;
+    proxyParada: string;
     plano: Array<{ tipo: string; faltam: number | null; percentual: number | null; executados?: number | null; previstos?: number | null }>;
     planoAviso: string;
     paradosMaisTempo: Array<{ nome: string; setor: string; tempo: string }>;
@@ -110,6 +111,7 @@ export type SalaSnapshot = {
   };
   programadas: {
     aviso: string;
+    proxy: string;
     cumprimento: number | null;
     previstos: number;
     executados: number;

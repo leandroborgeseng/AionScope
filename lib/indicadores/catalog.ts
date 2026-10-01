@@ -21,7 +21,7 @@ export const INDICADORES = [
   {
     href: "/indicadores/custo-manutencao-parque",
     label: "Custo manutenção / valor do parque",
-    blurb: "Contratos + avulsos de OS ÷ valor de substituição (API: todos os equipamentos).",
+    blurb: "Custo de OS de reparo ÷ valor de substituição do parque (sem contratos — fora do plano da Sala).",
   },
   {
     href: "/indicadores/corretivas-por-prioridade",
@@ -46,7 +46,7 @@ export const CADASTROS = [
   {
     href: "/cadastros/contratos",
     label: "Contratos",
-    blurb: "Contratos de manutenção (cadastro local + API GlobalThings).",
+    blurb: "Cadastro local / API (fora do plano da Sala TV). Não entra no KPI de custo/parque.",
   },
   {
     href: "/cadastros/parque",

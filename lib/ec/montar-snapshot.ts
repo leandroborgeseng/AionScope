@@ -544,6 +544,8 @@ export function montarSnapshotDeDados(
       foraDoPrazo: fora.length,
       semPrimeiro: semAtendimento.length,
       parados: dados.disponibilidade || paradosAgora.size ? paradosAgora.size : null,
+      proxyParada:
+        "Parada aproximada pela OS (Abertura→Fechamento). Campos Parada/Funcionamento quase vazios na API.",
       plano: planoAgoraCards(programadasMes).map((item) => ({
         tipo: item.tipo,
         faltam: item.faltam,
@@ -623,6 +625,8 @@ export function montarSnapshotDeDados(
     })(),
     programadas: {
       aviso: programadasMes.aviso,
+      proxy:
+        "Executada = OS de plano fechada no mês. Effort não envia data de laudo — o ciclo da OS (abertura→fechamento) vale como execução.",
       cumprimento: programadasMes.percentual,
       previstos: programadasMes.previstos,
       executados: programadasMes.executados,
@@ -686,7 +690,9 @@ export function montarSnapshotDeDados(
         {
           titulo: "Custo de reparo / parque",
           valor: ultimo(serieCusto) == null ? "—" : `${ultimo(serieCusto)}%`,
-          detalhe: valorParque ? `Parque ativo ${formatoMoeda(valorParque)} em valor de substituição.` : "Sem valor de parque.",
+          detalhe: valorParque
+            ? `Só custo de OS ÷ valor de substituição (${formatoMoeda(valorParque)}). Sem contratos.`
+            : "Sem valor de parque.",
           serie: serieCusto,
           fonte: "api",
         },
@@ -720,34 +726,18 @@ export function montarSnapshotDeDados(
       ],
     },
     processos: {
+      // TV: só P01–P03 sustentados por API. P04–P07 ficam em /sala/registros, sem cartão na rotação.
       itens: [
         { id: "P01", nome: "Corretivas abertas", quantidade: String(demandaAberta.length), fonte: "api" },
-        { id: "P02", nome: "Programadas", quantidade: String(programadasMes.faltam || programadasMes.previstos || 0), fonte: programadasMes.previstos ? "api" : "sem-dados" },
-        { id: "P03", nome: "Em uso", quantidade: String(ativos.length), fonte: "api" },
         {
-          id: "P04",
-          nome: "Aquisições",
-          quantidade: manuais ? String(manuais.aquisicoes.length) : "—",
-          fonte: "manual",
+          id: "P02",
+          nome: "Programadas no mês",
+          quantidade: programadasMes.previstos
+            ? `${programadasMes.executados}/${programadasMes.previstos}`
+            : "—",
+          fonte: programadasMes.previstos ? "api" : "sem-dados",
         },
-        {
-          id: "P05",
-          nome: "Obras",
-          quantidade: manuais ? String(manuais.obras.length) : "—",
-          fonte: "manual",
-        },
-        {
-          id: "P06",
-          nome: "Treinamentos no mês",
-          quantidade: String(treinamentosMes.length || ultimo(serieTreino) || 0),
-          fonte: treinamentosMes.length ? "manual" : "api",
-        },
-        {
-          id: "P07",
-          nome: "Alertas e recall",
-          quantidade: manuais ? String(manuais.alertas.length) : "—",
-          fonte: "manual",
-        },
+        { id: "P03", nome: "Parque em uso", quantidade: String(ativos.length), fonte: "api" },
       ],
       foraDoHorario,
       melhorias: melhoriasLista.length
