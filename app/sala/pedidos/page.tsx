@@ -344,17 +344,17 @@ export default function SalaPedidosPage() {
                 <div className="flex shrink-0 gap-2">
                   <button
                     type="button"
-                    className="text-xs font-semibold text-aion-blue"
+                    className="rounded-md border border-aion-line px-3 py-1.5 text-xs font-semibold text-aion-blue hover:bg-aion-mist"
                     onClick={() => iniciarEdicao(compra)}
                   >
-                    editar
+                    Editar
                   </button>
                   <button
                     type="button"
-                    className="text-xs font-semibold text-red-700"
+                    className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
                     onClick={() => void apagar(compra.id)}
                   >
-                    apagar
+                    Apagar
                   </button>
                 </div>
               </div>

@@ -128,8 +128,6 @@ export function CustoManutencaoParqueCard() {
     [despesa.months],
   );
 
-  const empilhar = despesa.contratosTotal > 0 && despesa.avulsosTotal > 0;
-
   const loading =
     osLoading || medical.loading || contratosQ.isLoading || parqueQ.isLoading || eqQ.isLoading;
 
@@ -142,7 +140,7 @@ export function CustoManutencaoParqueCard() {
       ? "Configure PBI_TOKEN_CONTRATOS no .env.local"
       : contratosErr.message
     : null;
-  /** Sem contratos confiáveis: não publicar % do parque como se o numerador estivesse completo. */
+  /** Contratos são informativos; o KPI oficial é só OS ÷ parque. */
   const contratosIndisponiveis = Boolean(contratosMsg);
 
   const error =
@@ -179,48 +177,43 @@ export function CustoManutencaoParqueCard() {
         heading={
           <PageHeader
             title={FICHA.nomeDoIndicador}
-            description="Despesa mensal (contratos + avulsos de OS de reparo) ÷ valor de substituição do parque (todos os equipamentos cadastrados)."
+            description="Despesa mensal de OS de reparo ÷ valor de substituição do parque. Contratos ficam fora do KPI (plano da Sala)."
           />
         }
         kpis={
           <>
             {contratosIndisponiveis ? (
-              <div className="sm:col-span-2 xl:col-span-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-                Contratos indisponíveis ({contratosMsg}). Mostramos só avulsos de OS;{" "}
-                <strong>não</strong> publicamos % do parque com numerador incompleto.{" "}
+              <div className="sm:col-span-2 xl:col-span-4 rounded-xl border border-aion-line bg-aion-mist px-4 py-3 text-sm text-aion-ink">
+                Contratos na API indisponíveis ({contratosMsg}). O KPI oficial já usa só custo de OS ÷ parque.{" "}
                 <Link href="/cadastros/contratos" className="underline">
-                  Ver cadastro de contratos
-                </Link>
-                .
+                  Cadastro de contratos
+                </Link>{" "}
+                continua fora do plano da Sala TV.
               </div>
-            ) : null}
+            ) : (
+              <div className="sm:col-span-2 xl:col-span-4 rounded-xl border border-aion-line bg-aion-mist px-4 py-3 text-sm text-aion-ink">
+                KPI = custo das OS de reparo ÷ valor de substituição. Contratos, se houver, ficam só como informação.
+              </div>
+            )}
             <KpiCard
-              label="Despesa do período"
-              value={
-                contratosIndisponiveis
-                  ? formatBRL(despesa.avulsosTotal)
-                  : formatBRL(despesa.despesaTotal)
-              }
+              label="Despesa do período (OS)"
+              value={formatBRL(despesa.avulsosTotal)}
               hint={
-                contratosIndisponiveis
-                  ? `${formatBRL(despesa.avulsosTotal)} avulsos · contratos pendentes de token`
-                  : `${formatBRL(despesa.contratosTotal)} contratos · ${formatBRL(despesa.avulsosTotal)} avulsos`
+                despesa.contratosTotal > 0
+                  ? `Contratos (info): ${formatBRL(despesa.contratosTotal)} — fora do KPI`
+                  : "Somente avulsos de OS de reparo"
               }
             />
             <KpiCard
               label="% do parque (período)"
-              value={
-                contratosIndisponiveis ? "—" : formatPctParque(despesa.pctParquePeriodo)
-              }
+              value={formatPctParque(despesa.pctParquePeriodo)}
               hint={
-                contratosIndisponiveis
-                  ? "Indisponível sem contratos na API"
-                  : efetivo.fonte === "api"
-                    ? `API (todos) ${formatBRL(efetivo.valor)}`
-                    : "Atualize o valor do parque pela API"
+                efetivo.fonte === "api"
+                  ? `API (todos) ${formatBRL(efetivo.valor)}`
+                  : "Atualize o valor do parque pela API"
               }
               tone={
-                contratosIndisponiveis || despesa.pctParquePeriodo == null
+                despesa.pctParquePeriodo == null
                   ? "neutral"
                   : despesa.pctParquePeriodo <= 4
                     ? "ok"
@@ -230,38 +223,22 @@ export function CustoManutencaoParqueCard() {
               }
             />
             <KpiCard
-              label="Média mensal"
-              value={
-                contratosIndisponiveis
-                  ? formatBRL(
-                      despesa.months.length
-                        ? despesa.avulsosTotal / despesa.months.length
-                        : 0,
-                    )
-                  : formatBRL(despesa.mediaMensal)
-              }
-              hint={
-                contratosIndisponiveis
-                  ? "Média só de avulsos — % do parque omitido"
-                  : `Média % do parque: ${formatPctParque(despesa.mediaPctParque)}`
-              }
+              label="Média mensal (OS)"
+              value={formatBRL(despesa.mediaMensal)}
+              hint={`Média % do parque: ${formatPctParque(despesa.mediaPctParque)}`}
             />
           </>
         }
         chart={
           <ChartCard
-            title={`Despesa mensal · ${range.label}`}
+            title={`Despesa mensal (OS) · ${range.label}`}
             onExpand={openFullscreen}
             hint={
-              contratosIndisponiveis ? (
-                <span className="text-amber-800">
-                  Só avulsos de OS no gráfico — contratos ausentes; % do parque não é KPI oficial neste estado.
-                </span>
-              ) : efetivo.fonte === "api" ? (
+              efetivo.fonte === "api" ? (
                 <span>
-                  Valor puxado do cadastro de equipamentos (substituição, todos os cadastrados).{" "}
+                  KPI = custo de OS ÷ valor de substituição. Contratos não entram no numerador.{" "}
                   <Link href="/cadastros/parque" className="underline">
-                    Ver / atualizar
+                    Ver parque
                   </Link>
                   .
                 </span>
@@ -273,14 +250,14 @@ export function CustoManutencaoParqueCard() {
                   </Link>
                 </span>
               ) : (
-                "Barras: contratos + avulsos (OS reparo médicos). Meta ficha ≤ 4% a.a. do parque."
+                "Barras: custo de OS de reparo médicos. Meta ficha ≤ 4% a.a. do parque."
               )
             }
           >
             <DespesaParqueBarChart
               data={chartData}
               xKey="name"
-              stacked={empilhar}
+              stacked={false}
               onRowClick={openMes}
             />
           </ChartCard>
@@ -417,7 +394,7 @@ export function CustoManutencaoParqueCard() {
         <DespesaParqueBarChart
           data={chartData}
           xKey="name"
-          stacked={empilhar}
+          stacked={false}
           className="h-[70vh]"
           onRowClick={openMes}
         />

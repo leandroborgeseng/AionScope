@@ -48,7 +48,8 @@ export function buildDespesaParque(opts: {
     const contratos = somaContratosNoMesPbi(opts.contratos, slot.year, slot.month);
     const gasto = gastoByKey.get(slot.key);
     const avulsos = gasto?.gasto ?? 0;
-    const despesa = contratos + avulsos;
+    // KPI oficial da Sala: só custo de OS. Contratos ficam informativos (fora do plano da TV).
+    const despesa = avulsos;
     const pctParque =
       opts.valorParque != null && opts.valorParque > 0 ? (despesa / opts.valorParque) * 100 : null;
     return {
@@ -90,7 +91,7 @@ export function formatPctParque(value: number | null) {
 }
 
 export function rotuloDespesaMes(month: DespesaParqueMonth) {
-  return `${formatBRL(month.despesa)} · contratos ${formatBRL(month.contratos)} · avulsos ${formatBRL(month.avulsos)}`;
+  return `${formatBRL(month.despesa)} em OS · contratos (info) ${formatBRL(month.contratos)}`;
 }
 
 export type ListaDespesaMes = {

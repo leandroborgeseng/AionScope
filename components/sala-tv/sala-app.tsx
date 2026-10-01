@@ -106,8 +106,9 @@ function TelaAgora({ dados, destaque }: { dados: SalaSnapshot; destaque: string 
           </div>
           <div className="sala-cartao" style={{ flex: 1 }}>
             <div className="sala-rotulo-bloco">PARADOS HÁ MAIS TEMPO</div>
+            <p style={{ margin: "0 0 8px", fontSize: 16, color: "#4E6079" }}>{dados.agora.proxyParada}</p>
             {dados.agora.paradosMaisTempo.length === 0 ? (
-              <p className="sala-vazio">{dados.agora.parados == null ? "Sem dados de disponibilidade." : "Nenhum equipamento parado no mês."}</p>
+              <p className="sala-vazio">{dados.agora.parados == null ? "Sem dados de disponibilidade." : "Nenhum equipamento parado agora."}</p>
             ) : (
               dados.agora.paradosMaisTempo.map((item) => (
                 <div key={item.nome} style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 8 }}>
@@ -410,6 +411,7 @@ function TelaProgramadas({ dados }: { dados: SalaSnapshot }) {
   const p = dados.programadas;
   return (
     <div className="sala-coluna" style={{ flex: 1, minHeight: 0 }}>
+      <p style={{ margin: 0, fontSize: 16, color: "#4E6079" }}>{p.proxy}</p>
       <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr", gap: 16 }}>
         <div className="sala-cartao" style={{ background: "#2C66AB", color: "#fff", border: "none" }}>
           <div className="sala-rotulo-bloco" style={{ color: "#DCE8F7" }}>CUMPRIMENTO · MÊS</div>
@@ -515,7 +517,7 @@ function TelaProgramadas({ dados }: { dados: SalaSnapshot }) {
 function TelaProcessos({ dados }: { dados: SalaSnapshot }) {
   return (
     <div className="sala-grid-2" style={{ flex: 1 }}>
-      <div className="sala-cards" style={{ gridTemplateColumns: "1fr 1fr", alignContent: "start" }}>
+      <div className="sala-cards" style={{ gridTemplateColumns: "1fr 1fr 1fr", alignContent: "start" }}>
         {dados.processos.itens.map((item) => (
           <div key={item.id} className="sala-cartao">
             <div className="sala-rotulo-bloco">{item.id} · {item.fonte.toUpperCase()}</div>
@@ -523,18 +525,18 @@ function TelaProcessos({ dados }: { dados: SalaSnapshot }) {
             <div className="sala-numero" style={{ fontSize: 48 }}>{item.quantidade}</div>
           </div>
         ))}
+        <div className="sala-cartao" style={{ gridColumn: "1 / -1" }}>
+          <div className="sala-rotulo-bloco">FORA DO HORÁRIO NESTE MÊS</div>
+          <div className="sala-numero" style={{ fontSize: 56 }}>{dados.processos.foraDoHorario}</div>
+          <p className="sala-vazio">OS abertas antes das 7h, depois das 17h, no fim de semana ou em feriado.</p>
+        </div>
       </div>
       <div className="sala-coluna">
-        <div className="sala-cartao">
-          <div className="sala-rotulo-bloco">FORA DO HORÁRIO NESTE MÊS</div>
-          <div className="sala-numero" style={{ fontSize: 72 }}>{dados.processos.foraDoHorario}</div>
-          <p className="sala-vazio">OS do recorte abertas antes das 7h, depois das 17h, no fim de semana ou em feriado configurado.</p>
-        </div>
         <div className="sala-cartao" style={{ flex: 1, overflow: "hidden" }}>
           <div className="sala-rotulo-bloco">MELHORIAS DO ITEM 15</div>
           <p style={{ fontSize: 22, margin: "8px 0 12px" }}>{dados.processos.melhorias}</p>
           {dados.processos.melhoriasLista.length === 0 ? (
-            <p className="sala-vazio">Cadastre o status das melhorias em /sala/registros.</p>
+            <p className="sala-vazio">Opcional — cadastre em /sala/registros. P04–P07 não entram na TV.</p>
           ) : (
             <div style={{ overflow: "auto" }}>
               {dados.processos.melhoriasLista.map((item) => (
