@@ -6,6 +6,8 @@ Resumo do que já está no ar (branch + `main` Coolify):
 
 1. **Pedidos de compra**
    - CRUD em `/sala/pedidos` (criar / editar / apagar)
+   - Abas Abertos / Entregues / Todos + botão rápido **Entregue**
+   - Thread de e-mails ao editar pedido importado
    - Sync M365 opcional (mesmo endpoint)
    - Tela **Compras** de volta na rotação da TV
    - Menu Sala → Pedidos

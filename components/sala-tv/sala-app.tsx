@@ -884,7 +884,7 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
                 <span>hoje <b>{dados.agora.hojeAbertas}</b>↑ <b>{dados.agora.hojeFechadas}</b>↓</span>
                 <span>semana <b>{dados.agora.semanaAbertas}</b>↑ <b>{dados.agora.semanaFechadas}</b>↓</span>
                 <span>1º at. 30d <b>{dados.agora.primeiroNoPrazo30d == null ? "—" : `${dados.agora.primeiroNoPrazo30d}%`}</b></span>
-                <span>TPM 30d <b>—</b></span>
+                <span>TMEF 30d <b>{dados.agora.tpm30d == null ? "—" : `${dados.agora.tpm30d}h`}</b></span>
                 <span>críticos <b>{dados.agora.disponibilidadeCriticos == null ? "—" : `${dados.agora.disponibilidadeCriticos}%`}</b></span>
                 <span style={{ marginLeft: "auto" }}>
                   {atualizadoHaMin == null ? "" : `atualizado há ${atualizadoHaMin} min`}
