@@ -44,14 +44,14 @@ export const CADASTROS_HUB_HREF = "/cadastros";
 
 export const CADASTROS = [
   {
+    href: "/cadastros/contratos",
+    label: "Contratos",
+    blurb: "Contratos de manutenção (cadastro local + API GlobalThings).",
+  },
+  {
     href: "/cadastros/parque",
     label: "Valor do parque",
     blurb: "Soma ValorDeSubstituicao de todos os equipamentos (API).",
-  },
-  {
-    href: "/cadastros/contratos",
-    label: "Contratos",
-    blurb: "Contratos de manutenção (API GlobalThings).",
   },
   {
     href: "/cadastros/terceiros",
