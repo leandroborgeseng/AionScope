@@ -28,7 +28,6 @@ const SEQUENCIA_PADRAO: TelaSala[] = [
   "compras",
   "agora",
   "envelhecimento",
-  "ciclo-de-vida",
   "programadas",
   "agora",
   "ciclo-de-vida",
@@ -217,7 +216,7 @@ export function montarSnapshotDeDados(
         metaHoras,
       }),
       etapa: etapa.etapa,
-      parado: parados.has(tag),
+      parado: parados.has(tag) || (!encerrada && classeDemanda(classe)),
       compra: classe === "compra" || semAcento(`${os.Pendencia ?? ""} ${os.PendenciaAberta ?? ""}`).includes("COMPRA"),
     });
   }
@@ -281,18 +280,35 @@ export function montarSnapshotDeDados(
     const ultimo = [...(item.DisponibilidadeMensal ?? [])].sort((a, b) => a.Ano - b.Ano || a.Mes - b.Mes).at(-1);
     return ultimo?.DiasParado ?? null;
   };
-  const paradosLista = (dados.disponibilidade ?? [])
-    .filter((item) => item.PossuiOSParadaSemFuncionamento)
-    .sort((a, b) => (diasParadoDe(b) ?? 0) - (diasParadoDe(a) ?? 0))
+  const paradosPorOs = demandaAberta
+    .filter((item) => item.abertura)
+    .sort((a, b) => (a.abertura?.getTime() ?? 0) - (b.abertura?.getTime() ?? 0))
     .slice(0, 4)
-    .map((item) => {
-      const dias = diasParadoDe(item);
-      return {
-        nome: `${texto(item.EquipamentoDescricaoCompleta).split(" ").slice(0, 4).join(" ") || "Equipamento"} · ${texto(item.Tag) || "—"}`,
-        setor: texto(item.SetorDescricao) || "—",
-        tempo: dias != null && dias > 0 ? `${dias}d no mês` : "sem volta",
-      };
-    });
+    .map((item) => ({
+      nome: `${texto(item.os.Equipamento) || "Equipamento"} · ${item.tag}`,
+      setor: texto(item.os.Setor) || "—",
+      // Proxy: início da parada = Abertura da OS (Parada/Funcionamento quase vazios na API).
+      tempo: item.abertura ? `${diasDesde(item.abertura, agora)}d desde abertura` : "—",
+    }));
+  const paradosLista =
+    paradosPorOs.length > 0
+      ? paradosPorOs
+      : (dados.disponibilidade ?? [])
+          .filter((item) => item.PossuiOSParadaSemFuncionamento)
+          .sort((a, b) => (diasParadoDe(b) ?? 0) - (diasParadoDe(a) ?? 0))
+          .slice(0, 4)
+          .map((item) => {
+            const dias = diasParadoDe(item);
+            return {
+              nome: `${texto(item.EquipamentoDescricaoCompleta).split(" ").slice(0, 4).join(" ") || "Equipamento"} · ${texto(item.Tag) || "—"}`,
+              setor: texto(item.SetorDescricao) || "—",
+              tempo: dias != null && dias > 0 ? `${dias}d no mês` : "sem volta",
+            };
+          });
+  const paradosAgora = new Set<string>([
+    ...parados,
+    ...demandaAberta.map((item) => item.tag).filter(Boolean),
+  ]);
 
   const etapasFluxo = ETAPAS.filter((etapa) => etapa !== "Encerrada").map((etapa) => {
     const grupo = demandaAberta.filter((item) => item.etapa === etapa);
@@ -484,10 +500,13 @@ export function montarSnapshotDeDados(
     },
     {
       id: "compras",
-      fonte: m365Configurado() ? "api" : "sem-dados",
-      erro: m365Configurado()
-        ? undefined
-        : "Configure M365_TENANT_ID / CLIENT_ID / CLIENT_SECRET (docs/sala/m365-setup.md).",
+      fonte: (() => {
+        const resumo = resumoComprasTv(agora);
+        if (resumo.pedidos.length || resumo.entreguesMes) return m365Configurado() ? "api" : "manual";
+        if (m365Configurado()) return "api";
+        return "sem-dados";
+      })(),
+      erro: undefined,
     },
     { id: "mao-de-obra", fonte: "sem-dados", erro: "A API não traz o lançamento de mão de obra." },
     { id: "manuais", fonte: "manual" },
@@ -524,7 +543,7 @@ export function montarSnapshotDeDados(
       grave: grave.length,
       foraDoPrazo: fora.length,
       semPrimeiro: semAtendimento.length,
-      parados: dados.disponibilidade ? parados.size : null,
+      parados: dados.disponibilidade || paradosAgora.size ? paradosAgora.size : null,
       plano: planoAgoraCards(programadasMes).map((item) => ({
         tipo: item.tipo,
         faltam: item.faltam,
@@ -581,12 +600,13 @@ export function montarSnapshotDeDados(
     },
     compras: (() => {
       const resumo = resumoComprasTv(agora);
+      const aviso = resumo.pedidos.length
+        ? ""
+        : resumo.configurado
+          ? "Sem pedidos em aberto. Cadastre em /sala/pedidos ou sincronize o Outlook."
+          : "Cadastre pedidos em /sala/pedidos (manual) ou configure M365 (docs/sala/m365-setup.md) para importar do e-mail.";
       return {
-        aviso: resumo.configurado
-          ? resumo.pedidos.length
-            ? ""
-            : "Conector M365 ligado. Ainda não há pedidos filtrados no SQLite — rode POST /api/sala/compras ou scripts/compras-sync.ts."
-          : "Pedidos vêm do Outlook AION (Graph). Enquanto o app Entra não estiver configurado, a tela mostra o funil vazio. Guia: docs/sala/m365-setup.md.",
+        aviso,
         configurado: resumo.configurado,
         aguardaSc: resumo.aguardaSc,
         aguardaScMaisAntigo: resumo.aguardaScMaisAntigo,

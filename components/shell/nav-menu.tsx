@@ -27,6 +27,7 @@ type NavGroup = {
 
 const SALA_NAV = [
   { href: "/sala", label: "TV" },
+  { href: "/sala/pedidos", label: "Pedidos" },
   { href: "/sala/registros", label: "Registros" },
 ] as const;
 
@@ -59,6 +60,7 @@ function pathMatches(pathname: string, href: string) {
     return (
       pathname === "/sala" ||
       pathname === "/sala/registros" ||
+      pathname === "/sala/pedidos" ||
       /^\/sala\/(agora|fluxo|envelhecimento|compras|programadas|ciclo-de-vida|indicadores|processos)(\/|$)/.test(
         pathname,
       )
@@ -172,7 +174,8 @@ export function NavMenu({ pathname, onNavigate }: { pathname: string; onNavigate
                           pathname,
                         )
                       : pathMatches(pathname, child.href);
-                  const ChildIcon = child.href === "/sala/registros" ? NotebookPen : null;
+                  const ChildIcon =
+                    child.href === "/sala/registros" || child.href === "/sala/pedidos" ? NotebookPen : null;
                   return (
                     <Link
                       key={child.href}

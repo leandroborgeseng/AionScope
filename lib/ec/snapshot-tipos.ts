@@ -12,7 +12,7 @@ export const TELAS_SALA: Array<{ id: TelaSala; label: string; rotulo: string; ti
   { id: "agora", label: "Agora", rotulo: "SITUAÇÃO OPERACIONAL", titulo: "Agora" },
   { id: "fluxo", label: "Fluxo OS", rotulo: "P01 · CORRETIVA", titulo: "Fluxo da OS" },
   { id: "envelhecimento", label: "Envelhecimento", rotulo: "OS ABERTAS", titulo: "Envelhecimento" },
-  { id: "compras", label: "Compras", rotulo: "PEDIDOS POR E-MAIL", titulo: "Compras" },
+  { id: "compras", label: "Compras", rotulo: "PEDIDOS · E-MAIL E MANUAL", titulo: "Compras" },
   { id: "programadas", label: "Programadas", rotulo: "P02 · PLANO DO MÊS", titulo: "Programadas" },
   { id: "ciclo-de-vida", label: "Ciclo de vida", rotulo: "P03 · PARQUE", titulo: "Ciclo de vida" },
   { id: "indicadores", label: "Indicadores", rotulo: "MÊS E SEIS MESES", titulo: "Indicadores" },

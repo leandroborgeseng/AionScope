@@ -316,10 +316,112 @@ export function corrigirSc(compraId: string, sc: string, scEm?: string) {
   db.prepare("UPDATE compra SET situacao = ?, updated_at = ? WHERE id = ?").run(situacao, agora, compraId);
 }
 
-export function marcarEntregue(compraId: string, entregueEm: string, origem = "manual") {
+export function obterCompra(id: string) {
+  return getDb().prepare("SELECT * FROM compra WHERE id = ?").get(id) as CompraRow | undefined;
+}
+
+export type CompraManualInput = {
+  os?: string | null;
+  tag?: string | null;
+  equipamento?: string | null;
+  item?: string | null;
+  setor?: string | null;
+  solicitante_caixa?: string | null;
+  enviado_em?: string | null;
+  sc_numero?: string | null;
+  sc_em?: string | null;
+  entregue_em?: string | null;
+  origem_entrega?: string | null;
+  revisado_por?: string | null;
+  conversation_id?: string | null;
+};
+
+function limparTexto(valor: string | null | undefined) {
+  const t = valor?.trim();
+  return t ? t : null;
+}
+
+export function criarCompraManual(input: CompraManualInput) {
   const db = getDb();
+  const id = randomUUID();
   const agora = nowIso();
+  const enviado = limparTexto(input.enviado_em) || agora;
+  const row: CompraRow = {
+    id,
+    os: limparTexto(input.os),
+    tag: limparTexto(input.tag),
+    equipamento: limparTexto(input.equipamento),
+    item: limparTexto(input.item),
+    setor: limparTexto(input.setor),
+    solicitante_caixa: limparTexto(input.solicitante_caixa),
+    enviado_em: enviado,
+    sc_numero: limparTexto(input.sc_numero),
+    sc_em: limparTexto(input.sc_em),
+    entregue_em: limparTexto(input.entregue_em),
+    origem_entrega: limparTexto(input.origem_entrega) || (input.entregue_em ? "manual" : null),
+    situacao: "aguarda SC",
+    conversation_id: limparTexto(input.conversation_id) || `manual:${id}`,
+    revisado_por: limparTexto(input.revisado_por),
+    created_at: agora,
+    updated_at: agora,
+  };
+  row.situacao = recalcularSituacao(row);
   db.prepare(
-    "UPDATE compra SET entregue_em = ?, origem_entrega = ?, situacao = 'entregue', updated_at = ? WHERE id = ?",
-  ).run(entregueEm, origem, agora, compraId);
+    `INSERT INTO compra (
+      id, os, tag, equipamento, item, setor, solicitante_caixa, enviado_em,
+      sc_numero, sc_em, entregue_em, origem_entrega, situacao, conversation_id,
+      revisado_por, created_at, updated_at
+    ) VALUES (
+      @id, @os, @tag, @equipamento, @item, @setor, @solicitante_caixa, @enviado_em,
+      @sc_numero, @sc_em, @entregue_em, @origem_entrega, @situacao, @conversation_id,
+      @revisado_por, @created_at, @updated_at
+    )`,
+  ).run(row);
+  return id;
+}
+
+export function atualizarCompra(id: string, input: CompraManualInput) {
+  const db = getDb();
+  const atual = obterCompra(id);
+  if (!atual) throw new Error("Pedido não encontrado.");
+  const agora = nowIso();
+  const merged: CompraRow = {
+    ...atual,
+    os: input.os !== undefined ? limparTexto(input.os) : atual.os,
+    tag: input.tag !== undefined ? limparTexto(input.tag) : atual.tag,
+    equipamento: input.equipamento !== undefined ? limparTexto(input.equipamento) : atual.equipamento,
+    item: input.item !== undefined ? limparTexto(input.item) : atual.item,
+    setor: input.setor !== undefined ? limparTexto(input.setor) : atual.setor,
+    solicitante_caixa:
+      input.solicitante_caixa !== undefined ? limparTexto(input.solicitante_caixa) : atual.solicitante_caixa,
+    enviado_em: input.enviado_em !== undefined ? limparTexto(input.enviado_em) : atual.enviado_em,
+    sc_numero: input.sc_numero !== undefined ? limparTexto(input.sc_numero) : atual.sc_numero,
+    sc_em: input.sc_em !== undefined ? limparTexto(input.sc_em) : atual.sc_em,
+    entregue_em: input.entregue_em !== undefined ? limparTexto(input.entregue_em) : atual.entregue_em,
+    origem_entrega:
+      input.origem_entrega !== undefined
+        ? limparTexto(input.origem_entrega)
+        : input.entregue_em
+          ? atual.origem_entrega || "manual"
+          : atual.origem_entrega,
+    revisado_por: input.revisado_por !== undefined ? limparTexto(input.revisado_por) : atual.revisado_por,
+    updated_at: agora,
+  };
+  merged.situacao = recalcularSituacao(merged);
+  db.prepare(
+    `UPDATE compra SET
+      os = @os, tag = @tag, equipamento = @equipamento, item = @item, setor = @setor,
+      solicitante_caixa = @solicitante_caixa, enviado_em = @enviado_em,
+      sc_numero = @sc_numero, sc_em = @sc_em, entregue_em = @entregue_em,
+      origem_entrega = @origem_entrega, situacao = @situacao,
+      revisado_por = @revisado_por, updated_at = @updated_at
+    WHERE id = @id`,
+  ).run(merged);
+  return merged;
+}
+
+export function apagarCompra(id: string) {
+  const db = getDb();
+  db.prepare("DELETE FROM compra_email WHERE compra_id = ?").run(id);
+  db.prepare("DELETE FROM compra WHERE id = ?").run(id);
 }
