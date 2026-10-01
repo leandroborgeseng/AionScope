@@ -4,7 +4,7 @@
  */
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { BUSINESS_HOURS_LABEL, addBusinessHours, diffBusinessHours, diffBusinessMs } from "./business-hours";
+import { BUSINESS_DAY_END_HOUR, BUSINESS_DAY_START_HOUR, BUSINESS_HOURS_LABEL, addBusinessHours, diffBusinessHours, diffBusinessMs } from "./business-hours";
 import { formatDateTimeBR, parsePbiDate } from "./dates";
 import { extractPrazoHoras, findEquipamento, type EquipamentoIndex } from "./indicadores-os";
 import {
@@ -53,8 +53,9 @@ export function formatDuracaoHorasUteis(ms: number): string {
   const hours = Math.floor(totalMin / 60);
   const mins = totalMin % 60;
   if (hours >= 48) {
-    const d = Math.floor(hours / 9); // ~9h úteis/dia (8h–17h)
-    const h = hours % 9;
+    const horasPorDia = Math.max(1, BUSINESS_DAY_END_HOUR - BUSINESS_DAY_START_HOUR);
+    const d = Math.floor(hours / horasPorDia);
+    const h = hours % horasPorDia;
     if (d > 0 && h > 0) return `${d}d ${h}h`;
     if (d > 0) return `${d}d`;
   }

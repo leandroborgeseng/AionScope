@@ -1,12 +1,25 @@
 @import "../../docs/design/sala/tokens.css";
 
+.sala-root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
 .sala-viewport {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
   background: #0d1520;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sala-stage {
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 .sala-frame {
@@ -17,10 +30,12 @@
   color: var(--texto);
   font-family: var(--fonte);
   --fonte-num: var(--font-jetbrains), ui-monospace, monospace;
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
   display: grid;
   grid-template-rows: 6px 100px minmax(0, 1fr) 56px;
-  transform-origin: center center;
+  transform-origin: top left;
 }
 
 .sala-faixa { background: var(--faixa-topo); }
@@ -32,13 +47,14 @@
   padding: 0 40px;
   background: #fff;
   border-bottom: 1px solid var(--borda);
+  min-width: 0;
 }
 
-.sala-cabecalho img { height: 46px; width: auto; }
-.sala-divisor { width: 1px; height: 48px; background: var(--borda); }
+.sala-cabecalho img { height: 46px; width: auto; flex-shrink: 0; }
+.sala-divisor { width: 1px; height: 48px; background: var(--borda); flex-shrink: 0; }
 .sala-rotulo { font-size: 16px; letter-spacing: 3px; color: var(--aion-azul); font-weight: 600; }
 .sala-titulo { font-size: 34px; font-weight: 600; line-height: 1.1; }
-.sala-pills { display: flex; gap: 6px; margin-left: auto; }
+.sala-pills { display: flex; gap: 6px; margin-left: auto; flex-shrink: 0; }
 .sala-pill {
   font-size: 17px;
   font-weight: 600;
@@ -47,6 +63,7 @@
   background: var(--pill);
   color: var(--texto-2);
   text-decoration: none;
+  white-space: nowrap;
 }
 .sala-pill.ativa { background: var(--aion-azul); color: #fff; }
 .sala-relogio {
@@ -55,6 +72,9 @@
   font-weight: 700;
   color: var(--aion-azul);
   margin-left: 12px;
+  flex-shrink: 0;
+  min-width: 3.2ch;
+  text-align: right;
 }
 
 .sala-miolo { min-height: 0; padding: 20px 40px; display: flex; flex-direction: column; gap: 16px; }

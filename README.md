@@ -46,9 +46,20 @@ No Railway: deploy do `Dockerfile` + Volume em **Settings → Volumes** montado 
 | `/disponibilidade` | Série mensal, ranking, alerta de parado sem OS |
 | `/parque` | ANVISA, fim de vida, criticidade |
 | `/documentacao` | Anexos de equipamento e OS + CSV |
+| `/sala` | TV da EC (1920×1080, rotação de telas) |
+| `/sala/registros` | Cadastro manual: impedimentos, P04–P07, melhorias, feriados |
 
 Filtros ficam na URL (`?from=&to=&empresas=&setores=...`) para compartilhar a visão.
 
+## Sala TV (quiosque)
+
+Rota fullscreen `/sala` para TV 1920×1080. Snapshot em `/api/sala/snapshot` (cache 60s). Dados PBI da empresa `2` (HSJ) por padrão.
+
+Horário útil da EC: **seg–sex 07:00–17:00** (`EC_HORA_INICIO` / `EC_HORA_FIM`). Fora disso a TV mostra plantão da Manutenção. Feriados: `EC_FERIADOS` (lista `YYYY-MM-DD`) e/ou tabela em `/sala/registros`.
+
+No Coolify: volume persistente em `/data` + `DATABASE_PATH=/data/aionscope.sqlite`. Não redeployar só para testar a Sala até a branch estar estável; use preview/PR quando possível.
+
+Quiosque típico: Chromium em kiosk apontando para `https://…/sala`, com `PBI_*` e `PBI_DEFAULT_EMPRESA_IDS=2` no ambiente.
 ## Endpoints pendentes
 
 Três rotas existem no código e tentam a API de verdade. Enquanto o upstream responder 401/404, a UI mostra o banner *Aguardando liberação do suporte GlobalThings*:

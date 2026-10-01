@@ -263,7 +263,7 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
       "Monitorar o tempo até o 1º atendimento corretivo alinhado à QMentum, por faixa de criticidade do parque (Crítico / Semicrítico / Não crítico) — sem usar Fechamento.",
     meta: "Crítico ≤ 4h úteis · Semicrítico ≤ 24h úteis · Não crítico ≤ 72h úteis (default; editável depois)",
     referenciaDaMeta:
-      "QMentum — metas institucionais por criticidade do equipamento. Horas úteis 8h–17h seg–sex (America/Sao_Paulo), sem feriados nesta versão. Valores default documentados na UI até validação com a supervisão.",
+      "QMentum — metas institucionais por criticidade do equipamento. Horas úteis 7h–17h seg–sex (America/Sao_Paulo). Feriados via EC_FERIADOS ou /sala/registros. Valores default documentados na UI até validação com a supervisão.",
     formula:
       "% no prazo = (OS com DataDoAtendimento e horas úteis ≤ meta da faixa / OS com 1º atendimento e faixa mapeada) × 100. Faixa = Criticidade do cadastro (Tag): ALTA/CRÍTICO→Crítico, MÉDIA/SEMICRÍTICO→Semicrítico, BAIXA/NÃO CRÍTICO→Não crítico. Evento = somente DataDoAtendimento. Fechamento não entra.",
     coletaDeDados:
