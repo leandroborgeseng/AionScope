@@ -87,7 +87,22 @@ function TelaAgora({ dados, destaque }: { dados: SalaSnapshot; destaque: string 
           </div>
           <div className="sala-cartao">
             <div className="sala-rotulo-bloco">PLANO DO MÊS</div>
-            <p className="sala-vazio">{dados.agora.planoAviso}</p>
+            {dados.agora.plano.every((item) => item.faltam == null && item.percentual == null) ? (
+              <p className="sala-vazio">{dados.agora.planoAviso}</p>
+            ) : (
+              <>
+                <p style={{ margin: "0 0 8px", fontSize: 18, color: "#4E6079" }}>{dados.agora.planoAviso}</p>
+                {dados.agora.plano.map((item) => (
+                  <div key={item.tipo} style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 6 }}>
+                    <strong style={{ fontSize: 20 }}>{item.tipo}</strong>
+                    <span className="sala-numero" style={{ fontSize: 22 }}>
+                      {item.executados ?? "—"}/{item.previstos ?? "—"}
+                      {item.faltam != null && item.faltam > 0 ? ` · faltam ${item.faltam}` : ""}
+                    </span>
+                  </div>
+                ))}
+              </>
+            )}
           </div>
           <div className="sala-cartao" style={{ flex: 1 }}>
             <div className="sala-rotulo-bloco">PARADOS HÁ MAIS TEMPO</div>
@@ -392,48 +407,106 @@ function TelaIndicadores({ dados }: { dados: SalaSnapshot }) {
 }
 
 function TelaProgramadas({ dados }: { dados: SalaSnapshot }) {
+  const p = dados.programadas;
   return (
-    <div className="sala-grid-2" style={{ flex: 1 }}>
-      <div className="sala-coluna">
-        <div className="sala-cartao" style={{ flex: 1 }}>
-          <div className="sala-rotulo-bloco">CUMPRIMENTO DO PLANO</div>
-          <div className="sala-numero" style={{ fontSize: 72 }}>—</div>
-          <p className="sala-vazio">{dados.programadas.aviso}</p>
+    <div className="sala-coluna" style={{ flex: 1, minHeight: 0 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr", gap: 16 }}>
+        <div className="sala-cartao" style={{ background: "#2C66AB", color: "#fff", border: "none" }}>
+          <div className="sala-rotulo-bloco" style={{ color: "#DCE8F7" }}>CUMPRIMENTO · MÊS</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 14 }}>
+            <span className="sala-numero" style={{ fontSize: 72 }}>
+              {p.cumprimento == null ? "—" : `${p.cumprimento}%`}
+            </span>
+            <span style={{ fontSize: 22, color: "#DCE8F7" }}>
+              {p.executados} de {p.previstos}
+            </span>
+          </div>
+          <span style={{ fontSize: 18, color: "#DCE8F7" }}>
+            {p.impedimentos.length} impedimento(s) à parte
+          </span>
         </div>
+        {p.porTipo.map((tipo) => (
+          <div key={tipo.tipo} className="sala-cartao">
+            <div className="sala-rotulo-bloco">{tipo.tipo.toUpperCase()}</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <span className="sala-numero" style={{ fontSize: 48 }}>
+                {tipo.executados}
+                <span style={{ fontSize: 24, color: "#4E6079" }}>/{tipo.previstos}</span>
+              </span>
+              <span style={{ fontSize: 20, fontWeight: 600, color: tipo.faltam ? "#A8460A" : "#3E7A1E" }}>
+                {tipo.faltam ? `faltam ${tipo.faltam}` : "ok"}
+              </span>
+            </div>
+            <div style={{ height: 10, borderRadius: 6, background: "#E3EAF3", overflow: "hidden", marginTop: 8 }}>
+              <div
+                style={{
+                  height: 10,
+                  borderRadius: 6,
+                  background: "#2C66AB",
+                  width: `${tipo.percentual ?? 0}%`,
+                }}
+              />
+            </div>
+          </div>
+        ))}
       </div>
-      <div className="sala-cartao" style={{ flex: 1, overflow: "hidden" }}>
-        <div className="sala-rotulo-bloco">
-          IMPEDIMENTOS JUSTIFICADOS · {dados.programadas.impedimentos.length}
+
+      <div className="sala-grid-2" style={{ flex: 1, minHeight: 0 }}>
+        <div className="sala-cartao" style={{ overflow: "hidden" }}>
+          <div className="sala-rotulo-bloco">PENDENTES NO MÊS · {p.pendentes.length}</div>
+          {p.pendentes.length === 0 ? <p className="sala-vazio">{p.aviso}</p> : null}
+          {p.pendentes.map((item) => (
+            <div
+              key={`${item.tipo}-${item.tag}-${item.equipamento}`}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "90px minmax(0, 1fr)",
+                gap: 12,
+                alignItems: "center",
+                padding: "10px 0",
+                borderBottom: "1px solid #E6ECF3",
+              }}
+            >
+              <strong style={{ color: "#2C66AB", fontSize: 16 }}>{item.tipo}</strong>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 20, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {item.equipamento}
+                </div>
+                <div style={{ fontSize: 16, color: "#4E6079" }}>{item.setor}</div>
+              </div>
+            </div>
+          ))}
         </div>
-        {dados.programadas.impedimentos.length === 0 ? (
-          <p className="sala-vazio">Nenhum impedimento ativo. Cadastre em /sala/registros.</p>
-        ) : (
-          <div style={{ marginTop: 8, overflow: "auto" }}>
-            {dados.programadas.impedimentos.map((item) => (
+        <div className="sala-cartao" style={{ overflow: "hidden" }}>
+          <div className="sala-rotulo-bloco">IMPEDIMENTOS · {p.impedimentos.length}</div>
+          {p.impedimentos.length === 0 ? (
+            <p className="sala-vazio">Nenhum impedimento ativo. Cadastre em /sala/registros.</p>
+          ) : (
+            p.impedimentos.map((item) => (
               <div
                 key={`${item.tag}-${item.motivo}`}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "120px minmax(0, 1fr) 140px",
-                  gap: 12,
+                  gridTemplateColumns: "100px minmax(0, 1fr) 110px",
+                  gap: 10,
                   alignItems: "center",
-                  padding: "12px 0",
+                  padding: "10px 0",
                   borderBottom: "1px solid #E6ECF3",
                 }}
               >
-                <strong style={{ color: "#2C66AB", fontSize: 20 }}>{item.tag}</strong>
+                <strong style={{ color: "#2C66AB", fontSize: 18 }}>{item.tag}</strong>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 22, fontWeight: 600 }}>{item.equipamento}</div>
-                  <div style={{ fontSize: 18, color: "#4E6079" }}>{item.motivo}</div>
+                  <div style={{ fontSize: 20, fontWeight: 600 }}>{item.equipamento}</div>
+                  <div style={{ fontSize: 16, color: "#4E6079" }}>{item.motivo}</div>
                 </div>
-                <div style={{ textAlign: "right", fontSize: 18, color: "#6B1029" }}>
+                <div style={{ textAlign: "right", fontSize: 16, color: "#6B1029" }}>
                   nova data
-                  <div className="sala-numero" style={{ fontSize: 24 }}>{item.novaData}</div>
+                  <div className="sala-numero" style={{ fontSize: 20 }}>{item.novaData}</div>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
@@ -729,7 +802,9 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   }, []);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setDeslocamento(new Date().getHours() % 2), 60_000);
+    const atualizar = () => setDeslocamento(1 + (new Date().getHours() % 2));
+    atualizar();
+    const timer = window.setInterval(atualizar, 60_000);
     return () => window.clearInterval(timer);
   }, []);
 

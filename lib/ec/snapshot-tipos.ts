@@ -53,7 +53,7 @@ export type SalaSnapshot = {
     foraDoPrazo: number;
     semPrimeiro: number;
     parados: number | null;
-    plano: Array<{ tipo: string; faltam: number | null; percentual: number | null }>;
+    plano: Array<{ tipo: string; faltam: number | null; percentual: number | null; executados?: number | null; previstos?: number | null }>;
     planoAviso: string;
     paradosMaisTempo: Array<{ nome: string; setor: string; tempo: string }>;
     fila: LinhaFila[];
@@ -110,6 +110,18 @@ export type SalaSnapshot = {
   };
   programadas: {
     aviso: string;
+    cumprimento: number | null;
+    previstos: number;
+    executados: number;
+    faltam: number;
+    porTipo: Array<{
+      tipo: string;
+      previstos: number;
+      executados: number;
+      faltam: number;
+      percentual: number | null;
+    }>;
+    pendentes: Array<{ tipo: string; equipamento: string; setor: string; tag: string }>;
     impedimentos: Array<{ tag: string; equipamento: string; motivo: string; novaData: string }>;
   };
   ciclo: {

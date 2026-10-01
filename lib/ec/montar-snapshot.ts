@@ -1,19 +1,20 @@
 import { addMonths, format } from "date-fns";
+import { extrairSc, m365Configurado } from "@/lib/compras/parse-email";
 import { resumoComprasTv, sincronizarCompras } from "@/lib/compras/sync";
-import { m365Configurado } from "@/lib/compras/parse-email";
 import { listarRegistrosSala } from "@/lib/db/sala-registros";
 import { fetchPbi } from "@/lib/pbi/client";
-import { nowInSaoPaulo, parsePbiDate } from "@/lib/pbi/dates";
+import { nowInSaoPaulo, parseBrNumber, parsePbiDate } from "@/lib/pbi/dates";
 import { EMPTY_FILTERS, toUpstreamParams, type DashboardFilters } from "@/lib/pbi/filters";
 import { isTipoManutencaoMedica, isEquipamentoMedico } from "@/lib/pbi/medical";
 import { isOficinaEngenhariaClinica } from "@/lib/pbi/oficina-ec";
-import type { DisponibilidadeItem, EquipamentoItem, OsAnaliticoItem } from "@/lib/pbi/types";
+import type { CronogramaItem, DisponibilidadeItem, EquipamentoItem, OsAnaliticoItem, TmefItem } from "@/lib/pbi/types";
 import { isOsCancelada, osFechamentoDate } from "@/lib/pbi/volume-ec";
 import { ETAPAS, etapaOs, type EtapaOs } from "./etapas";
 import { diasDesde, FAIXAS_IDADE, faixaIdadeDias } from "./envelhecimento";
 import { ordenarFila } from "./fila";
 import { dentroDoExpediente, diffHorasUteis, horarioUtilConfig, type HorarioUtilConfig } from "./horario-util";
 import { metaHorasEsforco, rotuloCriticidade } from "./meta";
+import { planoAgoraCards, resumoProgramadasMes } from "./programadas-mes";
 import { situacaoPrimeiroAtendimento, type SituacaoOs } from "./situacao";
 import type { SalaSnapshot, TelaSala } from "./snapshot-tipos";
 import { classeDemanda, classeManutencao, parseMoeda, semAcento, texto, type ClasseManutencao } from "./texto";
@@ -56,10 +57,14 @@ export type DadosSala = {
   os: OsAnaliticoItem[];
   equipamentos: EquipamentoItem[];
   disponibilidade: DisponibilidadeItem[] | null;
+  cronograma: CronogramaItem[];
+  tmef: TmefItem[];
   manuais?: ReturnType<typeof listarRegistrosSala>;
   erroOs?: string;
   erroEquipamentos?: string;
   erroDisponibilidade?: string;
+  erroCronograma?: string;
+  erroTmef?: string;
 };
 
 function empresaIds() {
@@ -296,9 +301,28 @@ export function montarSnapshotDeDados(
       etapa,
       quantidade: grupo.length,
       maisAntiga: maisAntiga?.abertura ? `${diasDesde(maisAntiga.abertura, agora)}d` : "—",
-      exemplos: grupo.slice(0, 2).map((item) => `${texto(item.os.Equipamento) || item.tag} · ${texto(item.os.Setor) || "—"}`),
+      exemplos: grupo.slice(0, 2).map((item) => {
+        const base = `${texto(item.os.Equipamento) || item.tag} · ${texto(item.os.Setor) || "—"}`;
+        if (etapa !== "Aguarda peça/compra") return base;
+        const sc =
+          extrairSc(item.os.ObservacaoDaPendencia ?? "") ||
+          extrairSc(item.os.Pendencia ?? "") ||
+          extrairSc(item.os.ObservacaoDaOS ?? "");
+        return sc ? `${base} · SC ${sc}` : base;
+      }),
     };
   });
+
+  const programadasMes = resumoProgramadasMes(dados.cronograma, dados.os, agora);
+  const tagsMedicasLista = [...tagsMedicas];
+  const tmefValores = dados.tmef
+    .filter((item) => {
+      const tag = texto(item.Tag);
+      return !tagsMedicasLista.length || (tag && tagsMedicas.has(tag));
+    })
+    .map((item) => parseBrNumber(item.MTBF))
+    .filter((valor): valor is number => valor != null && valor > 0);
+  const tmefMediana = mediana(tmefValores);
 
   const entraramHoje = vistas
     .filter((item) => item.abertura && mesmaData(item.abertura, agora) && classeDemanda(item.classe))
@@ -412,7 +436,9 @@ export function montarSnapshotDeDados(
   const serieCausa: Array<number | null> = [];
   const serieCusto: Array<number | null> = [];
   const serieTreino: Array<number | null> = [];
+  const serieProgramadas: Array<number | null> = [];
   for (const mes of listaMeses) {
+    serieProgramadas.push(resumoProgramadasMes(dados.cronograma, dados.os, mes).percentual);
     const atendidas = vistas.filter(
       (item) =>
         item.atendimento &&
@@ -450,8 +476,12 @@ export function montarSnapshotDeDados(
       fonte: dados.erroDisponibilidade || !dados.disponibilidade ? "sem-dados" : "api",
       erro: dados.erroDisponibilidade,
     },
-    { id: "tpm", fonte: "sem-dados", erro: "A API de TPM responde 404." },
-    { id: "plano", fonte: "sem-dados", erro: "ProximaRealizacao é um código e DataDaUltima vem vazia." },
+    { id: "tpm", fonte: dados.erroTmef || tmefMediana == null ? "sem-dados" : "api", erro: dados.erroTmef || (tmefMediana == null ? "Sem MTBF no TMEF." : undefined) },
+    {
+      id: "plano",
+      fonte: dados.erroCronograma ? "sem-dados" : programadasMes.previstos ? "api" : "sem-dados",
+      erro: dados.erroCronograma || (programadasMes.previstos ? undefined : programadasMes.aviso),
+    },
     {
       id: "compras",
       fonte: m365Configurado() ? "api" : "sem-dados",
@@ -495,12 +525,16 @@ export function montarSnapshotDeDados(
       foraDoPrazo: fora.length,
       semPrimeiro: semAtendimento.length,
       parados: dados.disponibilidade ? parados.size : null,
-      plano: [
-        { tipo: "Calibração", faltam: null, percentual: null },
-        { tipo: "TSE", faltam: null, percentual: null },
-        { tipo: "Preventiva", faltam: null, percentual: null },
-      ],
-      planoAviso: "Sem data de plano na API.",
+      plano: planoAgoraCards(programadasMes).map((item) => ({
+        tipo: item.tipo,
+        faltam: item.faltam,
+        percentual: item.percentual,
+        executados: programadasMes.porTipo.find((tipo) => tipo.tipo === item.tipo)?.executados ?? null,
+        previstos: programadasMes.porTipo.find((tipo) => tipo.tipo === item.tipo)?.previstos ?? null,
+      })),
+      planoAviso: programadasMes.previstos
+        ? `${programadasMes.executados} de ${programadasMes.previstos} no mês · ${programadasMes.percentual ?? "—"}%.`
+        : programadasMes.aviso,
       paradosMaisTempo: paradosLista,
       fila,
       filaOcultas: Math.max(0, filaOrdenada.length - FILA_LIMITE),
@@ -509,7 +543,7 @@ export function montarSnapshotDeDados(
       semanaAbertas: abertasNo((data) => dentroDaSemana(data, agora)),
       semanaFechadas: fechadasNo((data) => dentroDaSemana(data, agora)),
       primeiroNoPrazo30d: percentual(noPrazo30Ok.length, noPrazo30.length),
-      tpm30d: null,
+      tpm30d: tmefMediana == null ? null : Math.round(tmefMediana),
       disponibilidadeCriticos,
     },
     fluxo: {
@@ -568,7 +602,13 @@ export function montarSnapshotDeDados(
       };
     })(),
     programadas: {
-      aviso: "O cronograma não traz a data do plano. ProximaRealizacao é um código e DataDaUltima vem vazia. Cumprimento e laudo ficam sem número. Impedimentos vêm do registro manual.",
+      aviso: programadasMes.aviso,
+      cumprimento: programadasMes.percentual,
+      previstos: programadasMes.previstos,
+      executados: programadasMes.executados,
+      faltam: programadasMes.faltam,
+      porTipo: programadasMes.porTipo,
+      pendentes: programadasMes.pendentes,
       impedimentos,
     },
     ciclo: {
@@ -609,10 +649,12 @@ export function montarSnapshotDeDados(
         },
         {
           titulo: "Programadas no mês",
-          valor: "—",
-          detalhe: "Sem data de plano na API.",
-          serie: listaMeses.map(() => null),
-          fonte: "sem-dados",
+          valor: ultimo(serieProgramadas) == null ? "—" : `${ultimo(serieProgramadas)}%`,
+          detalhe: programadasMes.previstos
+            ? `${programadasMes.executados} de ${programadasMes.previstos} no mês corrente (cronograma × OS fechadas).`
+            : "Sem plano ancorado neste mês no cronograma.",
+          serie: serieProgramadas,
+          fonte: dados.erroCronograma ? "sem-dados" : "api",
         },
         {
           titulo: "Corretivas sem causa",
@@ -629,11 +671,15 @@ export function montarSnapshotDeDados(
           fonte: "api",
         },
         {
-          titulo: "TPM",
-          valor: "—",
-          detalhe: "A API de TPM responde 404. O TMEF existe por equipamento, não como este cartão.",
-          serie: listaMeses.map(() => null),
-          fonte: "sem-dados",
+          titulo: "TMEF (em vez de TPM)",
+          valor: tmefMediana == null ? "—" : `${Math.round(tmefMediana)} h`,
+          detalhe: dados.erroTmef
+            ? dados.erroTmef
+            : tmefValores.length
+              ? `Mediana de MTBF (${tmefValores.length} eq.). A API de TPM continua 404.`
+              : "Sem MTBF no TMEF para o parque médico.",
+          serie: listaMeses.map((_, index) => (index === listaMeses.length - 1 ? (tmefMediana == null ? null : Math.round(tmefMediana)) : null)),
+          fonte: tmefMediana == null ? "sem-dados" : "api",
         },
         {
           titulo: "Disponibilidade dos críticos",
@@ -656,7 +702,7 @@ export function montarSnapshotDeDados(
     processos: {
       itens: [
         { id: "P01", nome: "Corretivas abertas", quantidade: String(demandaAberta.length), fonte: "api" },
-        { id: "P02", nome: "Programadas", quantidade: "—", fonte: "sem-dados" },
+        { id: "P02", nome: "Programadas", quantidade: String(programadasMes.faltam || programadasMes.previstos || 0), fonte: programadasMes.previstos ? "api" : "sem-dados" },
         { id: "P03", nome: "Em uso", quantidade: String(ativos.length), fonte: "api" },
         {
           id: "P04",
@@ -721,7 +767,7 @@ export async function carregarSnapshot(): Promise<SalaSnapshot> {
   const agora = nowInSaoPaulo();
   const base = filtros(agora);
   const inicioMes = format(new Date(agora.getFullYear(), agora.getMonth(), 1), "yyyy-MM-dd");
-  const [os, equipamentos, disponibilidade, manuais] = await Promise.all([
+  const [os, equipamentos, disponibilidade, cronograma, tmef, manuais] = await Promise.all([
     fetchPbi<OsAnaliticoItem[]>(
       "os-analitico",
       toUpstreamParams("os-analitico", base, { periodo: "DoisAnosAtuais", qtdPorPagina: "100000" }),
@@ -734,6 +780,8 @@ export async function carregarSnapshot(): Promise<SalaSnapshot> {
       "disp-equipamento-mes",
       toUpstreamParams("disp-equipamento-mes", { ...base, from: inicioMes }),
     ),
+    fetchPbi<CronogramaItem[]>("cronograma", toUpstreamParams("cronograma", base)),
+    fetchPbi<TmefItem[]>("tmef", toUpstreamParams("tmef", base)),
     Promise.resolve(listarRegistrosSala()),
   ]);
 
@@ -741,10 +789,14 @@ export async function carregarSnapshot(): Promise<SalaSnapshot> {
     os: os.ok && Array.isArray(os.data) ? os.data : [],
     equipamentos: equipamentos.ok && Array.isArray(equipamentos.data) ? equipamentos.data : [],
     disponibilidade: disponibilidade.ok && Array.isArray(disponibilidade.data) ? disponibilidade.data : null,
+    cronograma: cronograma.ok && Array.isArray(cronograma.data) ? cronograma.data : [],
+    tmef: tmef.ok && Array.isArray(tmef.data) ? tmef.data : [],
     manuais,
     erroOs: os.ok ? undefined : os.message,
     erroEquipamentos: equipamentos.ok ? undefined : equipamentos.message,
     erroDisponibilidade: disponibilidade.ok ? undefined : disponibilidade.message,
+    erroCronograma: cronograma.ok ? undefined : cronograma.message,
+    erroTmef: tmef.ok ? undefined : tmef.message,
   };
   const snapshot = montarSnapshotDeDados(dados, agora);
   const gravesAgora = new Set(snapshot.agora.fila.filter((item) => item.situacao === "GRAVE").map((item) => item.os));

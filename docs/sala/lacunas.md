@@ -15,11 +15,11 @@ Nada abaixo será inventado na tela. Onde não houver dado, o bloco mostra "—"
 2. **Etapa "contrato".** A situação da OS não tem esse valor.
 3. **Etapa "teste e devolução".** O tipo "AGUARDANDO DEVOLUÇÃO AO SETOR" existe no cadastro e quase não aparece nas OS.
 4. **Início e fim da parada.** A disponibilidade mensal do HSJ (empresa `2`) responde, com `DiasParado` e `PossuiOSParadaSemFuncionamento` (2 equipamentos no último mês). Não traz a data de início nem de fim. Na OS, `Parada` tem 7 registros e `Funcionamento` tem 4. A API sem mês continua 404.
-5. **TPM.** Endpoint 404.
+5. **TPM.** Endpoint 404. A TV usa **TMEF/MTBF** (mediana) no cartão correspondente.
 6. **Oficina como API.** Endpoint 404. O nome da oficina já vem em cada OS.
 7. **Fabricante descontinuado / sem peça.** Usa `EndOfService`: se a data já passou, conta como “sem peça / descontinuado” no ciclo de vida.
 8. **Vida útil em anos.** Só as datas `EndOfLife` e `EndOfService`.
-9. **Data do plano.** `ProximaRealizacao` é um código por linha; `DataDaUltima` está vazia.
+9. **Data do plano.** `ProximaRealizacao` é código; o parser ancora no mês (`parsePbiDate`). Cumprimento da TV usa previsto (cronograma no mês) × executado (OS fechadas no mês). Laudo anexado ainda não entra.
 10. **Laudo.** Anexo não tem tipo nem data de emissão.
 11. **Impedimento operacional** (motivo + nova data).
 12. **Compras por e-mail** (envio, SC, cobrar). Fase 9. No Effort só aparece "S.C." solto na observação da pendência.
