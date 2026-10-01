@@ -17,7 +17,7 @@ Nada abaixo será inventado na tela. Onde não houver dado, o bloco mostra "—"
 4. **Início e fim da parada.** A disponibilidade mensal do HSJ (empresa `2`) responde, com `DiasParado` e `PossuiOSParadaSemFuncionamento` (2 equipamentos no último mês). Não traz a data de início nem de fim. Na OS, `Parada` tem 7 registros e `Funcionamento` tem 4. A API sem mês continua 404.
 5. **TPM.** Endpoint 404.
 6. **Oficina como API.** Endpoint 404. O nome da oficina já vem em cada OS.
-7. **Fabricante descontinuado.**
+7. **Fabricante descontinuado / sem peça.** Usa `EndOfService`: se a data já passou, conta como “sem peça / descontinuado” no ciclo de vida.
 8. **Vida útil em anos.** Só as datas `EndOfLife` e `EndOfService`.
 9. **Data do plano.** `ProximaRealizacao` é um código por linha; `DataDaUltima` está vazia.
 10. **Laudo.** Anexo não tem tipo nem data de emissão.

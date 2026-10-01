@@ -27,6 +27,7 @@ const SEQUENCIA_PADRAO: TelaSala[] = [
   "compras",
   "agora",
   "envelhecimento",
+  "ciclo-de-vida",
   "programadas",
   "agora",
   "ciclo-de-vida",
@@ -344,16 +345,32 @@ export function montarSnapshotDeDados(
   const fimDeVida: SalaSnapshot["ciclo"]["fimDeVida"] = [];
   const maisAntigos: Array<{ tag: string; equipamento: string; idade: string; fim: string; ms: number }> = [];
   let valorParque = 0;
+  let valorFimDeVida = 0;
+  let emCiclo = 0;
+  const anoAtual = agora.getFullYear();
+  const previsaoEol = Array.from({ length: 5 }, (_, index) => ({
+    ano: String(anoAtual + index),
+    quantidade: 0,
+  }));
+  const limite5Anos = new Date(agora.getFullYear() + 5, agora.getMonth(), agora.getDate());
 
   for (const item of ativos) {
     const aquisicao = parsePbiDate(item.DataDeAquisicao) || parsePbiDate(item["DataDeInstalação"]);
     const fim = parsePbiDate(item.EndOfLife);
+    const fimServico = parsePbiDate(item.EndOfService);
     const substituicao = parseMoeda(item.ValorDeSubstituicao);
     const aquisicaoValor = parseMoeda(item.ValorDeAquisicao);
     const valor = substituicao && substituicao > 0 ? substituicao : aquisicaoValor && aquisicaoValor > 0 ? aquisicaoValor : 0;
     valorParque += valor;
     const idadeAnos = aquisicao ? (agora.getTime() - aquisicao.getTime()) / (365.25 * 24 * 3600 * 1000) : null;
     const alem = Boolean(fim && agora.getTime() >= fim.getTime());
+    const semPeca = Boolean(fimServico && agora.getTime() >= fimServico.getTime());
+    if (fim && agora.getTime() < fim.getTime()) emCiclo += 1;
+    if (fim && agora.getTime() < fim.getTime() && fim.getTime() <= limite5Anos.getTime()) {
+      const anoFim = fim.getFullYear();
+      const slot = previsaoEol.find((itemAno) => Number(itemAno.ano) === anoFim);
+      if (slot) slot.quantidade += 1;
+    }
     if (idadeAnos != null) {
       const bucket = faixasIdade.findIndex((faixa) => idadeAnos >= faixa.min && idadeAnos <= faixa.max + 0.999);
       if (bucket >= 0) {
@@ -371,19 +388,23 @@ export function montarSnapshotDeDados(
     const uso = corretivasPorTag.get(texto(item.Tag));
     const criterios: string[] = [];
     if (alem) criterios.push("fim de vida");
+    if (semPeca) criterios.push("sem peça / descontinuado");
     if ((uso?.quantidade ?? 0) >= 4) criterios.push("4+ corretivas");
     if (valor > 0 && (uso?.custo ?? 0) >= valor * 0.5) criterios.push("custo ≥ 50%");
     if (criterios.length) {
+      valorFimDeVida += valor;
       fimDeVida.push({
         tag: texto(item.Tag),
         equipamento: texto(item.Equipamento) || "—",
         pontos: criterios.length,
         criterios: criterios.join(" · "),
+        valorSubstituicao: valor > 0 ? formatoMoeda(valor) : "—",
       });
     }
   }
   fimDeVida.sort((a, b) => b.pontos - a.pontos || a.tag.localeCompare(b.tag));
   maisAntigos.sort((a, b) => a.ms - b.ms);
+  const vencem5Anos = previsaoEol.reduce((soma, item) => soma + item.quantidade, 0);
 
   const listaMeses = meses(agora);
   const serieHoras: Array<number | null> = [];
@@ -560,8 +581,14 @@ export function montarSnapshotDeDados(
       ],
       histograma,
       fimDeVida: fimDeVida.slice(0, 8),
-      avisoDescontinuado: "O 4º critério (fabricante descontinuado ou sem peça) não existe na API.",
+      valorSubstituicaoFimDeVida: valorFimDeVida > 0 ? formatoMoeda(valorFimDeVida) : "—",
+      quantidadeFimDeVida: fimDeVida.length,
+      avisoDescontinuado:
+        "Sem peça / descontinuado = EndOfService já passou. Fim de vida = EndOfLife (Anvisa), inclusive 01/01/2050.",
       maisAntigos: maisAntigos.slice(0, 6).map(({ ms: _ms, ...item }) => item),
+      emCiclo,
+      vencem5Anos,
+      previsaoEol,
     },
     indicadores: {
       meses: rotulosMes,

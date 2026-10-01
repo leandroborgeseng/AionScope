@@ -115,9 +115,23 @@ export type SalaSnapshot = {
   ciclo: {
     trilha: Array<{ etapa: string; quantidade: number | null }>;
     histograma: Array<{ faixa: string; emVida: number; alem: number }>;
-    fimDeVida: Array<{ tag: string; equipamento: string; pontos: number; criterios: string }>;
+    fimDeVida: Array<{
+      tag: string;
+      equipamento: string;
+      pontos: number;
+      criterios: string;
+      valorSubstituicao: string;
+    }>;
+    valorSubstituicaoFimDeVida: string;
+    quantidadeFimDeVida: number;
     avisoDescontinuado: string;
     maisAntigos: Array<{ tag: string; equipamento: string; idade: string; fim: string }>;
+    /** Ativos ainda dentro do EndOfLife (hoje < fim de vida). */
+    emCiclo: number;
+    /** Ativos cujo EndOfLife cai nos próximos 5 anos (ano civil corrente + 4). */
+    vencem5Anos: number;
+    /** Quantidade por ano de fim de vida nos próximos 5 anos. */
+    previsaoEol: Array<{ ano: string; quantidade: number }>;
   };
   indicadores: {
     meses: string[];

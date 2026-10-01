@@ -246,8 +246,9 @@ function TelaAviso({ titulo, texto }: { titulo: string; texto: string }) {
 
 function TelaCiclo({ dados }: { dados: SalaSnapshot }) {
   const maximo = Math.max(1, ...dados.ciclo.histograma.map((faixa) => faixa.emVida + faixa.alem));
+  const maxPrevisao = Math.max(1, ...dados.ciclo.previsaoEol.map((item) => item.quantidade));
   return (
-    <div className="sala-coluna" style={{ flex: 1 }}>
+    <div className="sala-coluna" style={{ flex: 1, minHeight: 0 }}>
       <div className="sala-etapas" style={{ gridTemplateColumns: "repeat(5, minmax(0, 1fr))" }}>
         {dados.ciclo.trilha.map((item) => (
           <div key={item.etapa} className="sala-etapa">
@@ -256,33 +257,110 @@ function TelaCiclo({ dados }: { dados: SalaSnapshot }) {
           </div>
         ))}
       </div>
-      <div className="sala-grid-2" style={{ flex: 1 }}>
-        <div className="sala-cartao">
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1.1fr 1fr 1.2fr",
+          gap: 16,
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
+        <div className="sala-cartao" style={{ overflow: "hidden" }}>
           <div className="sala-rotulo-bloco">IDADE DO PARQUE</div>
           {dados.ciclo.histograma.map((faixa) => (
-            <div key={faixa.faixa} style={{ display: "grid", gridTemplateColumns: "150px 1fr 80px", gap: 10, alignItems: "center", marginTop: 10 }}>
-              <span>{faixa.faixa}</span>
-              <div style={{ display: "flex", height: 18, background: "#E3EAF3", borderRadius: 6, overflow: "hidden" }}>
+            <div
+              key={faixa.faixa}
+              style={{ display: "grid", gridTemplateColumns: "120px 1fr 64px", gap: 8, alignItems: "center", marginTop: 8 }}
+            >
+              <span style={{ fontSize: 18 }}>{faixa.faixa}</span>
+              <div style={{ display: "flex", height: 16, background: "#E3EAF3", borderRadius: 6, overflow: "hidden" }}>
                 <div style={{ width: `${(faixa.emVida / maximo) * 100}%`, background: "#2C66AB" }} />
                 <div style={{ width: `${(faixa.alem / maximo) * 100}%`, background: "#D9620F" }} />
               </div>
-              <b className="sala-numero" style={{ fontSize: 20 }}>{faixa.emVida + faixa.alem}</b>
+              <b className="sala-numero" style={{ fontSize: 18 }}>{faixa.emVida + faixa.alem}</b>
             </div>
           ))}
-          <p className="sala-vazio">Laranja: já passou do fim de vida registrado na Anvisa. {dados.ciclo.avisoDescontinuado}</p>
+          <p className="sala-vazio" style={{ marginTop: 10 }}>
+            Laranja: passou do EndOfLife (Anvisa).
+          </p>
         </div>
-        <div className="sala-cartao sala-coluna">
-          <div className="sala-rotulo-bloco">FIM DE VIDA · 3 CRITÉRIOS COM DADO</div>
-          {dados.ciclo.fimDeVida.length === 0 ? <p className="sala-vazio">Nenhum equipamento ativo bateu os critérios.</p> : null}
-          {dados.ciclo.fimDeVida.map((item) => (
-            <div key={item.tag} style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-              <div>
-                <strong>{item.equipamento}</strong>
-                <small style={{ display: "block", color: "#4E6079" }}>{item.tag} · {item.criterios}</small>
-              </div>
-              <span className="sala-numero" style={{ fontSize: 28 }}>{item.pontos}</span>
+
+        <div className="sala-cartao" style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <div className="sala-rotulo-bloco">FIM DE VIDA · PRÓXIMOS 5 ANOS</div>
+          <div style={{ display: "flex", gap: 16, margin: "8px 0 12px" }}>
+            <div>
+              <div style={{ fontSize: 16, color: "#4E6079" }}>em ciclo</div>
+              <div className="sala-numero" style={{ fontSize: 40, color: "#2C66AB" }}>{dados.ciclo.emCiclo}</div>
             </div>
-          ))}
+            <div>
+              <div style={{ fontSize: 16, color: "#4E6079" }}>vencem em 5 anos</div>
+              <div className="sala-numero" style={{ fontSize: 40, color: "#A8460A" }}>{dados.ciclo.vencem5Anos}</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 10, flex: 1, minHeight: 160 }}>
+            {dados.ciclo.previsaoEol.map((item) => (
+              <div key={item.ano} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, height: "100%", justifyContent: "flex-end" }}>
+                <span className="sala-numero" style={{ fontSize: 18 }}>{item.quantidade}</span>
+                <div
+                  style={{
+                    width: "100%",
+                    maxWidth: 48,
+                    height: `${Math.max(8, (item.quantidade / maxPrevisao) * 120)}px`,
+                    background: item.quantidade ? "#A8460A" : "#E3EAF3",
+                    borderRadius: "8px 8px 4px 4px",
+                  }}
+                />
+                <span style={{ fontSize: 16, fontWeight: 600, color: "#4E6079" }}>{item.ano}</span>
+              </div>
+            ))}
+          </div>
+          <p className="sala-vazio" style={{ marginTop: 8 }}>
+            Quantidade por ano de EndOfLife. Em ciclo = ativos ainda antes do fim de vida.
+          </p>
+        </div>
+
+        <div className="sala-cartao sala-coluna" style={{ overflow: "hidden" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
+            <div className="sala-rotulo-bloco">FIM DE VIDA · {dados.ciclo.quantidadeFimDeVida}</div>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 14, color: "#4E6079", letterSpacing: 1, fontWeight: 700 }}>VALOR SUBSTITUIÇÃO</div>
+              <div className="sala-numero" style={{ fontSize: 28, color: "#A3123A" }}>
+                {dados.ciclo.valorSubstituicaoFimDeVida}
+              </div>
+            </div>
+          </div>
+          <p className="sala-vazio" style={{ margin: "4px 0 8px" }}>{dados.ciclo.avisoDescontinuado}</p>
+          {dados.ciclo.fimDeVida.length === 0 ? (
+            <p className="sala-vazio">Nenhum equipamento ativo bateu os critérios.</p>
+          ) : null}
+          <div style={{ overflow: "auto", flex: 1 }}>
+            {dados.ciclo.fimDeVida.map((item) => (
+              <div
+                key={item.tag}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "minmax(0, 1fr) 110px 40px",
+                  gap: 10,
+                  alignItems: "center",
+                  padding: "8px 0",
+                  borderBottom: "1px solid #E6ECF3",
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <strong style={{ fontSize: 20 }}>{item.equipamento}</strong>
+                  <small style={{ display: "block", color: "#4E6079", fontSize: 15 }}>
+                    {item.tag} · {item.criterios}
+                  </small>
+                </div>
+                <span className="sala-numero" style={{ fontSize: 18, textAlign: "right" }}>
+                  {item.valorSubstituicao}
+                </span>
+                <span className="sala-numero" style={{ fontSize: 24, textAlign: "right" }}>{item.pontos}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
