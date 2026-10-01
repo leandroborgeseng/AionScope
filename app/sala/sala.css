@@ -1,0 +1,163 @@
+@import "../../docs/design/sala/tokens.css";
+
+.sala-viewport {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #0d1520;
+  display: grid;
+  place-items: center;
+}
+
+.sala-frame {
+  width: 1920px;
+  height: 1080px;
+  box-sizing: border-box;
+  background: var(--fundo);
+  color: var(--texto);
+  font-family: var(--fonte);
+  --fonte-num: var(--font-jetbrains), ui-monospace, monospace;
+  position: relative;
+  display: grid;
+  grid-template-rows: 6px 100px minmax(0, 1fr) 56px;
+  transform-origin: center center;
+}
+
+.sala-faixa { background: var(--faixa-topo); }
+
+.sala-cabecalho {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 40px;
+  background: #fff;
+  border-bottom: 1px solid var(--borda);
+}
+
+.sala-cabecalho img { height: 46px; width: auto; }
+.sala-divisor { width: 1px; height: 48px; background: var(--borda); }
+.sala-rotulo { font-size: 16px; letter-spacing: 3px; color: var(--aion-azul); font-weight: 600; }
+.sala-titulo { font-size: 34px; font-weight: 600; line-height: 1.1; }
+.sala-pills { display: flex; gap: 6px; margin-left: auto; }
+.sala-pill {
+  font-size: 17px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--pill);
+  color: var(--texto-2);
+  text-decoration: none;
+}
+.sala-pill.ativa { background: var(--aion-azul); color: #fff; }
+.sala-relogio {
+  font-family: var(--fonte-num);
+  font-size: 52px;
+  font-weight: 700;
+  color: var(--aion-azul);
+  margin-left: 12px;
+}
+
+.sala-miolo { min-height: 0; padding: 20px 40px; display: flex; flex-direction: column; gap: 16px; }
+.sala-grid-2 { display: grid; grid-template-columns: 520px minmax(0, 1fr); gap: 22px; min-height: 0; flex: 1; }
+.sala-coluna { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.sala-cartao {
+  background: var(--cartao);
+  border: 1px solid var(--borda);
+  border-radius: 16px;
+  padding: 14px 20px;
+}
+.sala-rotulo-bloco {
+  font-size: 19px;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+  color: var(--aion-azul);
+}
+.sala-numero {
+  font-family: var(--fonte-num);
+  font-weight: 700;
+  line-height: 1.05;
+}
+.sala-contadores { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sala-contador { border-radius: 16px; padding: 12px 18px; display: flex; flex-direction: column; }
+.sala-contador span:last-child { font-size: 72px; }
+.sala-fila { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.sala-linha {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr) 150px auto;
+  gap: 12px;
+  align-items: center;
+  background: #fff;
+  border: 1px solid var(--borda);
+  border-radius: 14px;
+  padding: 8px 14px;
+  min-height: 72px;
+}
+.sala-linha strong { font-size: 26px; font-weight: 600; }
+.sala-linha small { display: block; color: var(--texto-2); font-size: 18px; }
+.sala-selo {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  width: fit-content;
+}
+.sala-rodape {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  padding: 0 40px;
+  color: var(--texto-2);
+  font-size: 18px;
+  border-top: 1px solid var(--borda);
+  background: #fff;
+}
+.sala-rodape b { font-family: var(--fonte-num); color: var(--texto); font-size: 22px; }
+.sala-aviso {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: var(--aviso-fundo);
+  border: 1px solid var(--aviso-borda);
+  color: var(--aviso-texto);
+  font-size: 20px;
+  font-weight: 500;
+}
+.sala-vazio {
+  color: var(--texto-2);
+  font-size: 22px;
+  padding: 12px 0;
+}
+.sala-etapas { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.sala-etapa { background: #fff; border: 1px solid var(--borda); border-radius: 16px; padding: 12px; min-height: 180px; }
+.sala-etapa .q { font-size: 48px; }
+.sala-lista { display: flex; flex-direction: column; gap: 8px; }
+.sala-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.sala-cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.sala-spark { display: flex; align-items: flex-end; gap: 6px; height: 54px; }
+.sala-spark i {
+  display: block;
+  flex: 1;
+  background: var(--aion-azul-claro);
+  border-radius: 4px 4px 0 0;
+  min-height: 4px;
+}
+.sala-desatualizado {
+  background: var(--aviso-fundo);
+  color: var(--aviso-texto);
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+}
+.tag-extra {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  margin-right: 6px;
+  background: var(--pill);
+  color: var(--texto-2);
+}

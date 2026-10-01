@@ -76,7 +76,7 @@ export default function DisponibilidadePage() {
         {!enabled ? (
           <PendingBanner
             title="Informe o ID numérico da empresa"
-            detail="O endpoint disponibilidade_equipamento_mes_a_mes exige empresasId. O teste com ID 1 retornou outro parque (não HSJ). Coloque o ID correto do São Joaquim em 'IDs empresa' ou em PBI_DEFAULT_EMPRESA_IDS."
+            detail="O endpoint disponibilidade_equipamento_mes_a_mes exige empresasId. O São Joaquim é o id 2. O id 1 é outro parque."
           />
         ) : null}
       </div>

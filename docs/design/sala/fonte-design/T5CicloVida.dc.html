@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>TV 6 — Ciclo de vida</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 1920px; height: 1080px; box-sizing: border-box; background: #F3F6FA; color: #12233A; font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; display: grid; grid-template-rows: 6px 100px minmax(0, 1fr)">
+<div style="background: linear-gradient(90deg, #97C752, #2C66AB)"></div>
+<header style="display: flex; align-items: center; gap: 24px; padding: 0 40px; background: #FFFFFF; border-bottom: 1px solid #DCE4EE">
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="width: 42px; height: 42px; border-radius: 50%; border: 4px solid #97C752; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #2C66AB; font-size: 18px">A</div>
+<span style="font-size: 34px; font-weight: 700; color: #2C66AB">AION</span>
+</div>
+<div style="width: 1px; height: 48px; background: #DCE4EE"></div>
+<div style="display: flex; flex-direction: column">
+<span style="font-size: 16px; letter-spacing: 3px; color: #2C66AB; font-weight: 600">P03 · P04 · PARQUE TECNOLÓGICO</span>
+<span style="font-size: 34px; font-weight: 600; line-height: 1.1">Ciclo de vida</span>
+</div>
+<div style="flex-grow: 1"></div>
+<nav aria-label="Telas em rotação" style="display: flex; gap: 6px">
+<sc-for list="{{telas}}" as="t" hint-placeholder-count="8">
+<span style="font-size: 17px; font-weight: 600; padding: 8px 14px; border-radius: 999px; background: {{t.fundo}}; color: {{t.cor}}">{{t.rotulo}}</span>
+</sc-for>
+</nav>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 52px; font-weight: 700; color: #2C66AB; margin-left: 12px">21:48</span>
+</header>
+<div style="display: grid; grid-template-rows: 190px minmax(0, 1fr); gap: 22px; padding: 22px 40px 26px; min-height: 0">
+
+<section style="display: grid; grid-template-columns: 1fr 44px 1fr 44px 1.2fr 44px 1fr 44px 1fr; align-items: stretch">
+<sc-for list="{{ciclo}}" as="c" hint-placeholder-count="9">
+<sc-if value="{{c.seta}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; align-items: center; justify-content: center">
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7A8CA6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+</div>
+</sc-if>
+<sc-if value="{{c.caixa}}" hint-placeholder-val="{{true}}">
+<div style="background: {{c.fundo}}; border: 2px solid {{c.borda}}; border-radius: 18px; padding: 18px 22px; display: flex; flex-direction: column; justify-content: space-between; color: {{c.corTexto}}">
+<span style="font-size: 17px; letter-spacing: 1.5px; font-weight: 700; color: {{c.corRotulo}}">{{c.proc}}</span>
+<span style="font-size: 25px; font-weight: 600">{{c.nome}}</span>
+<div style="display: flex; align-items: baseline; gap: 10px">
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 50px; font-weight: 700; line-height: 1; color: {{c.corNum}}">{{c.n}}</span>
+<span style="font-size: 18px; color: {{c.corDet}}">{{c.det}}</span>
+</div>
+</div>
+</sc-if>
+</sc-for>
+</section>
+
+<div style="display: grid; grid-template-columns: 500px minmax(0, 1fr) 440px; gap: 22px; min-height: 0">
+<section style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 18px; padding: 20px 26px; display: flex; flex-direction: column; gap: 14px">
+<span style="font-size: 26px; font-weight: 600">Idade do parque</span>
+<span style="font-size: 19px; color: #4E6079">2.935 eq. médicos · média 7,8 anos</span>
+<div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; align-items: end; flex-grow: 1; padding-top: 10px">
+<sc-for list="{{idade}}" as="b" hint-placeholder-count="5">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; justify-content: flex-end; height: 100%">
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 22px; font-weight: 700">{{b.n}}</span>
+<div style="width: 100%; height: {{b.h}}; border-radius: 6px 6px 2px 2px; background: {{b.cor}}"></div>
+<span style="font-size: 19px; color: #4E6079">{{b.faixa}}</span>
+</div>
+</sc-for>
+</div>
+<span style="font-size: 18px; color: #A8460A; font-weight: 500">laranja: faixa em que a maioria já passou da vida útil</span>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 18px; display: flex; flex-direction: column; overflow: hidden">
+<div style="display: flex; justify-content: space-between; align-items: baseline; padding: 16px 24px; border-bottom: 1px solid #DCE4EE">
+<span style="font-size: 26px; font-weight: 600">Fim de vida · candidatos a substituição</span>
+<span style="font-size: 19px; color: #4E6079">37 no parque</span>
+</div>
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 120px 100px 110px 120px; gap: 14px; padding: 10px 24px; font-size: 15px; letter-spacing: 1.2px; font-weight: 700; color: #4E6079; background: #F7F9FC; border-bottom: 1px solid #DCE4EE">
+<span>EQUIPAMENTO · SETOR</span><span style="text-align: right">IDADE / VIDA</span><span style="text-align: right">CORRET. 12M</span><span style="text-align: right">CUSTO/VALOR</span><span style="text-align: right">CRITÉRIOS</span>
+</div>
+<sc-for list="{{fim}}" as="f" hint-placeholder-count="6">
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 120px 100px 110px 120px; gap: 14px; align-items: center; padding: 0 24px; height: 72px; border-bottom: 1px solid #E6ECF3">
+<div style="display: flex; flex-direction: column; min-width: 0">
+<span style="font-size: 23px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{f.equip}}</span>
+<span style="font-size: 17px; color: #4E6079">{{f.setor}}</span>
+</div>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 22px; text-align: right; color: #A8460A; font-weight: 700">{{f.idade}}</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 22px; text-align: right">{{f.corr}}</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 22px; text-align: right">{{f.custo}}</span>
+<div style="display: flex; gap: 6px; justify-content: flex-end">
+<sc-for list="{{f.crit}}" as="k" hint-placeholder-count="4">
+<span style="width: 18px; height: 18px; border-radius: 50%; background: {{k}}"></span>
+</sc-for>
+</div>
+</div>
+</sc-for>
+<div style="padding: 12px 24px; font-size: 17px; color: #4E6079">critérios: idade ≥ vida útil · ≥ 4 corretivas/12m · reparo ≥ 50% do valor · sem peça/descontinuado</div>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 18px; display: flex; flex-direction: column; overflow: hidden">
+<div style="padding: 16px 24px; border-bottom: 1px solid #DCE4EE">
+<span style="font-size: 26px; font-weight: 600">Mais antigos em uso</span>
+</div>
+<sc-for list="{{antigos}}" as="a" hint-placeholder-count="7">
+<div style="display: grid; grid-template-columns: minmax(0, 1fr) 80px; gap: 12px; align-items: center; padding: 0 24px; height: 72px; border-bottom: 1px solid #E6ECF3">
+<div style="display: flex; flex-direction: column; min-width: 0">
+<span style="font-size: 22px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{a.equip}}</span>
+<span style="font-size: 17px; color: #4E6079">{{a.setor}} · {{a.ano}}</span>
+</div>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 28px; font-weight: 700; text-align: right">{{a.idade}}</span>
+</div>
+</sc-for>
+</section>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const ATIVA = 5;
+    const telas = ["Agora", "Fluxo OS", "Envelhecimento", "Compras", "Programadas", "Ciclo de vida", "Indicadores", "Processos"]
+      .map((rotulo, i) => ({ rotulo, fundo: i === ATIVA ? '#2C66AB' : '#EEF2F7', cor: i === ATIVA ? '#FFFFFF' : '#4E6079' }));
+    const box = (proc, nome, n, det, t) => {
+      const T = {
+        neutro: { fundo: '#FFFFFF', borda: '#DCE4EE', corRotulo: '#2C66AB', corNum: '#12233A', corTexto: '#12233A', corDet: '#4E6079' },
+        uso: { fundo: '#2C66AB', borda: '#2C66AB', corRotulo: '#DCE8F7', corNum: '#FFFFFF', corTexto: '#FFFFFF', corDet: '#DCE8F7' },
+        alerta: { fundo: '#FFF6EE', borda: '#F0BD8E', corRotulo: '#A8460A', corNum: '#A8460A', corTexto: '#12233A', corDet: '#4E6079' }
+      }[t];
+      return { caixa: true, seta: false, proc, nome, n, det, ...T };
+    };
+    const seta = { caixa: false, seta: true };
+    const uso = box('EM USO', 'Setores assistenciais', '2.935', 'liberados', 'uso');
+    uso.nome = 'Setores assistenciais';
+    const on = '#A8460A', off = '#E3EAF3';
+    const c = (a, b, d, e) => [a, b, d, e].map(x => x ? on : off);
+    return {
+      telas,
+      ciclo: [
+        box('P04 · AQUISIÇÃO', 'Especificação e compra', 3, '2 espec. · 1 cotação', 'neutro'), seta,
+        box('P03 · RECEBIMENTO', 'Verificação e liberação', 1, 'em verificação', 'neutro'), seta,
+        uso, seta,
+        box('FIM DE VIDA', 'Candidatos', 37, 'ver lista', 'alerta'), seta,
+        box('P03 · INSERVÍVEL', 'Laudo emitido', 4, 'aguardam baixa', 'neutro')
+      ],
+      idade: [
+        { faixa: '0–2a', n: 410, h: '84px', cor: '#2C66AB' },
+        { faixa: '3–5a', n: 690, h: '141px', cor: '#2C66AB' },
+        { faixa: '6–10a', n: 980, h: '200px', cor: '#2C66AB' },
+        { faixa: '11–15a', n: 560, h: '114px', cor: '#D9620F' },
+        { faixa: '15a +', n: 295, h: '60px', cor: '#D9620F' }
+      ],
+      fim: [
+        { equip: 'Monitor multiparâmetro · HSJ-00318', setor: 'UTI Adulto', idade: '14a/10a', corr: 7, custo: '62%', crit: c(1, 1, 1, 0) },
+        { equip: 'Incubadora neonatal · HSJ-00907', setor: 'UTI Infantil 8', idade: '13a/10a', corr: 6, custo: '55%', crit: c(1, 1, 1, 0) },
+        { equip: 'Desfibrilador · HSJ-00215', setor: 'Pronto Atendimento', idade: '15a/8a', corr: 3, custo: '70%', crit: c(1, 0, 1, 1) },
+        { equip: 'Bisturi elétrico · HSJ-01174', setor: 'Centro Cirúrgico 10A', idade: '12a/10a', corr: 5, custo: '48%', crit: c(1, 1, 0, 1) },
+        { equip: 'Ventilador pulmonar · HSJ-00521', setor: 'UTI Adulto', idade: '11a/10a', corr: 4, custo: '31%', crit: c(1, 1, 0, 0) },
+        { equip: 'Mesa cirúrgica · HSJ-00102', setor: 'Centro Cirúrgico 10A', idade: '18a/15a', corr: 4, custo: '22%', crit: c(1, 1, 0, 0) }
+      ],
+      antigos: [
+        { equip: 'Foco cirúrgico', setor: 'C. Cirúrgico 10A', ano: '1998', idade: '28a' },
+        { equip: 'Mesa cirúrgica', setor: 'C. Cirúrgico 10A', ano: '2008', idade: '18a' },
+        { equip: 'Raio-X móvel', setor: 'Imagem', ano: '2009', idade: '17a' },
+        { equip: 'Desfibrilador', setor: 'Pronto Atendimento', ano: '2011', idade: '15a' },
+        { equip: 'Eletrocardiógrafo', setor: 'Pronto Atendimento', ano: '2011', idade: '15a' },
+        { equip: 'Berço aquecido', setor: 'Maternidade', ano: '2012', idade: '14a' }
+      ]
+    };
+
+  }
+}
+</script>
+</body>
+</html>

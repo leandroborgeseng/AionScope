@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Sala operacional — TV em rotação</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #F3F6FA; font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif">
+<sc-if value="{{s0}}" hint-placeholder-val="{{true}}"><dc-import name="T1Agora" hint-size="1920px,1080px"></dc-import></sc-if>
+<sc-if value="{{s1}}" hint-placeholder-val="{{false}}"><dc-import name="T2Fluxo" hint-size="1920px,1080px"></dc-import></sc-if>
+<sc-if value="{{s2}}" hint-placeholder-val="{{false}}"><dc-import name="T3Envelhecimento" hint-size="1920px,1080px"></dc-import></sc-if>
+<sc-if value="{{s3}}" hint-placeholder-val="{{false}}"><dc-import name="T8Compras" hint-size="1920px,1080px"></dc-import></sc-if>
+<sc-if value="{{s4}}" hint-placeholder-val="{{false}}"><dc-import name="T4Programadas" hint-size="1920px,1080px"></dc-import></sc-if>
+<sc-if value="{{s5}}" hint-placeholder-val="{{false}}"><dc-import name="T5CicloVida" hint-size="1920px,1080px"></dc-import></sc-if>
+<sc-if value="{{s6}}" hint-placeholder-val="{{false}}"><dc-import name="T6Indicadores" hint-size="1920px,1080px"></dc-import></sc-if>
+<sc-if value="{{s7}}" hint-placeholder-val="{{false}}"><dc-import name="T7Processos" hint-size="1920px,1080px"></dc-import></sc-if>
+
+<div style="position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: #DCE4EE">
+<div style="height: 8px; background: #2C66AB; width: {{progresso}}"></div>
+</div>
+<div style="position: absolute; right: 24px; bottom: 20px; display: flex; align-items: center; gap: 10px; padding: 6px 8px 6px 16px; border-radius: 999px; background: rgba(255,255,255,0.92); border: 1px solid #DCE4EE; font-size: 17px; color: #4E6079">
+<span>próxima: <strong style="color: #12233A">{{proxima}}</strong> em <span style="font-family: 'JetBrains Mono', ui-monospace, monospace; color: #12233A">{{restante}}</span></span>
+<button type="button" aria-label="{{rotuloPausa}}" onClick="{{alternar}}" style="width: 44px; height: 44px; border-radius: 50%; border: 1px solid #DCE4EE; background: #FFFFFF; color: #2C66AB; display: flex; align-items: center; justify-content: center; cursor: pointer">
+<sc-if value="{{pausado}}" hint-placeholder-val="{{false}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg></sc-if>
+<sc-if value="{{rodando}}" hint-placeholder-val="{{true}}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg></sc-if>
+</button>
+<button type="button" aria-label="Próxima tela" onClick="{{avancar}}" style="width: 44px; height: 44px; border-radius: 50%; border: 1px solid #DCE4EE; background: #FFFFFF; color: #2C66AB; display: flex; align-items: center; justify-content: center; cursor: pointer">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>
+</button>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"segundos":{"editor":"int","default":30,"min":5,"max":300,"unit":"s"},"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { i: 0, t: 0, pausado: false };
+  }
+  componentDidMount() {
+    this.timer = setInterval(() => {
+      if (this.state.pausado) return;
+      const dur = this.props.segundos ?? 30;
+      const t = this.state.t + 1;
+      if (t >= dur) this.setState({ i: (this.state.i + 1) % 8, t: 0 });
+      else this.setState({ t });
+    }, 1000);
+  }
+  componentWillUnmount() { clearInterval(this.timer); }
+  renderVals() {
+    const nomes = ['Agora', 'Fluxo OS', 'Envelhecimento', 'Compras', 'Programadas', 'Ciclo de vida', 'Indicadores', 'Processos'];
+    const dur = this.props.segundos ?? 30;
+    const { i, t, pausado } = this.state;
+    const r = dur - t;
+    const flags = {};
+    for (let k = 0; k < 8; k++) flags['s' + k] = k === i;
+    return {
+      ...flags,
+      progresso: ((t / dur) * 100).toFixed(1) + '%',
+      proxima: nomes[(i + 1) % 8],
+      restante: Math.floor(r / 60) + ':' + String(r % 60).padStart(2, '0'),
+      pausado, rodando: !pausado,
+      rotuloPausa: pausado ? 'Retomar rotação' : 'Pausar rotação',
+      alternar: () => this.setState({ pausado: !this.state.pausado }),
+      avancar: () => this.setState({ i: (this.state.i + 1) % 8, t: 0 })
+    };
+  }
+}
+</script>
+</body>
+</html>

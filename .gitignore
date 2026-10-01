@@ -34,6 +34,9 @@ yarn-error.log*
 .env.local
 .env.*.local
 
+# amostras reais das APIs (Fase 1) — nunca versionar
+/docs/sala/api-samples/
+
 # vercel
 .vercel
 
