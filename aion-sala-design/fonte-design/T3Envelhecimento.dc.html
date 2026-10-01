@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>TV 3 — Envelhecimento</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 1920px; height: 1080px; box-sizing: border-box; background: #F3F6FA; color: #12233A; font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; display: grid; grid-template-rows: 6px 100px minmax(0, 1fr)">
+<div style="background: linear-gradient(90deg, #97C752, #2C66AB)"></div>
+<header style="display: flex; align-items: center; gap: 24px; padding: 0 40px; background: #FFFFFF; border-bottom: 1px solid #DCE4EE">
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="width: 42px; height: 42px; border-radius: 50%; border: 4px solid #97C752; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #2C66AB; font-size: 18px">A</div>
+<span style="font-size: 34px; font-weight: 700; color: #2C66AB">AION</span>
+</div>
+<div style="width: 1px; height: 48px; background: #DCE4EE"></div>
+<div style="display: flex; flex-direction: column">
+<span style="font-size: 16px; letter-spacing: 3px; color: #2C66AB; font-weight: 600">OS ABERTAS POR IDADE</span>
+<span style="font-size: 34px; font-weight: 600; line-height: 1.1">Envelhecimento</span>
+</div>
+<div style="flex-grow: 1"></div>
+<nav aria-label="Telas em rotação" style="display: flex; gap: 6px">
+<sc-for list="{{telas}}" as="t" hint-placeholder-count="8">
+<span style="font-size: 17px; font-weight: 600; padding: 8px 14px; border-radius: 999px; background: {{t.fundo}}; color: {{t.cor}}">{{t.rotulo}}</span>
+</sc-for>
+</nav>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 52px; font-weight: 700; color: #2C66AB; margin-left: 12px">21:48</span>
+</header>
+<div style="display: grid; grid-template-rows: minmax(0, 1fr) 150px; gap: 22px; padding: 22px 40px 26px; min-height: 0">
+<div style="display: grid; grid-template-columns: 760px minmax(0, 1fr); gap: 22px; min-height: 0">
+
+<section style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 18px; padding: 22px 28px; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<span style="font-size: 28px; font-weight: 600">24 OS abertas por idade</span>
+<span style="font-size: 19px; color: #4E6079">desde a abertura · cor = onde a OS está parada</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px 20px; font-size: 18px; color: #4E6079">
+<sc-for list="{{legenda}}" as="l" hint-placeholder-count="5">
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 16px; height: 16px; border-radius: 4px; background: {{l.cor}}"></span>{{l.nome}}</span>
+</sc-for>
+</div>
+<div style="display: flex; flex-direction: column; gap: 20px; flex-grow: 1; justify-content: center">
+<sc-for list="{{faixas}}" as="f" hint-placeholder-count="5">
+<div style="display: grid; grid-template-columns: 120px minmax(0, 1fr) 60px; gap: 16px; align-items: center">
+<span style="font-size: 23px; font-weight: 600; color: {{f.corRotulo}}">{{f.rotulo}}</span>
+<div style="display: flex; gap: 3px; height: 52px">
+<sc-for list="{{f.seg}}" as="s" hint-placeholder-count="3">
+<span style="width: {{s.w}}; background: {{s.cor}}; border-radius: 4px"></span>
+</sc-for>
+</div>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 32px; font-weight: 700; text-align: right">{{f.n}}</span>
+</div>
+</sc-for>
+</div>
+</section>
+
+<section style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 18px; display: flex; flex-direction: column; overflow: hidden">
+<div style="display: flex; justify-content: space-between; align-items: baseline; padding: 18px 26px; border-bottom: 1px solid #DCE4EE">
+<span style="font-size: 28px; font-weight: 600">As mais antigas</span>
+<span style="font-size: 19px; color: #4E6079">cobrar quem está com a pendência</span>
+</div>
+<div style="display: grid; grid-template-columns: 150px minmax(0, 1fr) 100px 230px 150px; gap: 16px; padding: 10px 26px; font-size: 16px; letter-spacing: 1.5px; font-weight: 700; color: #4E6079; background: #F7F9FC; border-bottom: 1px solid #DCE4EE">
+<span>OS</span><span>EQUIPAMENTO · SETOR</span><span style="text-align: right">IDADE</span><span>PARADA EM</span><span style="text-align: right">SEM MOVIM.</span>
+</div>
+<sc-for list="{{antigas}}" as="a" hint-placeholder-count="7">
+<div style="display: grid; grid-template-columns: 150px minmax(0, 1fr) 100px 230px 150px; gap: 16px; align-items: center; padding: 0 26px; height: 74px; border-bottom: 1px solid #E6ECF3">
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 21px">{{a.os}}</span>
+<div style="display: flex; flex-direction: column; min-width: 0">
+<span style="font-size: 25px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{a.equip}}</span>
+<span style="font-size: 18px; color: #4E6079">{{a.setor}}</span>
+</div>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 28px; font-weight: 700; text-align: right">{{a.idade}}</span>
+<span style="display: flex; align-items: center; gap: 10px; font-size: 20px"><span style="width: 14px; height: 14px; border-radius: 4px; background: {{a.cor}}; flex-shrink: 0"></span>{{a.onde}}</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 24px; font-weight: 700; text-align: right; color: {{a.corMov}}">{{a.mov}}</span>
+</div>
+</sc-for>
+</section>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px">
+<sc-for list="{{kpis}}" as="k" hint-placeholder-count="4">
+<div style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 16px; padding: 18px 24px; display: flex; flex-direction: column; justify-content: center; gap: 4px">
+<span style="font-size: 19px; color: #4E6079">{{k.rotulo}}</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 46px; font-weight: 700; color: {{k.cor}}; line-height: 1.1">{{k.valor}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const ATIVA = 2;
+    const telas = ["Agora", "Fluxo OS", "Envelhecimento", "Compras", "Programadas", "Ciclo de vida", "Indicadores", "Processos"]
+      .map((rotulo, i) => ({ rotulo, fundo: i === ATIVA ? '#2C66AB' : '#EEF2F7', cor: i === ATIVA ? '#FFFFFF' : '#4E6079' }));
+    const K = { sem: '#E8B10E', at: '#2C66AB', peca: '#D9620F', ter: '#7A8CA6', teste: '#3E7A1E' };
+    const u = 100 / 9;
+    const faixa = (rotulo, corRotulo, partes) => {
+      const seg = partes.filter(p => p[1] > 0).map(([k, n]) => ({ cor: K[k], w: (n * u).toFixed(2) + '%' }));
+      return { rotulo, corRotulo, seg, n: partes.reduce((a, p) => a + p[1], 0) };
+    };
+    return {
+      telas,
+      legenda: [
+        { nome: 'sem 1º atendimento', cor: K.sem }, { nome: 'em atendimento', cor: K.at },
+        { nome: 'aguarda peça/compra', cor: K.peca }, { nome: 'externo/contrato', cor: K.ter }, { nome: 'teste', cor: K.teste }
+      ],
+      faixas: [
+        faixa('até 2d', '#12233A', [['sem', 4], ['at', 4], ['teste', 1]]),
+        faixa('3–7d', '#12233A', [['sem', 1], ['at', 4], ['peca', 1]]),
+        faixa('8–15d', '#8A5A00', [['at', 1], ['peca', 1], ['ter', 1]]),
+        faixa('16–30d', '#A8460A', [['peca', 2], ['ter', 1]]),
+        faixa('&gt; 30d'.replace('&gt;', '>'), '#A3123A', [['ter', 3]])
+      ],
+      antigas: [
+        { os: '202608650', equip: 'Mesa cirúrgica', setor: 'Centro Cirúrgico 10A', idade: '41d', onde: 'contrato', cor: K.ter, mov: '12d', corMov: '#A3123A' },
+        { os: '202608702', equip: 'Desfibrilador', setor: 'Pronto Atendimento', idade: '38d', onde: 'reparo externo', cor: K.ter, mov: '9d', corMov: '#A3123A' },
+        { os: '202608744', equip: 'Eletrocardiógrafo', setor: 'Pronto Atendimento', idade: '33d', onde: 'reparo externo', cor: K.ter, mov: '3d', corMov: '#12233A' },
+        { os: '202608831', equip: 'Incubadora neonatal', setor: 'UTI Infantil 8', idade: '27d', onde: 'aguarda compra', cor: K.peca, mov: '8d', corMov: '#A3123A' },
+        { os: '202609033', equip: 'Foco cirúrgico', setor: 'Centro Cirúrgico 10A', idade: '22d', onde: 'aguarda peça', cor: K.peca, mov: '5d', corMov: '#12233A' },
+        { os: '202609120', equip: 'Tomógrafo', setor: 'Imagem', idade: '19d', onde: 'contrato', cor: K.ter, mov: '2d', corMov: '#12233A' },
+        { os: '202609187', equip: 'Aspirador cirúrgico', setor: 'Centro Cirúrgico 10A', idade: '18d', onde: 'aguarda peça', cor: K.peca, mov: '1d', corMov: '#12233A' }
+      ],
+      kpis: [
+        { rotulo: 'Idade média das abertas', valor: '9d 6h', cor: '#12233A' },
+        { rotulo: 'Aguardando terceiros', valor: '9 de 24', cor: '#A8460A' },
+        { rotulo: 'Sem movimentação > 7 dias', valor: '4', cor: '#A3123A' },
+        { rotulo: 'Pendência sem motivo registrado', valor: '2', cor: '#8A5A00' }
+      ]
+    };
+
+  }
+}
+</script>
+</body>
+</html>
