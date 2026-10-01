@@ -117,7 +117,57 @@ CREATE TABLE IF NOT EXISTS sala_feriado (
   nome TEXT NOT NULL,
   created_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS compra (
+  id TEXT PRIMARY KEY,
+  os TEXT,
+  tag TEXT,
+  equipamento TEXT,
+  item TEXT,
+  setor TEXT,
+  solicitante_caixa TEXT,
+  enviado_em TEXT,
+  sc_numero TEXT,
+  sc_em TEXT,
+  entregue_em TEXT,
+  origem_entrega TEXT,
+  situacao TEXT NOT NULL,
+  conversation_id TEXT,
+  revisado_por TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_compra_situacao ON compra (situacao);
+CREATE INDEX IF NOT EXISTS idx_compra_conversation ON compra (conversation_id);
+CREATE INDEX IF NOT EXISTS idx_compra_os ON compra (os);
+
+CREATE TABLE IF NOT EXISTS compra_email (
+  id TEXT PRIMARY KEY,
+  compra_id TEXT NOT NULL,
+  message_id TEXT NOT NULL UNIQUE,
+  direcao TEXT NOT NULL,
+  data TEXT NOT NULL,
+  de TEXT,
+  para TEXT,
+  assunto TEXT,
+  trecho TEXT,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (compra_id) REFERENCES compra (id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_compra_email_compra ON compra_email (compra_id);
+
+CREATE TABLE IF NOT EXISTS graph_delta (
+  id TEXT PRIMARY KEY,
+  caixa TEXT NOT NULL,
+  pasta TEXT NOT NULL,
+  delta_link TEXT,
+  atualizado_em TEXT NOT NULL,
+  UNIQUE (caixa, pasta)
+);
 `;
 
 export const MIGRATION_NAME = "001_init";
 export const MIGRATION_SALA_MANUAL = "002_sala_manual";
+export const MIGRATION_COMPRAS_EMAIL = "003_compras_email";

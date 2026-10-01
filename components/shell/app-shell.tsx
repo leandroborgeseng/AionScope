@@ -5,14 +5,11 @@ import { Menu, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { AionLogo } from "@/components/brand/aion-logo";
-import { GlobalFilters } from "@/components/filters/global-filters";
-import { MedicalScopeBar } from "@/components/filters/medical-scope";
 import { NavMenu } from "@/components/shell/nav-menu";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const showGlobalChrome = pathname.startsWith("/cronograma");
   const isSalaTv =
     pathname === "/sala" ||
     /^\/sala\/(agora|fluxo|envelhecimento|compras|programadas|ciclo-de-vida|indicadores|processos)(\/|$)/.test(
@@ -55,24 +52,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="lg:pl-64">
-        <header
-          className={cn(
-            "sticky top-0 z-30 border-b border-aion-line bg-white/95 backdrop-blur",
-            !showGlobalChrome && "lg:hidden",
-          )}
-        >
-          <div className="flex items-center gap-3 px-4 py-3 lg:hidden">
+        <header className="sticky top-0 z-30 border-b border-aion-line bg-white/95 backdrop-blur lg:hidden">
+          <div className="flex items-center gap-3 px-4 py-3">
             <button onClick={() => setOpen(true)} aria-label="Abrir menu">
               <Menu className="h-5 w-5" />
             </button>
             <AionLogo imgClassName="h-8" />
           </div>
-          {showGlobalChrome ? (
-            <>
-              <GlobalFilters />
-              <MedicalScopeBar />
-            </>
-          ) : null}
         </header>
         <main className="p-4 lg:p-6">{children}</main>
       </div>

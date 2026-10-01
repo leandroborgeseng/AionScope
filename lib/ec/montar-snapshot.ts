@@ -1,4 +1,6 @@
 import { addMonths, format } from "date-fns";
+import { resumoComprasTv, sincronizarCompras } from "@/lib/compras/sync";
+import { m365Configurado } from "@/lib/compras/parse-email";
 import { listarRegistrosSala } from "@/lib/db/sala-registros";
 import { fetchPbi } from "@/lib/pbi/client";
 import { nowInSaoPaulo, parsePbiDate } from "@/lib/pbi/dates";
@@ -429,7 +431,13 @@ export function montarSnapshotDeDados(
     },
     { id: "tpm", fonte: "sem-dados", erro: "A API de TPM responde 404." },
     { id: "plano", fonte: "sem-dados", erro: "ProximaRealizacao é um código e DataDaUltima vem vazia." },
-    { id: "compras", fonte: "sem-dados", erro: "Os pedidos de e-mail ainda não são lidos." },
+    {
+      id: "compras",
+      fonte: m365Configurado() ? "api" : "sem-dados",
+      erro: m365Configurado()
+        ? undefined
+        : "Configure M365_TENANT_ID / CLIENT_ID / CLIENT_SECRET (docs/sala/m365-setup.md).",
+    },
     { id: "mao-de-obra", fonte: "sem-dados", erro: "A API não traz o lançamento de mão de obra." },
     { id: "manuais", fonte: "manual" },
   ];
@@ -516,10 +524,28 @@ export function montarSnapshotDeDados(
       semMovimentoMais7: null,
       pendenciaSemMotivo: demandaAberta.filter((item) => semAcento(item.os.SituacaoDaOS) === "PENDENTE" && !texto(item.os.Pendencia)).length,
     },
-    compras: {
-      aviso: "Pedidos de compra vêm do e-mail da AION. O conector ainda não está ligado, então esta tela não lista pedidos.",
-      pedidos: [],
-    },
+    compras: (() => {
+      const resumo = resumoComprasTv(agora);
+      return {
+        aviso: resumo.configurado
+          ? resumo.pedidos.length
+            ? ""
+            : "Conector M365 ligado. Ainda não há pedidos filtrados no SQLite — rode POST /api/sala/compras ou scripts/compras-sync.ts."
+          : "Pedidos vêm do Outlook AION (Graph). Enquanto o app Entra não estiver configurado, a tela mostra o funil vazio. Guia: docs/sala/m365-setup.md.",
+        configurado: resumo.configurado,
+        aguardaSc: resumo.aguardaSc,
+        aguardaScMaisAntigo: resumo.aguardaScMaisAntigo,
+        aguardaEntrega: resumo.aguardaEntrega,
+        aguardaEntregaMaisAntiga: resumo.aguardaEntregaMaisAntiga,
+        entreguesMes: resumo.entreguesMes,
+        mediaEmailSc: resumo.mediaEmailSc,
+        mediaScEntrega: resumo.mediaScEntrega,
+        mediaPontaAPonta: resumo.mediaPontaAPonta,
+        percentualComOs: resumo.percentualComOs,
+        semOs: resumo.semOs,
+        pedidos: resumo.pedidos,
+      };
+    })(),
     programadas: {
       aviso: "O cronograma não traz a data do plano. ProximaRealizacao é um código e DataDaUltima vem vazia. Cumprimento e laudo ficam sem número. Impedimentos vêm do registro manual.",
       impedimentos,
@@ -658,6 +684,13 @@ export function invalidarCacheSnapshot() {
 
 export async function carregarSnapshot(): Promise<SalaSnapshot> {
   if (cacheSnapshot.valor && cacheSnapshot.expira > Date.now()) return cacheSnapshot.valor;
+  if (m365Configurado()) {
+    try {
+      await sincronizarCompras();
+    } catch {
+      // Sync não derruba o snapshot da TV.
+    }
+  }
   const agora = nowInSaoPaulo();
   const base = filtros(agora);
   const inicioMes = format(new Date(agora.getFullYear(), agora.getMonth(), 1), "yyyy-MM-dd");

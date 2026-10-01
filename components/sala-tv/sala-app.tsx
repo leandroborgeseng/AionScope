@@ -424,11 +424,154 @@ function TelaProcessos({ dados }: { dados: SalaSnapshot }) {
   );
 }
 
+function TelaCompras({ dados }: { dados: SalaSnapshot }) {
+  const c = dados.compras;
+  const tomSituacao = (situacao: string) => {
+    if (situacao.includes("cobrar")) return "#A3123A";
+    if (situacao.includes("aguarda SC") || situacao.includes("vincular")) return "#8A5A00";
+    if (situacao.includes("entrega")) return "#2C66AB";
+    return "#3E7A1E";
+  };
+  return (
+    <div className="sala-coluna" style={{ flex: 1, minHeight: 0 }}>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 100px 1fr 100px 1fr 320px",
+          gap: 12,
+          alignItems: "stretch",
+        }}
+      >
+        <div className="sala-cartao" style={{ border: "2px solid #EBCB6A" }}>
+          <div className="sala-rotulo-bloco" style={{ color: "#8A5A00" }}>1 · E-MAIL ENVIADO</div>
+          <div style={{ fontSize: 22, fontWeight: 600 }}>Aguardando SC</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+            <span className="sala-numero" style={{ fontSize: 56, color: "#8A5A00" }}>{c.aguardaSc}</span>
+            <span style={{ color: "#4E6079", fontSize: 18 }}>
+              {c.aguardaScMaisAntigo != null ? `mais antigo ${c.aguardaScMaisAntigo}d` : "—"}
+            </span>
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}>
+          <span className="sala-numero" style={{ fontSize: 22 }}>{c.mediaEmailSc == null ? "—" : `${c.mediaEmailSc} d`}</span>
+          <span style={{ color: "#4E6079", fontSize: 14 }}>média</span>
+        </div>
+        <div className="sala-cartao" style={{ border: "2px solid #B9CBE3" }}>
+          <div className="sala-rotulo-bloco">2 · SC CRIADA</div>
+          <div style={{ fontSize: 22, fontWeight: 600 }}>Aguardando entrega</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+            <span className="sala-numero" style={{ fontSize: 56 }}>{c.aguardaEntrega}</span>
+            <span style={{ color: "#4E6079", fontSize: 18 }}>
+              {c.aguardaEntregaMaisAntiga != null ? `mais antiga ${c.aguardaEntregaMaisAntiga}d` : "—"}
+            </span>
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}>
+          <span className="sala-numero" style={{ fontSize: 22 }}>{c.mediaScEntrega == null ? "—" : `${c.mediaScEntrega} d`}</span>
+          <span style={{ color: "#4E6079", fontSize: 14 }}>média</span>
+        </div>
+        <div className="sala-cartao" style={{ border: "2px solid #A9CC8E" }}>
+          <div className="sala-rotulo-bloco" style={{ color: "#3E7A1E" }}>3 · ENTREGUE</div>
+          <div style={{ fontSize: 22, fontWeight: 600 }}>No mês</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+            <span className="sala-numero" style={{ fontSize: 56, color: "#3E7A1E" }}>{c.entreguesMes}</span>
+            <span style={{ color: "#4E6079", fontSize: 18 }}>
+              {c.mediaPontaAPonta == null ? "—" : `ponta a ponta ${c.mediaPontaAPonta} d`}
+            </span>
+          </div>
+        </div>
+        <div className="sala-cartao" style={{ background: "#2C66AB", color: "#fff", border: "none" }}>
+          <div className="sala-rotulo-bloco" style={{ color: "#DCE8F7" }}>PADRONIZAÇÃO</div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
+            <span className="sala-numero" style={{ fontSize: 56 }}>
+              {c.percentualComOs == null ? "—" : `${c.percentualComOs}%`}
+            </span>
+            <span style={{ color: "#DCE8F7", fontSize: 18 }}>com nº de OS</span>
+          </div>
+          <div style={{ color: "#DCE8F7", fontSize: 18 }}>{c.semOs} pedido(s) sem OS</div>
+        </div>
+      </div>
+
+      <div className="sala-cartao" style={{ flex: 1, overflow: "hidden", marginTop: 8 }}>
+        <div className="sala-rotulo-bloco">PEDIDOS EM ABERTO · {c.pedidos.length}</div>
+        {c.aviso ? <p className="sala-vazio">{c.aviso}</p> : null}
+        {c.pedidos.length === 0 && !c.aviso ? (
+          <p className="sala-vazio">Nenhum pedido em aberto.</p>
+        ) : null}
+        {c.pedidos.length > 0 ? (
+          <div style={{ marginTop: 8, overflow: "auto" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "130px minmax(0,1.4fr) 200px 160px 160px 80px 180px",
+                gap: 12,
+                padding: "8px 0",
+                fontSize: 14,
+                fontWeight: 700,
+                letterSpacing: 1,
+                color: "#4E6079",
+                borderBottom: "1px solid #DCE4EE",
+              }}
+            >
+              <span>OS</span>
+              <span>EQUIPAMENTO · ITEM</span>
+              <span>SETOR</span>
+              <span>E-MAIL</span>
+              <span>SC</span>
+              <span style={{ textAlign: "right" }}>PARADO</span>
+              <span style={{ textAlign: "right" }}>SITUAÇÃO</span>
+            </div>
+            {c.pedidos.map((pedido) => (
+              <div
+                key={`${pedido.os}-${pedido.enviadoEm}-${pedido.item}`}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "130px minmax(0,1.4fr) 200px 160px 160px 80px 180px",
+                  gap: 12,
+                  alignItems: "center",
+                  padding: "10px 0",
+                  borderBottom: "1px solid #E6ECF3",
+                  background: pedido.situacao.includes("cobrar") ? "#FDF1F4" : "transparent",
+                }}
+              >
+                <span className="sala-numero" style={{ fontSize: 20 }}>{pedido.os}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 20, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {pedido.equipamento}
+                  </div>
+                  <div style={{ fontSize: 16, color: "#4E6079", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {pedido.item}
+                  </div>
+                </div>
+                <span style={{ fontSize: 18, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pedido.setor}</span>
+                <div>
+                  <div className="sala-numero" style={{ fontSize: 18 }}>{pedido.enviadoEm}</div>
+                  <div style={{ fontSize: 14, color: "#4E6079" }}>{pedido.solicitante}</div>
+                </div>
+                <div>
+                  <div className="sala-numero" style={{ fontSize: 18 }}>{pedido.sc}</div>
+                  <div style={{ fontSize: 14, color: "#4E6079" }}>{pedido.scEm}</div>
+                </div>
+                <span className="sala-numero" style={{ fontSize: 22, textAlign: "right", color: tomSituacao(pedido.situacao) }}>
+                  {pedido.paradoDias}d
+                </span>
+                <span style={{ fontSize: 17, fontWeight: 700, textAlign: "right", color: tomSituacao(pedido.situacao) }}>
+                  {pedido.situacao}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
 function Conteudo({ tela, dados, destaque }: { tela: TelaSala; dados: SalaSnapshot; destaque: string | null }) {
   if (tela === "agora") return <TelaAgora dados={dados} destaque={destaque} />;
   if (tela === "fluxo") return <TelaFluxo dados={dados} />;
   if (tela === "envelhecimento") return <TelaEnvelhecimento dados={dados} />;
-  if (tela === "compras") return <TelaAviso titulo="COMPRAS" texto={dados.compras.aviso} />;
+  if (tela === "compras") return <TelaCompras dados={dados} />;
   if (tela === "programadas") return <TelaProgramadas dados={dados} />;
   if (tela === "ciclo-de-vida") return <TelaCiclo dados={dados} />;
   if (tela === "indicadores") return <TelaIndicadores dados={dados} />;

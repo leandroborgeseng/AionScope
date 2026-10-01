@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import { accessSync, constants, readFileSync } from "fs";
 import path from "path";
 import { resolveDatabasePath } from "./path";
-import { MIGRATION_NAME, MIGRATION_SALA_MANUAL, SCHEMA_SQL } from "./schema";
+import { MIGRATION_COMPRAS_EMAIL, MIGRATION_NAME, MIGRATION_SALA_MANUAL, SCHEMA_SQL } from "./schema";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -130,6 +130,16 @@ function migrate(db: Database.Database) {
   if (!salaManual) {
     db.prepare("INSERT INTO schema_migrations (id, name, applied_at) VALUES (2, ?, ?)").run(
       MIGRATION_SALA_MANUAL,
+      new Date().toISOString(),
+    );
+  }
+
+  const comprasEmail = db
+    .prepare("SELECT id FROM schema_migrations WHERE name = ?")
+    .get(MIGRATION_COMPRAS_EMAIL);
+  if (!comprasEmail) {
+    db.prepare("INSERT INTO schema_migrations (id, name, applied_at) VALUES (3, ?, ?)").run(
+      MIGRATION_COMPRAS_EMAIL,
       new Date().toISOString(),
     );
   }

@@ -57,7 +57,9 @@ Rota fullscreen `/sala` para TV 1920×1080. Snapshot em `/api/sala/snapshot` (ca
 
 Horário útil da EC: **seg–sex 07:00–17:00** (`EC_HORA_INICIO` / `EC_HORA_FIM`). Fora disso a TV mostra plantão da Manutenção. Feriados: `EC_FERIADOS` (lista `YYYY-MM-DD`) e/ou tabela em `/sala/registros`.
 
-No Coolify: volume persistente em `/data` + `DATABASE_PATH=/data/aionscope.sqlite`. Não redeployar só para testar a Sala até a branch estar estável; use preview/PR quando possível.
+Compras por e-mail (Outlook AION): configure o app no Entra (`docs/sala/m365-setup.md`) e as variáveis `M365_*` no Coolify. Enquanto isso, a tela `/sala/compras` fica no funil vazio.
+
+No Coolify: volume persistente em `/data` + `DATABASE_PATH=/data/aionscope.sqlite`.
 
 Quiosque típico: Chromium em kiosk apontando para `https://…/sala`, com `PBI_*` e `PBI_DEFAULT_EMPRESA_IDS=2` no ambiente.
 ## Endpoints pendentes

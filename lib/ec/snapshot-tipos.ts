@@ -84,7 +84,29 @@ export type SalaSnapshot = {
   };
   compras: {
     aviso: string;
-    pedidos: [];
+    configurado: boolean;
+    aguardaSc: number;
+    aguardaScMaisAntigo: number | null;
+    aguardaEntrega: number;
+    aguardaEntregaMaisAntiga: number | null;
+    entreguesMes: number;
+    mediaEmailSc: number | null;
+    mediaScEntrega: number | null;
+    mediaPontaAPonta: number | null;
+    percentualComOs: number | null;
+    semOs: number;
+    pedidos: Array<{
+      os: string;
+      equipamento: string;
+      item: string;
+      setor: string;
+      enviadoEm: string;
+      solicitante: string;
+      sc: string;
+      scEm: string;
+      paradoDias: number;
+      situacao: string;
+    }>;
   };
   programadas: {
     aviso: string;
