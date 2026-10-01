@@ -2,6 +2,8 @@
 
 Os pedidos saem de `leandro.borges@aion.eng.br` e `oficina@aion.eng.br` para `compras@hsj.com.br` / `manutencao@hsj.com.br`. A Sala lê **Itens Enviados** e a **Caixa de Entrada** dessas duas caixas via Microsoft Graph (`Mail.Read` de aplicação). Nenhum e-mail é enviado pelo app.
 
+**Sem M365 ainda:** o acompanhamento já funciona com cadastro/edição manual em `/sala/pedidos` (a TV em `/sala/compras` usa os mesmos registros). Este guia só liga a importação automática do Outlook.
+
 Padrão de assunto/corpo: `docs/design/sala/PADRAO_EMAIL_COMPRAS.md`.
 
 ## 1. Registrar o aplicativo no Entra ID
