@@ -582,24 +582,49 @@ export function montarSnapshotDeDados(
       entraramOcultas: Math.max(0, entraramHoje.length - FLUXO_LIMITE),
       equipeAviso: "A equipe por lançamento de mão de obra não vem na API.",
     },
-    envelhecimento: {
-      faixas,
-      maisAntigas: [...abertasDemanda]
+    envelhecimento: (() => {
+      const diasSemMovimento = (item: (typeof demandaAberta)[number]) => {
+        const ancora = item.atendimento ?? item.abertura;
+        return ancora ? diasDesde(ancora, agora) : null;
+      };
+      const maisAntigas = [...abertasDemanda]
         .sort((a, b) => (a.abertura?.getTime() ?? 0) - (b.abertura?.getTime() ?? 0))
         .slice(0, ANTIGAS_LIMITE)
-        .map((item) => ({
-          os: texto(item.os.OS) || "—",
-          equipamento: texto(item.os.Equipamento) || "—",
-          setor: texto(item.os.Setor) || "—",
-          idade: item.abertura ? `${diasDesde(item.abertura, agora)}d` : "—",
-          semMovimento: "—",
-          etapa: item.etapa,
-        })),
-      idadeMediaDias,
-      aguardandoTerceiros: demandaAberta.filter((item) => item.etapa === "Reparo externo" || item.etapa === "Contrato/assistência").length,
-      semMovimentoMais7: null,
-      pendenciaSemMotivo: demandaAberta.filter((item) => semAcento(item.os.SituacaoDaOS) === "PENDENTE" && !texto(item.os.Pendencia)).length,
-    },
+        .map((item) => {
+          const dias = diasSemMovimento(item);
+          return {
+            os: texto(item.os.OS) || "—",
+            equipamento: texto(item.os.Equipamento) || "—",
+            setor: texto(item.os.Setor) || "—",
+            idade: item.abertura ? `${diasDesde(item.abertura, agora)}d` : "—",
+            semMovimento:
+              dias == null
+                ? "—"
+                : item.atendimento
+                  ? `${dias}d desde 1º at.`
+                  : `${dias}d sem 1º at.`,
+            etapa: item.etapa,
+          };
+        });
+      const semMovimentoMais7 = abertasDemanda.filter((item) => {
+        const dias = diasSemMovimento(item);
+        return dias != null && dias > 7;
+      }).length;
+      return {
+        faixas,
+        maisAntigas,
+        idadeMediaDias,
+        aguardandoTerceiros: demandaAberta.filter(
+          (item) => item.etapa === "Reparo externo" || item.etapa === "Contrato/assistência",
+        ).length,
+        semMovimentoMais7,
+        pendenciaSemMotivo: demandaAberta.filter(
+          (item) => semAcento(item.os.SituacaoDaOS) === "PENDENTE" && !texto(item.os.Pendencia),
+        ).length,
+        proxy:
+          "Sem movimento ≈ dias desde DataDoAtendimento (ou desde Abertura se ainda sem 1º atendimento).",
+      };
+    })(),
     compras: (() => {
       const resumo = resumoComprasTv(agora);
       const aviso = resumo.pedidos.length

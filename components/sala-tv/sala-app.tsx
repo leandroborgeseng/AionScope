@@ -202,6 +202,7 @@ function TelaEnvelhecimento({ dados }: { dados: SalaSnapshot }) {
   const maximo = Math.max(1, ...dados.envelhecimento.faixas.map((faixa) => faixa.total));
   return (
     <div className="sala-coluna" style={{ flex: 1 }}>
+      <p style={{ margin: 0, fontSize: 16, color: "#4E6079" }}>{dados.envelhecimento.proxy}</p>
       <div className="sala-kpis">
         {[
           ["IDADE MÉDIA", dados.envelhecimento.idadeMediaDias == null ? "—" : `${dados.envelhecimento.idadeMediaDias}d`],
@@ -234,16 +235,20 @@ function TelaEnvelhecimento({ dados }: { dados: SalaSnapshot }) {
         ))}
       </div>
       <div className="sala-cartao" style={{ flex: 1 }}>
-        <div className="sala-rotulo-bloco">AS MAIS ANTIGAS · DIAS SEM MOVIMENTAÇÃO NÃO VÊM NA API</div>
+        <div className="sala-rotulo-bloco">AS MAIS ANTIGAS · PROXY DE MOVIMENTO</div>
         {dados.envelhecimento.maisAntigas.map((item) => (
           <div key={item.os} className="sala-linha" style={{ marginTop: 8 }}>
             <span className="sala-numero" style={{ fontSize: 22 }}>{item.os}</span>
-            <div>
-              <strong>{item.equipamento}</strong>
-              <small>{item.setor}</small>
+            <div style={{ minWidth: 0 }}>
+              <strong style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {item.equipamento}
+              </strong>
+              <small>{item.setor} · {item.etapa}</small>
             </div>
-            <small>{item.etapa}</small>
-            <span className="sala-numero" style={{ fontSize: 26 }}>{item.idade}</span>
+            <div style={{ textAlign: "right" }}>
+              <div className="sala-numero" style={{ fontSize: 26 }}>{item.idade}</div>
+              <small style={{ color: "#4E6079" }}>{item.semMovimento}</small>
+            </div>
           </div>
         ))}
       </div>

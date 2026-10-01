@@ -82,6 +82,7 @@ export type SalaSnapshot = {
     aguardandoTerceiros: number;
     semMovimentoMais7: number | null;
     pendenciaSemMotivo: number;
+    proxy: string;
   };
   compras: {
     aviso: string;
