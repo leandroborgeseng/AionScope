@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Sala operacional — Fontes de dados</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F3F6FA}
+a{color:#2C66AB}a:hover{color:#1D4A80}
+</style>
+</helmet>
+<div style="width: 1920px; height: 1560px; box-sizing: border-box; background: #F3F6FA; color: #12233A; font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; padding: 48px 56px; display: flex; flex-direction: column; gap: 28px">
+<div style="display: flex; justify-content: space-between; align-items: flex-end">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 18px; letter-spacing: 3px; color: #2C66AB; font-weight: 600">SALA OPERACIONAL · DE ONDE VEM CADA BLOCO</span>
+<span style="font-size: 44px; font-weight: 600">Fontes de dados por tela (Power BI · sjh.globalthings.net)</span>
+</div>
+<div style="display: flex; gap: 20px; font-size: 18px; color: #4E6079">
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 14px; height: 14px; border-radius: 50%; background: #3E7A1E"></span>já usado no protótipo</span>
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 14px; height: 14px; border-radius: 50%; background: #D99A00"></span>a confirmar no JSON</span>
+</div>
+</div>
+
+<div style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 18px; overflow: hidden; display: flex; flex-direction: column">
+<div style="display: grid; grid-template-columns: 300px 330px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 24px; padding: 16px 28px; background: #F7F9FC; border-bottom: 1px solid #DCE4EE; font-size: 16px; letter-spacing: 1.5px; font-weight: 700; color: #4E6079">
+<span>BLOCO NA TELA</span><span>API (variável)</span><span>CAMPOS USADOS</span><span>REGRA</span><span></span>
+</div>
+<sc-for list="{{linhas}}" as="l" hint-placeholder-count="9">
+<div style="display: grid; grid-template-columns: 300px 330px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 24px; padding: 16px 28px; border-bottom: 1px solid #E6ECF3; align-items: start">
+<span style="font-size: 22px; font-weight: 600">{{l.bloco}}</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 16px; color: #2C66AB; white-space: pre-line">{{l.api}}</span>
+<span style="font-size: 18px; color: #12233A; white-space: pre-line">{{l.campos}}</span>
+<span style="font-size: 18px; color: #4E6079">{{l.regra}}</span>
+<span style="width: 14px; height: 14px; border-radius: 50%; margin-top: 6px; background: {{l.status}}"></span>
+</div>
+</sc-for>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px">
+<div style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 16px; padding: 22px 26px; display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 18px; letter-spacing: 1.5px; font-weight: 700; color: #2C66AB">SITUAÇÃO DE UMA OS</span>
+<span style="font-size: 19px; line-height: 1.45">GRAVE: atraso &gt; 1× a meta de 1º at. · ATRASADA: passou o prazo · VENCE LOGO: restante ≤ 25% da meta · NO PRAZO: restante &gt; 25%. Meta por criticidade, horas úteis 7h–17h seg–sex (mapeamento v1.1; o protótipo usa 8h) (America/Sao_Paulo).</span>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 16px; padding: 22px 26px; display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 18px; letter-spacing: 1.5px; font-weight: 700; color: #2C66AB">ORDEM DA FILA</span>
+<span style="font-size: 19px; line-height: 1.45">1 grave → 2 atrasada → 3 plano que vence hoje → 4 vence logo → 5 no prazo. Empate: criticidade do equipamento, depois equipamento parado, depois mais antiga.</span>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 16px; padding: 22px 26px; display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 18px; letter-spacing: 1.5px; font-weight: 700; color: #2C66AB">ESCOPO</span>
+<span style="font-size: 19px; line-height: 1.45">Somente eq. médicos e oficinas de Engenharia Clínica (OFICINA GERAL, ENGENHARIA CLÍNICA, CALIBRAÇÃO…). Cache 900 s; tela atualiza a cada 60 s.</span>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1920,"height":1560}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const OK = '#3E7A1E', Q = '#D99A00';
+    return {
+      linhas: [
+        { bloco: '1 Agora · fila de ação', api: 'OS_ANALITICO_RESUMIDO\nMONITOR_REACAO', campos: 'nº OS, tipo, setor, equipamento, abertura, prioridade, 1º lançamento de mão de obra', regra: 'Aberta = sem fechamento. Situação pela meta de 1º at. por criticidade.', status: OK },
+        { bloco: '2 Fluxo OS · etapas P01', api: 'OS_ANALITICO\nTIPO_MANUTENCAO', campos: 'status da OS (aguarda peça, reparo externo, contrato), técnico do 1º lançamento', regra: 'Etapa vem do status do Effort; sem 1º lançamento = "sem 1º atendimento".', status: Q },
+        { bloco: '2 Entraram hoje · equipe', api: 'OS_ANALITICO', campos: 'data de abertura, técnico responsável', regra: 'Abertura no dia (SP). Carga = OS abertas por técnico.', status: Q },
+        { bloco: '3 Envelhecimento', api: 'OS_ANALITICO\nANEXOS_OS', campos: 'abertura, status, data do último lançamento', regra: 'Idade = agora − abertura. Sem movimentação = agora − último lançamento.', status: Q },
+        { bloco: '4 Programadas · laudos', api: 'CRONOGRAMA\nANEXOS_OS', campos: 'equipamento, tipo, mês previsto, OS do mês, laudo anexado', regra: 'Cumprimento = executadas ÷ previstas; impedimentos à parte; executada sem anexo = sem laudo.', status: OK },
+        { bloco: '4 Impedimentos', api: 'registro manual (SQLite)', campos: 'equipamento, motivo, nova data', regra: 'Proposta do mapeamento: motivo e reprogramação obrigatórios.', status: Q },
+        { bloco: '5 Ciclo de vida · idade', api: 'EQUIPAMENTOS\nANEXOS_EQUIPAMENTO', campos: 'data de aquisição/fabricação, valor, vida útil, laudo de inservibilidade', regra: 'Idade em anos; inservível = laudo anexado sem baixa.', status: Q },
+        { bloco: '5 Fim de vida · score', api: 'EQUIPAMENTOS · OS_ANALITICO\nTMEF · custos das OS', campos: 'idade, vida útil, corretivas 12m, custo externo 12m, valor', regra: '1 ponto por critério: idade ≥ vida útil, ≥ 4 corretivas, reparo ≥ 50% do valor, descontinuado.', status: Q },
+        { bloco: '5 / 1 Equip. parados · disponib.', api: 'DISP_EQUIPAMENTO\nDISP_EQUIPAMENTO_MES', campos: 'equipamento, início e fim da indisponibilidade', regra: 'Fim vazio = parado agora.', status: Q },
+        { bloco: '6 Indicadores', api: 'MONITOR_REACAO · TPM · TMEF\nDISP_EQUIPAMENTO_MES · CRONOGRAMA', campos: 'por mês, últimos 6 meses', regra: 'Os indicadores do item 13 do mapeamento; causa da corretiva vem do encerramento.', status: Q },
+        { bloco: '7 Processos P04 P05 P06 P07', api: 'registro manual (SQLite)', campos: 'aquisições, obras, treinamentos, alertas/recall', regra: 'Sem API: tela simples de cadastro na própria Sala.', status: Q },
+        { bloco: 'Escopo', api: 'OFICINA · EQUIPAMENTOS', campos: 'oficina, flag eq. médico', regra: 'Somente oficinas da EC e eq. médicos.', status: OK }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

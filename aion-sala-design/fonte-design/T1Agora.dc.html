@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>TV 1 — Agora</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 1920px; height: 1080px; box-sizing: border-box; background: #F3F6FA; color: #12233A; font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; display: grid; grid-template-rows: 6px 100px minmax(0, 1fr) 80px">
+
+<div style="background: linear-gradient(90deg, #97C752, #2C66AB)"></div>
+<header style="display: flex; align-items: center; gap: 24px; padding: 0 40px; background: #FFFFFF; border-bottom: 1px solid #DCE4EE">
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="width: 42px; height: 42px; border-radius: 50%; border: 4px solid #97C752; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #2C66AB; font-size: 18px">A</div>
+<span style="font-size: 34px; font-weight: 700; color: #2C66AB">AION</span>
+</div>
+<div style="width: 1px; height: 48px; background: #DCE4EE"></div>
+<div style="display: flex; flex-direction: column">
+<span style="font-size: 16px; letter-spacing: 3px; color: #2C66AB; font-weight: 600">SITUAÇÃO OPERACIONAL</span>
+<span style="font-size: 34px; font-weight: 600; line-height: 1.1">Agora</span>
+</div>
+<div style="flex-grow: 1"></div>
+<nav aria-label="Telas em rotação" style="display: flex; gap: 6px">
+<sc-for list="{{telas}}" as="t" hint-placeholder-count="8">
+<span style="font-size: 17px; font-weight: 600; padding: 8px 14px; border-radius: 999px; background: {{t.fundo}}; color: {{t.cor}}">{{t.rotulo}}</span>
+</sc-for>
+</nav>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 52px; font-weight: 700; color: #2C66AB; margin-left: 12px">21:48</span>
+</header>
+
+<div style="display: grid; grid-template-columns: 520px minmax(0, 1fr); gap: 28px; padding: 24px 40px; min-height: 0">
+<div style="display: flex; flex-direction: column; gap: 18px; min-height: 0">
+<div style="display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-radius: 14px; background: #FFF6D6; border: 1px solid #EBCB6A; font-size: 20px; color: #5C4300; font-weight: 500">
+<span style="width: 12px; height: 12px; border-radius: 50%; background: #D99A00; flex-shrink: 0"></span>
+<span>Fora do horário da EC (7h–17h). Plantão: Manutenção. Prazos voltam às 07:00.</span>
+</div>
+<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
+<div style="background: #FCE8EE; border: 2px solid #E7A3B6; border-radius: 16px; padding: 14px 22px; display: flex; flex-direction: column">
+<span style="font-size: 19px; letter-spacing: 1.5px; font-weight: 700; color: #A3123A">ATRASO GRAVE</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 80px; font-weight: 700; color: #A3123A; line-height: 1.05">2</span>
+</div>
+<div style="background: #FEF0E2; border: 2px solid #F0BD8E; border-radius: 16px; padding: 14px 22px; display: flex; flex-direction: column">
+<span style="font-size: 19px; letter-spacing: 1.5px; font-weight: 700; color: #A8460A">FORA DO PRAZO</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 80px; font-weight: 700; color: #A8460A; line-height: 1.05">3</span>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 16px; padding: 14px 22px; display: flex; flex-direction: column">
+<span style="font-size: 19px; letter-spacing: 1.5px; font-weight: 700; color: #8A5A00">SEM 1º ATENDIMENTO</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 80px; font-weight: 700; color: #8A5A00; line-height: 1.05">5</span>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 16px; padding: 14px 22px; display: flex; flex-direction: column">
+<span style="font-size: 19px; letter-spacing: 1.5px; font-weight: 700; color: #2C66AB">EQUIP. PARADOS</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 80px; font-weight: 700; color: #12233A; line-height: 1.05">5</span>
+</div>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 16px; padding: 18px 24px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: baseline">
+<span style="font-size: 19px; letter-spacing: 1.5px; font-weight: 700; color: #2C66AB">PLANO DE SETEMBRO</span>
+<span style="font-size: 19px; color: #A8460A; font-weight: 600">fecha hoje 23:59</span>
+</div>
+<sc-for list="{{plano}}" as="p" hint-placeholder-count="3">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex; justify-content: space-between; font-size: 23px">
+<span style="font-weight: 500">{{p.nome}}</span>
+<span>faltam <strong style="font-family: 'JetBrains Mono', ui-monospace, monospace; color: #A8460A">{{p.faltam}}</strong></span>
+</div>
+<div style="height: 10px; border-radius: 5px; background: #E3EAF3; overflow: hidden">
+<div style="height: 10px; border-radius: 5px; background: #2C66AB; width: {{p.pct}}"></div>
+</div>
+</div>
+</sc-for>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 16px; padding: 16px 24px; display: flex; flex-direction: column; gap: 10px; flex-grow: 1; min-height: 0">
+<span style="font-size: 19px; letter-spacing: 1.5px; font-weight: 700; color: #2C66AB">PARADOS HÁ MAIS TEMPO</span>
+<sc-for list="{{parados}}" as="e" hint-placeholder-count="2">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
+<div style="display: flex; flex-direction: column; min-width: 0">
+<span style="font-size: 23px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{e.equip}}</span>
+<span style="font-size: 18px; color: #4E6079">{{e.setor}}</span>
+</div>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 26px; font-weight: 700; color: {{e.cor}}; white-space: nowrap">{{e.tempo}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 18px; display: flex; flex-direction: column; min-height: 0; overflow: hidden">
+<div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 28px; border-bottom: 1px solid #DCE4EE">
+<div style="display: flex; align-items: baseline; gap: 16px">
+<span style="font-size: 32px; font-weight: 600">Fila de ação</span>
+<span style="font-size: 20px; color: #4E6079">24 OS abertas · mais urgente primeiro</span>
+</div>
+<div style="display: flex; gap: 18px; font-size: 18px; color: #4E6079">
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 14px; height: 14px; border-radius: 3px; background: #A3123A"></span>grave</span>
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 14px; height: 14px; border-radius: 3px; background: #D9620F"></span>atrasada</span>
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 14px; height: 14px; border-radius: 3px; background: #E8B10E"></span>vence logo</span>
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 14px; height: 14px; border-radius: 3px; background: #2C66AB"></span>plano</span>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: 170px 170px minmax(0, 1fr) 200px 200px; gap: 18px; padding: 10px 28px 10px 34px; font-size: 17px; letter-spacing: 1.5px; color: #4E6079; font-weight: 700; background: #F7F9FC; border-bottom: 1px solid #DCE4EE">
+<span>SITUAÇÃO</span><span>OS</span><span>EQUIPAMENTO · SETOR</span><span>TIPO</span><span style="text-align: right">PRAZO 1º AT.</span>
+</div>
+<sc-for list="{{fila}}" as="r" hint-placeholder-count="7">
+<div style="display: grid; grid-template-columns: 170px 170px minmax(0, 1fr) 200px 200px; gap: 18px; align-items: center; padding: 0 28px 0 34px; height: 84px; border-bottom: 1px solid #E6ECF3; background: {{r.fundo}}; box-shadow: inset 8px 0 0 {{r.barra}}">
+<span style="font-size: 19px; font-weight: 700; letter-spacing: 1px; color: {{r.cor}}">{{r.situacao}}</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 24px; font-weight: 500">{{r.os}}</span>
+<div style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+<div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+<span style="font-size: 28px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.equip}}</span>
+<sc-if value="{{r.temFlag}}" hint-placeholder-val="{{false}}">
+<span style="font-size: 16px; font-weight: 700; letter-spacing: 1px; padding: 4px 10px; border-radius: 6px; background: #12233A; color: #FFFFFF; white-space: nowrap">{{r.flag}}</span>
+</sc-if>
+</div>
+<span style="font-size: 20px; color: #4E6079; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.det}}</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="font-size: 22px">{{r.tipo}}</span>
+<span style="font-size: 18px; color: #4E6079">{{r.prio}}</span>
+</div>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 28px; font-weight: 700; text-align: right; color: {{r.cor}}">{{r.tempo}}</span>
+</div>
+</sc-for>
+<div style="padding: 14px 34px; font-size: 21px; color: #4E6079">+ 17 OS no prazo ou aguardando terceiros · ver telas Fluxo OS, Envelhecimento e Compras</div>
+</div>
+</div>
+
+<footer style="display: flex; align-items: center; justify-content: space-between; padding: 0 40px; background: #FFFFFF; border-top: 1px solid #DCE4EE">
+<sc-for list="{{pulso}}" as="k" hint-placeholder-count="5">
+<div style="display: flex; align-items: baseline; gap: 12px">
+<span style="font-size: 20px; color: #4E6079">{{k.rotulo}}</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 30px; font-weight: 700">{{k.valor}}</span>
+</div>
+</sc-for>
+<span style="font-size: 18px; color: #4E6079">atualizado 21:46</span>
+</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const ATIVA = 0;
+    const telas = ['Agora', 'Fluxo OS', 'Envelhecimento', 'Compras', 'Programadas', 'Ciclo de vida', 'Indicadores', 'Processos']
+      .map((rotulo, i) => ({ rotulo, fundo: i === ATIVA ? '#2C66AB' : '#EEF2F7', cor: i === ATIVA ? '#FFFFFF' : '#4E6079' }));
+    const C = {
+      grave: { cor: '#A3123A', barra: '#A3123A', fundo: '#FDF1F4' },
+      atrasada: { cor: '#A8460A', barra: '#D9620F', fundo: '#FFF6EE' },
+      logo: { cor: '#8A5A00', barra: '#E8B10E', fundo: '#FFFFFF' },
+      plano: { cor: '#2C66AB', barra: '#2C66AB', fundo: '#FFFFFF' }
+    };
+    const row = (s, situacao, os, equip, det, tipo, prio, tempo, flag) =>
+      ({ situacao, os, equip, det, tipo, prio, tempo, flag: flag || '', temFlag: !!flag, ...C[s] });
+    return {
+      telas,
+      plano: [
+        { nome: 'Calibração', faltam: 5, pct: '81%' },
+        { nome: 'TSE', faltam: 2, pct: '60%' },
+        { nome: 'Preventiva', faltam: 2, pct: '67%' }
+      ],
+      parados: [
+        { equip: 'Ultrassom · HSJ-00042', setor: 'UTI Infantil 8', tempo: '2d 9h', cor: '#12233A' },
+        { equip: 'Incubadora neonatal', setor: 'UTI Infantil 8 · crit. alta', tempo: '2d 6h', cor: '#A3123A' }
+      ],
+      fila: [
+        row('grave', 'GRAVE', '202609588', 'Bisturi elétrico', 'Centro Cirúrgico 10A · sem técnico', 'Corretiva', 'Alta', '+1d 6h', 'PARADO'),
+        row('grave', 'GRAVE', '202609616', 'Incubadora neonatal', 'UTI Infantil 8 · aberta 28/09 15:12', 'Corretiva', 'Alta', '+15h 48m', 'PARADO'),
+        row('atrasada', 'ATRASADA', '202609641', 'Injetora de contraste', 'Hemodinâmica 138 · aberta hoje 09:05', 'Corretiva', 'Média', '+2h 30m', 'PARADO'),
+        row('plano', 'PLANO', 'CAL · SET', 'Calibração · 3 equip.', 'Farmácia Quimioterapia', 'Calibração', 'Cronograma', '23:59'),
+        row('plano', 'PLANO', 'PREV · SET', 'Preventiva · 2 equip.', 'Centro Cirúrgico 10A', 'Preventiva', 'Cronograma', '23:59'),
+        row('logo', 'VENCE LOGO', '202609702', 'Ventilador pulmonar', 'Unidade Internação 4 · aberta hoje 16:20', 'Corretiva', 'Alta', '1h 40m'),
+        row('logo', 'VENCE LOGO', '202609709', 'Radiômetro · HSJ-02833', 'UTI Infantil 8 · aberta hoje 14:15', 'Corretiva', 'Média', '9h 15m')
+      ],
+      pulso: [
+        { rotulo: 'Hoje', valor: '6 ↑  1 ↓' },
+        { rotulo: 'Semana', valor: '15 ↑  5 ↓' },
+        { rotulo: '1º atend. no prazo · 30d', valor: '84%' },
+        { rotulo: 'TPM · 30d', valor: '1d 8h' },
+        { rotulo: 'Disponib. críticos', valor: '97,8%' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
