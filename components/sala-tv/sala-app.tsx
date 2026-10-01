@@ -647,7 +647,7 @@ function TelaCompras({ dados }: { dados: SalaSnapshot }) {
         <div className="sala-rotulo-bloco">PEDIDOS EM ABERTO · {c.pedidos.length}</div>
         {c.aviso ? <p className="sala-vazio">{c.aviso}</p> : null}
         {c.pedidos.length === 0 && !c.aviso ? (
-          <p className="sala-vazio">Nenhum pedido em aberto.</p>
+          <p className="sala-vazio">Nenhum pedido em aberto. Cadastre ou ajuste em /sala/pedidos.</p>
         ) : null}
         {c.pedidos.length > 0 ? (
           <div style={{ marginTop: 8, overflow: "auto" }}>
