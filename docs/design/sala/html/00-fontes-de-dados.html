@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Sala operacional — Fontes de dados</title>
+
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<style>
+body{margin:0;background:#F3F6FA}
+a{color:#2C66AB}a:hover{color:#1D4A80}
+</style>
+
+</head>
+<body>
+
+
+<div style="width: 1920px; height: 1560px; box-sizing: border-box; background: #F3F6FA; color: #12233A; font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; padding: 48px 56px; display: flex; flex-direction: column; gap: 28px">
+<div style="display: flex; justify-content: space-between; align-items: flex-end">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-size: 18px; letter-spacing: 3px; color: #2C66AB; font-weight: 600">SALA OPERACIONAL · DE ONDE VEM CADA BLOCO</span>
+<span style="font-size: 44px; font-weight: 600">Fontes de dados por tela (Power BI · sjh.globalthings.net)</span>
+</div>
+<div style="display: flex; gap: 20px; font-size: 18px; color: #4E6079">
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 14px; height: 14px; border-radius: 50%; background: #3E7A1E"></span>já usado no protótipo</span>
+<span style="display: flex; align-items: center; gap: 8px"><span style="width: 14px; height: 14px; border-radius: 50%; background: #D99A00"></span>a confirmar no JSON</span>
+</div>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 18px; overflow: hidden; display: flex; flex-direction: column">
+<div style="display: grid; grid-template-columns: 300px 330px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 24px; padding: 16px 28px; background: #F7F9FC; border-bottom: 1px solid #DCE4EE; font-size: 16px; letter-spacing: 1.5px; font-weight: 700; color: #4E6079">
+<span>BLOCO NA TELA</span><span>API (variável)</span><span>CAMPOS USADOS</span><span>REGRA</span><span></span>
+</div>
+
+<div style="display: grid; grid-template-columns: 300px 330px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 24px; padding: 16px 28px; border-bottom: 1px solid #E6ECF3; align-items: start">
+<span style="font-size: 22px; font-weight: 600">1 Agora · fila de ação</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 16px; color: #2C66AB; white-space: pre-line">OS_ANALITICO_RESUMIDO
+MONITOR_REACAO</span>
+<span style="font-size: 18px; color: #12233A; white-space: pre-line">nº OS, tipo, setor, equipamento, abertura, prioridade, 1º lançamento de mão de obra</span>
+<span style="font-size: 18px; color: #4E6079">Aberta = sem fechamento. Situação pela meta de 1º at. por criticidade.</span>
+<span style="width: 14px; height: 14px; border-radius: 50%; margin-top: 6px; background: #3E7A1E"></span>
+</div>
+
+<div style="display: grid; grid-template-columns: 300px 330px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 24px; padding: 16px 28px; border-bottom: 1px solid #E6ECF3; align-items: start">
+<span style="font-size: 22px; font-weight: 600">2 Fluxo OS · etapas P01</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 16px; color: #2C66AB; white-space: pre-line">OS_ANALITICO
+TIPO_MANUTENCAO</span>
+<span style="font-size: 18px; color: #12233A; white-space: pre-line">status da OS (aguarda peça, reparo externo, contrato), técnico do 1º lançamento</span>
+<span style="font-size: 18px; color: #4E6079">Etapa vem do status do Effort; sem 1º lançamento = "sem 1º atendimento".</span>
+<span style="width: 14px; height: 14px; border-radius: 50%; margin-top: 6px; background: #D99A00"></span>
+</div>
+
+<div style="display: grid; grid-template-columns: 300px 330px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 24px; padding: 16px 28px; border-bottom: 1px solid #E6ECF3; align-items: start">
+<span style="font-size: 22px; font-weight: 600">2 Entraram hoje · equipe</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 16px; color: #2C66AB; white-space: pre-line">OS_ANALITICO</span>
+<span style="font-size: 18px; color: #12233A; white-space: pre-line">data de abertura, técnico responsável</span>
+<span style="font-size: 18px; color: #4E6079">Abertura no dia (SP). Carga = OS abertas por técnico.</span>
+<span style="width: 14px; height: 14px; border-radius: 50%; margin-top: 6px; background: #D99A00"></span>
+</div>
+
+<div style="display: grid; grid-template-columns: 300px 330px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 24px; padding: 16px 28px; border-bottom: 1px solid #E6ECF3; align-items: start">
+<span style="font-size: 22px; font-weight: 600">3 Envelhecimento</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 16px; color: #2C66AB; white-space: pre-line">OS_ANALITICO
+ANEXOS_OS</span>
+<span style="font-size: 18px; color: #12233A; white-space: pre-line">abertura, status, data do último lançamento</span>
+<span style="font-size: 18px; color: #4E6079">Idade = agora − abertura. Sem movimentação = agora − último lançamento.</span>
+<span style="width: 14px; height: 14px; border-radius: 50%; margin-top: 6px; background: #D99A00"></span>
+</div>
+
+<div style="display: grid; grid-template-columns: 300px 330px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 24px; padding: 16px 28px; border-bottom: 1px solid #E6ECF3; align-items: start">
+<span style="font-size: 22px; font-weight: 600">4 Programadas · laudos</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 16px; color: #2C66AB; white-space: pre-line">CRONOGRAMA
+ANEXOS_OS</span>
+<span style="font-size: 18px; color: #12233A; white-space: pre-line">equipamento, tipo, mês previsto, OS do mês, laudo anexado</span>
+<span style="font-size: 18px; color: #4E6079">Cumprimento = executadas ÷ previstas; impedimentos à parte; executada sem anexo = sem laudo.</span>
+<span style="width: 14px; height: 14px; border-radius: 50%; margin-top: 6px; background: #3E7A1E"></span>
+</div>
+
+<div style="display: grid; grid-template-columns: 300px 330px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 24px; padding: 16px 28px; border-bottom: 1px solid #E6ECF3; align-items: start">
+<span style="font-size: 22px; font-weight: 600">4 Impedimentos</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 16px; color: #2C66AB; white-space: pre-line">registro manual (SQLite)</span>
+<span style="font-size: 18px; color: #12233A; white-space: pre-line">equipamento, motivo, nova data</span>
+<span style="font-size: 18px; color: #4E6079">Proposta do mapeamento: motivo e reprogramação obrigatórios.</span>
+<span style="width: 14px; height: 14px; border-radius: 50%; margin-top: 6px; background: #D99A00"></span>
+</div>
+
+<div style="display: grid; grid-template-columns: 300px 330px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 24px; padding: 16px 28px; border-bottom: 1px solid #E6ECF3; align-items: start">
+<span style="font-size: 22px; font-weight: 600">5 Ciclo de vida · idade</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 16px; color: #2C66AB; white-space: pre-line">EQUIPAMENTOS
+ANEXOS_EQUIPAMENTO</span>
+<span style="font-size: 18px; color: #12233A; white-space: pre-line">data de aquisição/fabricação, valor, vida útil, laudo de inservibilidade</span>
+<span style="font-size: 18px; color: #4E6079">Idade em anos; inservível = laudo anexado sem baixa.</span>
+<span style="width: 14px; height: 14px; border-radius: 50%; margin-top: 6px; background: #D99A00"></span>
+</div>
+
+<div style="display: grid; grid-template-columns: 300px 330px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 24px; padding: 16px 28px; border-bottom: 1px solid #E6ECF3; align-items: start">
+<span style="font-size: 22px; font-weight: 600">5 Fim de vida · score</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 16px; color: #2C66AB; white-space: pre-line">EQUIPAMENTOS · OS_ANALITICO
+TMEF · custos das OS</span>
+<span style="font-size: 18px; color: #12233A; white-space: pre-line">idade, vida útil, corretivas 12m, custo externo 12m, valor</span>
+<span style="font-size: 18px; color: #4E6079">1 ponto por critério: idade ≥ vida útil, ≥ 4 corretivas, reparo ≥ 50% do valor, descontinuado.</span>
+<span style="width: 14px; height: 14px; border-radius: 50%; margin-top: 6px; background: #D99A00"></span>
+</div>
+
+<div style="display: grid; grid-template-columns: 300px 330px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 24px; padding: 16px 28px; border-bottom: 1px solid #E6ECF3; align-items: start">
+<span style="font-size: 22px; font-weight: 600">5 / 1 Equip. parados · disponib.</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 16px; color: #2C66AB; white-space: pre-line">DISP_EQUIPAMENTO
+DISP_EQUIPAMENTO_MES</span>
+<span style="font-size: 18px; color: #12233A; white-space: pre-line">equipamento, início e fim da indisponibilidade</span>
+<span style="font-size: 18px; color: #4E6079">Fim vazio = parado agora.</span>
+<span style="width: 14px; height: 14px; border-radius: 50%; margin-top: 6px; background: #D99A00"></span>
+</div>
+
+<div style="display: grid; grid-template-columns: 300px 330px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 24px; padding: 16px 28px; border-bottom: 1px solid #E6ECF3; align-items: start">
+<span style="font-size: 22px; font-weight: 600">6 Indicadores</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 16px; color: #2C66AB; white-space: pre-line">MONITOR_REACAO · TPM · TMEF
+DISP_EQUIPAMENTO_MES · CRONOGRAMA</span>
+<span style="font-size: 18px; color: #12233A; white-space: pre-line">por mês, últimos 6 meses</span>
+<span style="font-size: 18px; color: #4E6079">Os indicadores do item 13 do mapeamento; causa da corretiva vem do encerramento.</span>
+<span style="width: 14px; height: 14px; border-radius: 50%; margin-top: 6px; background: #D99A00"></span>
+</div>
+
+<div style="display: grid; grid-template-columns: 300px 330px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 24px; padding: 16px 28px; border-bottom: 1px solid #E6ECF3; align-items: start">
+<span style="font-size: 22px; font-weight: 600">7 Processos P04 P05 P06 P07</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 16px; color: #2C66AB; white-space: pre-line">registro manual (SQLite)</span>
+<span style="font-size: 18px; color: #12233A; white-space: pre-line">aquisições, obras, treinamentos, alertas/recall</span>
+<span style="font-size: 18px; color: #4E6079">Sem API: tela simples de cadastro na própria Sala.</span>
+<span style="width: 14px; height: 14px; border-radius: 50%; margin-top: 6px; background: #D99A00"></span>
+</div>
+
+<div style="display: grid; grid-template-columns: 300px 330px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 24px; padding: 16px 28px; border-bottom: 1px solid #E6ECF3; align-items: start">
+<span style="font-size: 22px; font-weight: 600">Escopo</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 16px; color: #2C66AB; white-space: pre-line">OFICINA · EQUIPAMENTOS</span>
+<span style="font-size: 18px; color: #12233A; white-space: pre-line">oficina, flag eq. médico</span>
+<span style="font-size: 18px; color: #4E6079">Somente oficinas da EC e eq. médicos.</span>
+<span style="width: 14px; height: 14px; border-radius: 50%; margin-top: 6px; background: #3E7A1E"></span>
+</div>
+
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px">
+<div style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 16px; padding: 22px 26px; display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 18px; letter-spacing: 1.5px; font-weight: 700; color: #2C66AB">SITUAÇÃO DE UMA OS</span>
+<span style="font-size: 19px; line-height: 1.45">GRAVE: atraso &gt; 1× a meta de 1º at. · ATRASADA: passou o prazo · VENCE LOGO: restante ≤ 25% da meta · NO PRAZO: restante &gt; 25%. Meta por criticidade, horas úteis 7h–17h seg–sex (mapeamento v1.1; o protótipo usa 8h) (America/Sao_Paulo).</span>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 16px; padding: 22px 26px; display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 18px; letter-spacing: 1.5px; font-weight: 700; color: #2C66AB">ORDEM DA FILA</span>
+<span style="font-size: 19px; line-height: 1.45">1 grave → 2 atrasada → 3 plano que vence hoje → 4 vence logo → 5 no prazo. Empate: criticidade do equipamento, depois equipamento parado, depois mais antiga.</span>
+</div>
+<div style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 16px; padding: 22px 26px; display: flex; flex-direction: column; gap: 8px">
+<span style="font-size: 18px; letter-spacing: 1.5px; font-weight: 700; color: #2C66AB">ESCOPO</span>
+<span style="font-size: 19px; line-height: 1.45">Somente eq. médicos e oficinas de Engenharia Clínica (OFICINA GERAL, ENGENHARIA CLÍNICA, CALIBRAÇÃO…). Cache 900 s; tela atualiza a cada 60 s.</span>
+</div>
+</div>
+</div>
+
+</body>
+</html>

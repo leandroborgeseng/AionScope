@@ -2,6 +2,6 @@
 
 import { SalaApp } from "@/components/sala-tv/sala-app";
 
-export default function SalaPage() {
-  return <SalaApp />;
+export default function Page() {
+  return <SalaApp telaFixa="fluxo" />;
 }

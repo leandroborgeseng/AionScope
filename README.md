@@ -59,7 +59,7 @@ Três rotas existem no código e tentam a API de verdade. Enquanto o upstream re
 
 ## Disponibilidade mês a mês
 
-Esse endpoint exige `empresasId`. O ID `1` usado no script de teste **não** é o parque HSJ. Informe o ID correto no campo **IDs empresa** da barra de filtros ou em `PBI_DEFAULT_EMPRESA_IDS` no `.env.local`.
+Esse endpoint exige `empresasId`. O São Joaquim é o id `2` (`PBI_DEFAULT_EMPRESA_IDS`). O id `1` é outro parque.
 
 ## Cache
 

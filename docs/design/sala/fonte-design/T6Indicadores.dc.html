@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>TV 7 — Indicadores</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0}</style>
+</helmet>
+<div style="width: 1920px; height: 1080px; box-sizing: border-box; background: #F3F6FA; color: #12233A; font-family: 'Outfit', 'Segoe UI', system-ui, sans-serif; display: grid; grid-template-rows: 6px 100px minmax(0, 1fr)">
+<div style="background: linear-gradient(90deg, #97C752, #2C66AB)"></div>
+<header style="display: flex; align-items: center; gap: 24px; padding: 0 40px; background: #FFFFFF; border-bottom: 1px solid #DCE4EE">
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="width: 42px; height: 42px; border-radius: 50%; border: 4px solid #97C752; box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #2C66AB; font-size: 18px">A</div>
+<span style="font-size: 34px; font-weight: 700; color: #2C66AB">AION</span>
+</div>
+<div style="width: 1px; height: 48px; background: #DCE4EE"></div>
+<div style="display: flex; flex-direction: column">
+<span style="font-size: 16px; letter-spacing: 3px; color: #2C66AB; font-weight: 600">INDICADORES DO MÊS</span>
+<span style="font-size: 34px; font-weight: 600; line-height: 1.1">Indicadores</span>
+</div>
+<div style="flex-grow: 1"></div>
+<nav aria-label="Telas em rotação" style="display: flex; gap: 6px">
+<sc-for list="{{telas}}" as="t" hint-placeholder-count="8">
+<span style="font-size: 17px; font-weight: 600; padding: 8px 14px; border-radius: 999px; background: {{t.fundo}}; color: {{t.cor}}">{{t.rotulo}}</span>
+</sc-for>
+</nav>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 52px; font-weight: 700; color: #2C66AB; margin-left: 12px">21:48</span>
+</header>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 22px; padding: 22px 40px 26px; min-height: 0">
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="8">
+<section style="background: #FFFFFF; border: 1px solid #DCE4EE; border-radius: 18px; padding: 20px 24px; display: flex; flex-direction: column; gap: 8px; min-height: 0">
+<span style="font-size: 23px; font-weight: 600; line-height: 1.15">{{c.nome}}</span>
+<span style="font-size: 16px; color: #4E6079">{{c.origem}}</span>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 54px; font-weight: 700; line-height: 1.1; color: {{c.cor}}">{{c.valor}}</span>
+<span style="font-size: 19px; color: #4E6079">{{c.sub}}</span>
+<sc-if value="{{c.temTrend}}" hint-placeholder-val="{{true}}">
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; align-items: end; flex-grow: 1; min-height: 0; padding-top: 6px">
+<sc-for list="{{c.trend}}" as="t" hint-placeholder-count="6">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 6px; justify-content: flex-end; height: 100%">
+<div style="width: 100%; height: {{t.h}}; border-radius: 4px 4px 1px 1px; background: {{t.cor}}"></div>
+<span style="font-size: 16px; color: #4E6079">{{t.m}}</span>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{c.temPartes}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 9px; flex-grow: 1; justify-content: flex-end">
+<sc-for list="{{c.partes}}" as="p" hint-placeholder-count="5">
+<div style="display: grid; grid-template-columns: 150px minmax(0, 1fr) 54px; gap: 10px; align-items: center">
+<span style="font-size: 17px; color: {{p.corTexto}}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{p.nome}}</span>
+<div style="height: 14px; border-radius: 4px; background: #EEF2F7; overflow: hidden"><div style="height: 14px; border-radius: 4px; width: {{p.w}}; background: {{p.cor}}"></div></div>
+<span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 18px; font-weight: 700; text-align: right">{{p.v}}</span>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</section>
+</sc-for>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const ATIVA = 6;
+    const telas = ["Agora", "Fluxo OS", "Envelhecimento", "Compras", "Programadas", "Ciclo de vida", "Indicadores", "Processos"]
+      .map((rotulo, i) => ({ rotulo, fundo: i === ATIVA ? '#2C66AB' : '#EEF2F7', cor: i === ATIVA ? '#FFFFFF' : '#4E6079' }));
+    const M = ['abr', 'mai', 'jun', 'jul', 'ago', 'set'];
+    const tr = (vals) => {
+      const max = Math.max(...vals);
+      return vals.map((v, i) => ({ m: M[i], h: Math.round(20 + 120 * v / max) + 'px', cor: i === vals.length - 1 ? '#2C66AB' : '#C9D7EA' }));
+    };
+    const card = (nome, origem, valor, sub, cor, vals) => ({ nome, origem, valor, sub, cor, temTrend: true, temPartes: false, trend: tr(vals), partes: [] });
+    const parte = (nome, v, destaque) => ({ nome, v: v + '%', w: (v / 34 * 100).toFixed(0) + '%', cor: destaque ? '#D9620F' : '#2C66AB', corTexto: destaque ? '#A8460A' : '#12233A' });
+    return {
+      telas,
+      cards: [
+        card('Tempo de 1º atendimento', 'OS corretivas · média do mês', '1h 12m', '14 min melhor que agosto', '#12233A', [95, 88, 80, 90, 86, 72]),
+        card('1º atendimento no prazo', 'meta por criticidade · horas úteis', '84%', 'meta 90%', '#A8460A', [78, 80, 83, 79, 86, 84]),
+        card('Cumprimento das programadas', 'cronograma + laudos', '76%', '29 de 38 · impedimentos à parte', '#A8460A', [92, 88, 95, 90, 85, 76]),
+        { nome: 'Causa das corretivas', origem: 'encerramento da OS · setembro', valor: '25%', sub: 'sem causa registrada', cor: '#A8460A', temTrend: false, temPartes: true, trend: [],
+          partes: [parte('Desgaste / uso', 34), parte('Mau uso', 18), parte('Acessório / cabo', 15), parte('Queda / dano', 8), parte('Sem causa', 25, true)] },
+        card('Custo de reparo / valor do parque', 'peças e serviços externos nas OS', '0,42%', 'no mês · mão de obra interna fora', '#12233A', [31, 38, 29, 45, 36, 42]),
+        card('TPM · tempo médio de reparo', 'TMEF do parque: 142 dias', '1d 8h', 'corretivas encerradas no mês', '#12233A', [40, 36, 30, 44, 34, 32]),
+        card('Disponibilidade dos críticos', 'equipamentos de criticidade alta', '97,8%', 'meta 98%', '#A8460A', [98.6, 98.9, 98.1, 97.5, 98.4, 97.8]),
+        card('Capacitação (P06)', 'Educação Continuada + fornecedor', '3', 'treinamentos · 41 profissionais', '#12233A', [2, 1, 4, 2, 3, 3])
+      ]
+    };
+
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+/* AION · Sala operacional — design tokens (tema claro, TV 1920×1080)
+   Cores da marca amostradas do logo AION: azul #2C66AB, verde #97C752.
+   Fontes: Outfit (texto) + JetBrains Mono (números, nº de OS, horas).
+   Hospedar as fontes localmente (ex.: @fontsource) — a TV pode não ter acesso ao Google Fonts. */
+
+:root {
+  /* Marca */
+  --aion-azul: #2C66AB;
+  --aion-azul-escuro: #1D4A80;
+  --aion-azul-claro: #DCE8F7;
+  --aion-verde: #97C752;          /* só decoração (anel do logo, faixa do topo) */
+  --aion-verde-texto: #3E7A1E;    /* verde legível para texto/números */
+  --faixa-topo: linear-gradient(90deg, #97C752, #2C66AB);
+
+  /* Superfícies e texto */
+  --fundo: #F3F6FA;
+  --cartao: #FFFFFF;
+  --cartao-sutil: #F7F9FC;
+  --borda: #DCE4EE;
+  --borda-linha: #E6ECF3;
+  --trilho: #E3EAF3;              /* fundo de barras de progresso */
+  --pill: #EEF2F7;
+  --texto: #12233A;
+  --texto-2: #4E6079;             /* secundário — contraste ≥ 4.5:1 em branco */
+
+  /* Situação das OS (sempre acompanhada de texto, nunca só cor) */
+  --grave: #A3123A;        --grave-fundo: #FDF1F4;    --grave-borda: #E7A3B6;
+  --atrasada: #A8460A;     --atrasada-barra: #D9620F; --atrasada-fundo: #FFF6EE; --atrasada-borda: #F0BD8E;
+  --vence-logo: #8A5A00;   --vence-logo-barra: #E8B10E; --aviso-fundo: #FFF6D6; --aviso-borda: #EBCB6A; --aviso-texto: #5C4300;
+  --plano: #2C66AB;
+  --no-prazo: #4E6079;     --no-prazo-barra: #B7C4D6;
+  --terceiros: #7A8CA6;    /* reparo externo / contrato */
+  --teste: #3E7A1E;
+
+  /* Tipografia (px a 1920×1080, TV 50" a ~3 m) */
+  --fonte: 'Outfit', 'Segoe UI', system-ui, sans-serif;
+  --fonte-num: 'JetBrains Mono', ui-monospace, monospace;
+  --t-min: 16px;           /* nada menor que isso */
+  --t-rotulo: 19px;        /* rótulos em CAIXA ALTA, letter-spacing 1.5px, peso 700 */
+  --t-corpo: 21px;
+  --t-item: 26px;          /* nome do equipamento numa linha */
+  --t-titulo-bloco: 28px;
+  --t-titulo-tela: 34px;
+  --t-numero-medio: 40px;
+  --t-numero-grande: 64px;
+  --t-numero-hero: 84px;
+  --t-relogio: 52px;
+
+  /* Espaço e forma */
+  --margem-tela: 40px;
+  --gap: 22px;
+  --raio: 16px;
+  --raio-grande: 18px;
+  --altura-cabecalho: 100px;
+  --altura-faixa: 6px;
+  --altura-linha-tabela: 84px;
+}
