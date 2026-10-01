@@ -1,4 +1,5 @@
 import { addMonths, format } from "date-fns";
+import { listarRegistrosSala } from "@/lib/db/sala-registros";
 import { fetchPbi } from "@/lib/pbi/client";
 import { nowInSaoPaulo, parsePbiDate } from "@/lib/pbi/dates";
 import { EMPTY_FILTERS, toUpstreamParams, type DashboardFilters } from "@/lib/pbi/filters";
@@ -52,6 +53,7 @@ export type DadosSala = {
   os: OsAnaliticoItem[];
   equipamentos: EquipamentoItem[];
   disponibilidade: DisponibilidadeItem[] | null;
+  manuais?: ReturnType<typeof listarRegistrosSala>;
   erroOs?: string;
   erroEquipamentos?: string;
   erroDisponibilidade?: string;
@@ -145,8 +147,14 @@ function aberta(os: OsAnaliticoItem) {
 export function montarSnapshotDeDados(
   dados: DadosSala,
   agora = nowInSaoPaulo(),
-  config: HorarioUtilConfig = horarioUtilConfig(),
+  configBase: HorarioUtilConfig = horarioUtilConfig(),
 ): SalaSnapshot {
+  const manuais = dados.manuais;
+  const feriados = new Set([
+    ...configBase.feriados,
+    ...((manuais?.feriados ?? []).map((item) => item.data)),
+  ]);
+  const config: HorarioUtilConfig = { ...configBase, feriados };
   const tagsMedicas = new Set(
     dados.equipamentos.filter(isEquipamentoMedico).map((item) => texto(item.Tag)).filter(Boolean),
   );
@@ -423,8 +431,24 @@ export function montarSnapshotDeDados(
     { id: "plano", fonte: "sem-dados", erro: "ProximaRealizacao é um código e DataDaUltima vem vazia." },
     { id: "compras", fonte: "sem-dados", erro: "Os pedidos de e-mail ainda não são lidos." },
     { id: "mao-de-obra", fonte: "sem-dados", erro: "A API não traz o lançamento de mão de obra." },
-    { id: "manuais", fonte: "manual", erro: "P04 a P07 e impedimentos ainda não têm registro." },
+    { id: "manuais", fonte: "manual" },
   ];
+
+  const impedimentos = (manuais?.impedimentos ?? []).map((item) => ({
+    tag: item.tag,
+    equipamento: item.equipamento || "—",
+    motivo: item.motivo,
+    novaData: item.nova_data || "—",
+  }));
+  const treinamentosMes = (manuais?.treinamentos ?? []).filter((item) => {
+    const data = parsePbiDate(item.data) || (/^\d{4}-\d{2}-\d{2}$/.test(item.data) ? new Date(`${item.data}T12:00:00`) : null);
+    return data && mesmoMes(data, agora);
+  });
+  const participantesMes = treinamentosMes.reduce((soma, item) => soma + (item.participantes || 0), 0);
+  const melhoriasLista = (manuais?.melhorias ?? []).map((item) => ({
+    item: item.item,
+    status: item.status,
+  }));
 
   return {
     atualizadoEm: new Date().toISOString(),
@@ -497,11 +521,12 @@ export function montarSnapshotDeDados(
       pedidos: [],
     },
     programadas: {
-      aviso: "O cronograma não traz a data do plano. ProximaRealizacao é um código e DataDaUltima vem vazia. Cumprimento, laudo e impedimento ficam sem número até isso existir.",
+      aviso: "O cronograma não traz a data do plano. ProximaRealizacao é um código e DataDaUltima vem vazia. Cumprimento e laudo ficam sem número. Impedimentos vêm do registro manual.",
+      impedimentos,
     },
     ciclo: {
       trilha: [
-        { etapa: "Aquisição", quantidade: null },
+        { etapa: "Aquisição", quantidade: manuais?.aquisicoes.length ?? null },
         { etapa: "Recebimento", quantidade: null },
         { etapa: "Em uso", quantidade: ativos.length },
         { etapa: "Fim de vida", quantidade: fimDeVida.length },
@@ -566,10 +591,12 @@ export function montarSnapshotDeDados(
         },
         {
           titulo: "Capacitação",
-          valor: ultimo(serieTreino) == null ? "—" : String(ultimo(serieTreino)),
-          detalhe: "OS de treinamento no mês. Participantes e evidência não vêm na API.",
+          valor: String(participantesMes || ultimo(serieTreino) || 0),
+          detalhe: participantesMes
+            ? `${treinamentosMes.length} treinamento(s) manuais no mês · ${participantesMes} participantes.`
+            : "OS de treinamento no mês. Participantes e evidência vêm do registro manual.",
           serie: serieTreino,
-          fonte: "api",
+          fonte: participantesMes ? "manual" : "api",
         },
       ],
     },
@@ -578,13 +605,36 @@ export function montarSnapshotDeDados(
         { id: "P01", nome: "Corretivas abertas", quantidade: String(demandaAberta.length), fonte: "api" },
         { id: "P02", nome: "Programadas", quantidade: "—", fonte: "sem-dados" },
         { id: "P03", nome: "Em uso", quantidade: String(ativos.length), fonte: "api" },
-        { id: "P04", nome: "Aquisições", quantidade: "—", fonte: "manual" },
-        { id: "P05", nome: "Obras", quantidade: "—", fonte: "manual" },
-        { id: "P06", nome: "Treinamentos no mês", quantidade: String(ultimo(serieTreino) ?? 0), fonte: "api" },
-        { id: "P07", nome: "Alertas e recall", quantidade: "—", fonte: "manual" },
+        {
+          id: "P04",
+          nome: "Aquisições",
+          quantidade: manuais ? String(manuais.aquisicoes.length) : "—",
+          fonte: "manual",
+        },
+        {
+          id: "P05",
+          nome: "Obras",
+          quantidade: manuais ? String(manuais.obras.length) : "—",
+          fonte: "manual",
+        },
+        {
+          id: "P06",
+          nome: "Treinamentos no mês",
+          quantidade: String(treinamentosMes.length || ultimo(serieTreino) || 0),
+          fonte: treinamentosMes.length ? "manual" : "api",
+        },
+        {
+          id: "P07",
+          nome: "Alertas e recall",
+          quantidade: manuais ? String(manuais.alertas.length) : "—",
+          fonte: "manual",
+        },
       ],
       foraDoHorario,
-      melhorias: "O status das melhorias do item 15 é registro manual e ainda não existe.",
+      melhorias: melhoriasLista.length
+        ? `${melhoriasLista.filter((item) => item.status !== "feito").length} em aberto de ${melhoriasLista.length}`
+        : "Nenhuma melhoria registrada ainda em /sala/registros.",
+      melhoriasLista,
     },
   };
 }
@@ -601,12 +651,17 @@ const cacheSnapshot = {
   graves: new Set<string>(),
 };
 
+export function invalidarCacheSnapshot() {
+  cacheSnapshot.expira = 0;
+  cacheSnapshot.valor = null;
+}
+
 export async function carregarSnapshot(): Promise<SalaSnapshot> {
   if (cacheSnapshot.valor && cacheSnapshot.expira > Date.now()) return cacheSnapshot.valor;
   const agora = nowInSaoPaulo();
   const base = filtros(agora);
   const inicioMes = format(new Date(agora.getFullYear(), agora.getMonth(), 1), "yyyy-MM-dd");
-  const [os, equipamentos, disponibilidade] = await Promise.all([
+  const [os, equipamentos, disponibilidade, manuais] = await Promise.all([
     fetchPbi<OsAnaliticoItem[]>(
       "os-analitico",
       toUpstreamParams("os-analitico", base, { periodo: "DoisAnosAtuais", qtdPorPagina: "100000" }),
@@ -619,12 +674,14 @@ export async function carregarSnapshot(): Promise<SalaSnapshot> {
       "disp-equipamento-mes",
       toUpstreamParams("disp-equipamento-mes", { ...base, from: inicioMes }),
     ),
+    Promise.resolve(listarRegistrosSala()),
   ]);
 
   const dados: DadosSala = {
     os: os.ok && Array.isArray(os.data) ? os.data : [],
     equipamentos: equipamentos.ok && Array.isArray(equipamentos.data) ? equipamentos.data : [],
     disponibilidade: disponibilidade.ok && Array.isArray(disponibilidade.data) ? disponibilidade.data : null,
+    manuais,
     erroOs: os.ok ? undefined : os.message,
     erroEquipamentos: equipamentos.ok ? undefined : equipamentos.message,
     erroDisponibilidade: disponibilidade.ok ? undefined : disponibilidade.message,

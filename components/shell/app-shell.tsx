@@ -13,9 +13,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const showGlobalChrome = pathname.startsWith("/cronograma");
-  const isSala = pathname === "/sala" || pathname.startsWith("/sala/");
+  const isSalaTv =
+    pathname === "/sala" ||
+    /^\/sala\/(agora|fluxo|envelhecimento|compras|programadas|ciclo-de-vida|indicadores|processos)(\/|$)/.test(
+      pathname,
+    );
 
-  if (isSala) {
+  if (isSalaTv) {
     return <>{children}</>;
   }
 

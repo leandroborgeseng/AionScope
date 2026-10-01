@@ -88,6 +88,7 @@ export type SalaSnapshot = {
   };
   programadas: {
     aviso: string;
+    impedimentos: Array<{ tag: string; equipamento: string; motivo: string; novaData: string }>;
   };
   ciclo: {
     trilha: Array<{ etapa: string; quantidade: number | null }>;
@@ -110,5 +111,6 @@ export type SalaSnapshot = {
     itens: Array<{ id: string; nome: string; quantidade: string; fonte: FonteBloco }>;
     foraDoHorario: number;
     melhorias: string;
+    melhoriasLista: Array<{ item: string; status: string }>;
   };
 };

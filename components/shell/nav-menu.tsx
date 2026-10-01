@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   LayoutDashboard,
+  NotebookPen,
   ShoppingCart,
   Tv,
 } from "lucide-react";
@@ -54,11 +55,13 @@ const NAV_GROUPS: NavGroup[] = [
 
 const NAV_LINKS = [
   { href: "/cronograma", label: "Cronograma", icon: CalendarClock },
-  { href: "/sala", label: "Sala", icon: Tv },
+  { href: "/sala", label: "Sala TV", icon: Tv },
+  { href: "/sala/registros", label: "Sala · registros", icon: NotebookPen },
   { href: "/compras", label: "Solicitações de compra", icon: ShoppingCart },
 ] as const;
 
 function pathMatches(pathname: string, href: string) {
+  if (href === "/sala") return pathname === "/sala" || /^\/sala\/(agora|fluxo|envelhecimento|compras|programadas|ciclo-de-vida|indicadores|processos)(\/|$)/.test(pathname);
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

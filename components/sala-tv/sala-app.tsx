@@ -1,7 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { JetBrains_Mono } from "next/font/google";
 import { TELAS_SALA, type SalaSnapshot, type TelaSala } from "@/lib/ec/snapshot-tipos";
+import "@/app/sala/sala.css";
+
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["500", "700"],
+  variable: "--font-jetbrains",
+});
 
 const SELO: Record<string, { color: string; background: string; border: string }> = {
   GRAVE: { color: "#A3123A", background: "#FDF1F4", border: "#E7A3B6" },
@@ -229,9 +237,9 @@ function TelaEnvelhecimento({ dados }: { dados: SalaSnapshot }) {
 
 function TelaAviso({ titulo, texto }: { titulo: string; texto: string }) {
   return (
-    <div className="sala-cartao" style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+    <div className="sala-cartao" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 16 }}>
       <div className="sala-rotulo-bloco">{titulo}</div>
-      <p style={{ fontSize: 28, maxWidth: 1100 }}>{texto}</p>
+      <p style={{ fontSize: 28, maxWidth: 1100, margin: 0, lineHeight: 1.35 }}>{texto}</p>
     </div>
   );
 }
@@ -305,6 +313,54 @@ function TelaIndicadores({ dados }: { dados: SalaSnapshot }) {
   );
 }
 
+function TelaProgramadas({ dados }: { dados: SalaSnapshot }) {
+  return (
+    <div className="sala-grid-2" style={{ flex: 1 }}>
+      <div className="sala-coluna">
+        <div className="sala-cartao" style={{ flex: 1 }}>
+          <div className="sala-rotulo-bloco">CUMPRIMENTO DO PLANO</div>
+          <div className="sala-numero" style={{ fontSize: 72 }}>—</div>
+          <p className="sala-vazio">{dados.programadas.aviso}</p>
+        </div>
+      </div>
+      <div className="sala-cartao" style={{ flex: 1, overflow: "hidden" }}>
+        <div className="sala-rotulo-bloco">
+          IMPEDIMENTOS JUSTIFICADOS · {dados.programadas.impedimentos.length}
+        </div>
+        {dados.programadas.impedimentos.length === 0 ? (
+          <p className="sala-vazio">Nenhum impedimento ativo. Cadastre em /sala/registros.</p>
+        ) : (
+          <div style={{ marginTop: 8, overflow: "auto" }}>
+            {dados.programadas.impedimentos.map((item) => (
+              <div
+                key={`${item.tag}-${item.motivo}`}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "120px minmax(0, 1fr) 140px",
+                  gap: 12,
+                  alignItems: "center",
+                  padding: "12px 0",
+                  borderBottom: "1px solid #E6ECF3",
+                }}
+              >
+                <strong style={{ color: "#2C66AB", fontSize: 20 }}>{item.tag}</strong>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 22, fontWeight: 600 }}>{item.equipamento}</div>
+                  <div style={{ fontSize: 18, color: "#4E6079" }}>{item.motivo}</div>
+                </div>
+                <div style={{ textAlign: "right", fontSize: 18, color: "#6B1029" }}>
+                  nova data
+                  <div className="sala-numero" style={{ fontSize: 24 }}>{item.novaData}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function TelaProcessos({ dados }: { dados: SalaSnapshot }) {
   return (
     <div className="sala-grid-2" style={{ flex: 1 }}>
@@ -323,9 +379,45 @@ function TelaProcessos({ dados }: { dados: SalaSnapshot }) {
           <div className="sala-numero" style={{ fontSize: 72 }}>{dados.processos.foraDoHorario}</div>
           <p className="sala-vazio">OS do recorte abertas antes das 7h, depois das 17h, no fim de semana ou em feriado configurado.</p>
         </div>
-        <div className="sala-cartao" style={{ flex: 1 }}>
+        <div className="sala-cartao" style={{ flex: 1, overflow: "hidden" }}>
           <div className="sala-rotulo-bloco">MELHORIAS DO ITEM 15</div>
-          <p style={{ fontSize: 24 }}>{dados.processos.melhorias}</p>
+          <p style={{ fontSize: 22, margin: "8px 0 12px" }}>{dados.processos.melhorias}</p>
+          {dados.processos.melhoriasLista.length === 0 ? (
+            <p className="sala-vazio">Cadastre o status das melhorias em /sala/registros.</p>
+          ) : (
+            <div style={{ overflow: "auto" }}>
+              {dados.processos.melhoriasLista.map((item) => (
+                <div
+                  key={item.item}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    alignItems: "center",
+                    padding: "10px 0",
+                    borderBottom: "1px solid #E6ECF3",
+                  }}
+                >
+                  <span style={{ fontSize: 22, fontWeight: 600 }}>{item.item}</span>
+                  <span
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      letterSpacing: 1,
+                      padding: "3px 8px",
+                      borderRadius: 6,
+                      background: item.status === "feito" ? "#F3F8EC" : item.status === "pendente" ? "#FFF6D6" : "#E8F0FA",
+                      color: item.status === "feito" ? "#3E7A1E" : item.status === "pendente" ? "#5C4300" : "#1D4A80",
+                      whiteSpace: "nowrap",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    {item.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -337,7 +429,7 @@ function Conteudo({ tela, dados, destaque }: { tela: TelaSala; dados: SalaSnapsh
   if (tela === "fluxo") return <TelaFluxo dados={dados} />;
   if (tela === "envelhecimento") return <TelaEnvelhecimento dados={dados} />;
   if (tela === "compras") return <TelaAviso titulo="COMPRAS" texto={dados.compras.aviso} />;
-  if (tela === "programadas") return <TelaAviso titulo="PROGRAMADAS" texto={dados.programadas.aviso} />;
+  if (tela === "programadas") return <TelaProgramadas dados={dados} />;
   if (tela === "ciclo-de-vida") return <TelaCiclo dados={dados} />;
   if (tela === "indicadores") return <TelaIndicadores dados={dados} />;
   return <TelaProcessos dados={dados} />;
@@ -460,39 +552,54 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   const restante = Math.max(0, Math.ceil((1 - progresso) * segundos));
 
   return (
-    <div className="sala-viewport">
-      <div className="sala-frame" style={{ transform: `scale(${escala}) translate(${deslocamento}px, ${deslocamento}px)` }}>
-        <div className="sala-faixa" />
-        <Cabecalho tela={tela} relogio={relogio} />
-        <div className="sala-miolo">
-          {desatualizado ? <div className="sala-desatualizado">Dados desatualizados há {atualizadoHaMin} min</div> : null}
-          {erro && !dados ? <p className="sala-vazio">Sem conexão com o snapshot ({erro}).</p> : null}
-          {!dados && !erro ? <p className="sala-vazio">Carregando a sala…</p> : null}
-          {dados ? <Conteudo tela={tela} dados={dados} destaque={destaque} /> : null}
-        </div>
-        <footer className="sala-rodape">
-          {dados ? (
-            <>
-              <span>hoje <b>{dados.agora.hojeAbertas}</b>↑ <b>{dados.agora.hojeFechadas}</b>↓</span>
-              <span>semana <b>{dados.agora.semanaAbertas}</b>↑ <b>{dados.agora.semanaFechadas}</b>↓</span>
-              <span>1º at. 30d <b>{dados.agora.primeiroNoPrazo30d == null ? "—" : `${dados.agora.primeiroNoPrazo30d}%`}</b></span>
-              <span>TPM 30d <b>—</b></span>
-              <span>críticos <b>{dados.agora.disponibilidadeCriticos == null ? "—" : `${dados.agora.disponibilidadeCriticos}%`}</b></span>
-              <span style={{ marginLeft: "auto" }}>
-                {atualizadoHaMin == null ? "" : `atualizado há ${atualizadoHaMin} min`}
-                {erro ? ` · sem conexão desde agora (${erro})` : ""}
-              </span>
-            </>
-          ) : <span>sala</span>}
-          {telaFixa ? null : (
-            <button type="button" onClick={() => setPausado((atual) => !atual)} style={{ minHeight: 44, marginLeft: 12 }}>
-              {pausado ? "continuar" : "pausar"} · próxima: {proximaLabel} em 0:{String(restante).padStart(2, "0")}
-            </button>
-          )}
-          <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 8, background: "#E3EAF3" }}>
-            <div style={{ width: `${(telaFixa ? 0 : progresso) * 100}%`, height: 8, background: "#2C66AB" }} />
+    <div className={`${mono.variable} sala-root`}>
+      <div className="sala-viewport">
+        <div
+          className="sala-stage"
+          style={{
+            width: Math.round(1920 * escala),
+            height: Math.round(1080 * escala),
+          }}
+        >
+          <div
+            className="sala-frame"
+            style={{
+              transform: `translate(${deslocamento}px, ${deslocamento}px) scale(${escala})`,
+            }}
+          >
+          <div className="sala-faixa" />
+          <Cabecalho tela={tela} relogio={relogio} />
+          <div className="sala-miolo">
+            {desatualizado ? <div className="sala-desatualizado">Dados desatualizados há {atualizadoHaMin} min</div> : null}
+            {erro && !dados ? <p className="sala-vazio">Sem conexão com o snapshot ({erro}).</p> : null}
+            {!dados && !erro ? <p className="sala-vazio">Carregando a sala…</p> : null}
+            {dados ? <Conteudo tela={tela} dados={dados} destaque={destaque} /> : null}
           </div>
-        </footer>
+          <footer className="sala-rodape">
+            {dados ? (
+              <>
+                <span>hoje <b>{dados.agora.hojeAbertas}</b>↑ <b>{dados.agora.hojeFechadas}</b>↓</span>
+                <span>semana <b>{dados.agora.semanaAbertas}</b>↑ <b>{dados.agora.semanaFechadas}</b>↓</span>
+                <span>1º at. 30d <b>{dados.agora.primeiroNoPrazo30d == null ? "—" : `${dados.agora.primeiroNoPrazo30d}%`}</b></span>
+                <span>TPM 30d <b>—</b></span>
+                <span>críticos <b>{dados.agora.disponibilidadeCriticos == null ? "—" : `${dados.agora.disponibilidadeCriticos}%`}</b></span>
+                <span style={{ marginLeft: "auto" }}>
+                  {atualizadoHaMin == null ? "" : `atualizado há ${atualizadoHaMin} min`}
+                  {erro ? ` · sem conexão desde agora (${erro})` : ""}
+                </span>
+              </>
+            ) : <span>sala</span>}
+            {telaFixa ? null : (
+              <button type="button" onClick={() => setPausado((atual) => !atual)} style={{ minHeight: 44, marginLeft: 12 }}>
+                {pausado ? "continuar" : "pausar"} · próxima: {proximaLabel} em 0:{String(restante).padStart(2, "0")}
+              </button>
+            )}
+            <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 8, background: "#E3EAF3" }}>
+              <div style={{ width: `${(telaFixa ? 0 : progresso) * 100}%`, height: 8, background: "#2C66AB" }} />
+            </div>
+          </footer>
+          </div>
+        </div>
       </div>
     </div>
   );

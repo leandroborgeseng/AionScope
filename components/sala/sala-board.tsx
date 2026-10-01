@@ -318,7 +318,7 @@ function EstratBloco({
         </p>
       ) : (
         <p className="mt-2 text-[11px] text-aion-muted">
-          Tempo de atendimento das corretivas em horas úteis (8h–17h seg–sex).
+          Tempo de atendimento das corretivas em horas úteis (7h–17h seg–sex).
         </p>
       )}
     </section>
