@@ -99,7 +99,15 @@
 }
 .sala-contadores { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .sala-contador { border-radius: 16px; padding: 12px 18px; display: flex; flex-direction: column; }
-.sala-contador span:last-child { font-size: 72px; }
+.sala-contador .sala-numero { font-size: 72px; }
+.sala-contador-pct {
+  font-family: var(--fonte-num);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1.1;
+  margin-top: -4px;
+  opacity: 0.85;
+}
 .sala-fila { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
 .sala-linha {
   display: grid;
