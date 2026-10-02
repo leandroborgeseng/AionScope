@@ -91,7 +91,8 @@ export default function SalaRegistrosPage() {
     evento.preventDefault();
     setErro(null);
     setOk(null);
-    const form = new FormData(evento.currentTarget);
+    const formEl = evento.currentTarget;
+    const form = new FormData(formEl);
     const body: Record<string, unknown> = { tipo };
     for (const [chave, valor] of form.entries()) {
       if (chave === "evidencia" || chave === "segregados") body[chave] = valor === "on";
@@ -107,7 +108,7 @@ export default function SalaRegistrosPage() {
       setErro(json.message ?? "Falha ao gravar.");
       return;
     }
-    evento.currentTarget.reset();
+    formEl.reset();
     setOk("Registro salvo.");
     await carregar();
   }
