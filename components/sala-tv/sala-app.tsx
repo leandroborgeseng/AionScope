@@ -66,11 +66,20 @@ function Selo({ situacao }: { situacao: string }) {
 }
 
 function TelaAgora({ dados, destaque }: { dados: SalaSnapshot; destaque: string | null }) {
+  const formatarPct = (pct: number | null) =>
+    pct == null ? "—" : `${pct.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 1 })}%`;
   const contadores = [
-    ["ATRASO GRAVE", dados.agora.grave, "#A3123A", "#FDF1F4", "#E7A3B6"],
-    ["FORA DO PRAZO", dados.agora.foraDoPrazo, "#A8460A", "#FFF6EE", "#F0BD8E"],
-    ["SEM 1º ATENDIMENTO", dados.agora.semPrimeiro, "#8A5A00", "#FFFFFF", "#DCE4EE"],
-    ["EQUIP. PARADOS", dados.agora.parados == null ? "—" : dados.agora.parados, "#2C66AB", "#FFFFFF", "#DCE4EE"],
+    ["ATRASO GRAVE", dados.agora.grave, dados.agora.gravePct, "#A3123A", "#FDF1F4", "#E7A3B6"],
+    ["FORA DO PRAZO", dados.agora.foraDoPrazo, dados.agora.foraDoPrazoPct, "#A8460A", "#FFF6EE", "#F0BD8E"],
+    ["SEM 1º ATENDIMENTO", dados.agora.semPrimeiro, dados.agora.semPrimeiroPct, "#8A5A00", "#FFFFFF", "#DCE4EE"],
+    [
+      "EQUIP. PARADOS",
+      dados.agora.parados == null ? "—" : dados.agora.parados,
+      dados.agora.paradosPct,
+      "#2C66AB",
+      "#FFFFFF",
+      "#DCE4EE",
+    ],
   ] as const;
   return (
     <>
@@ -78,10 +87,13 @@ function TelaAgora({ dados, destaque }: { dados: SalaSnapshot; destaque: string 
         <div className="sala-coluna">
           <div className={dados.plantao ? "sala-aviso" : "sala-cartao"}>{dados.plantaoTexto}</div>
           <div className="sala-contadores">
-            {contadores.map(([rotulo, valor, cor, fundo, borda]) => (
+            {contadores.map(([rotulo, valor, pct, cor, fundo, borda]) => (
               <div key={rotulo} className="sala-contador" style={{ background: fundo, border: `2px solid ${borda}`, color: cor }}>
                 <span className="sala-rotulo-bloco" style={{ color: cor }}>{rotulo}</span>
                 <span className="sala-numero">{valor}</span>
+                <span className="sala-contador-pct" title={dados.agora.parque ? `% do parque (${dados.agora.parque} ativos)` : "% do parque indisponível"}>
+                  {formatarPct(pct)}
+                </span>
               </div>
             ))}
           </div>

@@ -138,6 +138,12 @@ function percentual(parte: number, total: number) {
   return Math.round((parte / total) * 100);
 }
 
+/** % do parque para TV: 1 casa decimal (ex.: 0,5%); null se sem denominador ou valor. */
+function percentualParque(parte: number | null, parque: number): number | null {
+  if (parte == null || !parque) return null;
+  return Math.round((parte / parque) * 1000) / 10;
+}
+
 function ordemCriticidade(horas: number | null) {
   if (horas == null) return 3;
   if (horas <= 2) return 0;
@@ -544,6 +550,15 @@ export function montarSnapshotDeDados(
       foraDoPrazo: fora.length,
       semPrimeiro: semAtendimento.length,
       parados: dados.disponibilidade || paradosAgora.size ? paradosAgora.size : null,
+      // Denominador = parque médico ativo (mesmo filtro de ciclo/P03).
+      parque: ativos.length,
+      gravePct: percentualParque(grave.length, ativos.length),
+      foraDoPrazoPct: percentualParque(fora.length, ativos.length),
+      semPrimeiroPct: percentualParque(semAtendimento.length, ativos.length),
+      paradosPct: percentualParque(
+        dados.disponibilidade || paradosAgora.size ? paradosAgora.size : null,
+        ativos.length,
+      ),
       proxyParada:
         "Parada aproximada pela OS (Abertura→Fechamento). Campos Parada/Funcionamento quase vazios na API.",
       plano: planoAgoraCards(programadasMes).map((item) => ({

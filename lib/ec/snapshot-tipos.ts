@@ -53,6 +53,13 @@ export type SalaSnapshot = {
     foraDoPrazo: number;
     semPrimeiro: number;
     parados: number | null;
+    /** Parque médico ativo (mesmo filtro de ciclo/indicadores: isEquipamentoMedico + Status ATIVO). */
+    parque: number;
+    /** % sobre o parque; null se parque=0 ou contagem indisponível. 1 casa decimal. */
+    gravePct: number | null;
+    foraDoPrazoPct: number | null;
+    semPrimeiroPct: number | null;
+    paradosPct: number | null;
     proxyParada: string;
     plano: Array<{ tipo: string; faltam: number | null; percentual: number | null; executados?: number | null; previstos?: number | null }>;
     planoAviso: string;
