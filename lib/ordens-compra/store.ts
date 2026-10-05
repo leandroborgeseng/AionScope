@@ -512,9 +512,9 @@ export function resumoOrdensCompraTv(agora = new Date()) {
   const pctOs = todas.length ? Math.round((comOs / todas.length) * 100) : null;
   const semOs = abertas.filter((o) => !o.numero_os?.trim()).length;
 
+  // Todas as OCs abertas — a TV pagina/rola no cliente (sem hard-limit).
   const pedidos: PedidoTvOrdem[] = [...abertas]
     .sort((a, b) => (idadeDias(ancoraIdade(b), agora) ?? 0) - (idadeDias(ancoraIdade(a), agora) ?? 0))
-    .slice(0, 12)
     .map((o) => ({
       numeroOrdem: o.numero_ordem,
       categoria: o.categoria || "—",

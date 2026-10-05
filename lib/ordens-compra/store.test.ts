@@ -184,6 +184,25 @@ test("resumo TV: aberta aparece; entregue sai; contadores", () => {
   assert.ok(resumo.entreguesMes >= 1);
 });
 
+test("resumo TV: todas as OCs abertas (sem hard-limit de 12)", () => {
+  for (let i = 1; i <= 15; i++) {
+    const body: Record<string, unknown> = {
+      numero_ordem: `OC-MANY-${String(i).padStart(2, "0")}`,
+      status: i % 2 === 0 ? "ordem_gerada" : "solicitado",
+      data_pedido: `2026-09-${String((i % 28) + 1).padStart(2, "0")}`,
+      fornecedor: `Forn ${i}`,
+      valor_total: `${i * 10}.00`,
+    };
+    if (i % 2 === 0) {
+      body.data_ordem = `2026-09-${String((i % 28) + 1).padStart(2, "0")}`;
+    }
+    upsertOrdemCompra(parsed(body));
+  }
+  const resumo = resumoOrdensCompraTv(new Date("2026-10-05T12:00:00"));
+  const many = resumo.pedidos.filter((p) => p.numeroOrdem.startsWith("OC-MANY-"));
+  assert.equal(many.length, 15);
+});
+
 test("parseSalaPatch aceita OS, entrega e marcar_entregue", () => {
   const ok = parseSalaPatch({
     numero_ordem: "OC-x",

@@ -594,14 +594,89 @@ function TelaProcessos({ dados }: { dados: SalaSnapshot }) {
   );
 }
 
-function TelaCompras({ dados }: { dados: SalaSnapshot }) {
+/** Linhas por página na TV 1920×1080 (cabeçalho + KPIs + banner). */
+const COMPRAS_POR_PAGINA = 7;
+const GRID_COMPRAS =
+  "110px 120px minmax(0,1.2fr) 88px 88px 100px 90px 64px 140px 128px";
+
+function tomSituacaoCompras(situacao: string) {
+  if (situacao.includes("cobrar")) return "#A3123A";
+  if (situacao.includes("aguarda resposta")) return "#8A5A00";
+  if (situacao.includes("aguarda entrega")) return "#2C66AB";
+  return "#3E7A1E";
+}
+
+function TelaCompras({
+  dados,
+  onInteragir,
+  onAtualizar,
+}: {
+  dados: SalaSnapshot;
+  onInteragir?: () => void;
+  onAtualizar?: () => void | Promise<void>;
+}) {
   const c = dados.compras;
-  const tomSituacao = (situacao: string) => {
-    if (situacao.includes("cobrar")) return "#A3123A";
-    if (situacao.includes("aguarda resposta")) return "#8A5A00";
-    if (situacao.includes("aguarda entrega")) return "#2C66AB";
-    return "#3E7A1E";
+  const [pagina, setPagina] = useState(0);
+  const [ocultas, setOcultas] = useState<string[]>([]);
+  const [confirmando, setConfirmando] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [erroEntrega, setErroEntrega] = useState<string | null>(null);
+
+  const pedidosVisiveis = c.pedidos.filter((p) => !ocultas.includes(p.numeroOrdem));
+  const totalPaginas = Math.max(1, Math.ceil(pedidosVisiveis.length / COMPRAS_POR_PAGINA));
+  const paginaAtual = Math.min(pagina, totalPaginas - 1);
+  const inicio = paginaAtual * COMPRAS_POR_PAGINA;
+  const paginaPedidos = pedidosVisiveis.slice(inicio, inicio + COMPRAS_POR_PAGINA);
+
+  useEffect(() => {
+    setPagina((atual) => Math.min(atual, Math.max(0, totalPaginas - 1)));
+  }, [totalPaginas]);
+
+  useEffect(() => {
+    if (!confirmando) return;
+    const id = window.setTimeout(() => setConfirmando(null), 5_000);
+    return () => window.clearTimeout(id);
+  }, [confirmando]);
+
+  const tocar = () => onInteragir?.();
+
+  const marcarEntregue = async (numeroOrdem: string) => {
+    tocar();
+    setBusy(numeroOrdem);
+    setErroEntrega(null);
+    try {
+      const resposta = await fetch("/api/sala/ordens-compra", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          numero_ordem: numeroOrdem,
+          marcar_entregue: true,
+          itens_entregues: null,
+        }),
+      });
+      if (!resposta.ok) {
+        const json = (await resposta.json().catch(() => null)) as { message?: string; erro?: string } | null;
+        throw new Error(json?.message ?? json?.erro ?? `HTTP ${resposta.status}`);
+      }
+      setOcultas((atual) => (atual.includes(numeroOrdem) ? atual : [...atual, numeroOrdem]));
+      setConfirmando(null);
+      await onAtualizar?.();
+    } catch (falha) {
+      setErroEntrega(falha instanceof Error ? falha.message : "falha ao marcar entregue");
+    } finally {
+      setBusy(null);
+    }
   };
+
+  const cliqueEntrega = (numeroOrdem: string) => {
+    tocar();
+    if (confirmando === numeroOrdem) {
+      void marcarEntregue(numeroOrdem);
+      return;
+    }
+    setConfirmando(numeroOrdem);
+  };
+
   return (
     <div className="sala-coluna" style={{ flex: 1, minHeight: 0 }}>
       <div
@@ -680,11 +755,11 @@ function TelaCompras({ dados }: { dados: SalaSnapshot }) {
             ORDENS FORMAIS · ROBÔ E-MAILS COMPRAS
           </div>
           <div style={{ fontSize: 17, color: "#1D4A80" }}>
-            Classificar / vincular OS / registrar entrega em{" "}
+            Marque entrega nesta TV (dois toques) ou edite OS/categoria em{" "}
             <a href="/sala/ordens-compra" style={{ fontWeight: 700, color: "#2C66AB", textDecoration: "underline" }}>
               /sala/ordens-compra
             </a>
-            . Pedido (e-mail) = data do pedido · Resposta / OC = data da ordem · Entrega = data real.
+            . Pedido (e-mail) · Resposta / OC · Entrega = data real.
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
@@ -702,84 +777,162 @@ function TelaCompras({ dados }: { dados: SalaSnapshot }) {
         ) : null}
       </div>
 
-      <div className="sala-cartao" style={{ flex: 1, overflow: "hidden", marginTop: 8 }}>
-        <div className="sala-rotulo-bloco">OCs EM ABERTO · {c.pedidos.length}</div>
+      <div
+        className="sala-cartao"
+        style={{ flex: 1, overflow: "hidden", marginTop: 8, display: "flex", flexDirection: "column", minHeight: 0 }}
+      >
+        <div style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+          <div className="sala-rotulo-bloco">OCs EM ABERTO · {pedidosVisiveis.length}</div>
+          {pedidosVisiveis.length > COMPRAS_POR_PAGINA ? (
+            <span style={{ color: "#4E6079", fontSize: 16 }}>
+              página {paginaAtual + 1}/{totalPaginas}
+            </span>
+          ) : null}
+        </div>
         {c.aviso ? <p className="sala-vazio">{c.aviso}</p> : null}
-        {c.pedidos.length === 0 && !c.aviso ? (
-          <p className="sala-vazio">Nenhuma OC aberta. Registre entrega em /sala/ordens-compra.</p>
+        {erroEntrega ? (
+          <p className="sala-vazio" style={{ color: "#A3123A" }}>
+            Entrega: {erroEntrega}
+          </p>
         ) : null}
-        {c.pedidos.length > 0 ? (
-          <div style={{ marginTop: 8, overflow: "auto" }}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "120px 140px minmax(0,1.2fr) 90px 90px 110px 100px 70px 150px",
-                gap: 10,
-                padding: "8px 0",
-                fontSize: 13,
-                fontWeight: 700,
-                letterSpacing: 1,
-                color: "#4E6079",
-                borderBottom: "1px solid #DCE4EE",
-              }}
-            >
-              <span>OC</span>
-              <span>CATEGORIA</span>
-              <span>FORNECEDOR</span>
-              <span>PEDIDO</span>
-              <span>RESP./OC</span>
-              <span>VALOR</span>
-              <span>OS</span>
-              <span style={{ textAlign: "right" }}>PARADO</span>
-              <span style={{ textAlign: "right" }}>SITUAÇÃO</span>
-            </div>
-            {c.pedidos.map((pedido) => (
+        {pedidosVisiveis.length === 0 && !c.aviso ? (
+          <p className="sala-vazio">Nenhuma OC aberta. Registre entrega aqui ou em /sala/ordens-compra.</p>
+        ) : null}
+        {pedidosVisiveis.length > 0 ? (
+          <>
+            <div className="sala-compras-lista">
               <div
-                key={pedido.numeroOrdem}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "120px 140px minmax(0,1.2fr) 90px 90px 110px 100px 70px 150px",
+                  gridTemplateColumns: GRID_COMPRAS,
                   gap: 10,
-                  alignItems: "center",
-                  padding: "10px 0",
-                  borderBottom: "1px solid #E6ECF3",
-                  background: pedido.situacao.includes("cobrar") ? "#FDF1F4" : "transparent",
+                  padding: "8px 0",
+                  fontSize: 13,
+                  fontWeight: 700,
+                  letterSpacing: 1,
+                  color: "#4E6079",
+                  borderBottom: "1px solid #DCE4EE",
+                  position: "sticky",
+                  top: 0,
+                  background: "var(--cartao, #fff)",
+                  zIndex: 1,
                 }}
               >
-                <div>
-                  <div className="sala-numero" style={{ fontSize: 18 }}>{pedido.numeroOrdem}</div>
-                  <div style={{ fontSize: 13, color: "#4E6079" }}>{pedido.confianca}</div>
-                </div>
-                <span style={{ fontSize: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {pedido.categoria}
-                </span>
-                <span style={{ fontSize: 17, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {pedido.fornecedor}
-                </span>
-                <span className="sala-numero" style={{ fontSize: 17 }}>{pedido.dataPedido}</span>
-                <span className="sala-numero" style={{ fontSize: 17 }}>{pedido.dataOrdem}</span>
-                <span style={{ fontSize: 16 }}>{pedido.valor}</span>
-                <span className="sala-numero" style={{ fontSize: 17 }}>{pedido.numeroOs}</span>
-                <span className="sala-numero" style={{ fontSize: 22, textAlign: "right", color: tomSituacao(pedido.situacao) }}>
-                  {pedido.paradoDias}d
-                </span>
-                <span style={{ fontSize: 16, fontWeight: 700, textAlign: "right", color: tomSituacao(pedido.situacao) }}>
-                  {pedido.situacao}
-                </span>
+                <span>OC</span>
+                <span>CATEGORIA</span>
+                <span>FORNECEDOR</span>
+                <span>PEDIDO</span>
+                <span>RESP./OC</span>
+                <span>VALOR</span>
+                <span>OS</span>
+                <span style={{ textAlign: "right" }}>PARADO</span>
+                <span style={{ textAlign: "right" }}>SITUAÇÃO</span>
+                <span style={{ textAlign: "right" }}>ENTREGA</span>
               </div>
-            ))}
-          </div>
+              {paginaPedidos.map((pedido) => {
+                const tom = tomSituacaoCompras(pedido.situacao);
+                const emConfirmacao = confirmando === pedido.numeroOrdem;
+                const carregando = busy === pedido.numeroOrdem;
+                return (
+                  <div
+                    key={pedido.numeroOrdem}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: GRID_COMPRAS,
+                      gap: 10,
+                      alignItems: "center",
+                      padding: "10px 0",
+                      borderBottom: "1px solid #E6ECF3",
+                      background: pedido.situacao.includes("cobrar") ? "#FDF1F4" : "transparent",
+                    }}
+                  >
+                    <div>
+                      <div className="sala-numero" style={{ fontSize: 18 }}>{pedido.numeroOrdem}</div>
+                      <div style={{ fontSize: 13, color: "#4E6079" }}>{pedido.confianca}</div>
+                    </div>
+                    <span style={{ fontSize: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {pedido.categoria}
+                    </span>
+                    <span style={{ fontSize: 17, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {pedido.fornecedor}
+                    </span>
+                    <span className="sala-numero" style={{ fontSize: 17 }}>{pedido.dataPedido}</span>
+                    <span className="sala-numero" style={{ fontSize: 17 }}>{pedido.dataOrdem}</span>
+                    <span style={{ fontSize: 16 }}>{pedido.valor}</span>
+                    <span className="sala-numero" style={{ fontSize: 17 }}>{pedido.numeroOs}</span>
+                    <span className="sala-numero" style={{ fontSize: 22, textAlign: "right", color: tom }}>
+                      {pedido.paradoDias}d
+                    </span>
+                    <span style={{ fontSize: 16, fontWeight: 700, textAlign: "right", color: tom }}>
+                      {pedido.situacao}
+                    </span>
+                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                      <button
+                        type="button"
+                        className={`sala-compras-btn-entrega${emConfirmacao ? " confirmar" : ""}`}
+                        disabled={Boolean(busy)}
+                        onClick={() => cliqueEntrega(pedido.numeroOrdem)}
+                      >
+                        {carregando ? "…" : emConfirmacao ? "Confirmar?" : "Entregue"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {totalPaginas > 1 ? (
+              <div className="sala-compras-pager">
+                <button
+                  type="button"
+                  disabled={paginaAtual <= 0}
+                  onClick={() => {
+                    tocar();
+                    setPagina((atual) => Math.max(0, atual - 1));
+                  }}
+                >
+                  ← Anterior
+                </button>
+                <span style={{ fontSize: 18, color: "#4E6079", fontWeight: 600 }}>
+                  página {paginaAtual + 1}/{totalPaginas} · {pedidosVisiveis.length} abertas
+                </span>
+                <button
+                  type="button"
+                  disabled={paginaAtual >= totalPaginas - 1}
+                  onClick={() => {
+                    tocar();
+                    setPagina((atual) => Math.min(totalPaginas - 1, atual + 1));
+                  }}
+                >
+                  Próxima →
+                </button>
+              </div>
+            ) : null}
+          </>
         ) : null}
       </div>
     </div>
   );
 }
 
-function Conteudo({ tela, dados, destaque }: { tela: TelaSala; dados: SalaSnapshot; destaque: string | null }) {
+function Conteudo({
+  tela,
+  dados,
+  destaque,
+  onInteragir,
+  onAtualizar,
+}: {
+  tela: TelaSala;
+  dados: SalaSnapshot;
+  destaque: string | null;
+  onInteragir?: () => void;
+  onAtualizar?: () => void | Promise<void>;
+}) {
   if (tela === "agora") return <TelaAgora dados={dados} destaque={destaque} />;
   if (tela === "fluxo") return <TelaFluxo dados={dados} />;
   if (tela === "envelhecimento") return <TelaEnvelhecimento dados={dados} />;
-  if (tela === "compras") return <TelaCompras dados={dados} />;
+  if (tela === "compras") {
+    return <TelaCompras dados={dados} onInteragir={onInteragir} onAtualizar={onAtualizar} />;
+  }
   if (tela === "programadas") return <TelaProgramadas dados={dados} />;
   if (tela === "ciclo-de-vida") return <TelaCiclo dados={dados} />;
   if (tela === "indicadores") return <TelaIndicadores dados={dados} />;
@@ -926,7 +1079,15 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
             {desatualizado ? <div className="sala-desatualizado">Dados desatualizados há {atualizadoHaMin} min</div> : null}
             {erro && !dados ? <p className="sala-vazio">Sem conexão com o snapshot ({erro}).</p> : null}
             {!dados && !erro ? <p className="sala-vazio">Carregando a sala…</p> : null}
-            {dados ? <Conteudo tela={tela} dados={dados} destaque={destaque} /> : null}
+            {dados ? (
+              <Conteudo
+                tela={tela}
+                dados={dados}
+                destaque={destaque}
+                onInteragir={() => setPausado(true)}
+                onAtualizar={carregar}
+              />
+            ) : null}
           </div>
           <footer className="sala-rodape">
             {dados ? (
