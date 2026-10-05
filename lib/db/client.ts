@@ -2,7 +2,13 @@ import Database from "better-sqlite3";
 import { accessSync, constants, readFileSync } from "fs";
 import path from "path";
 import { resolveDatabasePath } from "./path";
-import { MIGRATION_COMPRAS_EMAIL, MIGRATION_NAME, MIGRATION_SALA_MANUAL, SCHEMA_SQL } from "./schema";
+import {
+  MIGRATION_COMPRAS_EMAIL,
+  MIGRATION_NAME,
+  MIGRATION_ORDENS_COMPRA,
+  MIGRATION_SALA_MANUAL,
+  SCHEMA_SQL,
+} from "./schema";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -142,6 +148,24 @@ function migrate(db: Database.Database) {
       MIGRATION_COMPRAS_EMAIL,
       new Date().toISOString(),
     );
+  }
+
+  const ordensCompra = db
+    .prepare("SELECT id FROM schema_migrations WHERE name = ?")
+    .get(MIGRATION_ORDENS_COMPRA);
+  if (!ordensCompra) {
+    db.prepare("INSERT INTO schema_migrations (id, name, applied_at) VALUES (4, ?, ?)").run(
+      MIGRATION_ORDENS_COMPRA,
+      new Date().toISOString(),
+    );
+  }
+}
+
+/** Fecha o singleton — só para testes isolados. */
+export function closeDbForTests() {
+  if (globalThis.__aionSqlite) {
+    globalThis.__aionSqlite.close();
+    globalThis.__aionSqlite = undefined;
   }
 }
 
