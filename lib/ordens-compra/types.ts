@@ -1,4 +1,10 @@
-export const STATUS_ORDEM = ["solicitado", "ordem_gerada", "cancelado", "fora_escopo"] as const;
+export const STATUS_ORDEM = [
+  "solicitado",
+  "ordem_gerada",
+  "cancelado",
+  "fora_escopo",
+  "duplicada",
+] as const;
 export const CATEGORIA_ORDEM = ["Instrumental", "Equipamentos Médicos", "Outros"] as const;
 export const ORIGEM_ORDEM = ["manutencao_sjh", "oficina_aion_cc", "tramite_interno"] as const;
 export const CONFIANCA_ORDEM = ["alta", "media", "baixa"] as const;
@@ -82,6 +88,7 @@ export type OrdemCompra = CamposOrdem &
   CamposSalaOrdem & {
     numero_ordem: string;
     itens: ItemOrdem[];
+    anexos: OrdemAnexo[];
     fonte: string;
     editado_manualmente: EditadoManualmente;
     created_at: string;
@@ -97,6 +104,8 @@ export type PatchSalaOrdem = {
   motivo_exclusao?: string | null;
   /** Atalho: status=fora_escopo + motivo opcional. */
   marcar_fora_escopo?: boolean;
+  /** Atalho: status=duplicada + motivo opcional. */
+  marcar_duplicada?: boolean;
   /** Atalho: volta à TV (ordem_gerada se tem data_ordem, senão solicitado). */
   restaurar_tv?: boolean;
 };
@@ -114,12 +123,19 @@ export type ListaFiltros = {
   categoria?: string;
   fornecedor?: string;
   mes?: string;
+  /** Intervalo em data_pedido (ISO date YYYY-MM-DD). */
+  data_pedido_de?: string;
+  data_pedido_ate?: string;
   os?: string;
   sem_valor?: boolean;
-  /** Só OCs abertas na TV: não canceladas, não fora_escopo e sem data_entrega. */
+  /** Só OCs abertas na TV: não canceladas/fora_escopo/duplicada e sem data_entrega. */
   abertas?: boolean;
   /** Só OCs com status fora_escopo (excluídas da TV, audit trail). */
   excluidas?: boolean;
+  /** Só OCs com status duplicada. */
+  duplicadas?: boolean;
+  /** Ordenação: padrão data_ordem/data_pedido; `data_pedido` força por pedido. */
+  ordenar?: "padrao" | "data_pedido";
   page: number;
   page_size: number;
 };
@@ -143,4 +159,22 @@ export type PedidoTvOrdem = {
   confianca: string;
   paradoDias: number;
   situacao: string;
+};
+
+export const FONTE_ANEXO = ["manual", "email_robot"] as const;
+export type FonteAnexo = (typeof FONTE_ANEXO)[number];
+
+/** Metadados de anexo de OC (sem caminho em disco). */
+export type OrdemAnexo = {
+  id: number;
+  numero_ordem: string;
+  nome_original: string;
+  content_type: string;
+  tamanho: number;
+  fonte: FonteAnexo;
+  email_message_id: string | null;
+  descricao: string | null;
+  created_at: string;
+  /** URL relativa para visualizar/baixar (Sala). */
+  url: string;
 };
