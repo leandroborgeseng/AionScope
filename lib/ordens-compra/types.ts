@@ -164,13 +164,15 @@ export type PedidoTvOrdem = {
 export const FONTE_ANEXO = ["manual", "email_robot"] as const;
 export type FonteAnexo = (typeof FONTE_ANEXO)[number];
 
-/** Metadados de anexo de OC (sem caminho em disco). */
+/** Metadados de anexo de OC (arquivo em disco sob o volume de dados). */
 export type OrdemAnexo = {
   id: number;
   numero_ordem: string;
   nome_original: string;
   content_type: string;
   tamanho: number;
+  /** Relativo à pasta de anexos — uso interno no download; clientes podem ignorar. */
+  caminho_relativo: string;
   fonte: FonteAnexo;
   email_message_id: string | null;
   descricao: string | null;

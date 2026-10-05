@@ -39,7 +39,7 @@ export async function GET(request: Request, context: Ctx) {
 
 /**
  * Upload do robô: multipart campo `arquivo`/`file`.
- * Opcional: `email_message_id` (texto). Não altera o upsert da OC.
+ * Opcional: `email_message_id`, `descricao` (texto). Não altera o upsert da OC.
  */
 export async function POST(request: Request, context: Ctx) {
   const numero = await numeroDe(context);
@@ -84,6 +84,8 @@ export async function POST(request: Request, context: Ctx) {
   const emailRaw = form.get("email_message_id");
   const email_message_id =
     typeof emailRaw === "string" && emailRaw.trim() ? emailRaw.trim() : null;
+  const descRaw = form.get("descricao");
+  const descricao = typeof descRaw === "string" && descRaw.trim() ? descRaw.trim() : null;
 
   const file = entry as File;
   const bytes = Buffer.from(await file.arrayBuffer());
@@ -94,6 +96,7 @@ export async function POST(request: Request, context: Ctx) {
     bytes,
     fonte: "email_robot",
     email_message_id,
+    descricao,
   });
   if (!result.ok) {
     registrarChamadaApi({

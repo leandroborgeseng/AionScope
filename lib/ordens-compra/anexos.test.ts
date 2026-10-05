@@ -122,9 +122,21 @@ test("gravar / listar / remover anexo não altera upsert da OC", () => {
     bytes: Buffer.from("%PDF-1.4 minimal"),
     fonte: "email_robot",
     email_message_id: "msg-1",
+    descricao: "PDF do e-mail",
   });
   assert.equal(robot.ok, true);
+  if (!robot.ok) throw new Error("fail");
+  assert.equal(robot.anexo.descricao, "PDF do e-mail");
   assert.equal(listarAnexosOrdem("OC-ANX-1").length, 2);
+
+  const comAnexos = upsertOrdemCompra(
+    parsed({
+      numero_ordem: "OC-ANX-1",
+      status: "ordem_gerada",
+      fornecedor: "Anexo SA",
+    }),
+  ).ordem;
+  assert.ok(comAnexos.anexos.length >= 2);
 
   const rem = removerAnexoOrdem("OC-ANX-1", criado.anexo.id);
   assert.equal(rem.ok, true);

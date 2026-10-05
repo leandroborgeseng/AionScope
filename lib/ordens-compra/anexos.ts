@@ -44,6 +44,7 @@ type AnexoRow = {
   caminho_relativo: string;
   fonte: string;
   email_message_id: string | null;
+  descricao: string | null;
   created_at: string;
 };
 
@@ -153,6 +154,7 @@ function rowParaAnexo(row: AnexoRow): OrdemAnexo {
     caminho_relativo: row.caminho_relativo,
     fonte: row.fonte as FonteAnexo,
     email_message_id: row.email_message_id,
+    descricao: row.descricao,
     created_at: row.created_at,
     url: urlAnexo(row.numero_ordem, row.id),
   };
@@ -162,7 +164,7 @@ export function listarAnexosOrdem(numero: string): OrdemAnexo[] {
   const rows = getDb()
     .prepare(
       `SELECT id, numero_ordem, nome_original, content_type, tamanho, caminho_relativo,
-              fonte, email_message_id, created_at
+              fonte, email_message_id, descricao, created_at
        FROM ordem_anexos WHERE numero_ordem = ? ORDER BY id ASC`,
     )
     .all(numero) as AnexoRow[];
@@ -173,7 +175,7 @@ export function obterAnexo(numero: string, id: number): OrdemAnexo | undefined {
   const row = getDb()
     .prepare(
       `SELECT id, numero_ordem, nome_original, content_type, tamanho, caminho_relativo,
-              fonte, email_message_id, created_at
+              fonte, email_message_id, descricao, created_at
        FROM ordem_anexos WHERE numero_ordem = ? AND id = ?`,
     )
     .get(numero, id) as AnexoRow | undefined;
@@ -273,6 +275,7 @@ export type GravarAnexoInput = {
   bytes: Buffer;
   fonte: FonteAnexo;
   email_message_id?: string | null;
+  descricao?: string | null;
 };
 
 export function gravarAnexoOrdem(
@@ -299,8 +302,8 @@ export function gravarAnexoOrdem(
     .prepare(
       `INSERT INTO ordem_anexos (
         numero_ordem, nome_original, content_type, tamanho, caminho_relativo,
-        fonte, email_message_id, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        fonte, email_message_id, descricao, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       input.numero_ordem,
@@ -310,6 +313,7 @@ export function gravarAnexoOrdem(
       relativo,
       input.fonte,
       input.email_message_id ?? null,
+      input.descricao?.trim() || null,
       created_at,
     );
 
