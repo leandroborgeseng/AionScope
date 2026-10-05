@@ -132,7 +132,7 @@ export default function SalaOrdensCompraPage() {
     <div className="space-y-5">
       <PageHeader
         title="Ordens de compra"
-        description="Ordens formais extraídas pelo robô E-Mails Compras (leandro.borges@aion.eng.br). Complementa o funil de pedidos/SC em Pedidos — não o substitui."
+        description="Ordens formais extraídas pelo robô E-Mails Compras (leandro.borges@aion.eng.br). Esta é a tela das OCs da API — a TV Compras e Pedidos usam outro cadastro (funil e-mail→SC)."
       />
 
       <p className="text-sm text-aion-muted">
@@ -140,7 +140,11 @@ export default function SalaOrdensCompraPage() {
         <Link href="/sala/pedidos" className="font-semibold text-aion-blue hover:underline">
           /sala/pedidos
         </Link>
-        .
+        . A TV em{" "}
+        <Link href="/sala/compras" className="font-semibold text-aion-blue hover:underline">
+          /sala/compras
+        </Link>{" "}
+        não lista estas OCs formais.
       </p>
 
       {erro ? (

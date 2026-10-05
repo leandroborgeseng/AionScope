@@ -330,7 +330,11 @@ export default function SalaPedidosPage() {
         <Link className="text-aion-blue underline" href="/sala/compras">
           /sala/compras
         </Link>{" "}
-        usa estes registros. Origem: e-mail M365 e/ou cadastro manual.
+        usa estes registros. Origem: e-mail M365 e/ou cadastro manual. Ordens formais do robô (API) ficam em{" "}
+        <Link className="text-aion-blue underline" href="/sala/ordens-compra">
+          /sala/ordens-compra
+        </Link>
+        .
       </p>
 
       <div className="flex flex-wrap items-center gap-3">

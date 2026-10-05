@@ -662,6 +662,37 @@ function TelaCompras({ dados }: { dados: SalaSnapshot }) {
         </div>
       </div>
 
+      <div
+        className="sala-cartao"
+        style={{
+          marginTop: 8,
+          padding: "10px 14px",
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 12,
+          border: "1px solid #B9CBE3",
+          background: "#F4F8FC",
+        }}
+      >
+        <div style={{ flex: 1, minWidth: 240 }}>
+          <div className="sala-rotulo-bloco" style={{ marginBottom: 2 }}>
+            ORDENS FORMAIS · ROBÔ E-MAILS COMPRAS
+          </div>
+          <div style={{ fontSize: 17, color: "#1D4A80" }}>
+            Esta TV mostra só o funil pedido→SC→entrega. As OCs enviadas pela API ficam em{" "}
+            <a href="/sala/ordens-compra" style={{ fontWeight: 700, color: "#2C66AB", textDecoration: "underline" }}>
+              /sala/ordens-compra
+            </a>
+            .
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+          <span className="sala-numero" style={{ fontSize: 40, color: "#2C66AB" }}>{c.ordensFormaisTotal}</span>
+          <span style={{ color: "#4E6079", fontSize: 16 }}>no banco</span>
+        </div>
+      </div>
+
       <div className="sala-cartao" style={{ flex: 1, overflow: "hidden", marginTop: 8 }}>
         <div className="sala-rotulo-bloco">PEDIDOS EM ABERTO · {c.pedidos.length}</div>
         {c.aviso ? <p className="sala-vazio">{c.aviso}</p> : null}

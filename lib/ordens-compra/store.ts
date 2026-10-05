@@ -235,6 +235,11 @@ export function editarCategoriaManualmente(numero: string, categoria: CategoriaO
   return obterOrdemCompra(numero);
 }
 
+/** Contagem total de OCs formais (robô) — usada na TV para apontar a tela certa. */
+export function contarOrdensCompra(): number {
+  return (getDb().prepare("SELECT COUNT(*) AS n FROM ordens_compra").get() as { n: number }).n;
+}
+
 export function listarOrdensCompra(filtros: ListaFiltros): ListaOrdens {
   const db = getDb();
   const where: string[] = [];
