@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/db/client";
+import { listarAnexosOrdem } from "./anexos";
 import {
   CAMPOS_ORDEM,
   type CategoriaOrdem,
@@ -97,6 +98,7 @@ function rowParaOrdem(row: OrdemRow, itens: ItemOrdem[]): OrdemCompra {
     observacoes: row.observacoes,
     ordens_relacionadas: parseRelacionadas(row.ordens_relacionadas),
     itens,
+    anexos: listarAnexosOrdem(row.numero_ordem),
     fonte: row.fonte,
     editado_manualmente: parseEditado(row.editado_manualmente),
     created_at: row.created_at,
@@ -260,6 +262,11 @@ export function editarOrdemSala(numero: string, patch: PatchSalaOrdem): OrdemCom
     statusPatch = "fora_escopo";
   }
 
+  if (patch.marcar_duplicada) {
+    statusPatch = "duplicada";
+    if (motivoPatch === undefined) motivoPatch = "duplicada";
+  }
+
   if (patch.restaurar_tv) {
     statusPatch = existente.data_ordem?.trim() ? "ordem_gerada" : "solicitado";
     motivoPatch = null;
@@ -329,8 +336,10 @@ export function contarOrdensCompra(): number {
   return (getDb().prepare("SELECT COUNT(*) AS n FROM ordens_compra").get() as { n: number }).n;
 }
 
+const STATUS_FORA_TV = new Set(["cancelado", "fora_escopo", "duplicada"]);
+
 function ordemAberta(row: Pick<OrdemRow, "status" | "data_entrega">): boolean {
-  if (row.status === "cancelado" || row.status === "fora_escopo") return false;
+  if (row.status && STATUS_FORA_TV.has(row.status)) return false;
   const entrega = row.data_entrega?.trim();
   return !entrega;
 }
@@ -365,6 +374,14 @@ export function listarOrdensCompra(filtros: ListaFiltros): ListaOrdens {
     where.push("(IFNULL(data_pedido, '') LIKE ? OR IFNULL(data_ordem, '') LIKE ?)");
     params.push(`${filtros.mes}%`, `${filtros.mes}%`);
   }
+  if (filtros.data_pedido_de) {
+    where.push("IFNULL(substr(data_pedido, 1, 10), '') >= ?");
+    params.push(filtros.data_pedido_de);
+  }
+  if (filtros.data_pedido_ate) {
+    where.push("IFNULL(substr(data_pedido, 1, 10), '') <= ?");
+    params.push(filtros.data_pedido_ate);
+  }
   if (filtros.os) {
     where.push("IFNULL(numero_os, '') LIKE ?");
     params.push(`%${filtros.os}%`);
@@ -373,20 +390,27 @@ export function listarOrdensCompra(filtros: ListaFiltros): ListaOrdens {
     where.push("(valor_total IS NULL OR TRIM(valor_total) = '')");
   }
   if (filtros.abertas) {
-    where.push("(IFNULL(status, '') NOT IN ('cancelado', 'fora_escopo'))");
+    where.push("(IFNULL(status, '') NOT IN ('cancelado', 'fora_escopo', 'duplicada'))");
     where.push("(data_entrega IS NULL OR TRIM(data_entrega) = '')");
   }
   if (filtros.excluidas) {
     where.push("IFNULL(status, '') = 'fora_escopo'");
   }
+  if (filtros.duplicadas) {
+    where.push("IFNULL(status, '') = 'duplicada'");
+  }
 
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  const orderBy =
+    filtros.ordenar === "data_pedido"
+      ? "COALESCE(data_pedido, data_ordem, updated_at) DESC"
+      : "COALESCE(data_ordem, data_pedido, updated_at) DESC";
   const total = (db.prepare(`SELECT COUNT(*) AS n FROM ordens_compra ${clause}`).get(...params) as { n: number })
     .n;
   const offset = (filtros.page - 1) * filtros.page_size;
   const rows = db
     .prepare(
-      `SELECT * FROM ordens_compra ${clause} ORDER BY COALESCE(data_ordem, data_pedido, updated_at) DESC
+      `SELECT * FROM ordens_compra ${clause} ORDER BY ${orderBy}
        LIMIT ? OFFSET ?`,
     )
     .all(...params, filtros.page_size, offset) as OrdemRow[];
@@ -442,6 +466,7 @@ function situacaoTv(ordem: OrdemCompra): string {
   if (ordem.data_entrega) return "entregue";
   if (ordem.status === "cancelado") return "cancelado";
   if (ordem.status === "fora_escopo") return "fora do escopo";
+  if (ordem.status === "duplicada") return "duplicada";
   if (ordem.data_ordem || ordem.status === "ordem_gerada") {
     const dias = idadeDias(ordem.data_ordem || ordem.data_pedido, new Date()) ?? 0;
     return dias >= 14 ? "cobrar entrega" : "aguarda entrega";

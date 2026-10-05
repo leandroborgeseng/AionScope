@@ -298,12 +298,28 @@ export function parseListaQuery(url: URL): { ok: true; filtros: ListaFiltros } |
     });
   }
 
+  const DATA_DIA_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+  const data_pedido_de = url.searchParams.get("data_pedido_de")?.trim() || undefined;
+  if (data_pedido_de && !DATA_DIA_RE.test(data_pedido_de)) {
+    detalhes.push({ campo: "data_pedido_de", mensagem: "use YYYY-MM-DD." });
+  }
+  const data_pedido_ate = url.searchParams.get("data_pedido_ate")?.trim() || undefined;
+  if (data_pedido_ate && !DATA_DIA_RE.test(data_pedido_ate)) {
+    detalhes.push({ campo: "data_pedido_ate", mensagem: "use YYYY-MM-DD." });
+  }
+
   const semValorRaw = url.searchParams.get("sem_valor");
   const sem_valor = semValorRaw === "1" || semValorRaw === "true";
   const abertasRaw = url.searchParams.get("abertas");
   const abertas = abertasRaw === "1" || abertasRaw === "true";
   const excluidasRaw = url.searchParams.get("excluidas");
   const excluidas = excluidasRaw === "1" || excluidasRaw === "true";
+  const duplicadasRaw = url.searchParams.get("duplicadas");
+  const duplicadas = duplicadasRaw === "1" || duplicadasRaw === "true";
+  const ordenarRaw = url.searchParams.get("ordenar")?.trim();
+  const ordenar =
+    ordenarRaw === "data_pedido" ? ("data_pedido" as const) : ordenarRaw === "padrao" ? ("padrao" as const) : undefined;
 
   if (detalhes.length) return { ok: false, error: erroDe(detalhes) };
 
@@ -314,10 +330,14 @@ export function parseListaQuery(url: URL): { ok: true; filtros: ListaFiltros } |
       categoria,
       fornecedor: url.searchParams.get("fornecedor")?.trim() || undefined,
       mes,
+      data_pedido_de,
+      data_pedido_ate,
       os: url.searchParams.get("os")?.trim() || url.searchParams.get("numero_os")?.trim() || undefined,
       sem_valor,
       abertas: abertas || undefined,
       excluidas: excluidas || undefined,
+      duplicadas: duplicadas || undefined,
+      ordenar,
       page,
       page_size,
     },
@@ -353,7 +373,7 @@ export function parseCategoriaPatch(
   return { ok: true, categoria };
 }
 
-/** PATCH da Sala: categoria, OS, entrega, fora_escopo / restaurar TV (pelo menos um). */
+/** PATCH da Sala: categoria, OS, entrega, fora_escopo / duplicada / restaurar TV (pelo menos um). */
 export function parseSalaPatch(
   raw: unknown,
 ): { ok: true; patch: PatchSalaOrdem } | { ok: false; error: ErroValidacao } {
@@ -418,6 +438,11 @@ export function parseSalaPatch(
     if (patch.status === undefined) patch.status = "fora_escopo";
   }
 
+  if ("marcar_duplicada" in raw && raw.marcar_duplicada) {
+    patch.marcar_duplicada = true;
+    if (patch.status === undefined) patch.status = "duplicada";
+  }
+
   if ("restaurar_tv" in raw && raw.restaurar_tv) {
     patch.restaurar_tv = true;
   }
@@ -431,6 +456,7 @@ export function parseSalaPatch(
     patch.status === undefined &&
     patch.motivo_exclusao === undefined &&
     !patch.marcar_fora_escopo &&
+    !patch.marcar_duplicada &&
     !patch.restaurar_tv
   ) {
     return {
@@ -442,7 +468,7 @@ export function parseSalaPatch(
           {
             campo: "corpo",
             mensagem:
-              "informe categoria, numero_os, data_entrega, itens_entregues, status, motivo_exclusao, marcar_entregue, marcar_fora_escopo e/ou restaurar_tv.",
+              "informe categoria, numero_os, data_entrega, itens_entregues, status, motivo_exclusao, marcar_entregue, marcar_fora_escopo, marcar_duplicada e/ou restaurar_tv.",
           },
         ],
       },

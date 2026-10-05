@@ -59,10 +59,11 @@ Pedido de compra (SQLite compra)
   ├─ importado por conversation_id (Graph) e/ou criado em /sala/pedidos
   └─ situação recalculada: aguarda SC → aguarda entrega → entregue
 
-Ordem de compra formal (SQLite ordens_compra + ordem_itens)
+Ordem de compra formal (SQLite ordens_compra + ordem_itens + ordem_anexos)
   ├─ upsert pelo robô E-Mails Compras em /api/v1/ordens-compra
-  ├─ categoria / numero_os / data_entrega / itens_entregues / fora_escopo editáveis em /sala/ordens-compra
-  └─ TV Compras (/sala/compras) lista OCs abertas (sem data_entrega; exclui cancelado e fora_escopo)
+  ├─ categoria / numero_os / data_entrega / itens_entregues / fora_escopo / duplicada editáveis em /sala/ordens-compra
+  ├─ anexos (PDF/JPEG/PNG/WebP/HEIC) em disco no volume (`…/ordens-compra-anexos/`) + metadados em ordem_anexos
+  └─ TV Compras (/sala/compras) lista OCs abertas (sem data_entrega; exclui cancelado, fora_escopo e duplicada)
 ```
 
 **Regra de ouro:** se não há Tag, a linha não alimenta parque/ciclo/plano/parada por equipamento. Chamados de setor continuam no volume bruto só se um dia criarmos tela “sem tag” — hoje **fora**.

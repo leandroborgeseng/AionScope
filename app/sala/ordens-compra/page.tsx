@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { CATEGORIA_ORDEM, type OrdemCompra } from "@/lib/ordens-compra/types";
+import { CATEGORIA_ORDEM, type OrdemAnexo, type OrdemCompra } from "@/lib/ordens-compra/types";
 
 type Pacote = {
   itens: OrdemCompra[];
@@ -15,24 +15,30 @@ type Pacote = {
   total: number;
 };
 
+type AbaLista = "abertas" | "excluidas" | "duplicadas" | "todas";
+
 type Filtros = {
   categoria: string;
   fornecedor: string;
   mes: string;
+  data_pedido_de: string;
+  data_pedido_ate: string;
   os: string;
   sem_valor: boolean;
-  abertas: boolean;
-  excluidas: boolean;
+  aba: AbaLista;
+  ordenar: "padrao" | "data_pedido";
 };
 
 const FILTROS_VAZIOS: Filtros = {
   categoria: "",
   fornecedor: "",
   mes: "",
+  data_pedido_de: "",
+  data_pedido_ate: "",
   os: "",
   sem_valor: false,
-  abertas: true,
-  excluidas: false,
+  aba: "abertas",
+  ordenar: "data_pedido",
 };
 
 function formatarQuando(valor: string | null) {
@@ -50,12 +56,31 @@ function formatarValor(valor: string | null) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function idadeDias(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const soData = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+  const d = new Date(soData ? `${iso}T12:00:00` : iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86_400_000));
+}
+
 function rotuloStatus(status: string | null) {
   if (status === "solicitado") return "Solicitado";
   if (status === "ordem_gerada") return "Ordem gerada";
   if (status === "cancelado") return "Cancelado";
   if (status === "fora_escopo") return "Fora do escopo";
+  if (status === "duplicada") return "Duplicada";
   return status || "—";
+}
+
+function formatarTamanho(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function ehPreviewImagem(contentType: string) {
+  return contentType.startsWith("image/") && !contentType.includes("heic") && !contentType.includes("heif");
 }
 
 function rotuloOrigem(origem: string | null) {
@@ -70,10 +95,14 @@ function montarQuery(filtros: Filtros, page: number) {
   if (filtros.categoria) q.set("categoria", filtros.categoria);
   if (filtros.fornecedor) q.set("fornecedor", filtros.fornecedor);
   if (filtros.mes) q.set("mes", filtros.mes);
+  if (filtros.data_pedido_de) q.set("data_pedido_de", filtros.data_pedido_de);
+  if (filtros.data_pedido_ate) q.set("data_pedido_ate", filtros.data_pedido_ate);
   if (filtros.os) q.set("os", filtros.os);
   if (filtros.sem_valor) q.set("sem_valor", "1");
-  if (filtros.abertas) q.set("abertas", "1");
-  if (filtros.excluidas) q.set("excluidas", "1");
+  if (filtros.aba === "abertas") q.set("abertas", "1");
+  if (filtros.aba === "excluidas") q.set("excluidas", "1");
+  if (filtros.aba === "duplicadas") q.set("duplicadas", "1");
+  if (filtros.ordenar) q.set("ordenar", filtros.ordenar);
   q.set("page", String(page));
   q.set("page_size", "50");
   return q.toString();
@@ -82,6 +111,55 @@ function montarQuery(filtros: Filtros, page: number) {
 function hojeIso() {
   return new Date().toISOString().slice(0, 10);
 }
+
+/** Pistas leves de possível duplicata na página carregada. */
+function dicasDuplicata(itens: OrdemCompra[]): Map<string, string> {
+  const mapa = new Map<string, string>();
+  const porOrc = new Map<string, string[]>();
+  const porMsg = new Map<string, string[]>();
+  const porChave = new Map<string, string[]>();
+
+  for (const o of itens) {
+    if (o.numero_orcamento?.trim()) {
+      const k = o.numero_orcamento.trim().toLowerCase();
+      porOrc.set(k, [...(porOrc.get(k) ?? []), o.numero_ordem]);
+    }
+    if (o.email_message_id?.trim()) {
+      const k = o.email_message_id.trim().toLowerCase();
+      porMsg.set(k, [...(porMsg.get(k) ?? []), o.numero_ordem]);
+    }
+    const forn = (o.fornecedor ?? "").trim().toLowerCase();
+    const valor = (o.valor_total ?? "").trim();
+    const dia = (o.data_pedido ?? "").slice(0, 10);
+    if (forn && valor && dia) {
+      const k = `${forn}|${valor}|${dia}`;
+      porChave.set(k, [...(porChave.get(k) ?? []), o.numero_ordem]);
+    }
+  }
+
+  const marcar = (grupos: Map<string, string[]>, motivo: string) => {
+    for (const nums of grupos.values()) {
+      if (nums.length < 2) continue;
+      for (const n of nums) {
+        const outros = nums.filter((x) => x !== n).join(", ");
+        const prev = mapa.get(n);
+        mapa.set(n, prev ? `${prev}; ${motivo} (${outros})` : `${motivo} (${outros})`);
+      }
+    }
+  };
+
+  marcar(porOrc, "mesmo nº orçamento");
+  marcar(porMsg, "mesmo e-mail");
+  marcar(porChave, "mesmo valor+fornecedor+pedido");
+  return mapa;
+}
+
+const ABAS: { id: AbaLista; rotulo: string }[] = [
+  { id: "abertas", rotulo: "Abertas" },
+  { id: "excluidas", rotulo: "Excluídas" },
+  { id: "duplicadas", rotulo: "Duplicadas" },
+  { id: "todas", rotulo: "Todas" },
+];
 
 export default function SalaOrdensCompraPage() {
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VAZIOS);
@@ -96,6 +174,9 @@ export default function SalaOrdensCompraPage() {
   const [draftEntrega, setDraftEntrega] = useState<Record<string, string>>({});
   const [draftItens, setDraftItens] = useState<Record<string, string>>({});
   const [draftMotivo, setDraftMotivo] = useState<Record<string, string>>({});
+  const [anexosPorOrdem, setAnexosPorOrdem] = useState<Record<string, OrdemAnexo[]>>({});
+  const [carregandoAnexos, setCarregandoAnexos] = useState<string | null>(null);
+  const [enviandoAnexo, setEnviandoAnexo] = useState<string | null>(null);
 
   const carregar = useCallback(async (f: Filtros, p: number) => {
     const resposta = await fetch(`/api/sala/ordens-compra?${montarQuery(f, p)}`, { cache: "no-store" });
@@ -146,6 +227,13 @@ export default function SalaOrdensCompraPage() {
     setAplicados({ ...filtros });
   }
 
+  function trocarAba(aba: AbaLista) {
+    const next = { ...filtros, aba };
+    setFiltros(next);
+    setAplicados(next);
+    setPage(1);
+  }
+
   async function patchOrdem(numero: string, corpo: Record<string, unknown>, mensagemOk: string) {
     setSalvando(numero);
     setErro(null);
@@ -169,26 +257,103 @@ export default function SalaOrdensCompraPage() {
     }
   }
 
+  const carregarAnexos = useCallback(async (numero: string) => {
+    setCarregandoAnexos(numero);
+    try {
+      const resposta = await fetch(
+        `/api/sala/ordens-compra/${encodeURIComponent(numero)}/anexos`,
+        { cache: "no-store" },
+      );
+      if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
+      const pacote = (await resposta.json()) as { anexos: OrdemAnexo[] };
+      setAnexosPorOrdem((prev) => ({ ...prev, [numero]: pacote.anexos }));
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "falha ao carregar anexos");
+    } finally {
+      setCarregandoAnexos(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!aberta) return;
+    if (anexosPorOrdem[aberta]) return;
+    void carregarAnexos(aberta);
+  }, [aberta, anexosPorOrdem, carregarAnexos]);
+
+  async function enviarAnexo(numero: string, arquivo: File) {
+    setEnviandoAnexo(numero);
+    setErro(null);
+    setOk(null);
+    try {
+      const form = new FormData();
+      form.append("arquivo", arquivo);
+      const resposta = await fetch(
+        `/api/sala/ordens-compra/${encodeURIComponent(numero)}/anexos`,
+        { method: "POST", body: form },
+      );
+      if (!resposta.ok) {
+        const corpoErro = (await resposta.json().catch(() => ({}))) as {
+          erro?: string;
+          detalhes?: Array<{ mensagem?: string }>;
+        };
+        const detalhe = corpoErro.detalhes?.[0]?.mensagem;
+        throw new Error(detalhe || corpoErro.erro || `HTTP ${resposta.status}`);
+      }
+      setOk(`Anexo enviado para OC ${numero}.`);
+      await carregarAnexos(numero);
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "falha no upload");
+    } finally {
+      setEnviandoAnexo(null);
+    }
+  }
+
+  async function excluirAnexo(numero: string, id: number) {
+    setEnviandoAnexo(numero);
+    setErro(null);
+    setOk(null);
+    try {
+      const resposta = await fetch(
+        `/api/sala/ordens-compra/${encodeURIComponent(numero)}/anexos/${id}`,
+        { method: "DELETE" },
+      );
+      if (!resposta.ok) {
+        const corpoErro = (await resposta.json().catch(() => ({}))) as { erro?: string };
+        throw new Error(corpoErro.erro || `HTTP ${resposta.status}`);
+      }
+      setOk(`Anexo removido da OC ${numero}.`);
+      await carregarAnexos(numero);
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "falha ao excluir anexo");
+    } finally {
+      setEnviandoAnexo(null);
+    }
+  }
+
   const totalPaginas = useMemo(() => {
     if (!dados) return 1;
     return Math.max(1, Math.ceil(dados.total / dados.page_size));
   }, [dados]);
 
+  const dicas = useMemo(() => dicasDuplicata(dados?.itens ?? []), [dados]);
+
   return (
     <div className="space-y-5">
       <PageHeader
         title="Ordens de compra"
-        description="OCs do robô E-Mails Compras. Classifique, vincule OS, registre entrega ou marque fora do escopo (outro cliente) — a TV Compras lista só as abertas."
+        description="OCs do robô E-Mails Compras. Classifique, vincule OS, registre entrega ou marque duplicada / fora do escopo — a TV Compras lista só as abertas."
       />
 
       <p className="text-sm text-aion-muted">
-        A TV em{" "}
+        Datas iguais à TV: <strong className="font-semibold text-aion-ink">Pedido (e-mail)</strong> ={" "}
+        <code className="text-xs">data_pedido</code> ·{" "}
+        <strong className="font-semibold text-aion-ink">Resposta / OC</strong> ={" "}
+        <code className="text-xs">data_ordem</code>. A TV em{" "}
         <Link href="/sala/compras" className="font-semibold text-aion-blue hover:underline">
           /sala/compras
         </Link>{" "}
-        mostra estas OCs abertas (Pedido = data_pedido, Resposta/OC = data_ordem, Entrega = data_entrega). OCs de outro
-        cliente ou não realizadas saem com status <code className="text-xs">fora_escopo</code> (sem apagar). O funil legado
-        e-mail→SC continua em{" "}
+        exclui entregues, <code className="text-xs">cancelado</code>, <code className="text-xs">fora_escopo</code> e{" "}
+        <code className="text-xs">duplicada</code>. Funil legado em{" "}
         <Link href="/sala/pedidos" className="font-semibold text-aion-blue hover:underline">
           /sala/pedidos
         </Link>
@@ -201,6 +366,26 @@ export default function SalaOrdensCompraPage() {
       {ok ? (
         <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">{ok}</p>
       ) : null}
+
+      <div className="flex flex-wrap gap-2">
+        {ABAS.map((aba) => {
+          const ativa = aplicados.aba === aba.id;
+          return (
+            <button
+              key={aba.id}
+              type="button"
+              className={
+                ativa
+                  ? "rounded-lg bg-aion-blue px-4 py-2 text-sm font-semibold text-white"
+                  : "rounded-lg border border-aion-line px-4 py-2 text-sm font-semibold text-aion-ink"
+              }
+              onClick={() => trocarAba(aba.id)}
+            >
+              {aba.rotulo}
+            </button>
+          );
+        })}
+      </div>
 
       <Card>
         <CardHeader>
@@ -244,12 +429,50 @@ export default function SalaOrdensCompraPage() {
               />
             </label>
             <label className="block text-sm">
+              <span className="mb-1 block text-xs font-semibold tracking-wide text-aion-muted uppercase">
+                Pedido de
+              </span>
+              <Input
+                type="date"
+                value={filtros.data_pedido_de}
+                onChange={(e) => setFiltros((f) => ({ ...f, data_pedido_de: e.target.value }))}
+              />
+            </label>
+            <label className="block text-sm">
+              <span className="mb-1 block text-xs font-semibold tracking-wide text-aion-muted uppercase">
+                Pedido até
+              </span>
+              <Input
+                type="date"
+                value={filtros.data_pedido_ate}
+                onChange={(e) => setFiltros((f) => ({ ...f, data_pedido_ate: e.target.value }))}
+              />
+            </label>
+            <label className="block text-sm">
               <span className="mb-1 block text-xs font-semibold tracking-wide text-aion-muted uppercase">OS</span>
               <Input
                 value={filtros.os}
                 onChange={(e) => setFiltros((f) => ({ ...f, os: e.target.value }))}
                 placeholder="número da OS"
               />
+            </label>
+            <label className="block text-sm">
+              <span className="mb-1 block text-xs font-semibold tracking-wide text-aion-muted uppercase">
+                Ordenar
+              </span>
+              <select
+                className="h-9 w-full rounded-lg border border-aion-line bg-white px-3 text-sm"
+                value={filtros.ordenar}
+                onChange={(e) =>
+                  setFiltros((f) => ({
+                    ...f,
+                    ordenar: e.target.value === "padrao" ? "padrao" : "data_pedido",
+                  }))
+                }
+              >
+                <option value="data_pedido">Pedido (e-mail)</option>
+                <option value="padrao">Resposta / OC</option>
+              </select>
             </label>
             <label className="flex items-end gap-2 pb-1 text-sm">
               <input
@@ -258,34 +481,6 @@ export default function SalaOrdensCompraPage() {
                 onChange={(e) => setFiltros((f) => ({ ...f, sem_valor: e.target.checked }))}
               />
               <span>Sem valor</span>
-            </label>
-            <label className="flex items-end gap-2 pb-1 text-sm">
-              <input
-                type="checkbox"
-                checked={filtros.abertas}
-                onChange={(e) =>
-                  setFiltros((f) => ({
-                    ...f,
-                    abertas: e.target.checked,
-                    excluidas: e.target.checked ? false : f.excluidas,
-                  }))
-                }
-              />
-              <span>Só abertas (TV)</span>
-            </label>
-            <label className="flex items-end gap-2 pb-1 text-sm">
-              <input
-                type="checkbox"
-                checked={filtros.excluidas}
-                onChange={(e) =>
-                  setFiltros((f) => ({
-                    ...f,
-                    excluidas: e.target.checked,
-                    abertas: e.target.checked ? false : f.abertas,
-                  }))
-                }
-              />
-              <span>Excluídas (fora do escopo)</span>
             </label>
             <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-6">
               <button
@@ -328,16 +523,26 @@ export default function SalaOrdensCompraPage() {
             const busy = salvando === ordem.numero_ordem;
             const entregue = Boolean(ordem.data_entrega?.trim());
             const foraEscopo = ordem.status === "fora_escopo";
+            const duplicada = ordem.status === "duplicada";
+            const aging = idadeDias(ordem.data_pedido || ordem.data_ordem || ordem.created_at);
+            const dica = dicas.get(ordem.numero_ordem);
             return (
               <div key={ordem.numero_ordem} className="rounded-lg border border-aion-line p-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 space-y-1">
+                  <div className="min-w-0 flex-1 space-y-2">
                     <div className="flex flex-wrap items-center gap-2 text-sm">
-                      <strong className="font-mono">{ordem.numero_ordem}</strong>
+                      <strong className="font-mono text-base">{ordem.numero_ordem}</strong>
                       <span className="rounded bg-aion-mist px-2 py-0.5 text-xs font-semibold text-aion-blue">
                         {rotuloStatus(ordem.status)}
                       </span>
-                      {foraEscopo ? (
+                      {ordem.categoria ? (
+                        <span className="rounded border border-aion-line px-2 py-0.5 text-xs font-semibold">
+                          {ordem.categoria}
+                        </span>
+                      ) : null}
+                      {duplicada ? (
+                        <Badge tone="warn">duplicada</Badge>
+                      ) : foraEscopo ? (
                         <Badge tone="warn">fora da TV</Badge>
                       ) : entregue ? (
                         <Badge tone="ok">entregue</Badge>
@@ -352,15 +557,60 @@ export default function SalaOrdensCompraPage() {
                       {flags.data_entrega ? <Badge tone="ok">entrega manual</Badge> : null}
                       {flags.status ? <Badge tone="ok">status manual</Badge> : null}
                     </div>
+
                     <p className="text-sm text-aion-ink">
-                      {ordem.fornecedor || "sem fornecedor"} · {formatarValor(ordem.valor_total)}
+                      <span className="font-semibold">{ordem.fornecedor || "sem fornecedor"}</span>
+                      {" · "}
+                      {formatarValor(ordem.valor_total)}
+                      {ordem.numero_os ? (
+                        <>
+                          {" · "}
+                          OS <span className="font-mono">{ordem.numero_os}</span>
+                        </>
+                      ) : (
+                        " · sem OS"
+                      )}
+                      {aging != null ? ` · ${aging}d` : null}
                     </p>
+
+                    <div className="grid gap-1 text-sm sm:grid-cols-2 lg:grid-cols-3">
+                      <p>
+                        <span className="text-xs font-semibold tracking-wide text-aion-muted uppercase">
+                          Pedido (e-mail)
+                        </span>
+                        <br />
+                        <span className="font-semibold text-aion-ink">{formatarQuando(ordem.data_pedido)}</span>
+                      </p>
+                      <p>
+                        <span className="text-xs font-semibold tracking-wide text-aion-muted uppercase">
+                          Resposta / OC
+                        </span>
+                        <br />
+                        <span className="font-semibold text-aion-ink">{formatarQuando(ordem.data_ordem)}</span>
+                      </p>
+                      <p>
+                        <span className="text-xs font-semibold tracking-wide text-aion-muted uppercase">
+                          Entrega
+                        </span>
+                        <br />
+                        <span className="font-semibold text-aion-ink">{formatarQuando(ordem.data_entrega)}</span>
+                      </p>
+                    </div>
+
                     <p className="text-xs text-aion-muted">
-                      Pedido (e-mail) {formatarQuando(ordem.data_pedido)} · Resposta / OC{" "}
-                      {formatarQuando(ordem.data_ordem)} · Entrega {formatarQuando(ordem.data_entrega)} ·{" "}
                       {rotuloOrigem(ordem.origem)}
+                      {ordem.solicitante ? ` · Solicitante: ${ordem.solicitante}` : null}
+                      {ordem.assunto_email ? ` · Assunto: ${ordem.assunto_email}` : null}
+                      {ordem.numero_orcamento ? ` · Orçamento: ${ordem.numero_orcamento}` : null}
                     </p>
-                    {foraEscopo && ordem.motivo_exclusao ? (
+
+                    {dica ? (
+                      <p className="rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-950">
+                        Possível duplicata: {dica}
+                      </p>
+                    ) : null}
+
+                    {(foraEscopo || duplicada) && ordem.motivo_exclusao ? (
                       <p className="text-xs text-amber-900">Motivo: {ordem.motivo_exclusao}</p>
                     ) : null}
                   </div>
@@ -456,7 +706,7 @@ export default function SalaOrdensCompraPage() {
                   <button
                     type="button"
                     className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
-                    disabled={busy || foraEscopo}
+                    disabled={busy || foraEscopo || duplicada}
                     onClick={() =>
                       void patchOrdem(
                         ordem.numero_ordem,
@@ -488,7 +738,7 @@ export default function SalaOrdensCompraPage() {
                   >
                     Salvar entrega
                   </button>
-                  {entregue ? (
+                  {entregue && !foraEscopo && !duplicada ? (
                     <button
                       type="button"
                       className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 disabled:opacity-40"
@@ -504,7 +754,8 @@ export default function SalaOrdensCompraPage() {
                       Reabrir (limpar entrega)
                     </button>
                   ) : null}
-                  {!foraEscopo ? (
+
+                  {!foraEscopo && !duplicada ? (
                     <div className="flex flex-wrap items-center gap-2">
                       <Input
                         className="h-8 w-[180px] text-xs"
@@ -515,6 +766,23 @@ export default function SalaOrdensCompraPage() {
                         }
                         placeholder="motivo (opcional)"
                       />
+                      <button
+                        type="button"
+                        className="rounded-lg border border-violet-300 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-950 disabled:opacity-40"
+                        disabled={busy}
+                        onClick={() =>
+                          void patchOrdem(
+                            ordem.numero_ordem,
+                            {
+                              marcar_duplicada: true,
+                              motivo_exclusao: draftMotivo[ordem.numero_ordem]?.trim() || "duplicada",
+                            },
+                            `OC ${ordem.numero_ordem} marcada como duplicada — sai da TV.`,
+                          )
+                        }
+                      >
+                        Duplicada
+                      </button>
                       <button
                         type="button"
                         className="rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-800 disabled:opacity-40"
@@ -554,34 +822,125 @@ export default function SalaOrdensCompraPage() {
                     className="text-xs font-semibold text-aion-blue hover:underline"
                     onClick={() => setAberta(abertaAgora ? null : ordem.numero_ordem)}
                   >
-                    {abertaAgora ? "Ocultar itens" : `Itens (${ordem.itens.length})`}
+                    {abertaAgora
+                      ? "Ocultar detalhes"
+                      : `Itens / anexos (${ordem.itens.length})`}
                   </button>
                 </div>
 
                 {abertaAgora ? (
-                  <ul className="mt-2 space-y-1 text-sm">
-                    {ordem.itens.length === 0 ? (
-                      <li className="text-aion-muted">Sem itens extraídos.</li>
-                    ) : (
-                      ordem.itens.map((item, i) => (
-                        <li key={`${ordem.numero_ordem}-${i}`}>
-                          {item.quantidade ? `${item.quantidade} ` : ""}
-                          {item.unidade ? `${item.unidade} · ` : ""}
-                          {item.descricao || "—"}
-                          {item.valor_total ? ` · ${formatarValor(item.valor_total)}` : ""}
-                        </li>
-                      ))
-                    )}
-                    {ordem.assunto_email ? (
-                      <li className="text-xs text-aion-muted">E-mail: {ordem.assunto_email}</li>
-                    ) : null}
-                    {ordem.observacoes ? (
-                      <li className="text-xs text-aion-muted">Obs.: {ordem.observacoes}</li>
-                    ) : null}
-                    {ordem.itens_entregues ? (
-                      <li className="text-xs text-emerald-800">Entregue: {ordem.itens_entregues}</li>
-                    ) : null}
-                  </ul>
+                  <div className="mt-2 space-y-3">
+                    <ul className="space-y-1 text-sm">
+                      {ordem.itens.length === 0 ? (
+                        <li className="text-aion-muted">Sem itens extraídos.</li>
+                      ) : (
+                        ordem.itens.map((item, i) => (
+                          <li key={`${ordem.numero_ordem}-${i}`}>
+                            {item.quantidade ? `${item.quantidade} ` : ""}
+                            {item.unidade ? `${item.unidade} · ` : ""}
+                            {item.descricao || "—"}
+                            {item.valor_total ? ` · ${formatarValor(item.valor_total)}` : ""}
+                          </li>
+                        ))
+                      )}
+                      {ordem.email_message_id ? (
+                        <li className="text-xs text-aion-muted">Msg ID: {ordem.email_message_id}</li>
+                      ) : null}
+                      {ordem.observacoes ? (
+                        <li className="text-xs text-aion-muted">Obs.: {ordem.observacoes}</li>
+                      ) : null}
+                      {ordem.itens_entregues ? (
+                        <li className="text-xs text-emerald-800">Entregue: {ordem.itens_entregues}</li>
+                      ) : null}
+                    </ul>
+
+                    <div className="rounded-lg border border-dashed border-aion-line bg-aion-mist/40 p-3">
+                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-semibold tracking-wide text-aion-muted uppercase">
+                          Anexos (fotos / PDF)
+                        </p>
+                        <label className="cursor-pointer rounded-lg border border-aion-line bg-white px-3 py-1.5 text-xs font-semibold">
+                          {enviandoAnexo === ordem.numero_ordem ? "Enviando…" : "Enviar anexo"}
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,.pdf,.jpg,.jpeg,.png,.webp,.heic,.heif"
+                            disabled={busy || enviandoAnexo === ordem.numero_ordem}
+                            onChange={(e) => {
+                              const arquivo = e.target.files?.[0];
+                              e.target.value = "";
+                              if (!arquivo) return;
+                              void enviarAnexo(ordem.numero_ordem, arquivo);
+                            }}
+                          />
+                        </label>
+                      </div>
+                      {carregandoAnexos === ordem.numero_ordem && !anexosPorOrdem[ordem.numero_ordem] ? (
+                        <p className="text-xs text-aion-muted">Carregando anexos…</p>
+                      ) : null}
+                      {(anexosPorOrdem[ordem.numero_ordem] ?? []).length === 0 &&
+                      carregandoAnexos !== ordem.numero_ordem ? (
+                        <p className="text-xs text-aion-muted">
+                          Nenhum anexo ainda. Envie foto da solicitação ou PDF para validar no painel.
+                        </p>
+                      ) : null}
+                      <ul className="grid gap-3 sm:grid-cols-2">
+                        {(anexosPorOrdem[ordem.numero_ordem] ?? []).map((anexo) => (
+                          <li
+                            key={anexo.id}
+                            className="flex gap-3 rounded-md border border-aion-line bg-white p-2"
+                          >
+                            {ehPreviewImagem(anexo.content_type) ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={anexo.url}
+                                alt={anexo.nome_original}
+                                className="h-20 w-20 shrink-0 rounded object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded bg-slate-100 text-xs font-semibold text-slate-600">
+                                {anexo.content_type === "application/pdf" ? "PDF" : "ARQ"}
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1 space-y-1">
+                              <p className="truncate text-sm font-medium" title={anexo.nome_original}>
+                                {anexo.nome_original}
+                              </p>
+                              <p className="text-xs text-aion-muted">
+                                {formatarTamanho(anexo.tamanho)} ·{" "}
+                                {anexo.fonte === "email_robot" ? "robô" : "manual"} ·{" "}
+                                {formatarQuando(anexo.created_at)}
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                <a
+                                  href={anexo.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-xs font-semibold text-aion-blue hover:underline"
+                                >
+                                  Abrir
+                                </a>
+                                <a
+                                  href={`${anexo.url}?download=1`}
+                                  className="text-xs font-semibold text-aion-blue hover:underline"
+                                >
+                                  Baixar
+                                </a>
+                                <button
+                                  type="button"
+                                  className="text-xs font-semibold text-red-700 hover:underline disabled:opacity-40"
+                                  disabled={enviandoAnexo === ordem.numero_ordem}
+                                  onClick={() => void excluirAnexo(ordem.numero_ordem, anexo.id)}
+                                >
+                                  Excluir
+                                </button>
+                              </div>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
                 ) : null}
               </div>
             );
