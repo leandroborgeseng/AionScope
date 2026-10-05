@@ -104,6 +104,8 @@ export type SalaSnapshot = {
     mediaPontaAPonta: number | null;
     percentualComOs: number | null;
     semOs: number;
+    /** OCs formais do robô (tabela ordens_compra) — não entram no funil e-mail→SC desta tela. */
+    ordensFormaisTotal: number;
     pedidos: Array<{
       os: string;
       equipamento: string;

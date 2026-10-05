@@ -1,6 +1,7 @@
 import { addMonths, format } from "date-fns";
 import { extrairSc, m365Configurado } from "@/lib/compras/parse-email";
 import { resumoComprasTv, sincronizarCompras } from "@/lib/compras/sync";
+import { contarOrdensCompra } from "@/lib/ordens-compra/store";
 import { listarRegistrosSala } from "@/lib/db/sala-registros";
 import { fetchPbi } from "@/lib/pbi/client";
 import { nowInSaoPaulo, parseBrNumber, parsePbiDate } from "@/lib/pbi/dates";
@@ -660,6 +661,7 @@ export function montarSnapshotDeDados(
         mediaPontaAPonta: resumo.mediaPontaAPonta,
         percentualComOs: resumo.percentualComOs,
         semOs: resumo.semOs,
+        ordensFormaisTotal: contarOrdensCompra(),
         pedidos: resumo.pedidos,
       };
     })(),
