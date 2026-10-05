@@ -77,7 +77,23 @@
   text-align: right;
 }
 
-.sala-miolo { min-height: 0; padding: 20px 40px; display: flex; flex-direction: column; gap: 16px; }
+.sala-miolo { min-height: 0; padding: 20px 40px; display: flex; flex-direction: column; gap: 12px; }
+.sala-miolo-row {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+}
+.sala-miolo-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.sala-miolo-row.com-drawer .sala-grid-2 {
+  grid-template-columns: 440px minmax(0, 1fr);
+}
 .sala-grid-2 { display: grid; grid-template-columns: 520px minmax(0, 1fr); gap: 22px; min-height: 0; flex: 1; }
 .sala-coluna { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
 .sala-cartao {
@@ -100,6 +116,21 @@
 .sala-contadores { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .sala-contador { border-radius: 16px; padding: 12px 18px; display: flex; flex-direction: column; }
 .sala-contador .sala-numero { font-size: 72px; }
+.sala-contador-drill {
+  text-align: left;
+  cursor: pointer;
+  min-height: 64px;
+  font: inherit;
+  transition: outline 0.12s ease, box-shadow 0.12s ease;
+}
+.sala-contador-drill:hover,
+.sala-contador-drill:focus-visible {
+  outline: 3px solid #2c66ab;
+  outline-offset: 2px;
+}
+.sala-contador-drill.ativo {
+  box-shadow: 0 0 0 3px rgba(44, 102, 171, 0.28);
+}
 .sala-contador-pct {
   font-family: var(--fonte-num);
   font-size: 28px;
@@ -109,6 +140,24 @@
   opacity: 0.85;
 }
 .sala-fila { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.sala-fila-ocultas {
+  margin-top: 4px;
+  min-height: 48px;
+  padding: 8px 14px;
+  border-radius: 12px;
+  border: 1px dashed #b9cbe3;
+  background: #f4f8fc;
+  color: #1d4a80;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+.sala-fila-ocultas:hover,
+.sala-fila-ocultas:focus-visible {
+  border-style: solid;
+  outline: 2px solid #2c66ab;
+}
 .sala-linha {
   display: grid;
   grid-template-columns: 118px minmax(0, 1fr) 150px auto;
@@ -129,6 +178,120 @@
   padding: 6px 10px;
   border-radius: 999px;
   width: fit-content;
+}
+
+/* Chip + drawer de drill-down (Fase 1 Agora) */
+.sala-drill-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 12px;
+  padding: 8px 14px;
+  min-height: 44px;
+  border-radius: 8px;
+  border: 2px solid #2c66ab;
+  background: #eef4fb;
+  color: #1d4a80;
+  font-size: 20px;
+  font-weight: 700;
+  max-width: 460px;
+  flex-shrink: 1;
+  min-width: 0;
+}
+.sala-drill-chip-texto {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sala-drill-limpar {
+  min-height: 40px;
+  min-width: 88px;
+  padding: 4px 14px;
+  border-radius: 8px;
+  border: 1px solid #b9cbe3;
+  background: #fff;
+  color: #2c66ab;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.sala-drill-limpar:hover,
+.sala-drill-limpar:focus-visible {
+  background: #f4f8fc;
+  outline: 2px solid #2c66ab;
+}
+.sala-drill-drawer {
+  width: 520px;
+  flex-shrink: 0;
+  margin-left: 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #fff;
+  border: 1px solid var(--borda);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.sala-drill-drawer-cabecalho {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--borda);
+  flex-shrink: 0;
+}
+.sala-drill-drawer-qtd {
+  font-size: 40px;
+  color: var(--aion-azul);
+  margin-top: 2px;
+}
+.sala-drill-drawer-lista {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scrollbar-width: auto;
+  scrollbar-color: #2c66ab #e3eaf3;
+}
+.sala-drill-drawer-lista::-webkit-scrollbar {
+  width: 14px;
+}
+.sala-drill-drawer-lista::-webkit-scrollbar-track {
+  background: #e3eaf3;
+  border-radius: 8px;
+}
+.sala-drill-drawer-lista::-webkit-scrollbar-thumb {
+  background: #2c66ab;
+  border-radius: 8px;
+  border: 2px solid #e3eaf3;
+}
+.sala-drill-linha {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  padding: 8px 12px;
+  border: 1px solid var(--borda);
+  border-radius: 12px;
+  background: #fafbfd;
+}
+.sala-drill-linha strong {
+  display: block;
+  font-size: 22px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sala-drill-linha small {
+  display: block;
+  color: var(--texto-2);
+  font-size: 16px;
 }
 .sala-rodape {
   display: flex;

@@ -4,6 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import { JetBrains_Mono } from "next/font/google";
 import {
   TELAS_SALA,
+  type LinhaDrill,
+  type LinhaDrillEquip,
+  type LinhaDrillOs,
   type SalaDrillSelecao,
   type SalaSnapshot,
   type TelaSala,
@@ -35,19 +38,36 @@ const COR_ETAPA: Record<string, string> = {
   "Teste e devolução": "#3E7A1E",
 };
 
+const DRILL_AGORA = {
+  grave: { id: "agora.grave", titulo: "ATRASO GRAVE" },
+  fora: { id: "agora.fora-do-prazo", titulo: "FORA DO PRAZO" },
+  semPrimeiro: { id: "agora.sem-primeiro", titulo: "SEM 1º ATENDIMENTO" },
+  parados: { id: "agora.parados", titulo: "EQUIP. PARADOS" },
+} as const;
+
 function selo(situacao: string) {
   return SELO[situacao] ?? SELO["NO PRAZO"];
+}
+
+function isLinhaOs(linha: LinhaDrill): linha is LinhaDrillOs {
+  return "situacao" in linha || "idade" in linha || "criticidade" in linha;
+}
+
+function isLinhaEquip(linha: LinhaDrill): linha is LinhaDrillEquip {
+  return !isLinhaOs(linha) && "tag" in linha;
 }
 
 function Cabecalho({
   tela,
   relogio,
   drill,
+  drillContagem,
   onLimparDrill,
 }: {
   tela: TelaSala;
   relogio: string;
   drill: SalaDrillSelecao | null;
+  drillContagem?: number;
   onLimparDrill?: () => void;
 }) {
   const atual = TELAS_SALA.find((item) => item.id === tela) ?? TELAS_SALA[0];
@@ -67,42 +87,12 @@ function Cabecalho({
         ))}
       </nav>
       {drill ? (
-        <div
-          className="sala-drill-chip"
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginLeft: 12,
-            padding: "8px 14px",
-            minHeight: 44,
-            borderRadius: 8,
-            border: "2px solid #2C66AB",
-            background: "#EEF4FB",
-            color: "#1D4A80",
-            fontSize: 18,
-            fontWeight: 700,
-            maxWidth: 420,
-          }}
-        >
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <div className="sala-drill-chip" role="status">
+          <span className="sala-drill-chip-texto">
             selecionado: {drill.titulo}
+            {drillContagem != null ? ` · ${drillContagem}` : ""}
           </span>
-          <button
-            type="button"
-            onClick={onLimparDrill}
-            style={{
-              minHeight: 36,
-              padding: "4px 12px",
-              borderRadius: 6,
-              border: "1px solid #B9CBE3",
-              background: "#fff",
-              color: "#2C66AB",
-              fontWeight: 700,
-              cursor: "pointer",
-              flexShrink: 0,
-            }}
-          >
+          <button type="button" className="sala-drill-limpar" onClick={onLimparDrill}>
             Limpar
           </button>
         </div>
@@ -121,21 +111,122 @@ function Selo({ situacao }: { situacao: string }) {
   );
 }
 
-function TelaAgora({ dados, destaque }: { dados: SalaSnapshot; destaque: string | null }) {
+function SalaDrillDrawer({
+  drill,
+  linhas,
+  onLimpar,
+}: {
+  drill: SalaDrillSelecao;
+  linhas: LinhaDrill[];
+  onLimpar: () => void;
+}) {
+  const parados = drill.id === "agora.parados";
+  return (
+    <aside className="sala-drill-drawer" aria-label={`Detalhe: ${drill.titulo}`}>
+      <div className="sala-drill-drawer-cabecalho">
+        <div>
+          <div className="sala-rotulo-bloco">{drill.titulo}</div>
+          <div className="sala-numero sala-drill-drawer-qtd">{linhas.length}</div>
+        </div>
+        <button type="button" className="sala-drill-limpar" onClick={onLimpar}>
+          Fechar
+        </button>
+      </div>
+      <div className="sala-drill-drawer-lista">
+        {linhas.length === 0 ? <p className="sala-vazio">Nenhum item neste recorte.</p> : null}
+        {linhas.map((linha, index) => {
+          if (parados && isLinhaEquip(linha)) {
+            return (
+              <div key={`${linha.tag}-${linha.os ?? index}`} className="sala-drill-linha">
+                <div style={{ minWidth: 0 }}>
+                  <strong>{linha.equipamento}</strong>
+                  <small>
+                    {linha.tag} · {linha.setor}
+                    {linha.os ? ` · OS ${linha.os}` : ""}
+                  </small>
+                </div>
+                <span className="sala-numero" style={{ fontSize: 24 }}>
+                  {linha.tempo ?? "—"}
+                </span>
+              </div>
+            );
+          }
+          if (isLinhaOs(linha)) {
+            return (
+              <div key={`${linha.os}-${index}`} className="sala-drill-linha">
+                <div style={{ flexShrink: 0 }}>
+                  {linha.situacao ? <Selo situacao={linha.situacao} /> : null}
+                  <small className="sala-numero">{linha.os}</small>
+                </div>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <strong>{linha.equipamento}</strong>
+                  <small>
+                    {linha.tag} · {linha.setor}
+                  </small>
+                </div>
+                <div style={{ flexShrink: 0, textAlign: "right" }}>
+                  {linha.parado ? <span className="tag-extra">PARADO</span> : null}
+                  {linha.compra ? <span className="tag-extra">COMPRA</span> : null}
+                  <span className="sala-numero" style={{ fontSize: 24, display: "block" }}>
+                    {linha.idade ?? "—"}
+                  </span>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })}
+      </div>
+    </aside>
+  );
+}
+
+function TelaAgora({
+  dados,
+  destaque,
+  drill,
+  onDrill,
+}: {
+  dados: SalaSnapshot;
+  destaque: string | null;
+  drill: SalaDrillSelecao | null;
+  onDrill: (id: string, titulo: string) => void;
+}) {
   const formatarPct = (pct: number | null) =>
     pct == null ? "—" : `${pct.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 1 })}%`;
   const contadores = [
-    ["ATRASO GRAVE", dados.agora.grave, dados.agora.gravePct, "#A3123A", "#FDF1F4", "#E7A3B6"],
-    ["FORA DO PRAZO", dados.agora.foraDoPrazo, dados.agora.foraDoPrazoPct, "#A8460A", "#FFF6EE", "#F0BD8E"],
-    ["SEM 1º ATENDIMENTO", dados.agora.semPrimeiro, dados.agora.semPrimeiroPct, "#8A5A00", "#FFFFFF", "#DCE4EE"],
-    [
-      "EQUIP. PARADOS",
-      dados.agora.parados == null ? "—" : dados.agora.parados,
-      dados.agora.paradosPct,
-      "#2C66AB",
-      "#FFFFFF",
-      "#DCE4EE",
-    ],
+    {
+      ...DRILL_AGORA.grave,
+      valor: dados.agora.grave,
+      pct: dados.agora.gravePct,
+      cor: "#A3123A",
+      fundo: "#FDF1F4",
+      borda: "#E7A3B6",
+    },
+    {
+      ...DRILL_AGORA.fora,
+      valor: dados.agora.foraDoPrazo,
+      pct: dados.agora.foraDoPrazoPct,
+      cor: "#A8460A",
+      fundo: "#FFF6EE",
+      borda: "#F0BD8E",
+    },
+    {
+      ...DRILL_AGORA.semPrimeiro,
+      valor: dados.agora.semPrimeiro,
+      pct: dados.agora.semPrimeiroPct,
+      cor: "#8A5A00",
+      fundo: "#FFFFFF",
+      borda: "#DCE4EE",
+    },
+    {
+      ...DRILL_AGORA.parados,
+      valor: dados.agora.parados == null ? "—" : dados.agora.parados,
+      pct: dados.agora.paradosPct,
+      cor: "#2C66AB",
+      fundo: "#FFFFFF",
+      borda: "#DCE4EE",
+    },
   ] as const;
   return (
     <>
@@ -143,15 +234,30 @@ function TelaAgora({ dados, destaque }: { dados: SalaSnapshot; destaque: string 
         <div className="sala-coluna">
           <div className={dados.plantao ? "sala-aviso" : "sala-cartao"}>{dados.plantaoTexto}</div>
           <div className="sala-contadores">
-            {contadores.map(([rotulo, valor, pct, cor, fundo, borda]) => (
-              <div key={rotulo} className="sala-contador" style={{ background: fundo, border: `2px solid ${borda}`, color: cor }}>
-                <span className="sala-rotulo-bloco" style={{ color: cor }}>{rotulo}</span>
-                <span className="sala-numero">{valor}</span>
-                <span className="sala-contador-pct" title={dados.agora.parque ? `% do parque (${dados.agora.parque} ativos)` : "% do parque indisponível"}>
-                  {formatarPct(pct)}
-                </span>
-              </div>
-            ))}
+            {contadores.map((item) => {
+              const ativo = drill?.id === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={ativo ? "sala-contador sala-contador-drill ativo" : "sala-contador sala-contador-drill"}
+                  style={{ background: item.fundo, border: `2px solid ${ativo ? item.cor : item.borda}`, color: item.cor }}
+                  aria-pressed={ativo}
+                  onClick={() => onDrill(item.id, item.titulo)}
+                >
+                  <span className="sala-rotulo-bloco" style={{ color: item.cor }}>
+                    {item.titulo}
+                  </span>
+                  <span className="sala-numero">{item.valor}</span>
+                  <span
+                    className="sala-contador-pct"
+                    title={dados.agora.parque ? `% do parque (${dados.agora.parque} ativos)` : "% do parque indisponível"}
+                  >
+                    {formatarPct(item.pct)}
+                  </span>
+                </button>
+              );
+            })}
           </div>
           <div className="sala-cartao">
             <div className="sala-rotulo-bloco">PLANO DO MÊS</div>
@@ -218,7 +324,15 @@ function TelaAgora({ dados, destaque }: { dados: SalaSnapshot; destaque: string 
                 <span className="sala-numero" style={{ fontSize: 26 }}>{item.idade}</span>
               </div>
             ))}
-            {dados.agora.filaOcultas > 0 ? <p className="sala-vazio">+ {dados.agora.filaOcultas}</p> : null}
+            {dados.agora.filaOcultas > 0 ? (
+              <button
+                type="button"
+                className="sala-fila-ocultas"
+                onClick={() => onDrill(DRILL_AGORA.semPrimeiro.id, DRILL_AGORA.semPrimeiro.titulo)}
+              >
+                + {dados.agora.filaOcultas} ocultas · ver fila completa
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -974,16 +1088,20 @@ function Conteudo({
   tela,
   dados,
   destaque,
+  drill,
+  onDrill,
   onInteragir,
   onAtualizar,
 }: {
   tela: TelaSala;
   dados: SalaSnapshot;
   destaque: string | null;
+  drill: SalaDrillSelecao | null;
+  onDrill: (id: string, titulo: string) => void;
   onInteragir?: () => void;
   onAtualizar?: () => void | Promise<void>;
 }) {
-  if (tela === "agora") return <TelaAgora dados={dados} destaque={destaque} />;
+  if (tela === "agora") return <TelaAgora dados={dados} destaque={destaque} drill={drill} onDrill={onDrill} />;
   if (tela === "fluxo") return <TelaFluxo dados={dados} />;
   if (tela === "envelhecimento") return <TelaEnvelhecimento dados={dados} />;
   if (tela === "compras") {
@@ -1003,7 +1121,7 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   const [pausado, setPausado] = useState(false);
   const [progresso, setProgresso] = useState(0);
   const [destaque, setDestaque] = useState<string | null>(null);
-  /** Stub de drill-down: chip + pausa. Listas na Fase 1 — docs/sala/drill-down-tv.md */
+  /** Drill-down Fase 1 (Agora): docs/sala/drill-down-tv.md */
   const [drill, setDrill] = useState<SalaDrillSelecao | null>(null);
   const [escala, setEscala] = useState(1);
   const [deslocamento, setDeslocamento] = useState(0);
@@ -1082,6 +1200,16 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   const tela = telaFixa ?? sequencia[indice % sequencia.length] ?? "agora";
   const segundos = dados?.segundos || 30;
 
+  const selecionarDrill = useCallback(
+    (id: string, titulo: string) => {
+      setDrill((atual) => {
+        if (atual?.id === id) return null;
+        return { tela, id, titulo };
+      });
+    },
+    [tela],
+  );
+
   useEffect(() => {
     setDrill(null);
   }, [tela]);
@@ -1089,6 +1217,16 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   useEffect(() => {
     if (drill) setPausado(true);
   }, [drill]);
+
+  useEffect(() => {
+    const tecla = (evento: KeyboardEvent) => {
+      if (evento.key === "Escape") {
+        setDrill(null);
+      }
+    };
+    window.addEventListener("keydown", tecla);
+    return () => window.removeEventListener("keydown", tecla);
+  }, []);
 
   useEffect(() => {
     if (telaFixa || pausado) return;
@@ -1108,10 +1246,7 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   useEffect(() => {
     if (telaFixa) return;
     const tecla = (evento: KeyboardEvent) => {
-      if (evento.key === "Escape") {
-        setDrill(null);
-        return;
-      }
+      if (evento.key === "Escape") return;
       if (evento.key === "ArrowRight") {
         setDrill(null);
         setIndice((atual) => atual + 1);
@@ -1134,6 +1269,7 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   const proxima = sequencia[(indice + 1) % sequencia.length];
   const proximaLabel = TELAS_SALA.find((item) => item.id === proxima)?.label ?? proxima;
   const restante = Math.max(0, Math.ceil((1 - progresso) * segundos));
+  const drillLinhas = drill ? (dados?.detalhes?.[drill.id] ?? []) : [];
 
   return (
     <div className={`${mono.variable} sala-root`}>
@@ -1152,20 +1288,33 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
             }}
           >
           <div className="sala-faixa" />
-          <Cabecalho tela={tela} relogio={relogio} drill={drill} onLimparDrill={limparDrill} />
+          <Cabecalho
+            tela={tela}
+            relogio={relogio}
+            drill={drill}
+            drillContagem={drill ? drillLinhas.length : undefined}
+            onLimparDrill={limparDrill}
+          />
           <div className="sala-miolo">
             {desatualizado ? <div className="sala-desatualizado">Dados desatualizados há {atualizadoHaMin} min</div> : null}
-            {erro && !dados ? <p className="sala-vazio">Sem conexão com o snapshot ({erro}).</p> : null}
-            {!dados && !erro ? <p className="sala-vazio">Carregando a sala…</p> : null}
-            {dados ? (
-              <Conteudo
-                tela={tela}
-                dados={dados}
-                destaque={destaque}
-                onInteragir={() => setPausado(true)}
-                onAtualizar={carregar}
-              />
-            ) : null}
+            <div className={drill ? "sala-miolo-row com-drawer" : "sala-miolo-row"}>
+              <div className="sala-miolo-main">
+                {erro && !dados ? <p className="sala-vazio">Sem conexão com o snapshot ({erro}).</p> : null}
+                {!dados && !erro ? <p className="sala-vazio">Carregando a sala…</p> : null}
+                {dados ? (
+                  <Conteudo
+                    tela={tela}
+                    dados={dados}
+                    destaque={destaque}
+                    drill={drill}
+                    onDrill={selecionarDrill}
+                    onInteragir={() => setPausado(true)}
+                    onAtualizar={carregar}
+                  />
+                ) : null}
+              </div>
+              {drill ? <SalaDrillDrawer drill={drill} linhas={drillLinhas} onLimpar={limparDrill} /> : null}
+            </div>
           </div>
           <footer className="sala-rodape">
             {dados ? (
