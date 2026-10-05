@@ -21,6 +21,7 @@ type Filtros = {
   mes: string;
   os: string;
   sem_valor: boolean;
+  abertas: boolean;
 };
 
 const FILTROS_VAZIOS: Filtros = {
@@ -29,6 +30,7 @@ const FILTROS_VAZIOS: Filtros = {
   mes: "",
   os: "",
   sem_valor: false,
+  abertas: true,
 };
 
 function formatarQuando(valor: string | null) {
@@ -67,9 +69,14 @@ function montarQuery(filtros: Filtros, page: number) {
   if (filtros.mes) q.set("mes", filtros.mes);
   if (filtros.os) q.set("os", filtros.os);
   if (filtros.sem_valor) q.set("sem_valor", "1");
+  if (filtros.abertas) q.set("abertas", "1");
   q.set("page", String(page));
   q.set("page_size", "50");
   return q.toString();
+}
+
+function hojeIso() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 export default function SalaOrdensCompraPage() {
@@ -81,11 +88,38 @@ export default function SalaOrdensCompraPage() {
   const [ok, setOk] = useState<string | null>(null);
   const [salvando, setSalvando] = useState<string | null>(null);
   const [aberta, setAberta] = useState<string | null>(null);
+  const [draftOs, setDraftOs] = useState<Record<string, string>>({});
+  const [draftEntrega, setDraftEntrega] = useState<Record<string, string>>({});
+  const [draftItens, setDraftItens] = useState<Record<string, string>>({});
 
   const carregar = useCallback(async (f: Filtros, p: number) => {
     const resposta = await fetch(`/api/sala/ordens-compra?${montarQuery(f, p)}`, { cache: "no-store" });
     if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
-    setDados((await resposta.json()) as Pacote);
+    const pacote = (await resposta.json()) as Pacote;
+    setDados(pacote);
+    setDraftOs((prev) => {
+      const next = { ...prev };
+      for (const o of pacote.itens) {
+        if (next[o.numero_ordem] === undefined) next[o.numero_ordem] = o.numero_os ?? "";
+      }
+      return next;
+    });
+    setDraftEntrega((prev) => {
+      const next = { ...prev };
+      for (const o of pacote.itens) {
+        if (next[o.numero_ordem] === undefined) {
+          next[o.numero_ordem] = o.data_entrega?.slice(0, 10) ?? "";
+        }
+      }
+      return next;
+    });
+    setDraftItens((prev) => {
+      const next = { ...prev };
+      for (const o of pacote.itens) {
+        if (next[o.numero_ordem] === undefined) next[o.numero_ordem] = o.itens_entregues ?? "";
+      }
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -100,7 +134,7 @@ export default function SalaOrdensCompraPage() {
     setAplicados({ ...filtros });
   }
 
-  async function salvarCategoria(numero: string, categoria: string) {
+  async function patchOrdem(numero: string, corpo: Record<string, unknown>, mensagemOk: string) {
     setSalvando(numero);
     setErro(null);
     setOk(null);
@@ -108,13 +142,13 @@ export default function SalaOrdensCompraPage() {
       const resposta = await fetch("/api/sala/ordens-compra", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ numero_ordem: numero, categoria }),
+        body: JSON.stringify({ numero_ordem: numero, ...corpo }),
       });
       if (!resposta.ok) {
-        const corpo = (await resposta.json().catch(() => ({}))) as { erro?: string };
-        throw new Error(corpo.erro || `HTTP ${resposta.status}`);
+        const corpoErro = (await resposta.json().catch(() => ({}))) as { erro?: string };
+        throw new Error(corpoErro.erro || `HTTP ${resposta.status}`);
       }
-      setOk(`Categoria da OC ${numero} atualizada. O robô não vai sobrescrever este campo.`);
+      setOk(mensagemOk);
       await carregar(aplicados, page);
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "falha ao salvar");
@@ -132,19 +166,20 @@ export default function SalaOrdensCompraPage() {
     <div className="space-y-5">
       <PageHeader
         title="Ordens de compra"
-        description="Ordens formais extraídas pelo robô E-Mails Compras (leandro.borges@aion.eng.br). Esta é a tela das OCs da API — a TV Compras e Pedidos usam outro cadastro (funil e-mail→SC)."
+        description="OCs do robô E-Mails Compras. Classifique, vincule OS e registre entrega real — a TV Compras lista só as abertas (sem data_entrega)."
       />
 
       <p className="text-sm text-aion-muted">
-        Pedidos enviados para compras (e-mail → SC → entrega) continuam em{" "}
-        <Link href="/sala/pedidos" className="font-semibold text-aion-blue hover:underline">
-          /sala/pedidos
-        </Link>
-        . A TV em{" "}
+        A TV em{" "}
         <Link href="/sala/compras" className="font-semibold text-aion-blue hover:underline">
           /sala/compras
         </Link>{" "}
-        não lista estas OCs formais.
+        mostra estas OCs abertas (Pedido = data_pedido, Resposta/OC = data_ordem, Entrega = data_entrega). O funil legado
+        e-mail→SC continua em{" "}
+        <Link href="/sala/pedidos" className="font-semibold text-aion-blue hover:underline">
+          /sala/pedidos
+        </Link>
+        .
       </p>
 
       {erro ? (
@@ -159,7 +194,7 @@ export default function SalaOrdensCompraPage() {
           <CardTitle className="text-base">Filtros</CardTitle>
         </CardHeader>
         <CardContent>
-          <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5" onSubmit={aplicar}>
+          <form className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6" onSubmit={aplicar}>
             <label className="block text-sm">
               <span className="mb-1 block text-xs font-semibold tracking-wide text-aion-muted uppercase">
                 Categoria
@@ -211,7 +246,15 @@ export default function SalaOrdensCompraPage() {
               />
               <span>Sem valor</span>
             </label>
-            <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-5">
+            <label className="flex items-end gap-2 pb-1 text-sm">
+              <input
+                type="checkbox"
+                checked={filtros.abertas}
+                onChange={(e) => setFiltros((f) => ({ ...f, abertas: e.target.checked }))}
+              />
+              <span>Só abertas (TV)</span>
+            </label>
+            <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-6">
               <button
                 type="submit"
                 className="rounded-lg bg-aion-blue px-4 py-2 text-sm font-semibold text-white"
@@ -241,16 +284,18 @@ export default function SalaOrdensCompraPage() {
         <CardHeader>
           <CardTitle className="text-base">Ordens</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
           {!dados ? <p className="text-sm text-aion-muted">Carregando…</p> : null}
           {dados && dados.itens.length === 0 ? (
             <p className="text-sm text-aion-muted">Nenhuma ordem com esses filtros.</p>
           ) : null}
           {dados?.itens.map((ordem) => {
             const abertaAgora = aberta === ordem.numero_ordem;
-            const categoriaManual = Boolean(ordem.editado_manualmente.categoria);
+            const flags = ordem.editado_manualmente;
+            const busy = salvando === ordem.numero_ordem;
+            const entregue = Boolean(ordem.data_entrega?.trim());
             return (
-              <div key={ordem.numero_ordem} className="border-b border-aion-line pb-3 last:border-0">
+              <div key={ordem.numero_ordem} className="rounded-lg border border-aion-line p-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -258,31 +303,39 @@ export default function SalaOrdensCompraPage() {
                       <span className="rounded bg-aion-mist px-2 py-0.5 text-xs font-semibold text-aion-blue">
                         {rotuloStatus(ordem.status)}
                       </span>
+                      {entregue ? <Badge tone="ok">entregue</Badge> : <Badge tone="warn">aberta</Badge>}
                       {ordem.confianca ? (
                         <Badge tone={ordem.confianca === "baixa" ? "warn" : "info"}>{ordem.confianca}</Badge>
                       ) : null}
-                      {categoriaManual ? <Badge tone="ok">categoria manual</Badge> : null}
+                      {flags.categoria ? <Badge tone="ok">categoria manual</Badge> : null}
+                      {flags.numero_os ? <Badge tone="ok">OS manual</Badge> : null}
+                      {flags.data_entrega ? <Badge tone="ok">entrega manual</Badge> : null}
                     </div>
                     <p className="text-sm text-aion-ink">
                       {ordem.fornecedor || "sem fornecedor"} · {formatarValor(ordem.valor_total)}
                     </p>
                     <p className="text-xs text-aion-muted">
-                      Pedido {formatarQuando(ordem.data_pedido)} · Ordem {formatarQuando(ordem.data_ordem)} · OS{" "}
-                      {ordem.numero_os || "—"} · {rotuloOrigem(ordem.origem)}
+                      Pedido (e-mail) {formatarQuando(ordem.data_pedido)} · Resposta / OC{" "}
+                      {formatarQuando(ordem.data_ordem)} · Entrega {formatarQuando(ordem.data_entrega)} ·{" "}
+                      {rotuloOrigem(ordem.origem)}
                     </p>
                   </div>
-                  <div className="flex min-w-[220px] flex-col gap-1">
+                  <div className="flex min-w-[200px] flex-col gap-1">
                     <span className="text-xs font-semibold tracking-wide text-aion-muted uppercase">
                       Categoria
                     </span>
                     <select
                       className="h-9 rounded-lg border border-aion-line bg-white px-3 text-sm"
                       value={ordem.categoria ?? ""}
-                      disabled={salvando === ordem.numero_ordem}
+                      disabled={busy}
                       onChange={(e) => {
                         const valor = e.target.value;
                         if (!valor) return;
-                        void salvarCategoria(ordem.numero_ordem, valor);
+                        void patchOrdem(
+                          ordem.numero_ordem,
+                          { categoria: valor },
+                          `Categoria da OC ${ordem.numero_ordem} atualizada.`,
+                        );
                       }}
                     >
                       <option value="" disabled>
@@ -296,13 +349,126 @@ export default function SalaOrdensCompraPage() {
                     </select>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className="mt-2 text-xs font-semibold text-aion-blue hover:underline"
-                  onClick={() => setAberta(abertaAgora ? null : ordem.numero_ordem)}
-                >
-                  {abertaAgora ? "Ocultar itens" : `Itens (${ordem.itens.length})`}
-                </button>
+
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <label className="block text-sm sm:col-span-1">
+                    <span className="mb-1 block text-xs font-semibold tracking-wide text-aion-muted uppercase">
+                      Nº OS
+                    </span>
+                    <div className="flex gap-2">
+                      <Input
+                        value={draftOs[ordem.numero_ordem] ?? ""}
+                        disabled={busy}
+                        onChange={(e) =>
+                          setDraftOs((d) => ({ ...d, [ordem.numero_ordem]: e.target.value }))
+                        }
+                        placeholder="vincular OS"
+                      />
+                      <button
+                        type="button"
+                        className="shrink-0 rounded-lg border border-aion-line px-3 text-xs font-semibold disabled:opacity-40"
+                        disabled={busy}
+                        onClick={() =>
+                          void patchOrdem(
+                            ordem.numero_ordem,
+                            { numero_os: draftOs[ordem.numero_ordem]?.trim() || null },
+                            `OS da OC ${ordem.numero_ordem} salva.`,
+                          )
+                        }
+                      >
+                        Salvar
+                      </button>
+                    </div>
+                  </label>
+                  <label className="block text-sm">
+                    <span className="mb-1 block text-xs font-semibold tracking-wide text-aion-muted uppercase">
+                      Data entrega
+                    </span>
+                    <Input
+                      type="date"
+                      value={draftEntrega[ordem.numero_ordem] ?? ""}
+                      disabled={busy}
+                      onChange={(e) =>
+                        setDraftEntrega((d) => ({ ...d, [ordem.numero_ordem]: e.target.value }))
+                      }
+                    />
+                  </label>
+                  <label className="block text-sm sm:col-span-2">
+                    <span className="mb-1 block text-xs font-semibold tracking-wide text-aion-muted uppercase">
+                      O que foi entregue
+                    </span>
+                    <Input
+                      value={draftItens[ordem.numero_ordem] ?? ""}
+                      disabled={busy}
+                      onChange={(e) =>
+                        setDraftItens((d) => ({ ...d, [ordem.numero_ordem]: e.target.value }))
+                      }
+                      placeholder="ex.: 2 pinças, 1 cabo"
+                    />
+                  </label>
+                </div>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+                    disabled={busy}
+                    onClick={() =>
+                      void patchOrdem(
+                        ordem.numero_ordem,
+                        {
+                          marcar_entregue: true,
+                          data_entrega: draftEntrega[ordem.numero_ordem]?.trim() || hojeIso(),
+                          itens_entregues: draftItens[ordem.numero_ordem]?.trim() || null,
+                        },
+                        `OC ${ordem.numero_ordem} marcada como entregue — sai da TV.`,
+                      )
+                    }
+                  >
+                    Marcar entregue
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-aion-line px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+                    disabled={busy}
+                    onClick={() =>
+                      void patchOrdem(
+                        ordem.numero_ordem,
+                        {
+                          data_entrega: draftEntrega[ordem.numero_ordem]?.trim() || null,
+                          itens_entregues: draftItens[ordem.numero_ordem]?.trim() || null,
+                        },
+                        `Entrega da OC ${ordem.numero_ordem} atualizada.`,
+                      )
+                    }
+                  >
+                    Salvar entrega
+                  </button>
+                  {entregue ? (
+                    <button
+                      type="button"
+                      className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 disabled:opacity-40"
+                      disabled={busy}
+                      onClick={() =>
+                        void patchOrdem(
+                          ordem.numero_ordem,
+                          { data_entrega: null },
+                          `OC ${ordem.numero_ordem} reaberta na TV.`,
+                        )
+                      }
+                    >
+                      Reabrir (limpar entrega)
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="text-xs font-semibold text-aion-blue hover:underline"
+                    onClick={() => setAberta(abertaAgora ? null : ordem.numero_ordem)}
+                  >
+                    {abertaAgora ? "Ocultar itens" : `Itens (${ordem.itens.length})`}
+                  </button>
+                </div>
+
                 {abertaAgora ? (
                   <ul className="mt-2 space-y-1 text-sm">
                     {ordem.itens.length === 0 ? (
@@ -322,6 +488,9 @@ export default function SalaOrdensCompraPage() {
                     ) : null}
                     {ordem.observacoes ? (
                       <li className="text-xs text-aion-muted">Obs.: {ordem.observacoes}</li>
+                    ) : null}
+                    {ordem.itens_entregues ? (
+                      <li className="text-xs text-emerald-800">Entregue: {ordem.itens_entregues}</li>
                     ) : null}
                   </ul>
                 ) : null}

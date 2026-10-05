@@ -598,8 +598,8 @@ function TelaCompras({ dados }: { dados: SalaSnapshot }) {
   const c = dados.compras;
   const tomSituacao = (situacao: string) => {
     if (situacao.includes("cobrar")) return "#A3123A";
-    if (situacao.includes("aguarda SC") || situacao.includes("vincular")) return "#8A5A00";
-    if (situacao.includes("entrega")) return "#2C66AB";
+    if (situacao.includes("aguarda resposta")) return "#8A5A00";
+    if (situacao.includes("aguarda entrega")) return "#2C66AB";
     return "#3E7A1E";
   };
   return (
@@ -613,21 +613,21 @@ function TelaCompras({ dados }: { dados: SalaSnapshot }) {
         }}
       >
         <div className="sala-cartao" style={{ border: "2px solid #EBCB6A" }}>
-          <div className="sala-rotulo-bloco" style={{ color: "#8A5A00" }}>1 · E-MAIL ENVIADO</div>
-          <div style={{ fontSize: 22, fontWeight: 600 }}>Aguardando SC</div>
+          <div className="sala-rotulo-bloco" style={{ color: "#8A5A00" }}>1 · PEDIDO (E-MAIL)</div>
+          <div style={{ fontSize: 22, fontWeight: 600 }}>Aguardando resposta / OC</div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
-            <span className="sala-numero" style={{ fontSize: 56, color: "#8A5A00" }}>{c.aguardaSc}</span>
+            <span className="sala-numero" style={{ fontSize: 56, color: "#8A5A00" }}>{c.aguardaResposta}</span>
             <span style={{ color: "#4E6079", fontSize: 18 }}>
-              {c.aguardaScMaisAntigo != null ? `mais antigo ${c.aguardaScMaisAntigo}d` : "—"}
+              {c.aguardaRespostaMaisAntigo != null ? `mais antigo ${c.aguardaRespostaMaisAntigo}d` : "—"}
             </span>
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}>
-          <span className="sala-numero" style={{ fontSize: 22 }}>{c.mediaEmailSc == null ? "—" : `${c.mediaEmailSc} d`}</span>
+          <span className="sala-numero" style={{ fontSize: 22 }}>{c.mediaPedidoOrdem == null ? "—" : `${c.mediaPedidoOrdem} d`}</span>
           <span style={{ color: "#4E6079", fontSize: 14 }}>média</span>
         </div>
         <div className="sala-cartao" style={{ border: "2px solid #B9CBE3" }}>
-          <div className="sala-rotulo-bloco">2 · SC CRIADA</div>
+          <div className="sala-rotulo-bloco">2 · RESPOSTA / OC</div>
           <div style={{ fontSize: 22, fontWeight: 600 }}>Aguardando entrega</div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
             <span className="sala-numero" style={{ fontSize: 56 }}>{c.aguardaEntrega}</span>
@@ -637,11 +637,11 @@ function TelaCompras({ dados }: { dados: SalaSnapshot }) {
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}>
-          <span className="sala-numero" style={{ fontSize: 22 }}>{c.mediaScEntrega == null ? "—" : `${c.mediaScEntrega} d`}</span>
+          <span className="sala-numero" style={{ fontSize: 22 }}>{c.mediaOrdemEntrega == null ? "—" : `${c.mediaOrdemEntrega} d`}</span>
           <span style={{ color: "#4E6079", fontSize: 14 }}>média</span>
         </div>
         <div className="sala-cartao" style={{ border: "2px solid #A9CC8E" }}>
-          <div className="sala-rotulo-bloco" style={{ color: "#3E7A1E" }}>3 · ENTREGUE</div>
+          <div className="sala-rotulo-bloco" style={{ color: "#3E7A1E" }}>3 · ENTREGA</div>
           <div style={{ fontSize: 22, fontWeight: 600 }}>No mês</div>
           <div style={{ display: "flex", alignItems: "baseline", gap: 12 }}>
             <span className="sala-numero" style={{ fontSize: 56, color: "#3E7A1E" }}>{c.entreguesMes}</span>
@@ -658,7 +658,7 @@ function TelaCompras({ dados }: { dados: SalaSnapshot }) {
             </span>
             <span style={{ color: "#DCE8F7", fontSize: 18 }}>com nº de OS</span>
           </div>
-          <div style={{ color: "#DCE8F7", fontSize: 18 }}>{c.semOs} pedido(s) sem OS</div>
+          <div style={{ color: "#DCE8F7", fontSize: 18 }}>{c.semOs} OC(s) aberta(s) sem OS</div>
         </div>
       </div>
 
@@ -675,88 +675,95 @@ function TelaCompras({ dados }: { dados: SalaSnapshot }) {
           background: "#F4F8FC",
         }}
       >
-        <div style={{ flex: 1, minWidth: 240 }}>
+        <div style={{ flex: 1, minWidth: 280 }}>
           <div className="sala-rotulo-bloco" style={{ marginBottom: 2 }}>
             ORDENS FORMAIS · ROBÔ E-MAILS COMPRAS
           </div>
           <div style={{ fontSize: 17, color: "#1D4A80" }}>
-            Esta TV mostra só o funil pedido→SC→entrega. As OCs enviadas pela API ficam em{" "}
+            Classificar / vincular OS / registrar entrega em{" "}
             <a href="/sala/ordens-compra" style={{ fontWeight: 700, color: "#2C66AB", textDecoration: "underline" }}>
               /sala/ordens-compra
             </a>
-            .
+            . Pedido (e-mail) = data do pedido · Resposta / OC = data da ordem · Entrega = data real.
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-          <span className="sala-numero" style={{ fontSize: 40, color: "#2C66AB" }}>{c.ordensFormaisTotal}</span>
+          <span className="sala-numero" style={{ fontSize: 40, color: "#2C66AB" }}>{c.totalOrdens}</span>
           <span style={{ color: "#4E6079", fontSize: 16 }}>no banco</span>
         </div>
+        {c.pedidosLegadoAbertos > 0 ? (
+          <div style={{ width: "100%", fontSize: 15, color: "#4E6079" }}>
+            Funil legado e-mail→SC: {c.pedidosLegadoAbertos} aberto(s) em{" "}
+            <a href="/sala/pedidos" style={{ color: "#2C66AB", fontWeight: 600 }}>
+              /sala/pedidos
+            </a>
+            .
+          </div>
+        ) : null}
       </div>
 
       <div className="sala-cartao" style={{ flex: 1, overflow: "hidden", marginTop: 8 }}>
-        <div className="sala-rotulo-bloco">PEDIDOS EM ABERTO · {c.pedidos.length}</div>
+        <div className="sala-rotulo-bloco">OCs EM ABERTO · {c.pedidos.length}</div>
         {c.aviso ? <p className="sala-vazio">{c.aviso}</p> : null}
         {c.pedidos.length === 0 && !c.aviso ? (
-          <p className="sala-vazio">Nenhum pedido em aberto. Cadastre ou ajuste em /sala/pedidos.</p>
+          <p className="sala-vazio">Nenhuma OC aberta. Registre entrega em /sala/ordens-compra.</p>
         ) : null}
         {c.pedidos.length > 0 ? (
           <div style={{ marginTop: 8, overflow: "auto" }}>
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "130px minmax(0,1.4fr) 200px 160px 160px 80px 180px",
-                gap: 12,
+                gridTemplateColumns: "120px 140px minmax(0,1.2fr) 90px 90px 110px 100px 70px 150px",
+                gap: 10,
                 padding: "8px 0",
-                fontSize: 14,
+                fontSize: 13,
                 fontWeight: 700,
                 letterSpacing: 1,
                 color: "#4E6079",
                 borderBottom: "1px solid #DCE4EE",
               }}
             >
+              <span>OC</span>
+              <span>CATEGORIA</span>
+              <span>FORNECEDOR</span>
+              <span>PEDIDO</span>
+              <span>RESP./OC</span>
+              <span>VALOR</span>
               <span>OS</span>
-              <span>EQUIPAMENTO · ITEM</span>
-              <span>SETOR</span>
-              <span>E-MAIL</span>
-              <span>SC</span>
               <span style={{ textAlign: "right" }}>PARADO</span>
               <span style={{ textAlign: "right" }}>SITUAÇÃO</span>
             </div>
             {c.pedidos.map((pedido) => (
               <div
-                key={`${pedido.os}-${pedido.enviadoEm}-${pedido.item}`}
+                key={pedido.numeroOrdem}
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "130px minmax(0,1.4fr) 200px 160px 160px 80px 180px",
-                  gap: 12,
+                  gridTemplateColumns: "120px 140px minmax(0,1.2fr) 90px 90px 110px 100px 70px 150px",
+                  gap: 10,
                   alignItems: "center",
                   padding: "10px 0",
                   borderBottom: "1px solid #E6ECF3",
                   background: pedido.situacao.includes("cobrar") ? "#FDF1F4" : "transparent",
                 }}
               >
-                <span className="sala-numero" style={{ fontSize: 20 }}>{pedido.os}</span>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 20, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {pedido.equipamento}
-                  </div>
-                  <div style={{ fontSize: 16, color: "#4E6079", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {pedido.item}
-                  </div>
-                </div>
-                <span style={{ fontSize: 18, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pedido.setor}</span>
                 <div>
-                  <div className="sala-numero" style={{ fontSize: 18 }}>{pedido.enviadoEm}</div>
-                  <div style={{ fontSize: 14, color: "#4E6079" }}>{pedido.solicitante}</div>
+                  <div className="sala-numero" style={{ fontSize: 18 }}>{pedido.numeroOrdem}</div>
+                  <div style={{ fontSize: 13, color: "#4E6079" }}>{pedido.confianca}</div>
                 </div>
-                <div>
-                  <div className="sala-numero" style={{ fontSize: 18 }}>{pedido.sc}</div>
-                  <div style={{ fontSize: 14, color: "#4E6079" }}>{pedido.scEm}</div>
-                </div>
+                <span style={{ fontSize: 16, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {pedido.categoria}
+                </span>
+                <span style={{ fontSize: 17, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {pedido.fornecedor}
+                </span>
+                <span className="sala-numero" style={{ fontSize: 17 }}>{pedido.dataPedido}</span>
+                <span className="sala-numero" style={{ fontSize: 17 }}>{pedido.dataOrdem}</span>
+                <span style={{ fontSize: 16 }}>{pedido.valor}</span>
+                <span className="sala-numero" style={{ fontSize: 17 }}>{pedido.numeroOs}</span>
                 <span className="sala-numero" style={{ fontSize: 22, textAlign: "right", color: tomSituacao(pedido.situacao) }}>
                   {pedido.paradoDias}d
                 </span>
-                <span style={{ fontSize: 17, fontWeight: 700, textAlign: "right", color: tomSituacao(pedido.situacao) }}>
+                <span style={{ fontSize: 16, fontWeight: 700, textAlign: "right", color: tomSituacao(pedido.situacao) }}>
                   {pedido.situacao}
                 </span>
               </div>

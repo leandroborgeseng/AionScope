@@ -173,6 +173,8 @@ CREATE TABLE IF NOT EXISTS ordens_compra (
   categoria TEXT,
   data_pedido TEXT,
   data_ordem TEXT,
+  data_entrega TEXT,
+  itens_entregues TEXT,
   valor_total TEXT,
   fornecedor TEXT,
   numero_orcamento TEXT,
@@ -196,6 +198,7 @@ CREATE INDEX IF NOT EXISTS idx_ordens_compra_categoria ON ordens_compra (categor
 CREATE INDEX IF NOT EXISTS idx_ordens_compra_fornecedor ON ordens_compra (fornecedor);
 CREATE INDEX IF NOT EXISTS idx_ordens_compra_os ON ordens_compra (numero_os);
 CREATE INDEX IF NOT EXISTS idx_ordens_compra_updated ON ordens_compra (updated_at);
+CREATE INDEX IF NOT EXISTS idx_ordens_compra_entrega ON ordens_compra (data_entrega);
 
 CREATE TABLE IF NOT EXISTS ordem_itens (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -227,3 +230,4 @@ export const MIGRATION_NAME = "001_init";
 export const MIGRATION_SALA_MANUAL = "002_sala_manual";
 export const MIGRATION_COMPRAS_EMAIL = "003_compras_email";
 export const MIGRATION_ORDENS_COMPRA = "004_ordens_compra";
+export const MIGRATION_ORDENS_COMPRA_ENTREGA = "005_ordens_compra_entrega";

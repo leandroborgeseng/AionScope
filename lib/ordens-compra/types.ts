@@ -17,6 +17,7 @@ export type ItemOrdem = {
   codigo: string | null;
 };
 
+/** Campos que o robô pode enviar no upsert. */
 export type CamposOrdem = {
   status: StatusOrdem | null;
   categoria: CategoriaOrdem | null;
@@ -59,21 +60,37 @@ export const CAMPOS_ORDEM = [
 
 export type NomeCampoOrdem = (typeof CAMPOS_ORDEM)[number];
 
+/** Campos só da Sala (entrega real) — não entram no upsert do robô. */
+export type CamposSalaOrdem = {
+  data_entrega: string | null;
+  itens_entregues: string | null;
+};
+
 export type ParsedOrdem = {
   numero_ordem: string;
   campos: Partial<CamposOrdem>;
   itens?: ItemOrdem[];
 };
 
-export type EditadoManualmente = Partial<Record<NomeCampoOrdem | "itens", boolean>>;
+export type EditadoManualmente = Partial<
+  Record<NomeCampoOrdem | "itens" | "data_entrega" | "itens_entregues", boolean>
+>;
 
-export type OrdemCompra = CamposOrdem & {
-  numero_ordem: string;
-  itens: ItemOrdem[];
-  fonte: string;
-  editado_manualmente: EditadoManualmente;
-  created_at: string;
-  updated_at: string;
+export type OrdemCompra = CamposOrdem &
+  CamposSalaOrdem & {
+    numero_ordem: string;
+    itens: ItemOrdem[];
+    fonte: string;
+    editado_manualmente: EditadoManualmente;
+    created_at: string;
+    updated_at: string;
+  };
+
+export type PatchSalaOrdem = {
+  categoria?: CategoriaOrdem;
+  numero_os?: string | null;
+  data_entrega?: string | null;
+  itens_entregues?: string | null;
 };
 
 export type DetalheErro = { campo: string; mensagem: string };
@@ -91,6 +108,8 @@ export type ListaFiltros = {
   mes?: string;
   os?: string;
   sem_valor?: boolean;
+  /** Só OCs não canceladas e sem data_entrega. */
+  abertas?: boolean;
   page: number;
   page_size: number;
 };
@@ -100,4 +119,18 @@ export type ListaOrdens = {
   page: number;
   page_size: number;
   total: number;
+};
+
+export type PedidoTvOrdem = {
+  numeroOrdem: string;
+  categoria: string;
+  fornecedor: string;
+  dataPedido: string;
+  dataOrdem: string;
+  valor: string;
+  numeroOs: string;
+  status: string;
+  confianca: string;
+  paradoDias: number;
+  situacao: string;
 };

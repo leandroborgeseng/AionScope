@@ -1,7 +1,7 @@
 import { addMonths, format } from "date-fns";
 import { extrairSc, m365Configurado } from "@/lib/compras/parse-email";
 import { resumoComprasTv, sincronizarCompras } from "@/lib/compras/sync";
-import { contarOrdensCompra } from "@/lib/ordens-compra/store";
+import { resumoOrdensCompraTv } from "@/lib/ordens-compra/store";
 import { listarRegistrosSala } from "@/lib/db/sala-registros";
 import { fetchPbi } from "@/lib/pbi/client";
 import { nowInSaoPaulo, parseBrNumber, parsePbiDate } from "@/lib/pbi/dates";
@@ -508,8 +508,10 @@ export function montarSnapshotDeDados(
     {
       id: "compras",
       fonte: (() => {
-        const resumo = resumoComprasTv(agora);
-        if (resumo.pedidos.length || resumo.entreguesMes) return m365Configurado() ? "api" : "manual";
+        const resumo = resumoOrdensCompraTv(agora);
+        if (resumo.pedidos.length || resumo.entreguesMes || resumo.total) return "api";
+        const legado = resumoComprasTv(agora);
+        if (legado.pedidos.length || legado.entreguesMes) return m365Configurado() ? "api" : "manual";
         if (m365Configurado()) return "api";
         return "sem-dados";
       })(),
@@ -642,26 +644,30 @@ export function montarSnapshotDeDados(
       };
     })(),
     compras: (() => {
-      const resumo = resumoComprasTv(agora);
+      const resumo = resumoOrdensCompraTv(agora);
+      const legado = resumoComprasTv(agora);
+      const pedidosLegadoAbertos = legado.aguardaSc + legado.aguardaEntrega + legado.semOs;
       const aviso = resumo.pedidos.length
         ? ""
-        : resumo.configurado
-          ? "Sem pedidos em aberto. Cadastre em /sala/pedidos ou sincronize o Outlook."
-          : "Cadastre pedidos em /sala/pedidos (manual) ou configure M365 (docs/sala/m365-setup.md) para importar do e-mail.";
+        : resumo.total
+          ? "Nenhuma OC aberta. Entregues saem desta lista — classifique / OS / entrega em /sala/ordens-compra."
+          : "Sem ordens do robô ainda. O robô envia OCs em /api/v1/ordens-compra; edição em /sala/ordens-compra.";
       return {
         aviso,
-        configurado: resumo.configurado,
-        aguardaSc: resumo.aguardaSc,
-        aguardaScMaisAntigo: resumo.aguardaScMaisAntigo,
+        fonte: "ordens_compra" as const,
+        configurado: true,
+        aguardaResposta: resumo.aguardaResposta,
+        aguardaRespostaMaisAntigo: resumo.aguardaRespostaMaisAntigo,
         aguardaEntrega: resumo.aguardaEntrega,
         aguardaEntregaMaisAntiga: resumo.aguardaEntregaMaisAntiga,
         entreguesMes: resumo.entreguesMes,
-        mediaEmailSc: resumo.mediaEmailSc,
-        mediaScEntrega: resumo.mediaScEntrega,
+        mediaPedidoOrdem: resumo.mediaPedidoOrdem,
+        mediaOrdemEntrega: resumo.mediaOrdemEntrega,
         mediaPontaAPonta: resumo.mediaPontaAPonta,
         percentualComOs: resumo.percentualComOs,
         semOs: resumo.semOs,
-        ordensFormaisTotal: contarOrdensCompra(),
+        totalOrdens: resumo.total,
+        pedidosLegadoAbertos,
         pedidos: resumo.pedidos,
       };
     })(),

@@ -1,6 +1,6 @@
 import { jsonErro, jsonErroValidacao, jsonInvalido, jsonOk, lerJson } from "@/lib/ordens-compra/http";
-import { editarCategoriaManualmente, listarOrdensCompra, obterOrdemCompra } from "@/lib/ordens-compra/store";
-import { parseCategoriaPatch, parseListaQuery } from "@/lib/ordens-compra/validate";
+import { editarOrdemSala, listarOrdensCompra, obterOrdemCompra } from "@/lib/ordens-compra/store";
+import { parseListaQuery, parseSalaPatch } from "@/lib/ordens-compra/validate";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,7 +12,10 @@ export async function GET(request: Request) {
   return jsonOk(listarOrdensCompra(parsed.filtros));
 }
 
-/** Edita categoria e marca o campo como editado manualmente. */
+/**
+ * Edita campos da Sala (categoria, numero_os, data_entrega, itens_entregues)
+ * e marca-os em editado_manualmente para o robô não sobrescrever.
+ */
 export async function PATCH(request: Request) {
   const body = await lerJson(request);
   if (body && typeof body === "object" && "_invalido" in body) return jsonInvalido();
@@ -27,9 +30,9 @@ export async function PATCH(request: Request) {
       detalhes: [{ campo: "numero_ordem", mensagem: "obrigatório." }],
     });
   }
-  const categoria = parseCategoriaPatch(body);
-  if (!categoria.ok) return jsonErroValidacao(categoria.error);
+  const parsed = parseSalaPatch(body);
+  if (!parsed.ok) return jsonErroValidacao(parsed.error);
   if (!obterOrdemCompra(numero)) return jsonErro("não encontrado", 404);
-  const ordem = editarCategoriaManualmente(numero, categoria.categoria);
+  const ordem = editarOrdemSala(numero, parsed.patch);
   return jsonOk(ordem);
 }
