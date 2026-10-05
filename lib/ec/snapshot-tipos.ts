@@ -48,6 +48,31 @@ export type LinhaFila = {
   idade: string;
 };
 
+/** Linha de OS no drawer de drill (reuso da fila). */
+export type LinhaDrillOs = {
+  os: string;
+  equipamento: string;
+  tag: string;
+  setor: string;
+  situacao?: string;
+  criticidade?: string;
+  etapa?: string;
+  idade?: string;
+  parado?: boolean;
+  compra?: boolean;
+};
+
+/** Linha de equipamento (ex.: parados) no drawer de drill. */
+export type LinhaDrillEquip = {
+  tag: string;
+  equipamento: string;
+  setor: string;
+  tempo?: string;
+  os?: string;
+};
+
+export type LinhaDrill = LinhaDrillOs | LinhaDrillEquip;
+
 export type SalaSnapshot = {
   atualizadoEm: string;
   relogio: string;
@@ -57,6 +82,11 @@ export type SalaSnapshot = {
   sequencia: TelaSala[];
   alertas: Array<{ os: string; motivo: string }>;
   blocos: Bloco[];
+  /**
+   * Listas para drill-down na TV (chave = SalaDrillSelecao.id).
+   * Fase 1: agora.grave | agora.fora-do-prazo | agora.sem-primeiro | agora.parados
+   */
+  detalhes?: Partial<Record<string, LinhaDrill[]>>;
   agora: {
     grave: number;
     foraDoPrazo: number;

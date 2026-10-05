@@ -290,16 +290,16 @@ Namespace estável: `{tela}.{recorte}` em kebab-case ASCII, sem acento na chave 
 
 ## 7. Critérios de aceite (Fase 1)
 
-- [ ] Clicar **ATRASO GRAVE** pausa a rotação e mostra as OS graves.  
-- [ ] Clicar de novo / Esc / Limpar remove o filtro.  
-- [ ] Quantidade no drawer = valor do contador.  
-- [ ] Demais telas e rotação continuam iguais sem drill ativo.  
-- [ ] `TelaCompras` sem regressão (pager + marcar entregue).  
-- [ ] Documentação deste arquivo alinhada ao que foi implementado.
+- [x] Clicar **ATRASO GRAVE** pausa a rotação e mostra as OS graves.
+- [x] Clicar de novo / Esc / Limpar remove o filtro.
+- [x] Quantidade no drawer = valor do contador.
+- [x] Demais telas e rotação continuam iguais sem drill ativo.
+- [x] `TelaCompras` sem regressão (pager + marcar entregue).
+- [x] Documentação deste arquivo alinhada ao que foi implementado.
 
 ---
 
 ## 8. Próximo passo sugerido
 
-**Implementar Fase 1 (Agora: 4 contadores + fila completa)?**  
-Confirmar com o usuário antes de alterar `montar-snapshot` e o drawer — este documento + stub de estado são só o contrato de design.
+**Fase 1 implementada** (Agora: 4 contadores + fila completa via `detalhes` + drawer).  
+Próximo: **Fase 2 — Fluxo + Envelhecimento** (ver §5).

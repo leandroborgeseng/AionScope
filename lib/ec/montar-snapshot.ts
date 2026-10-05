@@ -17,7 +17,7 @@ import { dentroDoExpediente, diffHorasUteis, horarioUtilConfig, type HorarioUtil
 import { metaHorasEsforco, rotuloCriticidade } from "./meta";
 import { planoAgoraCards, resumoProgramadasMes } from "./programadas-mes";
 import { situacaoPrimeiroAtendimento, type SituacaoOs } from "./situacao";
-import type { SalaSnapshot, TelaSala } from "./snapshot-tipos";
+import type { LinhaDrillEquip, LinhaFila, SalaSnapshot, TelaSala } from "./snapshot-tipos";
 import { classeDemanda, classeManutencao, parseMoeda, semAcento, texto, type ClasseManutencao } from "./texto";
 
 const FILA_LIMITE = 8;
@@ -125,6 +125,20 @@ function formatoIdade(ms: number) {
   if (dias > 0) return horas > 0 ? `${dias}d ${horas}h` : `${dias}d`;
   if (horas > 0) return `${horas}h`;
   return `${minutos}min`;
+}
+
+function linhaFilaDeVista(item: OsVista, agora: Date): LinhaFila {
+  return {
+    os: texto(item.os.OS) || "—",
+    equipamento: texto(item.os.Equipamento) || "—",
+    tag: item.tag,
+    setor: texto(item.os.Setor) || "—",
+    situacao: item.situacao,
+    criticidade: item.criticidade,
+    parado: item.parado,
+    compra: item.compra,
+    idade: item.abertura ? formatoIdade(agora.getTime() - item.abertura.getTime()) : "—",
+  };
 }
 
 function mediana(valores: number[]) {
@@ -244,17 +258,8 @@ export function montarSnapshotDeDados(
       aberturaMs: item.abertura?.getTime() ?? Number.MAX_SAFE_INTEGER,
     })),
   );
-  const fila = filaOrdenada.slice(0, FILA_LIMITE).map(({ item }) => ({
-    os: texto(item.os.OS) || "—",
-    equipamento: texto(item.os.Equipamento) || "—",
-    tag: item.tag,
-    setor: texto(item.os.Setor) || "—",
-    situacao: item.situacao,
-    criticidade: item.criticidade,
-    parado: item.parado,
-    compra: item.compra,
-    idade: item.abertura ? formatoIdade(agora.getTime() - item.abertura.getTime()) : "—",
-  }));
+  const filaCompleta = filaOrdenada.map(({ item }) => linhaFilaDeVista(item, agora));
+  const fila = filaCompleta.slice(0, FILA_LIMITE);
 
   const noPrazo30 = vistas.filter(
     (item) =>
@@ -316,6 +321,40 @@ export function montarSnapshotDeDados(
     ...parados,
     ...demandaAberta.map((item) => item.tag).filter(Boolean),
   ]);
+
+  /** Uma linha por tag — mesma base da contagem `agora.parados`. */
+  const paradosDetalhes: LinhaDrillEquip[] = [...paradosAgora]
+    .map((tag) => {
+      const osVista = demandaAberta
+        .filter((item) => item.tag === tag)
+        .sort((a, b) => (a.abertura?.getTime() ?? 0) - (b.abertura?.getTime() ?? 0))[0];
+      if (osVista) {
+        return {
+          tag,
+          equipamento: texto(osVista.os.Equipamento) || "—",
+          setor: texto(osVista.os.Setor) || "—",
+          tempo: osVista.abertura ? `${diasDesde(osVista.abertura, agora)}d desde abertura` : "—",
+          os: texto(osVista.os.OS) || undefined,
+        };
+      }
+      const disp = (dados.disponibilidade ?? []).find((item) => texto(item.Tag) === tag);
+      const dias = disp ? diasParadoDe(disp) : null;
+      return {
+        tag,
+        equipamento: disp
+          ? texto(disp.EquipamentoDescricaoCompleta).split(" ").slice(0, 6).join(" ") || "—"
+          : "—",
+        setor: disp ? texto(disp.SetorDescricao) || "—" : "—",
+        tempo: dias != null && dias > 0 ? `${dias}d no mês` : "parado",
+      };
+    })
+    .sort((a, b) => {
+      const num = (t?: string) => {
+        const m = t?.match(/^(\d+)/);
+        return m ? Number(m[1]) : -1;
+      };
+      return num(b.tempo) - num(a.tempo);
+    });
 
   const etapasFluxo = ETAPAS.filter((etapa) => etapa !== "Encerrada").map((etapa) => {
     const grupo = demandaAberta.filter((item) => item.etapa === etapa);
@@ -548,6 +587,12 @@ export function montarSnapshotDeDados(
     sequencia: sequencia(),
     alertas: [],
     blocos,
+    detalhes: {
+      "agora.grave": grave.map((item) => linhaFilaDeVista(item, agora)),
+      "agora.fora-do-prazo": fora.map((item) => linhaFilaDeVista(item, agora)),
+      "agora.sem-primeiro": filaCompleta,
+      "agora.parados": dados.disponibilidade || paradosAgora.size ? paradosDetalhes : [],
+    },
     agora: {
       grave: grave.length,
       foraDoPrazo: fora.length,
