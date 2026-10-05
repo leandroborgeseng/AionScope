@@ -198,7 +198,6 @@ CREATE INDEX IF NOT EXISTS idx_ordens_compra_categoria ON ordens_compra (categor
 CREATE INDEX IF NOT EXISTS idx_ordens_compra_fornecedor ON ordens_compra (fornecedor);
 CREATE INDEX IF NOT EXISTS idx_ordens_compra_os ON ordens_compra (numero_os);
 CREATE INDEX IF NOT EXISTS idx_ordens_compra_updated ON ordens_compra (updated_at);
-CREATE INDEX IF NOT EXISTS idx_ordens_compra_entrega ON ordens_compra (data_entrega);
 
 CREATE TABLE IF NOT EXISTS ordem_itens (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
