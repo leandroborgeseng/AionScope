@@ -224,6 +224,22 @@ CREATE TABLE IF NOT EXISTS ordens_compra_api_log (
   erros INTEGER NOT NULL DEFAULT 0,
   detalhe TEXT
 );
+
+CREATE TABLE IF NOT EXISTS ordem_anexos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  numero_ordem TEXT NOT NULL,
+  nome_original TEXT NOT NULL,
+  content_type TEXT NOT NULL,
+  tamanho INTEGER NOT NULL,
+  caminho_relativo TEXT NOT NULL,
+  fonte TEXT NOT NULL DEFAULT 'manual',
+  email_message_id TEXT,
+  descricao TEXT,
+  created_at TEXT NOT NULL,
+  FOREIGN KEY (numero_ordem) REFERENCES ordens_compra (numero_ordem) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_ordem_anexos_ordem ON ordem_anexos (numero_ordem);
 `;
 
 export const MIGRATION_NAME = "001_init";
@@ -232,3 +248,5 @@ export const MIGRATION_COMPRAS_EMAIL = "003_compras_email";
 export const MIGRATION_ORDENS_COMPRA = "004_ordens_compra";
 export const MIGRATION_ORDENS_COMPRA_ENTREGA = "005_ordens_compra_entrega";
 export const MIGRATION_ORDENS_COMPRA_FORA_ESCOPO = "006_ordens_compra_fora_escopo";
+export const MIGRATION_ORDENS_COMPRA_DUPLICADA = "007_ordens_compra_duplicada";
+export const MIGRATION_ORDEM_ANEXOS = "008_ordem_anexos";
