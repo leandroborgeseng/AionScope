@@ -2,7 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { JetBrains_Mono } from "next/font/google";
-import { TELAS_SALA, type SalaSnapshot, type TelaSala } from "@/lib/ec/snapshot-tipos";
+import {
+  TELAS_SALA,
+  type SalaDrillSelecao,
+  type SalaSnapshot,
+  type TelaSala,
+} from "@/lib/ec/snapshot-tipos";
 import "@/app/sala/sala.css";
 
 const mono = JetBrains_Mono({
@@ -34,7 +39,17 @@ function selo(situacao: string) {
   return SELO[situacao] ?? SELO["NO PRAZO"];
 }
 
-function Cabecalho({ tela, relogio }: { tela: TelaSala; relogio: string }) {
+function Cabecalho({
+  tela,
+  relogio,
+  drill,
+  onLimparDrill,
+}: {
+  tela: TelaSala;
+  relogio: string;
+  drill: SalaDrillSelecao | null;
+  onLimparDrill?: () => void;
+}) {
   const atual = TELAS_SALA.find((item) => item.id === tela) ?? TELAS_SALA[0];
   return (
     <header className="sala-cabecalho">
@@ -51,6 +66,47 @@ function Cabecalho({ tela, relogio }: { tela: TelaSala; relogio: string }) {
           </a>
         ))}
       </nav>
+      {drill ? (
+        <div
+          className="sala-drill-chip"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            marginLeft: 12,
+            padding: "8px 14px",
+            minHeight: 44,
+            borderRadius: 8,
+            border: "2px solid #2C66AB",
+            background: "#EEF4FB",
+            color: "#1D4A80",
+            fontSize: 18,
+            fontWeight: 700,
+            maxWidth: 420,
+          }}
+        >
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            selecionado: {drill.titulo}
+          </span>
+          <button
+            type="button"
+            onClick={onLimparDrill}
+            style={{
+              minHeight: 36,
+              padding: "4px 12px",
+              borderRadius: 6,
+              border: "1px solid #B9CBE3",
+              background: "#fff",
+              color: "#2C66AB",
+              fontWeight: 700,
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          >
+            Limpar
+          </button>
+        </div>
+      ) : null}
       <div className="sala-relogio">{relogio}</div>
     </header>
   );
@@ -947,9 +1003,13 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   const [pausado, setPausado] = useState(false);
   const [progresso, setProgresso] = useState(0);
   const [destaque, setDestaque] = useState<string | null>(null);
+  /** Stub de drill-down: chip + pausa. Listas na Fase 1 — docs/sala/drill-down-tv.md */
+  const [drill, setDrill] = useState<SalaDrillSelecao | null>(null);
   const [escala, setEscala] = useState(1);
   const [deslocamento, setDeslocamento] = useState(0);
   const [relogio, setRelogio] = useState("—");
+
+  const limparDrill = useCallback(() => setDrill(null), []);
 
   const carregar = useCallback(async () => {
     try {
@@ -1023,6 +1083,14 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   const segundos = dados?.segundos || 30;
 
   useEffect(() => {
+    setDrill(null);
+  }, [tela]);
+
+  useEffect(() => {
+    if (drill) setPausado(true);
+  }, [drill]);
+
+  useEffect(() => {
     if (telaFixa || pausado) return;
     const inicio = Date.now();
     const timer = window.setInterval(() => {
@@ -1040,8 +1108,18 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   useEffect(() => {
     if (telaFixa) return;
     const tecla = (evento: KeyboardEvent) => {
-      if (evento.key === "ArrowRight") setIndice((atual) => atual + 1);
-      if (evento.key === "ArrowLeft") setIndice((atual) => (atual + sequencia.length - 1) % sequencia.length);
+      if (evento.key === "Escape") {
+        setDrill(null);
+        return;
+      }
+      if (evento.key === "ArrowRight") {
+        setDrill(null);
+        setIndice((atual) => atual + 1);
+      }
+      if (evento.key === "ArrowLeft") {
+        setDrill(null);
+        setIndice((atual) => (atual + sequencia.length - 1) % sequencia.length);
+      }
       if (evento.key === " ") {
         evento.preventDefault();
         setPausado((atual) => !atual);
@@ -1074,7 +1152,7 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
             }}
           >
           <div className="sala-faixa" />
-          <Cabecalho tela={tela} relogio={relogio} />
+          <Cabecalho tela={tela} relogio={relogio} drill={drill} onLimparDrill={limparDrill} />
           <div className="sala-miolo">
             {desatualizado ? <div className="sala-desatualizado">Dados desatualizados há {atualizadoHaMin} min</div> : null}
             {erro && !dados ? <p className="sala-vazio">Sem conexão com o snapshot ({erro}).</p> : null}
