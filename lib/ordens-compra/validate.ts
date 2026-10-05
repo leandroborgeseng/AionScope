@@ -8,6 +8,7 @@ import {
   type ItemOrdem,
   type ListaFiltros,
   type ParsedOrdem,
+  type PatchSalaOrdem,
 } from "./types";
 
 const MONEY_RE = /^-?\d+(\.\d+)?$/;
@@ -299,6 +300,8 @@ export function parseListaQuery(url: URL): { ok: true; filtros: ListaFiltros } |
 
   const semValorRaw = url.searchParams.get("sem_valor");
   const sem_valor = semValorRaw === "1" || semValorRaw === "true";
+  const abertasRaw = url.searchParams.get("abertas");
+  const abertas = abertasRaw === "1" || abertasRaw === "true";
 
   if (detalhes.length) return { ok: false, error: erroDe(detalhes) };
 
@@ -311,6 +314,7 @@ export function parseListaQuery(url: URL): { ok: true; filtros: ListaFiltros } |
       mes,
       os: url.searchParams.get("os")?.trim() || url.searchParams.get("numero_os")?.trim() || undefined,
       sem_valor,
+      abertas: abertas || undefined,
       page,
       page_size,
     },
@@ -344,4 +348,76 @@ export function parseCategoriaPatch(
     };
   }
   return { ok: true, categoria };
+}
+
+/** PATCH da Sala: categoria, numero_os, data_entrega, itens_entregues (pelo menos um). */
+export function parseSalaPatch(
+  raw: unknown,
+): { ok: true; patch: PatchSalaOrdem } | { ok: false; error: ErroValidacao } {
+  if (!isRecord(raw)) {
+    return {
+      ok: false,
+      error: {
+        status: 400,
+        erro: "validação falhou",
+        detalhes: [{ campo: "corpo", mensagem: "JSON deve ser um objeto." }],
+      },
+    };
+  }
+
+  const detalhes: DetalheErro[] = [];
+  const patch: PatchSalaOrdem = {};
+
+  if ("categoria" in raw) {
+    const categoria = enumOpcional(raw.categoria, "categoria", CATEGORIA_ORDEM, detalhes);
+    if (categoria) patch.categoria = categoria;
+    else if (!detalhes.some((d) => d.campo === "categoria")) {
+      detalhes.push({ campo: "categoria", mensagem: "obrigatório quando enviado." });
+    }
+  }
+
+  if ("numero_os" in raw) {
+    const os = textoOpcional(raw.numero_os, "numero_os", detalhes);
+    if (os !== undefined) patch.numero_os = os;
+  }
+
+  if ("data_entrega" in raw) {
+    const data = dataOpcional(raw.data_entrega, "data_entrega", detalhes);
+    if (data !== undefined) patch.data_entrega = data;
+  }
+
+  if ("itens_entregues" in raw) {
+    const texto = textoOpcional(raw.itens_entregues, "itens_entregues", detalhes);
+    if (texto !== undefined) patch.itens_entregues = texto;
+  }
+
+  if ("marcar_entregue" in raw && raw.marcar_entregue) {
+    if (patch.data_entrega === undefined) {
+      patch.data_entrega = new Date().toISOString().slice(0, 10);
+    }
+  }
+
+  if (detalhes.length) return { ok: false, error: erroDe(detalhes) };
+  if (
+    patch.categoria === undefined &&
+    patch.numero_os === undefined &&
+    patch.data_entrega === undefined &&
+    patch.itens_entregues === undefined
+  ) {
+    return {
+      ok: false,
+      error: {
+        status: 400,
+        erro: "validação falhou",
+        detalhes: [
+          {
+            campo: "corpo",
+            mensagem: "informe categoria, numero_os, data_entrega, itens_entregues e/ou marcar_entregue.",
+          },
+        ],
+      },
+    };
+  }
+
+  return { ok: true, patch };
 }

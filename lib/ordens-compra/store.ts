@@ -1,5 +1,16 @@
 import { getDb } from "@/lib/db/client";
-import { CAMPOS_ORDEM, type CategoriaOrdem, type EditadoManualmente, type ItemOrdem, type ListaFiltros, type ListaOrdens, type OrdemCompra, type ParsedOrdem } from "./types";
+import {
+  CAMPOS_ORDEM,
+  type CategoriaOrdem,
+  type EditadoManualmente,
+  type ItemOrdem,
+  type ListaFiltros,
+  type ListaOrdens,
+  type OrdemCompra,
+  type ParsedOrdem,
+  type PatchSalaOrdem,
+  type PedidoTvOrdem,
+} from "./types";
 
 type OrdemRow = {
   numero_ordem: string;
@@ -7,6 +18,8 @@ type OrdemRow = {
   categoria: string | null;
   data_pedido: string | null;
   data_ordem: string | null;
+  data_entrega: string | null;
+  itens_entregues: string | null;
   valor_total: string | null;
   fornecedor: string | null;
   numero_orcamento: string | null;
@@ -66,6 +79,8 @@ function rowParaOrdem(row: OrdemRow, itens: ItemOrdem[]): OrdemCompra {
     categoria: (row.categoria as OrdemCompra["categoria"]) ?? null,
     data_pedido: row.data_pedido,
     data_ordem: row.data_ordem,
+    data_entrega: row.data_entrega ?? null,
+    itens_entregues: row.itens_entregues ?? null,
     valor_total: row.valor_total,
     fornecedor: row.fornecedor,
     numero_orcamento: row.numero_orcamento,
@@ -139,6 +154,8 @@ function valoresInsert(parsed: ParsedOrdem, agora: string) {
     categoria: c.categoria ?? null,
     data_pedido: c.data_pedido ?? null,
     data_ordem: c.data_ordem ?? null,
+    data_entrega: null,
+    itens_entregues: null,
     valor_total: c.valor_total ?? null,
     fornecedor: c.fornecedor ?? null,
     numero_orcamento: c.numero_orcamento ?? null,
@@ -167,15 +184,15 @@ export function upsertOrdemCompra(parsed: ParsedOrdem): { created: boolean; orde
     if (!existente) {
       db.prepare(
         `INSERT INTO ordens_compra (
-          numero_ordem, status, categoria, data_pedido, data_ordem, valor_total, fornecedor,
-          numero_orcamento, numero_os, setor_equipamento, origem, solicitante, assunto_email,
-          email_message_id, anexo_origem, confianca, observacoes, ordens_relacionadas, fonte,
-          editado_manualmente, created_at, updated_at
+          numero_ordem, status, categoria, data_pedido, data_ordem, data_entrega, itens_entregues,
+          valor_total, fornecedor, numero_orcamento, numero_os, setor_equipamento, origem, solicitante,
+          assunto_email, email_message_id, anexo_origem, confianca, observacoes, ordens_relacionadas,
+          fonte, editado_manualmente, created_at, updated_at
         ) VALUES (
-          @numero_ordem, @status, @categoria, @data_pedido, @data_ordem, @valor_total, @fornecedor,
-          @numero_orcamento, @numero_os, @setor_equipamento, @origem, @solicitante, @assunto_email,
-          @email_message_id, @anexo_origem, @confianca, @observacoes, @ordens_relacionadas, @fonte,
-          @editado_manualmente, @created_at, @updated_at
+          @numero_ordem, @status, @categoria, @data_pedido, @data_ordem, @data_entrega, @itens_entregues,
+          @valor_total, @fornecedor, @numero_orcamento, @numero_os, @setor_equipamento, @origem, @solicitante,
+          @assunto_email, @email_message_id, @anexo_origem, @confianca, @observacoes, @ordens_relacionadas,
+          @fonte, @editado_manualmente, @created_at, @updated_at
         )`,
       ).run(valoresInsert(parsed, agora));
       if (parsed.itens) substituirItens(parsed.numero_ordem, parsed.itens);
@@ -192,6 +209,7 @@ export function upsertOrdemCompra(parsed: ParsedOrdem): { created: boolean; orde
       merged[nome] = nome === "ordens_relacionadas" ? (valor ? JSON.stringify(valor) : null) : (valor ?? null);
     }
 
+    // data_entrega / itens_entregues nunca vêm do robô — preservados no merge via existente.
     db.prepare(
       `UPDATE ordens_compra SET
         status = @status,
@@ -223,21 +241,82 @@ export function upsertOrdemCompra(parsed: ParsedOrdem): { created: boolean; orde
   })();
 }
 
-export function editarCategoriaManualmente(numero: string, categoria: CategoriaOrdem): OrdemCompra | undefined {
+export function editarOrdemSala(numero: string, patch: PatchSalaOrdem): OrdemCompra | undefined {
   const db = getDb();
   const existente = obterRow(numero);
   if (!existente) return undefined;
+
   const flags = parseEditado(existente.editado_manualmente);
-  flags.categoria = true;
-  db.prepare(
-    `UPDATE ordens_compra SET categoria = ?, editado_manualmente = ?, updated_at = ? WHERE numero_ordem = ?`,
-  ).run(categoria, JSON.stringify(flags), nowIso(), numero);
+  const updates: string[] = [];
+  const params: unknown[] = [];
+
+  if (patch.categoria !== undefined) {
+    updates.push("categoria = ?");
+    params.push(patch.categoria);
+    flags.categoria = true;
+  }
+  if (patch.numero_os !== undefined) {
+    updates.push("numero_os = ?");
+    params.push(patch.numero_os);
+    flags.numero_os = true;
+  }
+  if (patch.data_entrega !== undefined) {
+    updates.push("data_entrega = ?");
+    params.push(patch.data_entrega);
+    flags.data_entrega = true;
+  }
+  if (patch.itens_entregues !== undefined) {
+    updates.push("itens_entregues = ?");
+    params.push(patch.itens_entregues);
+    flags.itens_entregues = true;
+  }
+
+  if (!updates.length) return obterOrdemCompra(numero);
+
+  updates.push("editado_manualmente = ?");
+  params.push(JSON.stringify(flags));
+  updates.push("updated_at = ?");
+  params.push(nowIso());
+  params.push(numero);
+
+  db.prepare(`UPDATE ordens_compra SET ${updates.join(", ")} WHERE numero_ordem = ?`).run(...params);
   return obterOrdemCompra(numero);
 }
 
-/** Contagem total de OCs formais (robô) — usada na TV para apontar a tela certa. */
+export function editarCategoriaManualmente(numero: string, categoria: CategoriaOrdem): OrdemCompra | undefined {
+  return editarOrdemSala(numero, { categoria });
+}
+
+export function marcarEntregue(
+  numero: string,
+  itensEntregues?: string | null,
+  dataEntrega?: string | null,
+): OrdemCompra | undefined {
+  const data = dataEntrega?.trim() || nowIso().slice(0, 10);
+  return editarOrdemSala(numero, {
+    data_entrega: data,
+    itens_entregues: itensEntregues === undefined ? undefined : itensEntregues,
+  });
+}
+
+/** Contagem total de OCs formais (robô). */
 export function contarOrdensCompra(): number {
   return (getDb().prepare("SELECT COUNT(*) AS n FROM ordens_compra").get() as { n: number }).n;
+}
+
+function ordemAberta(row: Pick<OrdemRow, "status" | "data_entrega">): boolean {
+  if (row.status === "cancelado") return false;
+  const entrega = row.data_entrega?.trim();
+  return !entrega;
+}
+
+export function listarTodasOrdensCompra(): OrdemCompra[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT * FROM ordens_compra ORDER BY COALESCE(data_ordem, data_pedido, updated_at) DESC`,
+    )
+    .all() as OrdemRow[];
+  return rows.map((row) => rowParaOrdem(row, itensDaOrdem(row.numero_ordem)));
 }
 
 export function listarOrdensCompra(filtros: ListaFiltros): ListaOrdens {
@@ -268,6 +347,10 @@ export function listarOrdensCompra(filtros: ListaFiltros): ListaOrdens {
   if (filtros.sem_valor) {
     where.push("(valor_total IS NULL OR TRIM(valor_total) = '')");
   }
+  if (filtros.abertas) {
+    where.push("(IFNULL(status, '') != 'cancelado')");
+    where.push("(data_entrega IS NULL OR TRIM(data_entrega) = '')");
+  }
 
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
   const total = (db.prepare(`SELECT COUNT(*) AS n FROM ordens_compra ${clause}`).get(...params) as { n: number })
@@ -282,6 +365,135 @@ export function listarOrdensCompra(filtros: ListaFiltros): ListaOrdens {
 
   const itens = rows.map((row) => rowParaOrdem(row, itensDaOrdem(row.numero_ordem)));
   return { itens, page: filtros.page, page_size: filtros.page_size, total };
+}
+
+function idadeDias(iso: string | null | undefined, agora: Date): number | null {
+  if (!iso) return null;
+  const soData = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+  const d = new Date(soData ? `${iso}T12:00:00` : iso);
+  if (Number.isNaN(d.getTime())) return null;
+  return Math.max(0, Math.floor((agora.getTime() - d.getTime()) / 86_400_000));
+}
+
+function formatDia(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const soData = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+  const d = new Date(soData ? `${iso}T12:00:00` : iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}/${mm}`;
+}
+
+function formatValor(valor: string | null): string {
+  if (valor == null || valor === "") return "—";
+  const n = Number(valor);
+  if (!Number.isFinite(n)) return valor;
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function diasEntre(inicio: string | null, fim: string | null): number | null {
+  if (!inicio || !fim) return null;
+  const parse = (iso: string) => {
+    const soData = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+    return new Date(soData ? `${iso}T12:00:00` : iso);
+  };
+  const a = parse(inicio);
+  const b = parse(fim);
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return null;
+  const n = (b.getTime() - a.getTime()) / 86_400_000;
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+function media(valores: number[]): number | null {
+  if (!valores.length) return null;
+  return Math.round((valores.reduce((a, b) => a + b, 0) / valores.length) * 10) / 10;
+}
+
+function situacaoTv(ordem: OrdemCompra): string {
+  if (ordem.data_entrega) return "entregue";
+  if (ordem.status === "cancelado") return "cancelado";
+  if (ordem.data_ordem || ordem.status === "ordem_gerada") {
+    const dias = idadeDias(ordem.data_ordem || ordem.data_pedido, new Date()) ?? 0;
+    return dias >= 14 ? "cobrar entrega" : "aguarda entrega";
+  }
+  const dias = idadeDias(ordem.data_pedido, new Date()) ?? 0;
+  return dias >= 7 ? "cobrar resposta" : "aguarda resposta";
+}
+
+function ancoraIdade(ordem: OrdemCompra): string | null {
+  return ordem.data_pedido || ordem.data_ordem || ordem.created_at;
+}
+
+/** Snapshot da TV Compras: OCs formais abertas (fonte principal). */
+export function resumoOrdensCompraTv(agora = new Date()) {
+  const todas = listarTodasOrdensCompra();
+  const abertas = todas.filter((o) => ordemAberta(o));
+  const aguardaResposta = abertas.filter(
+    (o) => !o.data_ordem && o.status !== "ordem_gerada",
+  );
+  const aguardaEntrega = abertas.filter(
+    (o) => Boolean(o.data_ordem) || o.status === "ordem_gerada",
+  );
+
+  const entreguesMes = todas.filter((o) => {
+    if (!o.data_entrega) return false;
+    const soData = /^\d{4}-\d{2}-\d{2}$/.test(o.data_entrega);
+    const d = new Date(soData ? `${o.data_entrega}T12:00:00` : o.data_entrega);
+    if (Number.isNaN(d.getTime())) return false;
+    return d.getFullYear() === agora.getFullYear() && d.getMonth() === agora.getMonth();
+  });
+
+  const mediasPedidoOrdem = todas
+    .map((o) => diasEntre(o.data_pedido, o.data_ordem))
+    .filter((n): n is number => n != null);
+  const mediasOrdemEntrega = todas
+    .map((o) => diasEntre(o.data_ordem, o.data_entrega))
+    .filter((n): n is number => n != null);
+  const mediasPonta = entreguesMes
+    .map((o) => diasEntre(o.data_pedido, o.data_entrega))
+    .filter((n): n is number => n != null);
+
+  const comOs = todas.filter((o) => Boolean(o.numero_os?.trim())).length;
+  const pctOs = todas.length ? Math.round((comOs / todas.length) * 100) : null;
+  const semOs = abertas.filter((o) => !o.numero_os?.trim()).length;
+
+  const pedidos: PedidoTvOrdem[] = [...abertas]
+    .sort((a, b) => (idadeDias(ancoraIdade(b), agora) ?? 0) - (idadeDias(ancoraIdade(a), agora) ?? 0))
+    .slice(0, 12)
+    .map((o) => ({
+      numeroOrdem: o.numero_ordem,
+      categoria: o.categoria || "—",
+      fornecedor: o.fornecedor || "—",
+      dataPedido: formatDia(o.data_pedido),
+      dataOrdem: formatDia(o.data_ordem),
+      valor: formatValor(o.valor_total),
+      numeroOs: o.numero_os?.trim() || "—",
+      status: o.status || "—",
+      confianca: o.confianca || "—",
+      paradoDias: idadeDias(ancoraIdade(o), agora) ?? 0,
+      situacao: situacaoTv(o),
+    }));
+
+  const maxDias = (lista: OrdemCompra[], campo: (o: OrdemCompra) => string | null) => {
+    const vals = lista.map((o) => idadeDias(campo(o), agora) ?? 0);
+    return vals.length ? Math.max(0, ...vals) : null;
+  };
+
+  return {
+    total: todas.length,
+    aguardaResposta: aguardaResposta.length,
+    aguardaRespostaMaisAntigo: maxDias(aguardaResposta, (o) => o.data_pedido || o.created_at),
+    aguardaEntrega: aguardaEntrega.length,
+    aguardaEntregaMaisAntiga: maxDias(aguardaEntrega, (o) => o.data_ordem || o.data_pedido || o.created_at),
+    entreguesMes: entreguesMes.length,
+    mediaPedidoOrdem: media(mediasPedidoOrdem),
+    mediaOrdemEntrega: media(mediasOrdemEntrega),
+    mediaPontaAPonta: media(mediasPonta),
+    percentualComOs: pctOs,
+    semOs,
+    pedidos,
+  };
 }
 
 export function registrarChamadaApi(info: {

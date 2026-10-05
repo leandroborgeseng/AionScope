@@ -1,9 +1,10 @@
 # API de Ordens de Compra (robô E-Mails Compras)
 
-Integração REST para persistir ordens de compra extraídas dos e-mails de `leandro.borges@aion.eng.br`.  
-Domínio **separado** do funil de pedidos/SC da Sala (`/sala/pedidos`, tabelas `compra` / `compra_email`).
+Integração REST para persistir ordens de compra extraídas dos e-mails de `leandro.borges@aion.eng.br`.
 
-O robô (seg–sex 18:53 America/Sao_Paulo) envia upserts. A UI em `/sala/ordens-compra` lista, filtra e edita **categoria** — campos editados manualmente **não** são sobrescritos em reenvios.
+A **TV Compras** (`/sala/compras`) usa estas OCs como fonte principal do painel (abertas = não canceladas e sem `data_entrega`). O funil legado e-mail→SC (`compra` / `/sala/pedidos`) continua disponível, mas secundário.
+
+O robô (seg–sex 18:53 America/Sao_Paulo) envia upserts. A UI em `/sala/ordens-compra` lista, filtra e edita **categoria**, **numero_os**, **data_entrega** e **itens_entregues** — campos marcados em `editado_manualmente` **não** são sobrescritos em reenvios. `data_entrega` / `itens_entregues` nunca vêm do robô.
 
 ## Base URL
 
@@ -46,7 +47,7 @@ Há um placeholder em `.env.example`. Se a variável estiver vazia, a API recusa
 
 ## Idempotência
 
-A chave primária é `numero_ordem`. `PUT` e o lote fazem **upsert**: a mesma OC nunca duplica. Reenvio atualiza campos extraídos, **exceto** os marcados em `editado_manualmente` (hoje a UI marca `categoria`).
+A chave primária é `numero_ordem`. `PUT` e o lote fazem **upsert**: a mesma OC nunca duplica. Reenvio atualiza campos extraídos, **exceto** os marcados em `editado_manualmente` (categoria, numero_os, etc.) e **exceto** `data_entrega` / `itens_entregues` (só Sala).
 
 ## Formatos
 
@@ -85,6 +86,7 @@ Lista paginada. Query:
 | `mes` | `YYYY-MM` em `data_pedido` ou `data_ordem` |
 | `os` ou `numero_os` | trecho da OS |
 | `sem_valor` | `1` ou `true` |
+| `abertas` | `1` ou `true` — não canceladas e sem `data_entrega` |
 | `page` | padrão 1 |
 | `page_size` | padrão 50, máx. 500 |
 
@@ -96,7 +98,9 @@ Resposta: `{ "itens", "page", "page_size", "total" }`.
 
 ## Modelo
 
-**OrdemCompra:** `numero_ordem` (PK), `status` (`solicitado` \| `ordem_gerada` \| `cancelado`), `categoria` (`Instrumental` \| `Equipamentos Médicos` \| `Outros`), `data_pedido`, `data_ordem`, `itens[]`, `valor_total`, `fornecedor`, `numero_orcamento`, `numero_os`, `setor_equipamento`, `origem` (`manutencao_sjh` \| `oficina_aion_cc` \| `tramite_interno`), `solicitante`, `assunto_email`, `email_message_id`, `anexo_origem`, `confianca` (`alta` \| `media` \| `baixa`), `observacoes`, `ordens_relacionadas[]`.
+**OrdemCompra (robô):** `numero_ordem` (PK), `status` (`solicitado` \| `ordem_gerada` \| `cancelado`), `categoria` (`Instrumental` \| `Equipamentos Médicos` \| `Outros`), `data_pedido`, `data_ordem`, `itens[]`, `valor_total`, `fornecedor`, `numero_orcamento`, `numero_os`, `setor_equipamento`, `origem` (`manutencao_sjh` \| `oficina_aion_cc` \| `tramite_interno`), `solicitante`, `assunto_email`, `email_message_id`, `anexo_origem`, `confianca` (`alta` \| `media` \| `baixa`), `observacoes`, `ordens_relacionadas[]`.
+
+**Campos só da Sala (TV):** `data_entrega` (data real da entrega), `itens_entregues` (texto do que chegou). Com `data_entrega` preenchida a OC **sai** da lista aberta da TV.
 
 Metadados de persistência na resposta: `fonte` (`email_robot`), `editado_manualmente`, `created_at`, `updated_at`.
 
@@ -132,6 +136,20 @@ curl -sS -X PUT "$BASE/ordens-compra/OC-2026-001" \
   }'
 ```
 
-## UI interna
+## UI interna e TV
 
-`/sala/ordens-compra` — filtros (categoria, fornecedor, mês, OS, sem valor) e alteração de categoria. Essa tela usa `/api/sala/ordens-compra` (sem a API key do robô).
+- `/sala/ordens-compra` — filtros (categoria, fornecedor, mês, OS, sem valor, **só abertas** por padrão), categoria, nº OS, data de entrega, o que foi entregue, botão **Marcar entregue**. Usa `PATCH /api/sala/ordens-compra` (sem API key do robô).
+- `/sala/compras` (TV) — funil Pedido (e-mail) → Resposta/OC → Entrega no mês; lista OCs abertas com datas e aging; rodapé aponta para a tela de edição.
+
+### PATCH Sala (exemplo)
+
+```bash
+curl -sS -X PATCH "$HOST/api/sala/ordens-compra" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "numero_ordem": "OC-2026-001",
+    "numero_os": "123456789",
+    "marcar_entregue": true,
+    "itens_entregues": "2 pinças"
+  }'
+```

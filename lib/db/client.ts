@@ -6,6 +6,7 @@ import {
   MIGRATION_COMPRAS_EMAIL,
   MIGRATION_NAME,
   MIGRATION_ORDENS_COMPRA,
+  MIGRATION_ORDENS_COMPRA_ENTREGA,
   MIGRATION_SALA_MANUAL,
   SCHEMA_SQL,
 } from "./schema";
@@ -156,6 +157,25 @@ function migrate(db: Database.Database) {
   if (!ordensCompra) {
     db.prepare("INSERT INTO schema_migrations (id, name, applied_at) VALUES (4, ?, ?)").run(
       MIGRATION_ORDENS_COMPRA,
+      new Date().toISOString(),
+    );
+  }
+
+  const ordensEntrega = db
+    .prepare("SELECT id FROM schema_migrations WHERE name = ?")
+    .get(MIGRATION_ORDENS_COMPRA_ENTREGA);
+  if (!ordensEntrega) {
+    const cols = db.prepare("PRAGMA table_info(ordens_compra)").all() as Array<{ name: string }>;
+    const nomes = new Set(cols.map((c) => c.name));
+    if (!nomes.has("data_entrega")) {
+      db.exec("ALTER TABLE ordens_compra ADD COLUMN data_entrega TEXT");
+    }
+    if (!nomes.has("itens_entregues")) {
+      db.exec("ALTER TABLE ordens_compra ADD COLUMN itens_entregues TEXT");
+    }
+    db.exec("CREATE INDEX IF NOT EXISTS idx_ordens_compra_entrega ON ordens_compra (data_entrega)");
+    db.prepare("INSERT INTO schema_migrations (id, name, applied_at) VALUES (5, ?, ?)").run(
+      MIGRATION_ORDENS_COMPRA_ENTREGA,
       new Date().toISOString(),
     );
   }

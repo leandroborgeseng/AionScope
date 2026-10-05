@@ -61,7 +61,8 @@ Pedido de compra (SQLite compra)
 
 Ordem de compra formal (SQLite ordens_compra + ordem_itens)
   ├─ upsert pelo robô E-Mails Compras em /api/v1/ordens-compra
-  └─ categoria editável em /sala/ordens-compra (não sobrescrita pelo robô)
+  ├─ categoria / numero_os / data_entrega / itens_entregues editáveis em /sala/ordens-compra
+  └─ TV Compras (/sala/compras) lista OCs abertas (sem data_entrega, não canceladas)
 ```
 
 **Regra de ouro:** se não há Tag, a linha não alimenta parque/ciclo/plano/parada por equipamento. Chamados de setor continuam no volume bruto só se um dia criarmos tela “sem tag” — hoje **fora**.
@@ -77,7 +78,7 @@ Ordem de compra formal (SQLite ordens_compra + ordem_itens)
 | **Agora** | Contadores 1º at., fila, plantão 7h–17h, plano do mês (cronograma×OS), parados (flag mês + OS abertas), rodapé volume/SLA/TMEF/disp. críticos | Parado ≈ OS aberta ou flag mês; TPM → **TMEF** |
 | **Fluxo** | Entraram/encerraram hoje; etapas por pendência/tipo/EXT/DataDoAtendimento | Sem “equipe por lançamento”; responsável da OS se quiser carga |
 | **Envelhecimento** | Faixas por `Abertura`; idade média; terceiros (EXT); pendência sem texto | “Sem movimento” → usar `DataDoAtendimento` ou idade desde abertura (rótulo claro) |
-| **Compras** | Funil e-mail→SC→entrega; médias; % com OS; lista aberta | Fonte = M365 **e/ou** cadastro/ajuste em `/sala/pedidos` |
+| **Compras** | Funil OC: pedido (e-mail) → resposta/OC → entrega; médias; % com OS; lista aberta | Fonte = `ordens_compra` (robô); editar em `/sala/ordens-compra`; legado em `/sala/pedidos` |
 | **Programadas** | Cumprimento mês; por tipo; pendentes; impedimentos (manual leve) | Executada = **OS fechada no mês**; laudo = abertura→fechamento da OS (sem anexo) |
 | **Ciclo de vida** | Em uso/inservível; idade; EndOfLife; EndOfService; 4+ corretivas; custo/valor; previsão 5 anos; valor substituição fim de vida | Sem peça = EndOfService vencido |
 | **Indicadores** | 1º at., % prazo, programadas, causa, custo/parque (**só OS ÷ ValorDeSubstituicao**), TMEF, disp. críticos, capacitação = contagem OS treinamento | Sem contratos no denominador/numerador |

@@ -93,28 +93,32 @@ export type SalaSnapshot = {
   };
   compras: {
     aviso: string;
+    /** Fonte principal da TV: ordens formais do robô. */
+    fonte: "ordens_compra";
     configurado: boolean;
-    aguardaSc: number;
-    aguardaScMaisAntigo: number | null;
+    aguardaResposta: number;
+    aguardaRespostaMaisAntigo: number | null;
     aguardaEntrega: number;
     aguardaEntregaMaisAntiga: number | null;
     entreguesMes: number;
-    mediaEmailSc: number | null;
-    mediaScEntrega: number | null;
+    mediaPedidoOrdem: number | null;
+    mediaOrdemEntrega: number | null;
     mediaPontaAPonta: number | null;
     percentualComOs: number | null;
     semOs: number;
-    /** OCs formais do robô (tabela ordens_compra) — não entram no funil e-mail→SC desta tela. */
-    ordensFormaisTotal: number;
+    totalOrdens: number;
+    /** Pedidos legado (funil e-mail→SC) ainda abertos — só referência. */
+    pedidosLegadoAbertos: number;
     pedidos: Array<{
-      os: string;
-      equipamento: string;
-      item: string;
-      setor: string;
-      enviadoEm: string;
-      solicitante: string;
-      sc: string;
-      scEm: string;
+      numeroOrdem: string;
+      categoria: string;
+      fornecedor: string;
+      dataPedido: string;
+      dataOrdem: string;
+      valor: string;
+      numeroOs: string;
+      status: string;
+      confianca: string;
       paradoDias: number;
       situacao: string;
     }>;

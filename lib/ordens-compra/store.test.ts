@@ -4,8 +4,14 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
 import { closeDbForTests } from "../db/client";
-import { editarCategoriaManualmente, listarOrdensCompra, upsertOrdemCompra } from "./store";
-import { parseOrdemCompra } from "./validate";
+import {
+  editarOrdemSala,
+  listarOrdensCompra,
+  marcarEntregue,
+  resumoOrdensCompraTv,
+  upsertOrdemCompra,
+} from "./store";
+import { parseOrdemCompra, parseSalaPatch } from "./validate";
 
 const dir = path.join(os.tmpdir(), `aion-oc-${process.pid}-${Date.now()}`);
 let dbPath = "";
@@ -41,6 +47,7 @@ test("upsert é idempotente por numero_ordem", () => {
   );
   assert.equal(primeira.created, true);
   assert.equal(primeira.ordem.fornecedor, "ACME");
+  assert.equal(primeira.ordem.data_entrega, null);
 
   const segunda = upsertOrdemCompra(
     parsed({
@@ -48,6 +55,7 @@ test("upsert é idempotente por numero_ordem", () => {
       status: "ordem_gerada",
       fornecedor: "ACME Ltda",
       valor_total: "12.50",
+      data_ordem: "2026-10-01",
       itens: [
         { descricao: "Item A", quantidade: 1 },
         { descricao: "Item B", quantidade: 2 },
@@ -64,33 +72,47 @@ test("upsert é idempotente por numero_ordem", () => {
   assert.equal(lista.itens.filter((o) => o.numero_ordem === "OC-100").length, 1);
 });
 
-test("edição manual de categoria não é sobrescrita pelo robô", () => {
+test("edição manual de categoria / OS / entrega não é sobrescrita pelo robô", () => {
   upsertOrdemCompra(
     parsed({
       numero_ordem: "OC-200",
       categoria: "Outros",
       fornecedor: "Beta",
+      numero_os: "111",
     }),
   );
-  const editada = editarCategoriaManualmente("OC-200", "Instrumental");
+  const editada = editarOrdemSala("OC-200", {
+    categoria: "Instrumental",
+    numero_os: "999888777",
+    data_entrega: "2026-10-05",
+    itens_entregues: "2 pinças",
+  });
   assert.ok(editada);
   assert.equal(editada.categoria, "Instrumental");
+  assert.equal(editada.numero_os, "999888777");
+  assert.equal(editada.data_entrega, "2026-10-05");
+  assert.equal(editada.itens_entregues, "2 pinças");
   assert.equal(editada.editado_manualmente.categoria, true);
+  assert.equal(editada.editado_manualmente.numero_os, true);
+  assert.equal(editada.editado_manualmente.data_entrega, true);
 
   const robot = upsertOrdemCompra(
     parsed({
       numero_ordem: "OC-200",
       categoria: "Equipamentos Médicos",
       fornecedor: "Beta SA",
+      numero_os: "000",
     }),
   );
   assert.equal(robot.created, false);
   assert.equal(robot.ordem.categoria, "Instrumental");
+  assert.equal(robot.ordem.numero_os, "999888777");
+  assert.equal(robot.ordem.data_entrega, "2026-10-05");
+  assert.equal(robot.ordem.itens_entregues, "2 pinças");
   assert.equal(robot.ordem.fornecedor, "Beta SA");
-  assert.equal(robot.ordem.editado_manualmente.categoria, true);
 });
 
-test("listagem filtra sem valor, mês e OS", () => {
+test("listagem filtra sem valor, mês, OS e abertas", () => {
   upsertOrdemCompra(
     parsed({
       numero_ordem: "OC-300",
@@ -107,6 +129,7 @@ test("listagem filtra sem valor, mês e OS", () => {
       valor_total: "1.00",
     }),
   );
+  marcarEntregue("OC-301", "kit completo", "2026-04-20");
 
   const semValor = listarOrdensCompra({ page: 1, page_size: 50, sem_valor: true });
   assert.ok(semValor.itens.some((o) => o.numero_ordem === "OC-300"));
@@ -118,4 +141,59 @@ test("listagem filtra sem valor, mês e OS", () => {
 
   const osFiltro = listarOrdensCompra({ page: 1, page_size: 50, os: "123456" });
   assert.ok(osFiltro.itens.some((o) => o.numero_ordem === "OC-300"));
+
+  const abertas = listarOrdensCompra({ page: 1, page_size: 50, abertas: true });
+  assert.ok(abertas.itens.some((o) => o.numero_ordem === "OC-300"));
+  assert.ok(!abertas.itens.some((o) => o.numero_ordem === "OC-301"));
+});
+
+test("resumo TV: aberta aparece; entregue sai; contadores", () => {
+  upsertOrdemCompra(
+    parsed({
+      numero_ordem: "OC-TV-1",
+      status: "solicitado",
+      data_pedido: "2026-09-01",
+      fornecedor: "Gamma",
+      categoria: "Instrumental",
+      valor_total: "100.00",
+    }),
+  );
+  upsertOrdemCompra(
+    parsed({
+      numero_ordem: "OC-TV-2",
+      status: "ordem_gerada",
+      data_pedido: "2026-09-10",
+      data_ordem: "2026-09-15",
+      fornecedor: "Delta",
+      numero_os: "555",
+      valor_total: "50.00",
+    }),
+  );
+
+  const agora = new Date("2026-10-05T12:00:00");
+  let resumo = resumoOrdensCompraTv(agora);
+  assert.ok(resumo.pedidos.some((p) => p.numeroOrdem === "OC-TV-1"));
+  assert.ok(resumo.pedidos.some((p) => p.numeroOrdem === "OC-TV-2"));
+  assert.ok(resumo.aguardaResposta >= 1);
+  assert.ok(resumo.aguardaEntrega >= 1);
+
+  marcarEntregue("OC-TV-1", "tudo", "2026-10-03");
+  resumo = resumoOrdensCompraTv(agora);
+  assert.ok(!resumo.pedidos.some((p) => p.numeroOrdem === "OC-TV-1"));
+  assert.ok(resumo.pedidos.some((p) => p.numeroOrdem === "OC-TV-2"));
+  assert.ok(resumo.entreguesMes >= 1);
+});
+
+test("parseSalaPatch aceita OS, entrega e marcar_entregue", () => {
+  const ok = parseSalaPatch({
+    numero_ordem: "OC-x",
+    numero_os: "123",
+    marcar_entregue: true,
+    itens_entregues: "2 un",
+  });
+  assert.equal(ok.ok, true);
+  if (!ok.ok) throw new Error("fail");
+  assert.equal(ok.patch.numero_os, "123");
+  assert.equal(ok.patch.itens_entregues, "2 un");
+  assert.ok(ok.patch.data_entrega);
 });
