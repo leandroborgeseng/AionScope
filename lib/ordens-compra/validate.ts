@@ -302,6 +302,8 @@ export function parseListaQuery(url: URL): { ok: true; filtros: ListaFiltros } |
   const sem_valor = semValorRaw === "1" || semValorRaw === "true";
   const abertasRaw = url.searchParams.get("abertas");
   const abertas = abertasRaw === "1" || abertasRaw === "true";
+  const excluidasRaw = url.searchParams.get("excluidas");
+  const excluidas = excluidasRaw === "1" || excluidasRaw === "true";
 
   if (detalhes.length) return { ok: false, error: erroDe(detalhes) };
 
@@ -315,6 +317,7 @@ export function parseListaQuery(url: URL): { ok: true; filtros: ListaFiltros } |
       os: url.searchParams.get("os")?.trim() || url.searchParams.get("numero_os")?.trim() || undefined,
       sem_valor,
       abertas: abertas || undefined,
+      excluidas: excluidas || undefined,
       page,
       page_size,
     },
@@ -350,7 +353,7 @@ export function parseCategoriaPatch(
   return { ok: true, categoria };
 }
 
-/** PATCH da Sala: categoria, numero_os, data_entrega, itens_entregues (pelo menos um). */
+/** PATCH da Sala: categoria, OS, entrega, fora_escopo / restaurar TV (pelo menos um). */
 export function parseSalaPatch(
   raw: unknown,
 ): { ok: true; patch: PatchSalaOrdem } | { ok: false; error: ErroValidacao } {
@@ -391,10 +394,32 @@ export function parseSalaPatch(
     if (texto !== undefined) patch.itens_entregues = texto;
   }
 
+  if ("status" in raw) {
+    const status = enumOpcional(raw.status, "status", STATUS_ORDEM, detalhes);
+    if (status) patch.status = status;
+    else if (!detalhes.some((d) => d.campo === "status")) {
+      detalhes.push({ campo: "status", mensagem: "obrigatório quando enviado." });
+    }
+  }
+
+  if ("motivo_exclusao" in raw) {
+    const motivo = textoOpcional(raw.motivo_exclusao, "motivo_exclusao", detalhes);
+    if (motivo !== undefined) patch.motivo_exclusao = motivo;
+  }
+
   if ("marcar_entregue" in raw && raw.marcar_entregue) {
     if (patch.data_entrega === undefined) {
       patch.data_entrega = new Date().toISOString().slice(0, 10);
     }
+  }
+
+  if ("marcar_fora_escopo" in raw && raw.marcar_fora_escopo) {
+    patch.marcar_fora_escopo = true;
+    if (patch.status === undefined) patch.status = "fora_escopo";
+  }
+
+  if ("restaurar_tv" in raw && raw.restaurar_tv) {
+    patch.restaurar_tv = true;
   }
 
   if (detalhes.length) return { ok: false, error: erroDe(detalhes) };
@@ -402,7 +427,11 @@ export function parseSalaPatch(
     patch.categoria === undefined &&
     patch.numero_os === undefined &&
     patch.data_entrega === undefined &&
-    patch.itens_entregues === undefined
+    patch.itens_entregues === undefined &&
+    patch.status === undefined &&
+    patch.motivo_exclusao === undefined &&
+    !patch.marcar_fora_escopo &&
+    !patch.restaurar_tv
   ) {
     return {
       ok: false,
@@ -412,7 +441,8 @@ export function parseSalaPatch(
         detalhes: [
           {
             campo: "corpo",
-            mensagem: "informe categoria, numero_os, data_entrega, itens_entregues e/ou marcar_entregue.",
+            mensagem:
+              "informe categoria, numero_os, data_entrega, itens_entregues, status, motivo_exclusao, marcar_entregue, marcar_fora_escopo e/ou restaurar_tv.",
           },
         ],
       },

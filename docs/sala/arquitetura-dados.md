@@ -61,8 +61,8 @@ Pedido de compra (SQLite compra)
 
 Ordem de compra formal (SQLite ordens_compra + ordem_itens)
   ├─ upsert pelo robô E-Mails Compras em /api/v1/ordens-compra
-  ├─ categoria / numero_os / data_entrega / itens_entregues editáveis em /sala/ordens-compra
-  └─ TV Compras (/sala/compras) lista OCs abertas (sem data_entrega, não canceladas)
+  ├─ categoria / numero_os / data_entrega / itens_entregues / fora_escopo editáveis em /sala/ordens-compra
+  └─ TV Compras (/sala/compras) lista OCs abertas (sem data_entrega; exclui cancelado e fora_escopo)
 ```
 
 **Regra de ouro:** se não há Tag, a linha não alimenta parque/ciclo/plano/parada por equipamento. Chamados de setor continuam no volume bruto só se um dia criarmos tela “sem tag” — hoje **fora**.
