@@ -1202,6 +1202,7 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
 
   const selecionarDrill = useCallback(
     (id: string, titulo: string) => {
+      setPausado(true);
       setDrill((atual) => {
         if (atual?.id === id) return null;
         return { tela, id, titulo };
@@ -1213,10 +1214,6 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   useEffect(() => {
     setDrill(null);
   }, [tela]);
-
-  useEffect(() => {
-    if (drill) setPausado(true);
-  }, [drill]);
 
   useEffect(() => {
     const tecla = (evento: KeyboardEvent) => {
