@@ -166,8 +166,64 @@ CREATE TABLE IF NOT EXISTS graph_delta (
   atualizado_em TEXT NOT NULL,
   UNIQUE (caixa, pasta)
 );
+
+CREATE TABLE IF NOT EXISTS ordens_compra (
+  numero_ordem TEXT PRIMARY KEY,
+  status TEXT,
+  categoria TEXT,
+  data_pedido TEXT,
+  data_ordem TEXT,
+  valor_total TEXT,
+  fornecedor TEXT,
+  numero_orcamento TEXT,
+  numero_os TEXT,
+  setor_equipamento TEXT,
+  origem TEXT,
+  solicitante TEXT,
+  assunto_email TEXT,
+  email_message_id TEXT,
+  anexo_origem TEXT,
+  confianca TEXT,
+  observacoes TEXT,
+  ordens_relacionadas TEXT,
+  fonte TEXT NOT NULL DEFAULT 'email_robot',
+  editado_manualmente TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_ordens_compra_categoria ON ordens_compra (categoria);
+CREATE INDEX IF NOT EXISTS idx_ordens_compra_fornecedor ON ordens_compra (fornecedor);
+CREATE INDEX IF NOT EXISTS idx_ordens_compra_os ON ordens_compra (numero_os);
+CREATE INDEX IF NOT EXISTS idx_ordens_compra_updated ON ordens_compra (updated_at);
+
+CREATE TABLE IF NOT EXISTS ordem_itens (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  numero_ordem TEXT NOT NULL,
+  descricao TEXT,
+  quantidade TEXT,
+  unidade TEXT,
+  valor_unitario TEXT,
+  valor_total TEXT,
+  codigo TEXT,
+  posicao INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY (numero_ordem) REFERENCES ordens_compra (numero_ordem) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_ordem_itens_ordem ON ordem_itens (numero_ordem);
+
+CREATE TABLE IF NOT EXISTS ordens_compra_api_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL,
+  metodo TEXT NOT NULL,
+  rota TEXT NOT NULL,
+  quantidade INTEGER NOT NULL DEFAULT 0,
+  erros INTEGER NOT NULL DEFAULT 0,
+  detalhe TEXT
+);
 `;
 
 export const MIGRATION_NAME = "001_init";
 export const MIGRATION_SALA_MANUAL = "002_sala_manual";
 export const MIGRATION_COMPRAS_EMAIL = "003_compras_email";
+export const MIGRATION_ORDENS_COMPRA = "004_ordens_compra";

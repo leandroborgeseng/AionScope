@@ -1,0 +1,103 @@
+export const STATUS_ORDEM = ["solicitado", "ordem_gerada", "cancelado"] as const;
+export const CATEGORIA_ORDEM = ["Instrumental", "Equipamentos Médicos", "Outros"] as const;
+export const ORIGEM_ORDEM = ["manutencao_sjh", "oficina_aion_cc", "tramite_interno"] as const;
+export const CONFIANCA_ORDEM = ["alta", "media", "baixa"] as const;
+
+export type StatusOrdem = (typeof STATUS_ORDEM)[number];
+export type CategoriaOrdem = (typeof CATEGORIA_ORDEM)[number];
+export type OrigemOrdem = (typeof ORIGEM_ORDEM)[number];
+export type ConfiancaOrdem = (typeof CONFIANCA_ORDEM)[number];
+
+export type ItemOrdem = {
+  descricao: string | null;
+  quantidade: string | null;
+  unidade: string | null;
+  valor_unitario: string | null;
+  valor_total: string | null;
+  codigo: string | null;
+};
+
+export type CamposOrdem = {
+  status: StatusOrdem | null;
+  categoria: CategoriaOrdem | null;
+  data_pedido: string | null;
+  data_ordem: string | null;
+  valor_total: string | null;
+  fornecedor: string | null;
+  numero_orcamento: string | null;
+  numero_os: string | null;
+  setor_equipamento: string | null;
+  origem: OrigemOrdem | null;
+  solicitante: string | null;
+  assunto_email: string | null;
+  email_message_id: string | null;
+  anexo_origem: string | null;
+  confianca: ConfiancaOrdem | null;
+  observacoes: string | null;
+  ordens_relacionadas: string[] | null;
+};
+
+export const CAMPOS_ORDEM = [
+  "status",
+  "categoria",
+  "data_pedido",
+  "data_ordem",
+  "valor_total",
+  "fornecedor",
+  "numero_orcamento",
+  "numero_os",
+  "setor_equipamento",
+  "origem",
+  "solicitante",
+  "assunto_email",
+  "email_message_id",
+  "anexo_origem",
+  "confianca",
+  "observacoes",
+  "ordens_relacionadas",
+] as const;
+
+export type NomeCampoOrdem = (typeof CAMPOS_ORDEM)[number];
+
+export type ParsedOrdem = {
+  numero_ordem: string;
+  campos: Partial<CamposOrdem>;
+  itens?: ItemOrdem[];
+};
+
+export type EditadoManualmente = Partial<Record<NomeCampoOrdem | "itens", boolean>>;
+
+export type OrdemCompra = CamposOrdem & {
+  numero_ordem: string;
+  itens: ItemOrdem[];
+  fonte: string;
+  editado_manualmente: EditadoManualmente;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DetalheErro = { campo: string; mensagem: string };
+
+export type ErroValidacao = {
+  status: 400 | 422;
+  erro: string;
+  detalhes: DetalheErro[];
+};
+
+export type ListaFiltros = {
+  desde?: string;
+  categoria?: string;
+  fornecedor?: string;
+  mes?: string;
+  os?: string;
+  sem_valor?: boolean;
+  page: number;
+  page_size: number;
+};
+
+export type ListaOrdens = {
+  itens: OrdemCompra[];
+  page: number;
+  page_size: number;
+  total: number;
+};

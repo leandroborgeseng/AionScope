@@ -48,6 +48,7 @@ No Railway: deploy do `Dockerfile` + Volume em **Settings → Volumes** montado 
 | `/documentacao` | Anexos de equipamento e OS + CSV |
 | `/sala` | TV da EC (1920×1080, rotação de telas) |
 | `/sala/registros` | Cadastro manual: impedimentos, P04–P07, melhorias, feriados |
+| `/sala/ordens-compra` | Ordens formais do robô E-Mails Compras (filtros + categoria) |
 
 Filtros ficam na URL (`?from=&to=&empresas=&setores=...`) para compartilhar a visão.
 

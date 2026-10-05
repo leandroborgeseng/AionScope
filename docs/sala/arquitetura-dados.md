@@ -58,6 +58,10 @@ OS (9 dígitos)
 Pedido de compra (SQLite compra)
   ├─ importado por conversation_id (Graph) e/ou criado em /sala/pedidos
   └─ situação recalculada: aguarda SC → aguarda entrega → entregue
+
+Ordem de compra formal (SQLite ordens_compra + ordem_itens)
+  ├─ upsert pelo robô E-Mails Compras em /api/v1/ordens-compra
+  └─ categoria editável em /sala/ordens-compra (não sobrescrita pelo robô)
 ```
 
 **Regra de ouro:** se não há Tag, a linha não alimenta parque/ciclo/plano/parada por equipamento. Chamados de setor continuam no volume bruto só se um dia criarmos tela “sem tag” — hoje **fora**.
