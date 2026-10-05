@@ -197,3 +197,75 @@ test("parseSalaPatch aceita OS, entrega e marcar_entregue", () => {
   assert.equal(ok.patch.itens_entregues, "2 un");
   assert.ok(ok.patch.data_entrega);
 });
+
+test("fora_escopo: sai da TV, filtro excluidas, robô não reabre status", () => {
+  upsertOrdemCompra(
+    parsed({
+      numero_ordem: "OC-FE-1",
+      status: "ordem_gerada",
+      data_pedido: "2026-09-01",
+      data_ordem: "2026-09-05",
+      fornecedor: "Outro Cliente SA",
+      valor_total: "80.00",
+    }),
+  );
+
+  const agora = new Date("2026-10-05T12:00:00");
+  let resumo = resumoOrdensCompraTv(agora);
+  assert.ok(resumo.pedidos.some((p) => p.numeroOrdem === "OC-FE-1"));
+
+  const marcada = editarOrdemSala("OC-FE-1", {
+    marcar_fora_escopo: true,
+    motivo_exclusao: "outro cliente",
+  });
+  assert.ok(marcada);
+  assert.equal(marcada.status, "fora_escopo");
+  assert.equal(marcada.motivo_exclusao, "outro cliente");
+  assert.equal(marcada.editado_manualmente.status, true);
+  assert.equal(marcada.editado_manualmente.motivo_exclusao, true);
+
+  resumo = resumoOrdensCompraTv(agora);
+  assert.ok(!resumo.pedidos.some((p) => p.numeroOrdem === "OC-FE-1"));
+
+  const abertas = listarOrdensCompra({ page: 1, page_size: 50, abertas: true });
+  assert.ok(!abertas.itens.some((o) => o.numero_ordem === "OC-FE-1"));
+
+  const excluidas = listarOrdensCompra({ page: 1, page_size: 50, excluidas: true });
+  assert.ok(excluidas.itens.some((o) => o.numero_ordem === "OC-FE-1"));
+
+  const robot = upsertOrdemCompra(
+    parsed({
+      numero_ordem: "OC-FE-1",
+      status: "ordem_gerada",
+      fornecedor: "Outro Cliente SA",
+    }),
+  );
+  assert.equal(robot.ordem.status, "fora_escopo");
+  assert.equal(robot.ordem.motivo_exclusao, "outro cliente");
+
+  const restaurada = editarOrdemSala("OC-FE-1", { restaurar_tv: true });
+  assert.ok(restaurada);
+  assert.equal(restaurada.status, "ordem_gerada");
+  assert.equal(restaurada.motivo_exclusao, null);
+
+  resumo = resumoOrdensCompraTv(agora);
+  assert.ok(resumo.pedidos.some((p) => p.numeroOrdem === "OC-FE-1"));
+});
+
+test("parseSalaPatch aceita marcar_fora_escopo e restaurar_tv", () => {
+  const fora = parseSalaPatch({
+    numero_ordem: "OC-x",
+    marcar_fora_escopo: true,
+    motivo_exclusao: "não realizado",
+  });
+  assert.equal(fora.ok, true);
+  if (!fora.ok) throw new Error("fail");
+  assert.equal(fora.patch.marcar_fora_escopo, true);
+  assert.equal(fora.patch.status, "fora_escopo");
+  assert.equal(fora.patch.motivo_exclusao, "não realizado");
+
+  const volta = parseSalaPatch({ numero_ordem: "OC-x", restaurar_tv: true });
+  assert.equal(volta.ok, true);
+  if (!volta.ok) throw new Error("fail");
+  assert.equal(volta.patch.restaurar_tv, true);
+});

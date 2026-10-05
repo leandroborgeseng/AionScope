@@ -650,7 +650,7 @@ export function montarSnapshotDeDados(
       const aviso = resumo.pedidos.length
         ? ""
         : resumo.total
-          ? "Nenhuma OC aberta. Entregues saem desta lista — classifique / OS / entrega em /sala/ordens-compra."
+          ? "Nenhuma OC aberta. Entregues / fora do escopo saem desta lista — edite em /sala/ordens-compra."
           : "Sem ordens do robô ainda. O robô envia OCs em /api/v1/ordens-compra; edição em /sala/ordens-compra.";
       return {
         aviso,

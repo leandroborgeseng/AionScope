@@ -175,6 +175,7 @@ CREATE TABLE IF NOT EXISTS ordens_compra (
   data_ordem TEXT,
   data_entrega TEXT,
   itens_entregues TEXT,
+  motivo_exclusao TEXT,
   valor_total TEXT,
   fornecedor TEXT,
   numero_orcamento TEXT,
@@ -230,3 +231,4 @@ export const MIGRATION_SALA_MANUAL = "002_sala_manual";
 export const MIGRATION_COMPRAS_EMAIL = "003_compras_email";
 export const MIGRATION_ORDENS_COMPRA = "004_ordens_compra";
 export const MIGRATION_ORDENS_COMPRA_ENTREGA = "005_ordens_compra_entrega";
+export const MIGRATION_ORDENS_COMPRA_FORA_ESCOPO = "006_ordens_compra_fora_escopo";

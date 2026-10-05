@@ -7,6 +7,7 @@ import {
   MIGRATION_NAME,
   MIGRATION_ORDENS_COMPRA,
   MIGRATION_ORDENS_COMPRA_ENTREGA,
+  MIGRATION_ORDENS_COMPRA_FORA_ESCOPO,
   MIGRATION_SALA_MANUAL,
   SCHEMA_SQL,
 } from "./schema";
@@ -176,6 +177,22 @@ function migrate(db: Database.Database) {
     db.exec("CREATE INDEX IF NOT EXISTS idx_ordens_compra_entrega ON ordens_compra (data_entrega)");
     db.prepare("INSERT INTO schema_migrations (id, name, applied_at) VALUES (5, ?, ?)").run(
       MIGRATION_ORDENS_COMPRA_ENTREGA,
+      new Date().toISOString(),
+    );
+  }
+
+  const ordensForaEscopo = db
+    .prepare("SELECT id FROM schema_migrations WHERE name = ?")
+    .get(MIGRATION_ORDENS_COMPRA_FORA_ESCOPO);
+  if (!ordensForaEscopo) {
+    const cols = db.prepare("PRAGMA table_info(ordens_compra)").all() as Array<{ name: string }>;
+    const nomes = new Set(cols.map((c) => c.name));
+    if (!nomes.has("motivo_exclusao")) {
+      db.exec("ALTER TABLE ordens_compra ADD COLUMN motivo_exclusao TEXT");
+    }
+    db.exec("CREATE INDEX IF NOT EXISTS idx_ordens_compra_status ON ordens_compra (status)");
+    db.prepare("INSERT INTO schema_migrations (id, name, applied_at) VALUES (6, ?, ?)").run(
+      MIGRATION_ORDENS_COMPRA_FORA_ESCOPO,
       new Date().toISOString(),
     );
   }

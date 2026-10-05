@@ -13,7 +13,7 @@ export async function GET(request: Request) {
 }
 
 /**
- * Edita campos da Sala (categoria, numero_os, data_entrega, itens_entregues)
+ * Edita campos da Sala (categoria, OS, entrega, fora_escopo)
  * e marca-os em editado_manualmente para o robô não sobrescrever.
  */
 export async function PATCH(request: Request) {

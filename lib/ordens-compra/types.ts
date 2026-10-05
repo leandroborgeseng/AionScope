@@ -1,4 +1,4 @@
-export const STATUS_ORDEM = ["solicitado", "ordem_gerada", "cancelado"] as const;
+export const STATUS_ORDEM = ["solicitado", "ordem_gerada", "cancelado", "fora_escopo"] as const;
 export const CATEGORIA_ORDEM = ["Instrumental", "Equipamentos Médicos", "Outros"] as const;
 export const ORIGEM_ORDEM = ["manutencao_sjh", "oficina_aion_cc", "tramite_interno"] as const;
 export const CONFIANCA_ORDEM = ["alta", "media", "baixa"] as const;
@@ -60,10 +60,12 @@ export const CAMPOS_ORDEM = [
 
 export type NomeCampoOrdem = (typeof CAMPOS_ORDEM)[number];
 
-/** Campos só da Sala (entrega real) — não entram no upsert do robô. */
+/** Campos só da Sala (entrega real / exclusão TV) — não entram no upsert do robô. */
 export type CamposSalaOrdem = {
   data_entrega: string | null;
   itens_entregues: string | null;
+  /** Nota ao marcar fora_escopo (outro cliente, não realizado, etc.). */
+  motivo_exclusao: string | null;
 };
 
 export type ParsedOrdem = {
@@ -73,7 +75,7 @@ export type ParsedOrdem = {
 };
 
 export type EditadoManualmente = Partial<
-  Record<NomeCampoOrdem | "itens" | "data_entrega" | "itens_entregues", boolean>
+  Record<NomeCampoOrdem | "itens" | "data_entrega" | "itens_entregues" | "motivo_exclusao", boolean>
 >;
 
 export type OrdemCompra = CamposOrdem &
@@ -91,6 +93,12 @@ export type PatchSalaOrdem = {
   numero_os?: string | null;
   data_entrega?: string | null;
   itens_entregues?: string | null;
+  status?: StatusOrdem;
+  motivo_exclusao?: string | null;
+  /** Atalho: status=fora_escopo + motivo opcional. */
+  marcar_fora_escopo?: boolean;
+  /** Atalho: volta à TV (ordem_gerada se tem data_ordem, senão solicitado). */
+  restaurar_tv?: boolean;
 };
 
 export type DetalheErro = { campo: string; mensagem: string };
@@ -108,8 +116,10 @@ export type ListaFiltros = {
   mes?: string;
   os?: string;
   sem_valor?: boolean;
-  /** Só OCs não canceladas e sem data_entrega. */
+  /** Só OCs abertas na TV: não canceladas, não fora_escopo e sem data_entrega. */
   abertas?: boolean;
+  /** Só OCs com status fora_escopo (excluídas da TV, audit trail). */
+  excluidas?: boolean;
   page: number;
   page_size: number;
 };

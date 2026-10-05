@@ -20,6 +20,7 @@ type OrdemRow = {
   data_ordem: string | null;
   data_entrega: string | null;
   itens_entregues: string | null;
+  motivo_exclusao: string | null;
   valor_total: string | null;
   fornecedor: string | null;
   numero_orcamento: string | null;
@@ -81,6 +82,7 @@ function rowParaOrdem(row: OrdemRow, itens: ItemOrdem[]): OrdemCompra {
     data_ordem: row.data_ordem,
     data_entrega: row.data_entrega ?? null,
     itens_entregues: row.itens_entregues ?? null,
+    motivo_exclusao: row.motivo_exclusao ?? null,
     valor_total: row.valor_total,
     fornecedor: row.fornecedor,
     numero_orcamento: row.numero_orcamento,
@@ -156,6 +158,7 @@ function valoresInsert(parsed: ParsedOrdem, agora: string) {
     data_ordem: c.data_ordem ?? null,
     data_entrega: null,
     itens_entregues: null,
+    motivo_exclusao: null,
     valor_total: c.valor_total ?? null,
     fornecedor: c.fornecedor ?? null,
     numero_orcamento: c.numero_orcamento ?? null,
@@ -185,14 +188,14 @@ export function upsertOrdemCompra(parsed: ParsedOrdem): { created: boolean; orde
       db.prepare(
         `INSERT INTO ordens_compra (
           numero_ordem, status, categoria, data_pedido, data_ordem, data_entrega, itens_entregues,
-          valor_total, fornecedor, numero_orcamento, numero_os, setor_equipamento, origem, solicitante,
-          assunto_email, email_message_id, anexo_origem, confianca, observacoes, ordens_relacionadas,
-          fonte, editado_manualmente, created_at, updated_at
+          motivo_exclusao, valor_total, fornecedor, numero_orcamento, numero_os, setor_equipamento,
+          origem, solicitante, assunto_email, email_message_id, anexo_origem, confianca, observacoes,
+          ordens_relacionadas, fonte, editado_manualmente, created_at, updated_at
         ) VALUES (
           @numero_ordem, @status, @categoria, @data_pedido, @data_ordem, @data_entrega, @itens_entregues,
-          @valor_total, @fornecedor, @numero_orcamento, @numero_os, @setor_equipamento, @origem, @solicitante,
-          @assunto_email, @email_message_id, @anexo_origem, @confianca, @observacoes, @ordens_relacionadas,
-          @fonte, @editado_manualmente, @created_at, @updated_at
+          @motivo_exclusao, @valor_total, @fornecedor, @numero_orcamento, @numero_os, @setor_equipamento,
+          @origem, @solicitante, @assunto_email, @email_message_id, @anexo_origem, @confianca, @observacoes,
+          @ordens_relacionadas, @fonte, @editado_manualmente, @created_at, @updated_at
         )`,
       ).run(valoresInsert(parsed, agora));
       if (parsed.itens) substituirItens(parsed.numero_ordem, parsed.itens);
@@ -250,6 +253,18 @@ export function editarOrdemSala(numero: string, patch: PatchSalaOrdem): OrdemCom
   const updates: string[] = [];
   const params: unknown[] = [];
 
+  let statusPatch = patch.status;
+  let motivoPatch = patch.motivo_exclusao;
+
+  if (patch.marcar_fora_escopo) {
+    statusPatch = "fora_escopo";
+  }
+
+  if (patch.restaurar_tv) {
+    statusPatch = existente.data_ordem?.trim() ? "ordem_gerada" : "solicitado";
+    motivoPatch = null;
+  }
+
   if (patch.categoria !== undefined) {
     updates.push("categoria = ?");
     params.push(patch.categoria);
@@ -269,6 +284,16 @@ export function editarOrdemSala(numero: string, patch: PatchSalaOrdem): OrdemCom
     updates.push("itens_entregues = ?");
     params.push(patch.itens_entregues);
     flags.itens_entregues = true;
+  }
+  if (statusPatch !== undefined) {
+    updates.push("status = ?");
+    params.push(statusPatch);
+    flags.status = true;
+  }
+  if (motivoPatch !== undefined) {
+    updates.push("motivo_exclusao = ?");
+    params.push(motivoPatch);
+    flags.motivo_exclusao = true;
   }
 
   if (!updates.length) return obterOrdemCompra(numero);
@@ -305,7 +330,7 @@ export function contarOrdensCompra(): number {
 }
 
 function ordemAberta(row: Pick<OrdemRow, "status" | "data_entrega">): boolean {
-  if (row.status === "cancelado") return false;
+  if (row.status === "cancelado" || row.status === "fora_escopo") return false;
   const entrega = row.data_entrega?.trim();
   return !entrega;
 }
@@ -348,8 +373,11 @@ export function listarOrdensCompra(filtros: ListaFiltros): ListaOrdens {
     where.push("(valor_total IS NULL OR TRIM(valor_total) = '')");
   }
   if (filtros.abertas) {
-    where.push("(IFNULL(status, '') != 'cancelado')");
+    where.push("(IFNULL(status, '') NOT IN ('cancelado', 'fora_escopo'))");
     where.push("(data_entrega IS NULL OR TRIM(data_entrega) = '')");
+  }
+  if (filtros.excluidas) {
+    where.push("IFNULL(status, '') = 'fora_escopo'");
   }
 
   const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
@@ -413,6 +441,7 @@ function media(valores: number[]): number | null {
 function situacaoTv(ordem: OrdemCompra): string {
   if (ordem.data_entrega) return "entregue";
   if (ordem.status === "cancelado") return "cancelado";
+  if (ordem.status === "fora_escopo") return "fora do escopo";
   if (ordem.data_ordem || ordem.status === "ordem_gerada") {
     const dias = idadeDias(ordem.data_ordem || ordem.data_pedido, new Date()) ?? 0;
     return dias >= 14 ? "cobrar entrega" : "aguarda entrega";

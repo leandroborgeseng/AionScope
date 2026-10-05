@@ -22,6 +22,7 @@ type Filtros = {
   os: string;
   sem_valor: boolean;
   abertas: boolean;
+  excluidas: boolean;
 };
 
 const FILTROS_VAZIOS: Filtros = {
@@ -31,6 +32,7 @@ const FILTROS_VAZIOS: Filtros = {
   os: "",
   sem_valor: false,
   abertas: true,
+  excluidas: false,
 };
 
 function formatarQuando(valor: string | null) {
@@ -52,6 +54,7 @@ function rotuloStatus(status: string | null) {
   if (status === "solicitado") return "Solicitado";
   if (status === "ordem_gerada") return "Ordem gerada";
   if (status === "cancelado") return "Cancelado";
+  if (status === "fora_escopo") return "Fora do escopo";
   return status || "—";
 }
 
@@ -70,6 +73,7 @@ function montarQuery(filtros: Filtros, page: number) {
   if (filtros.os) q.set("os", filtros.os);
   if (filtros.sem_valor) q.set("sem_valor", "1");
   if (filtros.abertas) q.set("abertas", "1");
+  if (filtros.excluidas) q.set("excluidas", "1");
   q.set("page", String(page));
   q.set("page_size", "50");
   return q.toString();
@@ -91,6 +95,7 @@ export default function SalaOrdensCompraPage() {
   const [draftOs, setDraftOs] = useState<Record<string, string>>({});
   const [draftEntrega, setDraftEntrega] = useState<Record<string, string>>({});
   const [draftItens, setDraftItens] = useState<Record<string, string>>({});
+  const [draftMotivo, setDraftMotivo] = useState<Record<string, string>>({});
 
   const carregar = useCallback(async (f: Filtros, p: number) => {
     const resposta = await fetch(`/api/sala/ordens-compra?${montarQuery(f, p)}`, { cache: "no-store" });
@@ -117,6 +122,13 @@ export default function SalaOrdensCompraPage() {
       const next = { ...prev };
       for (const o of pacote.itens) {
         if (next[o.numero_ordem] === undefined) next[o.numero_ordem] = o.itens_entregues ?? "";
+      }
+      return next;
+    });
+    setDraftMotivo((prev) => {
+      const next = { ...prev };
+      for (const o of pacote.itens) {
+        if (next[o.numero_ordem] === undefined) next[o.numero_ordem] = o.motivo_exclusao ?? "";
       }
       return next;
     });
@@ -166,7 +178,7 @@ export default function SalaOrdensCompraPage() {
     <div className="space-y-5">
       <PageHeader
         title="Ordens de compra"
-        description="OCs do robô E-Mails Compras. Classifique, vincule OS e registre entrega real — a TV Compras lista só as abertas (sem data_entrega)."
+        description="OCs do robô E-Mails Compras. Classifique, vincule OS, registre entrega ou marque fora do escopo (outro cliente) — a TV Compras lista só as abertas."
       />
 
       <p className="text-sm text-aion-muted">
@@ -174,7 +186,8 @@ export default function SalaOrdensCompraPage() {
         <Link href="/sala/compras" className="font-semibold text-aion-blue hover:underline">
           /sala/compras
         </Link>{" "}
-        mostra estas OCs abertas (Pedido = data_pedido, Resposta/OC = data_ordem, Entrega = data_entrega). O funil legado
+        mostra estas OCs abertas (Pedido = data_pedido, Resposta/OC = data_ordem, Entrega = data_entrega). OCs de outro
+        cliente ou não realizadas saem com status <code className="text-xs">fora_escopo</code> (sem apagar). O funil legado
         e-mail→SC continua em{" "}
         <Link href="/sala/pedidos" className="font-semibold text-aion-blue hover:underline">
           /sala/pedidos
@@ -250,9 +263,29 @@ export default function SalaOrdensCompraPage() {
               <input
                 type="checkbox"
                 checked={filtros.abertas}
-                onChange={(e) => setFiltros((f) => ({ ...f, abertas: e.target.checked }))}
+                onChange={(e) =>
+                  setFiltros((f) => ({
+                    ...f,
+                    abertas: e.target.checked,
+                    excluidas: e.target.checked ? false : f.excluidas,
+                  }))
+                }
               />
               <span>Só abertas (TV)</span>
+            </label>
+            <label className="flex items-end gap-2 pb-1 text-sm">
+              <input
+                type="checkbox"
+                checked={filtros.excluidas}
+                onChange={(e) =>
+                  setFiltros((f) => ({
+                    ...f,
+                    excluidas: e.target.checked,
+                    abertas: e.target.checked ? false : f.abertas,
+                  }))
+                }
+              />
+              <span>Excluídas (fora do escopo)</span>
             </label>
             <div className="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-6">
               <button
@@ -294,6 +327,7 @@ export default function SalaOrdensCompraPage() {
             const flags = ordem.editado_manualmente;
             const busy = salvando === ordem.numero_ordem;
             const entregue = Boolean(ordem.data_entrega?.trim());
+            const foraEscopo = ordem.status === "fora_escopo";
             return (
               <div key={ordem.numero_ordem} className="rounded-lg border border-aion-line p-3">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -303,13 +337,20 @@ export default function SalaOrdensCompraPage() {
                       <span className="rounded bg-aion-mist px-2 py-0.5 text-xs font-semibold text-aion-blue">
                         {rotuloStatus(ordem.status)}
                       </span>
-                      {entregue ? <Badge tone="ok">entregue</Badge> : <Badge tone="warn">aberta</Badge>}
+                      {foraEscopo ? (
+                        <Badge tone="warn">fora da TV</Badge>
+                      ) : entregue ? (
+                        <Badge tone="ok">entregue</Badge>
+                      ) : (
+                        <Badge tone="warn">aberta</Badge>
+                      )}
                       {ordem.confianca ? (
                         <Badge tone={ordem.confianca === "baixa" ? "warn" : "info"}>{ordem.confianca}</Badge>
                       ) : null}
                       {flags.categoria ? <Badge tone="ok">categoria manual</Badge> : null}
                       {flags.numero_os ? <Badge tone="ok">OS manual</Badge> : null}
                       {flags.data_entrega ? <Badge tone="ok">entrega manual</Badge> : null}
+                      {flags.status ? <Badge tone="ok">status manual</Badge> : null}
                     </div>
                     <p className="text-sm text-aion-ink">
                       {ordem.fornecedor || "sem fornecedor"} · {formatarValor(ordem.valor_total)}
@@ -319,6 +360,9 @@ export default function SalaOrdensCompraPage() {
                       {formatarQuando(ordem.data_ordem)} · Entrega {formatarQuando(ordem.data_entrega)} ·{" "}
                       {rotuloOrigem(ordem.origem)}
                     </p>
+                    {foraEscopo && ordem.motivo_exclusao ? (
+                      <p className="text-xs text-amber-900">Motivo: {ordem.motivo_exclusao}</p>
+                    ) : null}
                   </div>
                   <div className="flex min-w-[200px] flex-col gap-1">
                     <span className="text-xs font-semibold tracking-wide text-aion-muted uppercase">
@@ -412,7 +456,7 @@ export default function SalaOrdensCompraPage() {
                   <button
                     type="button"
                     className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
-                    disabled={busy}
+                    disabled={busy || foraEscopo}
                     onClick={() =>
                       void patchOrdem(
                         ordem.numero_ordem,
@@ -460,6 +504,51 @@ export default function SalaOrdensCompraPage() {
                       Reabrir (limpar entrega)
                     </button>
                   ) : null}
+                  {!foraEscopo ? (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Input
+                        className="h-8 w-[180px] text-xs"
+                        value={draftMotivo[ordem.numero_ordem] ?? ""}
+                        disabled={busy}
+                        onChange={(e) =>
+                          setDraftMotivo((d) => ({ ...d, [ordem.numero_ordem]: e.target.value }))
+                        }
+                        placeholder="motivo (opcional)"
+                      />
+                      <button
+                        type="button"
+                        className="rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-800 disabled:opacity-40"
+                        disabled={busy}
+                        onClick={() =>
+                          void patchOrdem(
+                            ordem.numero_ordem,
+                            {
+                              marcar_fora_escopo: true,
+                              motivo_exclusao: draftMotivo[ordem.numero_ordem]?.trim() || null,
+                            },
+                            `OC ${ordem.numero_ordem} fora do escopo — sai da TV.`,
+                          )
+                        }
+                      >
+                        Fora do escopo / outro cliente
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 disabled:opacity-40"
+                      disabled={busy}
+                      onClick={() =>
+                        void patchOrdem(
+                          ordem.numero_ordem,
+                          { restaurar_tv: true },
+                          `OC ${ordem.numero_ordem} restaurada na TV.`,
+                        )
+                      }
+                    >
+                      Desfazer (voltar à TV)
+                    </button>
+                  )}
                   <button
                     type="button"
                     className="text-xs font-semibold text-aion-blue hover:underline"
