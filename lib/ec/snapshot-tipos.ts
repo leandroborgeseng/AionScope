@@ -21,6 +21,15 @@ export const TELAS_SALA: Array<{ id: TelaSala; label: string; rotulo: string; ti
 
 export type FonteBloco = "api" | "manual" | "sem-dados";
 
+/** Seleção de drill-down na TV (KPI/card → lista). Ver docs/sala/drill-down-tv.md. */
+export type SalaDrillSelecao = {
+  tela: TelaSala;
+  /** Chave estável, ex.: agora.grave */
+  id: string;
+  /** Rótulo humano no chip, ex.: ATRASO GRAVE */
+  titulo: string;
+};
+
 export type Bloco = {
   id: string;
   fonte: FonteBloco;
