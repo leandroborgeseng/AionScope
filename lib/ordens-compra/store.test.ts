@@ -252,7 +252,7 @@ test("fora_escopo: sai da TV, filtro excluidas, robô não reabre status", () =>
   assert.ok(resumo.pedidos.some((p) => p.numeroOrdem === "OC-FE-1"));
 });
 
-test("parseSalaPatch aceita marcar_fora_escopo e restaurar_tv", () => {
+test("parseSalaPatch aceita marcar_fora_escopo, marcar_duplicada e restaurar_tv", () => {
   const fora = parseSalaPatch({
     numero_ordem: "OC-x",
     marcar_fora_escopo: true,
@@ -264,8 +264,90 @@ test("parseSalaPatch aceita marcar_fora_escopo e restaurar_tv", () => {
   assert.equal(fora.patch.status, "fora_escopo");
   assert.equal(fora.patch.motivo_exclusao, "não realizado");
 
+  const dup = parseSalaPatch({
+    numero_ordem: "OC-x",
+    marcar_duplicada: true,
+    motivo_exclusao: "mesmo orçamento",
+  });
+  assert.equal(dup.ok, true);
+  if (!dup.ok) throw new Error("fail");
+  assert.equal(dup.patch.marcar_duplicada, true);
+  assert.equal(dup.patch.status, "duplicada");
+  assert.equal(dup.patch.motivo_exclusao, "mesmo orçamento");
+
   const volta = parseSalaPatch({ numero_ordem: "OC-x", restaurar_tv: true });
   assert.equal(volta.ok, true);
   if (!volta.ok) throw new Error("fail");
   assert.equal(volta.patch.restaurar_tv, true);
+});
+
+test("duplicada: sai da TV, filtro duplicadas, robô não reabre status", () => {
+  upsertOrdemCompra(
+    parsed({
+      numero_ordem: "OC-DUP-1",
+      status: "ordem_gerada",
+      data_pedido: "2026-09-02",
+      data_ordem: "2026-09-06",
+      fornecedor: "Dup SA",
+      valor_total: "80.00",
+      numero_orcamento: "ORC-99",
+    }),
+  );
+  upsertOrdemCompra(
+    parsed({
+      numero_ordem: "OC-DUP-2",
+      status: "ordem_gerada",
+      data_pedido: "2026-09-02",
+      data_ordem: "2026-09-07",
+      fornecedor: "Dup SA",
+      valor_total: "80.00",
+      numero_orcamento: "ORC-99",
+    }),
+  );
+
+  const agora = new Date("2026-10-05T12:00:00");
+  let resumo = resumoOrdensCompraTv(agora);
+  assert.ok(resumo.pedidos.some((p) => p.numeroOrdem === "OC-DUP-1"));
+
+  const marcada = editarOrdemSala("OC-DUP-1", {
+    marcar_duplicada: true,
+    motivo_exclusao: "mesmo orçamento ORC-99",
+  });
+  assert.ok(marcada);
+  assert.equal(marcada.status, "duplicada");
+  assert.equal(marcada.motivo_exclusao, "mesmo orçamento ORC-99");
+  assert.equal(marcada.editado_manualmente.status, true);
+
+  resumo = resumoOrdensCompraTv(agora);
+  assert.ok(!resumo.pedidos.some((p) => p.numeroOrdem === "OC-DUP-1"));
+  assert.ok(resumo.pedidos.some((p) => p.numeroOrdem === "OC-DUP-2"));
+
+  const abertas = listarOrdensCompra({ page: 1, page_size: 50, abertas: true });
+  assert.ok(!abertas.itens.some((o) => o.numero_ordem === "OC-DUP-1"));
+
+  const duplicadas = listarOrdensCompra({ page: 1, page_size: 50, duplicadas: true });
+  assert.ok(duplicadas.itens.some((o) => o.numero_ordem === "OC-DUP-1"));
+
+  const porPedido = listarOrdensCompra({
+    page: 1,
+    page_size: 50,
+    data_pedido_de: "2026-09-01",
+    data_pedido_ate: "2026-09-03",
+    ordenar: "data_pedido",
+  });
+  assert.ok(porPedido.itens.some((o) => o.numero_ordem === "OC-DUP-2"));
+
+  const robot = upsertOrdemCompra(
+    parsed({
+      numero_ordem: "OC-DUP-1",
+      status: "ordem_gerada",
+      fornecedor: "Dup SA",
+    }),
+  );
+  assert.equal(robot.ordem.status, "duplicada");
+
+  const restaurada = editarOrdemSala("OC-DUP-1", { restaurar_tv: true });
+  assert.ok(restaurada);
+  assert.equal(restaurada.status, "ordem_gerada");
+  assert.equal(restaurada.motivo_exclusao, null);
 });

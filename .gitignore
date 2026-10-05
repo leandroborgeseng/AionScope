@@ -55,3 +55,7 @@ next-env.d.ts
 *.sqlite-shm
 *.sqlite-wal
 /data/aionscope.sqlite*
+
+# Anexos de OC (persistência local / volume — não versionar)
+/data/ordens-compra-anexos/
+ordens-compra-anexos/

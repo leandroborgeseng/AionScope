@@ -18,11 +18,16 @@ test("rejeita enum desconhecido com 422", () => {
   assert.ok(r.error.detalhes.some((d) => d.campo === "status"));
 });
 
-test("aceita status fora_escopo", () => {
-  const r = parseOrdemCompra({ numero_ordem: "OC-FE", status: "fora_escopo" });
-  assert.equal(r.ok, true);
-  if (!r.ok) return;
-  assert.equal(r.data.campos.status, "fora_escopo");
+test("aceita status fora_escopo e duplicada", () => {
+  const fora = parseOrdemCompra({ numero_ordem: "OC-FE", status: "fora_escopo" });
+  assert.equal(fora.ok, true);
+  if (!fora.ok) return;
+  assert.equal(fora.data.campos.status, "fora_escopo");
+
+  const dup = parseOrdemCompra({ numero_ordem: "OC-DUP", status: "duplicada" });
+  assert.equal(dup.ok, true);
+  if (!dup.ok) return;
+  assert.equal(dup.data.campos.status, "duplicada");
 });
 
 test("rejeita dinheiro com vírgula", () => {

@@ -6,8 +6,10 @@ import {
   MIGRATION_COMPRAS_EMAIL,
   MIGRATION_NAME,
   MIGRATION_ORDENS_COMPRA,
+  MIGRATION_ORDENS_COMPRA_DUPLICADA,
   MIGRATION_ORDENS_COMPRA_ENTREGA,
   MIGRATION_ORDENS_COMPRA_FORA_ESCOPO,
+  MIGRATION_ORDEM_ANEXOS,
   MIGRATION_SALA_MANUAL,
   SCHEMA_SQL,
 } from "./schema";
@@ -193,6 +195,47 @@ function migrate(db: Database.Database) {
     db.exec("CREATE INDEX IF NOT EXISTS idx_ordens_compra_status ON ordens_compra (status)");
     db.prepare("INSERT INTO schema_migrations (id, name, applied_at) VALUES (6, ?, ?)").run(
       MIGRATION_ORDENS_COMPRA_FORA_ESCOPO,
+      new Date().toISOString(),
+    );
+  }
+
+  const ordensDuplicada = db
+    .prepare("SELECT id FROM schema_migrations WHERE name = ?")
+    .get(MIGRATION_ORDENS_COMPRA_DUPLICADA);
+  if (!ordensDuplicada) {
+    // Status duplicada é enum na app (sem coluna nova); índice de status já existe em 006.
+    db.prepare("INSERT INTO schema_migrations (id, name, applied_at) VALUES (7, ?, ?)").run(
+      MIGRATION_ORDENS_COMPRA_DUPLICADA,
+      new Date().toISOString(),
+    );
+  }
+
+  const ordemAnexos = db
+    .prepare("SELECT id FROM schema_migrations WHERE name = ?")
+    .get(MIGRATION_ORDEM_ANEXOS);
+  if (!ordemAnexos) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ordem_anexos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        numero_ordem TEXT NOT NULL,
+        nome_original TEXT NOT NULL,
+        content_type TEXT NOT NULL,
+        tamanho INTEGER NOT NULL,
+        caminho_relativo TEXT NOT NULL,
+        fonte TEXT NOT NULL DEFAULT 'manual',
+        email_message_id TEXT,
+        descricao TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (numero_ordem) REFERENCES ordens_compra (numero_ordem) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_ordem_anexos_ordem ON ordem_anexos (numero_ordem);
+    `);
+    const cols = db.prepare("PRAGMA table_info(ordem_anexos)").all() as Array<{ name: string }>;
+    if (!cols.some((c) => c.name === "descricao")) {
+      db.exec("ALTER TABLE ordem_anexos ADD COLUMN descricao TEXT");
+    }
+    db.prepare("INSERT INTO schema_migrations (id, name, applied_at) VALUES (8, ?, ?)").run(
+      MIGRATION_ORDEM_ANEXOS,
       new Date().toISOString(),
     );
   }
