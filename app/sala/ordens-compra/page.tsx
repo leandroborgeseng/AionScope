@@ -79,8 +79,22 @@ function formatarTamanho(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** JPEG/PNG/WebP — browsers render these in <img>; HEIC/HEIF open via link. */
 function ehPreviewImagem(contentType: string) {
-  return contentType.startsWith("image/") && !contentType.includes("heic") && !contentType.includes("heif");
+  return (
+    contentType === "image/jpeg" ||
+    contentType === "image/png" ||
+    contentType === "image/webp" ||
+    contentType === "image/jpg"
+  );
+}
+
+function ehPdfAnexo(contentType: string) {
+  return contentType === "application/pdf";
+}
+
+function ehHeicAnexo(contentType: string) {
+  return contentType === "image/heic" || contentType === "image/heif";
 }
 
 function rotuloOrigem(origem: string | null) {
@@ -884,60 +898,117 @@ export default function SalaOrdensCompraPage() {
                           Nenhum anexo ainda. Envie foto da solicitação ou PDF para validar no painel.
                         </p>
                       ) : null}
-                      <ul className="grid gap-3 sm:grid-cols-2">
-                        {(anexosPorOrdem[ordem.numero_ordem] ?? []).map((anexo) => (
-                          <li
-                            key={anexo.id}
-                            className="flex gap-3 rounded-md border border-aion-line bg-white p-2"
-                          >
-                            {ehPreviewImagem(anexo.content_type) ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={anexo.url}
-                                alt={anexo.nome_original}
-                                className="h-20 w-20 shrink-0 rounded object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded bg-slate-100 text-xs font-semibold text-slate-600">
-                                {anexo.content_type === "application/pdf" ? "PDF" : "ARQ"}
+                      <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                        {(anexosPorOrdem[ordem.numero_ordem] ?? []).map((anexo) => {
+                          const previewOk = ehPreviewImagem(anexo.content_type);
+                          const pdf = ehPdfAnexo(anexo.content_type);
+                          const heic = ehHeicAnexo(anexo.content_type);
+                          return (
+                            <li
+                              key={anexo.id}
+                              className="flex flex-col overflow-hidden rounded-lg border border-aion-line bg-white shadow-sm"
+                            >
+                              <a
+                                href={anexo.url}
+                                target="_blank"
+                                rel="noreferrer"
+                                title={`Abrir ${anexo.nome_original}`}
+                                className="group relative flex aspect-square items-center justify-center bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-aion-blue"
+                              >
+                                {previewOk ? (
+                                  // eslint-disable-next-line @next/next/no-img-element -- blob/API preview URLs
+                                  <img
+                                    src={anexo.url}
+                                    alt={anexo.nome_original}
+                                    loading="lazy"
+                                    className="h-full w-full object-cover transition group-hover:opacity-90"
+                                  />
+                                ) : pdf ? (
+                                  <div className="flex flex-col items-center gap-1 px-2 text-center">
+                                    <svg
+                                      viewBox="0 0 48 56"
+                                      className="h-14 w-12 text-red-700"
+                                      aria-hidden
+                                    >
+                                      <path
+                                        fill="currentColor"
+                                        d="M6 0h24l12 12v40a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V4a4 4 0 0 1 4-4z"
+                                        opacity="0.15"
+                                      />
+                                      <path
+                                        fill="currentColor"
+                                        d="M30 0v10a2 2 0 0 0 2 2h10L30 0z"
+                                      />
+                                      <text
+                                        x="24"
+                                        y="38"
+                                        textAnchor="middle"
+                                        fill="currentColor"
+                                        fontSize="11"
+                                        fontWeight="700"
+                                        fontFamily="ui-sans-serif, system-ui, sans-serif"
+                                      >
+                                        PDF
+                                      </text>
+                                    </svg>
+                                    <span className="line-clamp-2 text-[11px] font-medium text-slate-700">
+                                      {anexo.nome_original}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center gap-1 px-2 text-center">
+                                    <span className="rounded bg-slate-200 px-2 py-1 text-[10px] font-bold tracking-wide text-slate-700 uppercase">
+                                      {heic ? "HEIC" : "ARQ"}
+                                    </span>
+                                    <span className="line-clamp-2 text-[11px] font-medium text-slate-700">
+                                      {anexo.nome_original}
+                                    </span>
+                                  </div>
+                                )}
+                                <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 to-transparent px-2 py-1.5 text-[10px] font-semibold text-white opacity-0 transition group-hover:opacity-100">
+                                  Abrir preview
+                                </span>
+                              </a>
+                              <div className="space-y-1 border-t border-aion-line p-2">
+                                <p
+                                  className="truncate text-xs font-medium"
+                                  title={anexo.nome_original}
+                                >
+                                  {anexo.nome_original}
+                                </p>
+                                <p className="truncate text-[10px] text-aion-muted">
+                                  {formatarTamanho(anexo.tamanho)} ·{" "}
+                                  {anexo.fonte === "email_robot" ? "robô" : "manual"} ·{" "}
+                                  {formatarQuando(anexo.created_at)}
+                                </p>
+                                <div className="flex flex-wrap gap-2 pt-0.5">
+                                  <a
+                                    href={anexo.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[11px] font-semibold text-aion-blue hover:underline"
+                                  >
+                                    Abrir
+                                  </a>
+                                  <a
+                                    href={`${anexo.url}?download=1`}
+                                    className="text-[11px] font-semibold text-aion-blue hover:underline"
+                                  >
+                                    Baixar
+                                  </a>
+                                  <button
+                                    type="button"
+                                    className="text-[11px] font-semibold text-red-700 hover:underline disabled:opacity-40"
+                                    disabled={enviandoAnexo === ordem.numero_ordem}
+                                    onClick={() => void excluirAnexo(ordem.numero_ordem, anexo.id)}
+                                  >
+                                    Excluir
+                                  </button>
+                                </div>
                               </div>
-                            )}
-                            <div className="min-w-0 flex-1 space-y-1">
-                              <p className="truncate text-sm font-medium" title={anexo.nome_original}>
-                                {anexo.nome_original}
-                              </p>
-                              <p className="text-xs text-aion-muted">
-                                {formatarTamanho(anexo.tamanho)} ·{" "}
-                                {anexo.fonte === "email_robot" ? "robô" : "manual"} ·{" "}
-                                {formatarQuando(anexo.created_at)}
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                <a
-                                  href={anexo.url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-xs font-semibold text-aion-blue hover:underline"
-                                >
-                                  Abrir
-                                </a>
-                                <a
-                                  href={`${anexo.url}?download=1`}
-                                  className="text-xs font-semibold text-aion-blue hover:underline"
-                                >
-                                  Baixar
-                                </a>
-                                <button
-                                  type="button"
-                                  className="text-xs font-semibold text-red-700 hover:underline disabled:opacity-40"
-                                  disabled={enviandoAnexo === ordem.numero_ordem}
-                                  onClick={() => void excluirAnexo(ordem.numero_ordem, anexo.id)}
-                                >
-                                  Excluir
-                                </button>
-                              </div>
-                            </div>
-                          </li>
-                        ))}
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                   </div>
