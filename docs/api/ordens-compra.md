@@ -106,39 +106,63 @@ Resposta: `{ "itens", "page", "page_size", "total" }`.
 
 **Campos só da Sala (TV):** `data_entrega` (data real da entrega), `itens_entregues` (texto do que chegou), `motivo_exclusao` (nota ao marcar `fora_escopo` / `duplicada`). Com `data_entrega` ou status `fora_escopo` / `duplicada` / `cancelado` a OC **sai** da lista aberta da TV.
 
-Metadados de persistência na resposta: `fonte` (`email_robot`), `editado_manualmente`, `created_at`, `updated_at`.
+Metadados de persistência na resposta: `fonte` (`email_robot`), `editado_manualmente`, `created_at`, `updated_at`, **`anexos[]`** (metadados; sem bytes).
 
 **Item:** `descricao`, `quantidade`, `unidade`, `valor_unitario`, `valor_total`, `codigo`.
 
-### Anexos (PDF / imagens)
+**Anexo:** `id`, `numero_ordem`, `nome_original`, `content_type`, `tamanho`, `fonte` (`email_robot` \| `manual`), `email_message_id`, `descricao`, `created_at`, `url` (Sala).
 
-Arquivos ficam no **volume de dados** (não no git): pasta `ordens-compra-anexos/` ao lado do SQLite (`DATABASE_PATH`), ou `ORDENS_COMPRA_ANEXOS_PATH`. Metadados na tabela `ordem_anexos` (FK `numero_ordem`). Upsert do robô **não** remove anexos — são aditivos.
+## Para o pod
 
-Tipos: `application/pdf`, `image/jpeg`, `image/png`, `image/webp`, `image/heic`, `image/heif`. Máx. **12 MB** por arquivo.
+O lote JSON **não** leva arquivos em base64. Fluxo:
 
-#### POST `/api/v1/ordens-compra/{numero_ordem}/anexos` (Bearer)
+1. `GET /api/v1/health` (sem auth)
+2. Upsert da OC: `PUT /api/v1/ordens-compra/{numero}` **ou** `POST /api/v1/ordens-compra/lote` (JSON, como hoje)
+3. Para cada arquivo do e-mail: `POST /api/v1/ordens-compra/{numero}/anexos` em **multipart** (campo `arquivo` ou `file`)
+4. Opcional: `GET /api/v1/ordens-compra/{numero}` — a OC vem com `anexos[]`
+5. Opcional: `GET /api/v1/ordens-compra/{numero}/anexos/{id}` — download/preview com Bearer (`?download=1` força attachment)
 
-`multipart/form-data` com campo `arquivo` (ou `file`). Opcional: `email_message_id` (texto). Resposta **201** com metadados do anexo (`fonte=email_robot`).
+Auth em todas as rotas acima (exceto health): `Authorization: Bearer $ORDENS_COMPRA_API_KEY`.
+
+Arquivos no volume: pasta `ordens-compra-anexos/` ao lado do SQLite (`DATABASE_PATH`), ou `ORDENS_COMPRA_ANEXOS_PATH`. Tabela `ordem_anexos`. Reenvios do lote **não** apagam anexos (aditivos).
+
+MIME: `application/pdf`, `image/jpeg`, `image/png`, `image/webp` (também `image/heic` / `image/heif`). Máx. **~12 MB** por arquivo.
+
+### Exemplo curl (após o upsert)
 
 ```bash
+# 1) Upsert (inalterado)
+curl -sS -X PUT "$BASE/ordens-compra/OC-2026-001" \
+  -H "Authorization: Bearer $ORDENS_COMPRA_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"numero_ordem":"OC-2026-001","status":"ordem_gerada","fornecedor":"Exemplo","itens":[]}'
+
+# 2) Anexo PDF (campo arquivo; alias file também vale)
 curl -sS -X POST "$BASE/ordens-compra/OC-2026-001/anexos" \
   -H "Authorization: Bearer $ORDENS_COMPRA_API_KEY" \
   -F "arquivo=@./solicitacao.pdf;type=application/pdf" \
-  -F "email_message_id=AAMk..."
+  -F "email_message_id=AAMk..." \
+  -F "descricao=PDF do e-mail de compras"
+
+# 3) Conferir metadados na OC
+curl -sS "$BASE/ordens-compra/OC-2026-001" \
+  -H "Authorization: Bearer $ORDENS_COMPRA_API_KEY"
+
+# 4) Baixar anexo (Bearer)
+curl -sS -o /tmp/oc.pdf \
+  -H "Authorization: Bearer $ORDENS_COMPRA_API_KEY" \
+  "$BASE/ordens-compra/OC-2026-001/anexos/1?download=1"
 ```
 
-#### GET `/api/v1/ordens-compra/{numero_ordem}/anexos` (Bearer)
+**404** se a OC ainda não existir (faça o upsert antes). **201** no POST de anexo com o metadado criado.
 
-Lista metadados: `{ "anexos": [ ... ] }`.
-
-#### Sala (sem API key)
+### Sala (sem API key do robô)
 
 - `GET/POST /api/sala/ordens-compra/{numero}/anexos` — listar / upload manual (`fonte=manual`)
 - `GET /api/sala/ordens-compra/{numero}/anexos/{id}` — preview inline (imagem/PDF) ou `?download=1`
 - `DELETE /api/sala/ordens-compra/{numero}/anexos/{id}` — remove metadado + arquivo
 
 Na UI `/sala/ordens-compra`, expandir a OC → seção **Anexos (fotos / PDF)**.
-
 
 ## Erros
 
