@@ -49,12 +49,15 @@ export async function POST(request: Request, context: Ctx) {
 
   const file = entry as File;
   const bytes = Buffer.from(await file.arrayBuffer());
+  const descRaw = form.get("descricao");
+  const descricao = typeof descRaw === "string" && descRaw.trim() ? descRaw.trim() : null;
   const result = gravarAnexoOrdem({
     numero_ordem: numero,
     nome: file.name || "anexo",
     contentType: file.type || null,
     bytes,
     fonte: "manual",
+    descricao,
   });
   if (!result.ok) return jsonErroValidacao(result.error);
   return jsonOk(result.anexo, 201);
