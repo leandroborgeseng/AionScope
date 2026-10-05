@@ -1,3 +1,4 @@
+import { invalidarCacheSnapshot } from "@/lib/ec/montar-snapshot";
 import { jsonErro, jsonErroValidacao, jsonInvalido, jsonOk, lerJson } from "@/lib/ordens-compra/http";
 import { editarOrdemSala, listarOrdensCompra, obterOrdemCompra } from "@/lib/ordens-compra/store";
 import { parseListaQuery, parseSalaPatch } from "@/lib/ordens-compra/validate";
@@ -34,5 +35,6 @@ export async function PATCH(request: Request) {
   if (!parsed.ok) return jsonErroValidacao(parsed.error);
   if (!obterOrdemCompra(numero)) return jsonErro("não encontrado", 404);
   const ordem = editarOrdemSala(numero, parsed.patch);
+  invalidarCacheSnapshot();
   return jsonOk(ordem);
 }
