@@ -2,7 +2,7 @@
 
 Amostra de 01/10/2026 em `docs/sala/api-samples/` (fora do git). OS: 22.015 linhas, `DoisAnosAtuais`. Equipamentos: 3.039, inclusive inativos. Contratos não consultado (`PBI_TOKEN_CONTRATOS` vazio).
 
-Escopo da TV, quando a tela for de OS: tag de equipamento médico + oficinas da Engenharia Clínica (`lib/pbi/oficina-ec.ts`: equals allowlist; **exclui Oficina Geral**).
+Escopo da TV, quando a tela for de OS: tag de equipamento médico + oficinas da Engenharia Clínica (`lib/pbi/oficina-ec.ts`: allowlist positiva da família EC — Engenharia Clínica, Calibração, Preventiva, TSE/Segurança Elétrica, etc.; **exclui Oficina Geral** e predial).
 
 ## Respostas diretas
 
