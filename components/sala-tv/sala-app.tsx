@@ -28,6 +28,7 @@ import {
 import { idsOsAbertas, novasOsDesde } from "@/lib/ec/novas-os";
 import { desbloquearSomTv, SALA_SOM_STORAGE, tocarChimeNovaOs } from "@/components/sala-tv/som-nova-os";
 import { TvTreinamentos } from "@/components/treinamentos/tv-treinamentos";
+import type { PainelTreinamentos } from "@/lib/treinamentos/types";
 import "@/app/sala/sala.css";
 
 const mono = JetBrains_Mono({
@@ -1904,7 +1905,14 @@ function Conteudo({
   return <TelaProcessos dados={dados} />;
 }
 
-export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
+export function SalaApp({
+  telaFixa,
+  painelTreinamentos,
+}: {
+  telaFixa?: TelaSala;
+  /** Dados SSR da tela Treinamentos (evita tela em branco enquanto o snapshot PBI carrega). */
+  painelTreinamentos?: PainelTreinamentos | null;
+}) {
   const [dados, setDados] = useState<SalaSnapshot | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [falhaDesde, setFalhaDesde] = useState<number | null>(null);
@@ -2201,7 +2209,7 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
             <div className="sala-miolo-row">
               <div className="sala-miolo-main">
                 {tela === "treinamentos" ? (
-                  <TvTreinamentos />
+                  <TvTreinamentos painel={painelTreinamentos} />
                 ) : (
                   <>
                     {erro && !dados ? <p className="sala-vazio">Sem conexão com o snapshot ({erro}).</p> : null}
