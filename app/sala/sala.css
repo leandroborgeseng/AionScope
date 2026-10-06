@@ -34,7 +34,7 @@
   top: 0;
   left: 0;
   display: grid;
-  grid-template-rows: 6px 100px minmax(0, 1fr) 56px;
+  grid-template-rows: 6px 100px minmax(0, 1fr) 64px;
   transform-origin: top left;
 }
 
@@ -43,8 +43,8 @@
 .sala-cabecalho {
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 0 40px;
+  gap: 16px;
+  padding: 0 32px 0 40px;
   background: #fff;
   border-bottom: 1px solid var(--borda);
   min-width: 0;
@@ -54,11 +54,14 @@
 .sala-divisor { width: 1px; height: 48px; background: var(--borda); flex-shrink: 0; }
 .sala-rotulo { font-size: 16px; letter-spacing: 3px; color: var(--aion-azul); font-weight: 600; }
 .sala-titulo { font-size: 34px; font-weight: 600; line-height: 1.1; }
-.sala-pills { display: flex; gap: 6px; margin-left: auto; flex-shrink: 0; }
+.sala-pills { display: flex; gap: 5px; margin-left: auto; flex-shrink: 1; min-width: 0; }
 .sala-pill {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
-  padding: 8px 14px;
+  padding: 8px 12px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   border-radius: 999px;
   background: var(--pill);
   color: var(--texto-2);
@@ -68,16 +71,17 @@
 .sala-pill.ativa { background: var(--aion-azul); color: #fff; }
 .sala-relogio {
   font-family: var(--fonte-num);
-  font-size: 52px;
+  font-size: 48px;
   font-weight: 700;
   color: var(--aion-azul);
-  margin-left: 12px;
+  margin-left: 4px;
   flex-shrink: 0;
   min-width: 3.2ch;
   text-align: right;
+  line-height: 1;
 }
 
-.sala-miolo { min-height: 0; padding: 18px 40px; display: flex; flex-direction: column; gap: 12px; }
+.sala-miolo { min-height: 0; padding: 16px 40px 12px; display: flex; flex-direction: column; gap: 10px; }
 .sala-miolo-row {
   display: flex;
   flex: 1;
@@ -101,8 +105,9 @@
   /* Overlay does not shrink columns; subtle dim only */
   filter: saturate(0.92);
 }
-.sala-grid-2 { display: grid; grid-template-columns: 520px minmax(0, 1fr); gap: 22px; min-height: 0; flex: 1; }
-.sala-coluna { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.sala-grid-2 { display: grid; grid-template-columns: 500px minmax(0, 1fr); gap: 20px; min-height: 0; flex: 1; }
+.sala-coluna { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.sala-agora-lat { min-width: 0; overflow: hidden; }
 .sala-cartao {
   background: var(--cartao);
   border: 1px solid var(--borda);
@@ -136,21 +141,30 @@
   line-height: 1.35;
 }
 .sala-plantao {
-  min-height: 56px;
+  min-height: 52px;
+  flex-shrink: 0;
+}
+.sala-plantao span {
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.3;
 }
 .sala-plantao-ok {
   color: var(--texto-2);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 500;
 }
 .sala-plantao-icone { flex-shrink: 0; }
-.sala-contadores { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sala-contadores { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .sala-contador {
   border-radius: 16px;
-  padding: 12px 16px 10px;
+  padding: 10px 14px 8px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 0;
   min-width: 0;
 }
 .sala-contador-topo {
@@ -169,17 +183,19 @@
   opacity: 0.92;
 }
 .sala-contador-topo .sala-rotulo-bloco {
-  font-size: 15px;
-  letter-spacing: 1px;
+  font-size: 16px;
+  letter-spacing: 0.8px;
+  line-height: 1.15;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
-.sala-contador .sala-numero { font-size: 64px; }
+.sala-contador .sala-numero { font-size: 56px; letter-spacing: -1px; }
 .sala-contador-drill {
   text-align: left;
   cursor: pointer;
-  min-height: 128px;
+  min-height: 118px;
   font: inherit;
   transition: outline 0.15s ease, box-shadow 0.18s ease, opacity 0.18s ease, transform 0.15s ease;
 }
@@ -197,11 +213,12 @@
 }
 .sala-contador-pct {
   font-family: var(--fonte-num);
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1.1;
-  margin-top: 0;
-  opacity: 0.85;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin-top: 2px;
+  opacity: 0.72;
+  letter-spacing: 0;
 }
 .sala-plano-lista,
 .sala-parados-lista {
@@ -231,7 +248,9 @@
 }
 .sala-fila-painel {
   min-height: 0;
-  padding: 16px 18px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 14px 16px 12px;
   background:
     linear-gradient(180deg, rgba(220, 232, 247, 0.35) 0%, rgba(255, 255, 255, 0) 72px),
     var(--cartao);
@@ -271,34 +290,42 @@
 /* Linhas genéricas (outras telas) + fila Agora com colunas fixas sem overlap */
 .sala-linha {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: 148px minmax(0, 1fr) 96px;
   column-gap: 16px;
   align-items: center;
   background: #fff;
   border: 1px solid var(--borda);
   border-radius: 14px;
   padding: 10px 14px;
-  min-height: 72px;
+  min-height: 76px;
   min-width: 0;
 }
 .sala-linha strong { font-size: 24px; font-weight: 600; }
 .sala-linha small { display: block; color: var(--texto-2); font-size: 17px; }
 .sala-fila .sala-linha,
 .sala-drill-sheet-lista .sala-linha {
-  grid-template-columns: 132px minmax(0, 1fr) 196px 120px;
-  column-gap: 20px;
-  min-height: 76px;
+  grid-template-columns: 148px minmax(0, 1fr) 96px;
+  column-gap: 16px;
+  min-height: 78px;
 }
 .sala-linha[data-destaque="1"] {
   outline: 3px solid #a3123a;
   outline-offset: 1px;
 }
+.sala-linha[data-nova="1"] {
+  box-shadow: inset 6px 0 0 var(--aion-azul);
+  animation: sala-linha-nova 2.4s ease-out 1;
+}
+@keyframes sala-linha-nova {
+  0% { background: #dce8f7; }
+  100% { background: #fff; }
+}
 .sala-linha-densa {
-  min-height: 68px;
+  min-height: 72px;
   background: #fafbfd;
 }
 .sala-linha-equip-only {
-  grid-template-columns: 132px minmax(0, 1fr) 24px 108px;
+  grid-template-columns: 148px minmax(0, 1fr) 96px;
 }
 .sala-linha-status {
   display: flex;
@@ -332,30 +359,50 @@
   white-space: nowrap;
 }
 .sala-linha-idade {
-  font-size: 26px;
+  font-size: 22px;
   text-align: right;
   white-space: nowrap;
   justify-self: end;
   color: var(--texto);
+  min-width: 0;
+}
+.sala-linha-corpo {
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sala-linha-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.sala-linha-sub small {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .sala-meta {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
   min-width: 0;
-  padding-right: 4px;
-  border-right: 1px solid var(--borda-linha);
-  margin-right: 2px;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 .sala-meta-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-size: 13px;
+  gap: 4px;
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.3px;
   border-radius: 8px;
   padding: 4px 8px;
   white-space: nowrap;
@@ -372,16 +419,16 @@
   border: 1px solid #f0bd8e;
 }
 .sala-meta-crit {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--texto-2);
   letter-spacing: 0.3px;
   white-space: nowrap;
 }
 .sala-selo {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.5px;
   padding: 5px 10px;
   border-radius: 8px;
   width: fit-content;
@@ -397,17 +444,17 @@
 .sala-drill-chip {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-left: 12px;
-  padding: 8px 14px;
+  gap: 8px;
+  margin-left: 4px;
+  padding: 6px 10px 6px 12px;
   min-height: 44px;
   border-radius: 10px;
   border: 2px solid #2c66ab;
   background: #eef4fb;
   color: #1d4a80;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
-  max-width: 420px;
+  max-width: 280px;
   flex-shrink: 1;
   min-width: 0;
   animation: sala-chip-in 160ms ease-out;
@@ -419,13 +466,13 @@
 }
 .sala-drill-limpar {
   min-height: 40px;
-  min-width: 88px;
-  padding: 4px 14px;
+  min-width: 72px;
+  padding: 4px 12px;
   border-radius: 8px;
   border: 1px solid #b9cbe3;
   background: #fff;
   color: #2c66ab;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   cursor: pointer;
   flex-shrink: 0;
@@ -456,12 +503,12 @@
 
 .sala-drill-overlay {
   position: absolute;
-  inset: 106px 0 56px 0; /* abaixo do cabeçalho, acima do rodapé */
+  inset: 106px 0 64px 0; /* abaixo do cabeçalho, acima do rodapé */
   z-index: 30;
   display: flex;
   align-items: stretch;
   justify-content: center;
-  padding: 18px 40px 16px;
+  padding: 16px 36px 14px;
   animation: sala-drill-fade 180ms ease-out;
   pointer-events: none;
 }
@@ -492,22 +539,22 @@
 }
 .sala-drill-sheet-cabecalho {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 18px 22px 14px;
+  gap: 20px;
+  padding: 16px 24px;
   border-bottom: 1px solid var(--borda);
   background: linear-gradient(180deg, #f4f8fc 0%, #fff 100%);
   flex-shrink: 0;
 }
 .sala-drill-sheet-chip {
   display: inline-block;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: 1.4px;
   text-transform: uppercase;
   color: var(--aion-azul);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 .sala-drill-sheet-heading {
   display: flex;
@@ -526,15 +573,15 @@
   flex-shrink: 0;
 }
 .sala-drill-sheet-qtd {
-  font-size: 48px;
+  font-size: 40px;
   color: var(--aion-azul);
-  margin-top: 2px;
+  margin-top: 0;
 }
 .sala-drill-sheet-lista {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 14px 16px 18px;
+  padding: 16px 18px 20px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -552,7 +599,7 @@
   border: 2px solid #e3eaf3;
 }
 .sala-drill-sheet-lista .sala-linha {
-  grid-template-columns: 140px minmax(0, 1fr) 180px 120px;
+  grid-template-columns: 148px minmax(0, 1fr) 96px;
 }
 .sala-linha-clicavel {
   cursor: pointer;
@@ -565,12 +612,12 @@
 }
 .sala-os-detalhe-overlay {
   position: absolute;
-  inset: 106px 0 56px 0;
+  inset: 106px 0 64px 0;
   z-index: 40;
   display: flex;
   align-items: stretch;
   justify-content: center;
-  padding: 18px 40px 16px;
+  padding: 16px 36px 14px;
   animation: sala-drill-fade 180ms ease-out;
   pointer-events: none;
 }
@@ -661,7 +708,7 @@
 }
 .sala-os-secao-titulo {
   margin: 0 0 6px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: 1.2px;
   text-transform: uppercase;
@@ -692,7 +739,7 @@
 }
 .sala-os-campo-rotulo {
   display: block;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
@@ -709,12 +756,79 @@
 .sala-rodape {
   display: flex;
   align-items: center;
-  gap: 22px;
-  padding: 0 40px;
+  gap: 14px;
+  padding: 0 24px 0 40px;
   color: var(--texto-2);
-  font-size: 18px;
+  font-size: 16px;
   border-top: 1px solid var(--borda);
   background: #fff;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+.sala-rodape-metricas {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  overflow: hidden;
+  flex: 1;
+}
+.sala-rodape-metricas span {
+  white-space: nowrap;
+}
+.sala-rodape-acoes {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.sala-rodape-btn {
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid #b9cbe3;
+  background: #fff;
+  color: #1d4a80;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.sala-rodape-btn:hover,
+.sala-rodape-btn:focus-visible {
+  background: #f4f8fc;
+  outline: 2px solid #2c66ab;
+}
+.sala-rodape-btn.mudo {
+  color: #4e6079;
+  max-width: 440px;
+}
+.sala-rodape-hint {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--aion-azul);
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sala-rodape-progresso {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 8px;
+  background: #e3eaf3;
+}
+.sala-rodape-progresso > i {
+  display: block;
+  height: 8px;
+  background: #2c66ab;
 }
 .sala-rodape b { font-family: var(--fonte-num); color: var(--texto); font-size: 22px; }
 .sala-aviso {

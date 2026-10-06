@@ -54,13 +54,13 @@ export function snapshotDemoAgora(): SalaSnapshot {
     },
     {
       os: "202609655",
-      equipamento: "VENTILADOR PULMONAR",
+      equipamento: "VENTILADOR PULMONAR NEONATAL DE TRANSPORTE",
       tag: "HSJ-00440",
       setor: "UTI NEONATAL",
       situacao: "ATRASADA",
       criticidade: "ALTA",
       idade: "2d 4h",
-      parado: false,
+      parado: true,
       compra: true,
     },
     {
@@ -159,7 +159,7 @@ export function snapshotDemoAgora(): SalaSnapshot {
       }),
       "202609655": detalheDemo({
         os: "202609655",
-        equipamento: "VENTILADOR PULMONAR",
+        equipamento: "VENTILADOR PULMONAR NEONATAL DE TRANSPORTE",
         tag: "HSJ-00440",
         setor: "UTI NEONATAL",
         solicitacao: "Alarme de pressão persistente.",

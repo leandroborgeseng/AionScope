@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { JetBrains_Mono } from "next/font/google";
 import {
   AlertOctagon,
@@ -10,6 +10,8 @@ import {
   ShoppingCart,
   CalendarRange,
   Timer,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import {
   TELAS_SALA,
@@ -21,6 +23,8 @@ import {
   type SalaSnapshot,
   type TelaSala,
 } from "@/lib/ec/snapshot-tipos";
+import { idsOsAbertas, novasOsDesde } from "@/lib/ec/novas-os";
+import { desbloquearSomTv, SALA_SOM_STORAGE, tocarChimeNovaOs } from "@/components/sala-tv/som-nova-os";
 import "@/app/sala/sala.css";
 
 const mono = JetBrains_Mono({
@@ -98,17 +102,10 @@ function Cabecalho({
         <div className="sala-rotulo">{atual.rotulo}</div>
         <div className="sala-titulo">{atual.titulo}</div>
       </div>
-      <nav className="sala-pills" aria-label="Telas">
-        {TELAS_SALA.map((item) => (
-          <a key={item.id} className={item.id === tela ? "sala-pill ativa" : "sala-pill"} href={`/sala/${item.id}`}>
-            {item.label}
-          </a>
-        ))}
-      </nav>
       {drill ? (
         <div className="sala-drill-chip" role="status">
           <span className="sala-drill-chip-texto">
-            selecionado: {drill.titulo}
+            {drill.titulo}
             {drillContagem != null ? ` · ${drillContagem}` : ""}
           </span>
           <button type="button" className="sala-drill-limpar" onClick={onLimparDrill}>
@@ -116,6 +113,13 @@ function Cabecalho({
           </button>
         </div>
       ) : null}
+      <nav className="sala-pills" aria-label="Telas">
+        {TELAS_SALA.map((item) => (
+          <a key={item.id} className={item.id === tela ? "sala-pill ativa" : "sala-pill"} href={`/sala/${item.id}`}>
+            {item.label}
+          </a>
+        ))}
+      </nav>
       <div className="sala-relogio">{relogio}</div>
     </header>
   );
@@ -169,6 +173,7 @@ function LinhaOsTv({
   criticidade,
   idade,
   destaque,
+  nova,
   denso,
   onSelecionar,
 }: {
@@ -182,6 +187,7 @@ function LinhaOsTv({
   criticidade?: string;
   idade?: string;
   destaque?: boolean;
+  nova?: boolean;
   denso?: boolean;
   onSelecionar?: (os: string) => void;
 }) {
@@ -196,6 +202,7 @@ function LinhaOsTv({
     <div
       className={classe}
       data-destaque={destaque ? "1" : undefined}
+      data-nova={nova ? "1" : undefined}
       role={clicavel ? "button" : undefined}
       tabIndex={clicavel ? 0 : undefined}
       onClick={clicavel ? () => onSelecionar?.(os) : undefined}
@@ -214,13 +221,17 @@ function LinhaOsTv({
         {situacao ? <Selo situacao={situacao} /> : <span className="sala-selo sala-selo-vazio">—</span>}
         <small className="sala-numero sala-linha-os">{os}</small>
       </div>
-      <div className="sala-linha-equip">
-        <strong>{equipamento}</strong>
-        <small>
-          {tag} · {setor}
-        </small>
+      <div className="sala-linha-corpo">
+        <div className="sala-linha-equip">
+          <strong>{equipamento}</strong>
+        </div>
+        <div className="sala-linha-sub">
+          <small>
+            {tag} · {setor}
+          </small>
+          <MetaTags parado={parado} compra={compra} criticidade={criticidade} />
+        </div>
       </div>
-      <MetaTags parado={parado} compra={compra} criticidade={criticidade} />
       <span className="sala-numero sala-linha-idade">{idade ?? "—"}</span>
     </div>
   );
@@ -266,13 +277,16 @@ function LinhaEquipTv({
         </span>
         {os ? <small className="sala-numero sala-linha-os">{os}</small> : null}
       </div>
-      <div className="sala-linha-equip">
-        <strong>{equipamento}</strong>
-        <small>
-          {tag} · {setor}
-        </small>
+      <div className="sala-linha-corpo">
+        <div className="sala-linha-equip">
+          <strong>{equipamento}</strong>
+        </div>
+        <div className="sala-linha-sub">
+          <small>
+            {tag} · {setor}
+          </small>
+        </div>
       </div>
-      <span className="sala-meta" />
       <span className="sala-numero sala-linha-idade">{tempo ?? "—"}</span>
     </div>
   );
@@ -462,21 +476,30 @@ function SalaDrillOverlay({
   );
 }
 
+function legendaParque(pct: number | null, valor: number | string, parque: number) {
+  if (pct == null || !parque) return null;
+  const n = typeof valor === "number" ? valor : Number.parseInt(String(valor), 10);
+  if (Number.isFinite(n) && pct < 1) {
+    return `${n.toLocaleString("pt-BR")} de ${parque.toLocaleString("pt-BR")}`;
+  }
+  return `${pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% do parque`;
+}
+
 function TelaAgora({
   dados,
   destaque,
+  novasOs,
   drill,
   onDrill,
   onSelecionarOs,
 }: {
   dados: SalaSnapshot;
   destaque: string | null;
+  novasOs: ReadonlySet<string>;
   drill: SalaDrillSelecao | null;
   onDrill: (id: string, titulo: string) => void;
   onSelecionarOs?: (os: string) => void;
 }) {
-  const formatarPct = (pct: number | null) =>
-    pct == null ? "—" : `${pct.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 1 })}%`;
   const contadores: Array<{
     id: string;
     titulo: string;
@@ -537,6 +560,7 @@ function TelaAgora({
             {contadores.map((item) => {
               const ativo = drill?.id === item.id;
               const Icone = item.icone;
+              const legenda = legendaParque(item.pct, item.valor, dados.agora.parque);
               return (
                 <button
                   key={item.id}
@@ -561,12 +585,14 @@ function TelaAgora({
                     </span>
                   </span>
                   <span className="sala-numero">{item.valor}</span>
-                  <span
-                    className="sala-contador-pct"
-                    title={dados.agora.parque ? `% do parque (${dados.agora.parque} ativos)` : "% do parque indisponível"}
-                  >
-                    {formatarPct(item.pct)}
-                  </span>
+                  {legenda ? (
+                    <span
+                      className="sala-contador-pct"
+                      title={dados.agora.parque ? `Do parque médico ativo (${dados.agora.parque})` : undefined}
+                    >
+                      {legenda}
+                    </span>
+                  ) : null}
                 </button>
               );
             })}
@@ -641,6 +667,7 @@ function TelaAgora({
                 criticidade={item.criticidade}
                 idade={item.idade}
                 destaque={destaque === item.os}
+                nova={novasOs.has(item.os)}
                 onSelecionar={onSelecionarOs}
               />
             ))}
@@ -1408,6 +1435,7 @@ function Conteudo({
   tela,
   dados,
   destaque,
+  novasOs,
   drill,
   onDrill,
   onSelecionarOs,
@@ -1417,6 +1445,7 @@ function Conteudo({
   tela: TelaSala;
   dados: SalaSnapshot;
   destaque: string | null;
+  novasOs: ReadonlySet<string>;
   drill: SalaDrillSelecao | null;
   onDrill: (id: string, titulo: string) => void;
   onSelecionarOs?: (os: string) => void;
@@ -1428,6 +1457,7 @@ function Conteudo({
       <TelaAgora
         dados={dados}
         destaque={destaque}
+        novasOs={novasOs}
         drill={drill}
         onDrill={onDrill}
         onSelecionarOs={onSelecionarOs}
@@ -1453,6 +1483,7 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   const [pausado, setPausado] = useState(false);
   const [progresso, setProgresso] = useState(0);
   const [destaque, setDestaque] = useState<string | null>(null);
+  const [novasOs, setNovasOs] = useState<string[]>([]);
   /** Drill-down Fase 1 (Agora): docs/sala/drill-down-tv.md */
   const [drill, setDrill] = useState<SalaDrillSelecao | null>(null);
   /** Detalhe operacional de uma OS (clique na fila / linha do drill). */
@@ -1460,6 +1491,27 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   const [escala, setEscala] = useState(1);
   const [deslocamento, setDeslocamento] = useState(0);
   const [relogio, setRelogio] = useState("—");
+  const [somLigado, setSomLigado] = useState(false);
+  const [somPronto, setSomPronto] = useState(false);
+  const idsAnterioresRef = useRef<string[] | null>(null);
+  const somLigadoRef = useRef(false);
+  const somProntoRef = useRef(false);
+  const novasTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    somLigadoRef.current = somLigado;
+  }, [somLigado]);
+  useEffect(() => {
+    somProntoRef.current = somPronto;
+  }, [somPronto]);
+
+  useEffect(() => {
+    try {
+      setSomLigado(window.localStorage.getItem(SALA_SOM_STORAGE) === "1");
+    } catch {
+      setSomLigado(false);
+    }
+  }, []);
 
   const limparDrill = useCallback(() => {
     setOsSelecionada(null);
@@ -1471,6 +1523,33 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
     setOsSelecionada(os);
   }, []);
 
+  const persistirSom = useCallback((ligado: boolean) => {
+    setSomLigado(ligado);
+    somLigadoRef.current = ligado;
+    try {
+      window.localStorage.setItem(SALA_SOM_STORAGE, ligado ? "1" : "0");
+    } catch {
+      /* TV sem storage */
+    }
+  }, []);
+
+  const ativarSomPorGesto = useCallback(async () => {
+    const ok = await desbloquearSomTv();
+    setSomPronto(ok);
+    somProntoRef.current = ok;
+    if (ok && window.localStorage.getItem(SALA_SOM_STORAGE) !== "0") {
+      persistirSom(true);
+    }
+    return ok;
+  }, [persistirSom]);
+
+  const alternarSom = useCallback(async () => {
+    const ok = await desbloquearSomTv();
+    setSomPronto(ok);
+    somProntoRef.current = ok;
+    persistirSom(!somLigadoRef.current);
+  }, [persistirSom]);
+
   const carregar = useCallback(async () => {
     try {
       const demo =
@@ -1480,6 +1559,15 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
       });
       if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
       const json = (await resposta.json()) as SalaSnapshot;
+      const ids = idsOsAbertas(json);
+      const novas = novasOsDesde(idsAnterioresRef.current, ids);
+      idsAnterioresRef.current = ids;
+      if (novas.length > 0) {
+        if (somLigadoRef.current && somProntoRef.current) tocarChimeNovaOs();
+        setNovasOs(novas);
+        if (novasTimerRef.current) window.clearTimeout(novasTimerRef.current);
+        novasTimerRef.current = window.setTimeout(() => setNovasOs([]), 12_000);
+      }
       setDados(json);
       setErro(null);
       setFalhaDesde(null);
@@ -1634,6 +1722,9 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
         >
           <div
             className="sala-frame"
+            onPointerDown={() => {
+              if (!somProntoRef.current) void ativarSomPorGesto();
+            }}
             style={{
               transform: `translate(${deslocamento}px, ${deslocamento}px) scale(${escala})`,
             }}
@@ -1657,6 +1748,7 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
                     tela={tela}
                     dados={dados}
                     destaque={destaque}
+                    novasOs={new Set(novasOs)}
                     drill={drill}
                     onDrill={selecionarDrill}
                     onSelecionarOs={selecionarOs}
@@ -1711,25 +1803,40 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
           ) : null}
           <footer className="sala-rodape">
             {dados ? (
-              <>
+              <div className="sala-rodape-metricas">
                 <span>hoje <b>{dados.agora.hojeAbertas}</b>↑ <b>{dados.agora.hojeFechadas}</b>↓</span>
                 <span>semana <b>{dados.agora.semanaAbertas}</b>↑ <b>{dados.agora.semanaFechadas}</b>↓</span>
                 <span>1º at. 30d <b>{dados.agora.primeiroNoPrazo30d == null ? "—" : `${dados.agora.primeiroNoPrazo30d}%`}</b></span>
                 <span>TMEF 30d <b>{dados.agora.tpm30d == null ? "—" : `${dados.agora.tpm30d}h`}</b></span>
                 <span>críticos <b>{dados.agora.disponibilidadeCriticos == null ? "—" : `${dados.agora.disponibilidadeCriticos}%`}</b></span>
-                <span style={{ marginLeft: "auto" }}>
+                <span>
                   {atualizadoHaMin == null ? "" : `atualizado há ${atualizadoHaMin} min`}
-                  {erro ? ` · sem conexão desde agora (${erro})` : ""}
+                  {erro ? ` · sem conexão (${erro})` : ""}
                 </span>
-              </>
-            ) : <span>sala</span>}
-            {telaFixa ? null : (
-              <button type="button" onClick={() => setPausado((atual) => !atual)} style={{ minHeight: 44, marginLeft: 12 }}>
-                {pausado ? "continuar" : "pausar"} · próxima: {proximaLabel} em 0:{String(restante).padStart(2, "0")}
-              </button>
+              </div>
+            ) : (
+              <span>sala</span>
             )}
-            <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 8, background: "#E3EAF3" }}>
-              <div style={{ width: `${(telaFixa ? 0 : progresso) * 100}%`, height: 8, background: "#2C66AB" }} />
+            <div className="sala-rodape-acoes">
+              <button
+                type="button"
+                className={somLigado && somPronto ? "sala-rodape-btn" : "sala-rodape-btn mudo"}
+                onPointerDown={(evento) => evento.stopPropagation()}
+                onClick={() => void alternarSom()}
+                aria-pressed={somLigado && somPronto}
+                title={somLigado && somPronto ? "Silenciar alertas de nova OS" : "Ativar som de nova OS"}
+              >
+                {somLigado && somPronto ? <Volume2 size={20} strokeWidth={2.2} aria-hidden /> : <VolumeX size={20} strokeWidth={2.2} aria-hidden />}
+                {somLigado && somPronto ? "Som ligado" : "Som: toque para ativar alertas de nova OS"}
+              </button>
+              {telaFixa ? null : (
+                <button type="button" className="sala-rodape-btn" onClick={() => setPausado((atual) => !atual)}>
+                  {pausado ? "continuar" : "pausar"} · próxima: {proximaLabel} em 0:{String(restante).padStart(2, "0")}
+                </button>
+              )}
+            </div>
+            <div className="sala-rodape-progresso" aria-hidden>
+              <i style={{ width: `${(telaFixa ? 0 : progresso) * 100}%` }} />
             </div>
           </footer>
           </div>

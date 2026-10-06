@@ -103,7 +103,7 @@ export type SalaSnapshot = {
     parados: number | null;
     /** Parque médico ativo (mesmo filtro de ciclo/indicadores: isEquipamentoMedico + Status ATIVO). */
     parque: number;
-    /** % sobre o parque; null se parque=0 ou contagem indisponível. 1 casa decimal. */
+    /** % sobre o parque (1 casa). Na TV, <1% vira “n de parque” para não mostrar 0,3%. */
     gravePct: number | null;
     foraDoPrazoPct: number | null;
     semPrimeiroPct: number | null;
