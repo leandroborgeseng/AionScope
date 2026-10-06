@@ -141,7 +141,7 @@ Legenda de prontidão:
 |---|---|---|---|
 | Trilha (em uso, inservível…) | `ciclo.trilha.{etapa}` | Equipamentos da etapa | ⚠️ Contagens; listas parciais (`fimDeVida`, `maisAntigos`) |
 | Histograma idade | `ciclo.idade.{faixa}` | Tags na faixa | ❌ Só agregados; montar arrays |
-| Barras previsão EOL / em ciclo / vencem 5 anos | `ciclo.eol.{ano}` | Tags com EndOfLife naquele ano | ❌ Só contagens |
+| Barras previsão EOL / em ciclo / vencem 5 anos | `ciclo.eol.{ano}` | Tags com EndOfLife naquele ano | ✅ `previsaoEol[].itens` no snapshot; overlay TV |
 | Lista fim de vida | — | — | ➖ Já detalhe (top 8) |
 
 ### 3.7 Indicadores

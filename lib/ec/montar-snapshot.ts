@@ -435,10 +435,11 @@ export function montarSnapshotDeDados(
   let valorFimDeVida = 0;
   let emCiclo = 0;
   const anoAtual = agora.getFullYear();
-  /** Horizonte TV: ano corrente+1 … +10 (10 buckets). */
-  const previsaoEol = Array.from({ length: 10 }, (_, index) => ({
+  /** Horizonte TV: ano corrente+1 … +10 (10 buckets) + itens para drill. */
+  const previsaoEol: SalaSnapshot["ciclo"]["previsaoEol"] = Array.from({ length: 10 }, (_, index) => ({
     ano: String(anoAtual + index + 1),
     quantidade: 0,
+    itens: [],
   }));
   const limite10Anos = new Date(anoAtual + 10, 11, 31, 23, 59, 59, 999);
 
@@ -457,7 +458,16 @@ export function montarSnapshotDeDados(
     if (fim && agora.getTime() < fim.getTime() && fim.getTime() <= limite10Anos.getTime()) {
       const anoFim = fim.getFullYear();
       const slot = previsaoEol.find((itemAno) => Number(itemAno.ano) === anoFim);
-      if (slot) slot.quantidade += 1;
+      if (slot) {
+        slot.quantidade += 1;
+        slot.itens.push({
+          tag: texto(item.Tag) || "—",
+          equipamento: texto(item.Equipamento) || "—",
+          setor: texto(item.Setor) || "—",
+          data: format(fim, "dd/MM/yyyy"),
+          valorSubstituicao: valor > 0 ? formatoMoeda(valor) : "—",
+        });
+      }
     }
     if (idadeAnos != null) {
       const bucket = faixasIdade.findIndex((faixa) => idadeAnos >= faixa.min && idadeAnos <= faixa.max + 0.999);
@@ -492,6 +502,9 @@ export function montarSnapshotDeDados(
   }
   fimDeVida.sort((a, b) => b.pontos - a.pontos || a.tag.localeCompare(b.tag));
   maisAntigos.sort((a, b) => a.ms - b.ms);
+  for (const slot of previsaoEol) {
+    slot.itens.sort((a, b) => a.equipamento.localeCompare(b.equipamento, "pt-BR") || a.tag.localeCompare(b.tag));
+  }
   const vencem10Anos = previsaoEol.reduce((soma, item) => soma + item.quantidade, 0);
   const vencem5Anos = previsaoEol.slice(0, 5).reduce((soma, item) => soma + item.quantidade, 0);
 

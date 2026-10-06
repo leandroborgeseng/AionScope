@@ -210,9 +210,21 @@ export type SalaSnapshot = {
     vencem10Anos: number;
     /**
      * Quantidade por ano de fim de vida no horizonte de 10 anos
-     * (ano corrente + 1 até corrente + 10).
+     * (ano corrente + 1 até corrente + 10), com itens para drill TV.
      */
-    previsaoEol: Array<{ ano: string; quantidade: number }>;
+    previsaoEol: Array<{
+      ano: string;
+      quantidade: number;
+      /** Equipamentos cujo EndOfLife cai neste ano (drill `ciclo.eol.{ano}`). */
+      itens: Array<{
+        tag: string;
+        equipamento: string;
+        setor: string;
+        /** EndOfLife formatado dd/MM/yyyy. */
+        data: string;
+        valorSubstituicao: string;
+      }>;
+    }>;
   };
   indicadores: {
     meses: string[];
