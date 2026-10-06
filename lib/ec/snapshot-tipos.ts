@@ -204,9 +204,14 @@ export type SalaSnapshot = {
     maisAntigos: Array<{ tag: string; equipamento: string; idade: string; fim: string }>;
     /** Ativos ainda dentro do EndOfLife (hoje < fim de vida). */
     emCiclo: number;
-    /** Ativos cujo EndOfLife cai nos próximos 5 anos (ano civil corrente + 4). */
+    /** Ativos cujo EndOfLife cai nos próximos 5 anos (ano corrente+1 … +5). */
     vencem5Anos: number;
-    /** Quantidade por ano de fim de vida nos próximos 5 anos. */
+    /** Ativos cujo EndOfLife cai no horizonte de 10 anos (ano corrente+1 … +10). */
+    vencem10Anos: number;
+    /**
+     * Quantidade por ano de fim de vida no horizonte de 10 anos
+     * (ano corrente + 1 até corrente + 10).
+     */
     previsaoEol: Array<{ ano: string; quantidade: number }>;
   };
   indicadores: {
