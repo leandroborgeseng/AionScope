@@ -1114,13 +1114,225 @@ function TelaProcessos({ dados }: { dados: SalaSnapshot }) {
 /** Linhas por página na TV 1920×1080 (cabeçalho + KPIs + banner). */
 const COMPRAS_POR_PAGINA = 7;
 const GRID_COMPRAS =
-  "110px 120px minmax(0,1.2fr) 88px 88px 100px 90px 64px 140px 128px";
+  "110px 120px minmax(0,1.2fr) 88px 88px 100px 132px 64px 140px 128px";
+
+type OsSugestaoTv = {
+  os: string;
+  equipamento: string;
+  tag: string;
+  setor: string;
+  situacao: string;
+  etapa: string;
+};
 
 function tomSituacaoCompras(situacao: string) {
   if (situacao.includes("cobrar")) return "#A3123A";
   if (situacao.includes("aguarda resposta")) return "#8A5A00";
   if (situacao.includes("aguarda entrega")) return "#2C66AB";
   return "#3E7A1E";
+}
+
+function exibirNumeroOs(valor: string | undefined | null) {
+  const t = (valor ?? "").trim();
+  return t || "—";
+}
+
+function valorEditavelOs(valor: string | undefined | null) {
+  const t = (valor ?? "").trim();
+  return t === "—" ? "" : t;
+}
+
+function CelulaOsEditavel({
+  numeroOrdem,
+  valor,
+  desabilitado,
+  onInteragir,
+  onSalvo,
+  onFimEdicao,
+}: {
+  numeroOrdem: string;
+  valor: string;
+  desabilitado?: boolean;
+  onInteragir?: () => void;
+  onSalvo: (numeroOs: string) => void | Promise<void>;
+  onFimEdicao?: () => void;
+}) {
+  const [editando, setEditando] = useState(false);
+  const [rascunho, setRascunho] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [sugestoes, setSugestoes] = useState<OsSugestaoTv[]>([]);
+  const [buscando, setBuscando] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const caixaRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<number | null>(null);
+  const ignorarBlurRef = useRef(false);
+
+  const valorAtual = valorEditavelOs(valor);
+
+  useEffect(() => {
+    if (!editando) return;
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, [editando]);
+
+  useEffect(() => {
+    if (!editando) return;
+    if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    debounceRef.current = window.setTimeout(() => {
+      void (async () => {
+        setBuscando(true);
+        try {
+          const resposta = await fetch(
+            `/api/sala/os-abertas?q=${encodeURIComponent(rascunho.trim())}&limit=8`,
+            { cache: "no-store" },
+          );
+          if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
+          const json = (await resposta.json()) as { itens?: OsSugestaoTv[] };
+          setSugestoes(json.itens ?? []);
+        } catch {
+          setSugestoes([]);
+        } finally {
+          setBuscando(false);
+        }
+      })();
+    }, 280);
+    return () => {
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    };
+  }, [editando, rascunho]);
+
+  const iniciarEdicao = () => {
+    if (desabilitado || salvando) return;
+    onInteragir?.();
+    setErro(null);
+    setRascunho(valorAtual);
+    setSugestoes([]);
+    setEditando(true);
+  };
+
+  const cancelar = () => {
+    setEditando(false);
+    setErro(null);
+    setSugestoes([]);
+    setRascunho(valorAtual);
+    onFimEdicao?.();
+  };
+
+  const salvar = async (valorFinal?: string) => {
+    if (salvando) return;
+    const numeroOs = (valorFinal ?? rascunho).trim();
+    if (numeroOs === valorAtual) {
+      cancelar();
+      return;
+    }
+    onInteragir?.();
+    setSalvando(true);
+    setErro(null);
+    try {
+      const resposta = await fetch("/api/sala/ordens-compra", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          numero_ordem: numeroOrdem,
+          numero_os: numeroOs || null,
+        }),
+      });
+      if (!resposta.ok) {
+        const json = (await resposta.json().catch(() => null)) as { message?: string; erro?: string } | null;
+        throw new Error(json?.message ?? json?.erro ?? `HTTP ${resposta.status}`);
+      }
+      setEditando(false);
+      setSugestoes([]);
+      await onSalvo(numeroOs);
+    } catch (falha) {
+      setErro(falha instanceof Error ? falha.message : "falha ao salvar OS");
+      window.setTimeout(() => inputRef.current?.focus(), 0);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  if (!editando) {
+    return (
+      <button
+        type="button"
+        className="sala-compras-os-btn"
+        disabled={desabilitado}
+        title="Clique para editar o nº da OS"
+        onClick={iniciarEdicao}
+      >
+        <span className="sala-numero" style={{ fontSize: 17 }}>
+          {exibirNumeroOs(valor)}
+        </span>
+      </button>
+    );
+  }
+
+  return (
+    <div ref={caixaRef} className="sala-compras-os-editar">
+      <input
+        ref={inputRef}
+        className="sala-compras-os-input"
+        value={rascunho}
+        disabled={salvando}
+        placeholder="nº OS…"
+        autoComplete="off"
+        aria-label={`Editar OS da OC ${numeroOrdem}`}
+        onChange={(e) => setRascunho(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            void salvar();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            cancelar();
+          }
+        }}
+        onBlur={() => {
+          if (ignorarBlurRef.current || salvando) return;
+          void salvar();
+        }}
+      />
+      {salvando ? <span className="sala-compras-os-status">salvando…</span> : null}
+      {erro ? <span className="sala-compras-os-erro">{erro}</span> : null}
+      {!salvando ? (
+        <div className="sala-compras-os-sugestoes">
+          {buscando ? (
+            <p className="sala-compras-os-sugestao-vazio">Buscando OS…</p>
+          ) : sugestoes.length === 0 ? (
+            <p className="sala-compras-os-sugestao-vazio">
+              Digite e Enter para salvar · Esc cancela
+            </p>
+          ) : (
+            <ul>
+              {sugestoes.map((item) => (
+                <li key={item.os}>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      ignorarBlurRef.current = true;
+                    }}
+                    onClick={() => {
+                      setRascunho(item.os);
+                      ignorarBlurRef.current = false;
+                      void salvar(item.os);
+                    }}
+                  >
+                    <span className="sala-numero">{item.os}</span>
+                    <span>
+                      {item.equipamento} · {item.tag}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function TelaCompras({
@@ -1138,6 +1350,8 @@ function TelaCompras({
   const [confirmando, setConfirmando] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [erroEntrega, setErroEntrega] = useState<string | null>(null);
+  const [osLocal, setOsLocal] = useState<Record<string, string>>({});
+  const [editandoOs, setEditandoOs] = useState(false);
 
   const pedidosVisiveis = c.pedidos.filter((p) => !ocultas.includes(p.numeroOrdem));
   const totalPaginas = Math.max(1, Math.ceil(pedidosVisiveis.length / COMPRAS_POR_PAGINA));
@@ -1193,6 +1407,9 @@ function TelaCompras({
     }
     setConfirmando(numeroOrdem);
   };
+
+  const osDaLinha = (pedido: { numeroOrdem: string; numeroOs: string }) =>
+    osLocal[pedido.numeroOrdem] ?? pedido.numeroOs;
 
   return (
     <div className="sala-coluna" style={{ flex: 1, minHeight: 0 }}>
@@ -1272,7 +1489,7 @@ function TelaCompras({
             ORDENS FORMAIS · ROBÔ E-MAILS COMPRAS
           </div>
           <div style={{ fontSize: 17, color: "#1D4A80" }}>
-            Marque entrega nesta TV (dois toques) ou edite OS/categoria em{" "}
+            Clique no nº da OS para editar · marque entrega (dois toques) · detalhes em{" "}
             <a href="/sala/ordens-compra" style={{ fontWeight: 700, color: "#2C66AB", textDecoration: "underline" }}>
               /sala/ordens-compra
             </a>
@@ -1376,7 +1593,24 @@ function TelaCompras({
                     <span className="sala-numero" style={{ fontSize: 17 }}>{pedido.dataPedido}</span>
                     <span className="sala-numero" style={{ fontSize: 17 }}>{pedido.dataOrdem}</span>
                     <span style={{ fontSize: 16 }}>{pedido.valor}</span>
-                    <span className="sala-numero" style={{ fontSize: 17 }}>{pedido.numeroOs}</span>
+                    <CelulaOsEditavel
+                      numeroOrdem={pedido.numeroOrdem}
+                      valor={osDaLinha(pedido)}
+                      desabilitado={Boolean(busy)}
+                      onInteragir={() => {
+                        tocar();
+                        setEditandoOs(true);
+                      }}
+                      onFimEdicao={() => setEditandoOs(false)}
+                      onSalvo={async (numeroOs) => {
+                        setOsLocal((atual) => ({
+                          ...atual,
+                          [pedido.numeroOrdem]: numeroOs.trim() || "—",
+                        }));
+                        setEditandoOs(false);
+                        await onAtualizar?.();
+                      }}
+                    />
                     <span className="sala-numero" style={{ fontSize: 22, textAlign: "right", color: tom }}>
                       {pedido.paradoDias}d
                     </span>
@@ -1387,7 +1621,7 @@ function TelaCompras({
                       <button
                         type="button"
                         className={`sala-compras-btn-entrega${emConfirmacao ? " confirmar" : ""}`}
-                        disabled={Boolean(busy)}
+                        disabled={Boolean(busy) || editandoOs}
                         onClick={() => cliqueEntrega(pedido.numeroOrdem)}
                       >
                         {carregando ? "…" : emConfirmacao ? "Confirmar?" : "Entregue"}
