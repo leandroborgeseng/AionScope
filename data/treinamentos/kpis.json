@@ -1,0 +1,28 @@
+{
+ "atualizado_em": "2026-10-06",
+ "treinamento": "Bombas de infusão B. Braun",
+ "anos": [
+  {
+   "ano": 2025,
+   "treinados": 434,
+   "horas_homem": 181,
+   "horas_homem_estimado": true
+  },
+  {
+   "ano": 2026,
+   "treinados": 294,
+   "horas_homem": 147.0,
+   "horas_homem_estimado": false
+  }
+ ],
+ "variacao_treinados_pct": -32.3,
+ "reciclados_2026": 207,
+ "taxa_reciclagem_geral_pct": 47.7,
+ "novos_2026": 87,
+ "taxa_novos_2026_pct": 29.6,
+ "faixas_reciclagem": {
+  "ok": ">=60",
+  "atencao": "40-59",
+  "critico": "<40"
+ }
+}

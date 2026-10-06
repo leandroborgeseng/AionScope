@@ -34,6 +34,7 @@ const SEQUENCIA_PADRAO: TelaSala[] = [
   "agora",
   "ciclo-de-vida",
   "indicadores",
+  "treinamentos",
   "processos",
 ];
 

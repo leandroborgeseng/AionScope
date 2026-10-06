@@ -38,6 +38,12 @@ export const INDICADORES = [
     label: "% 1º atendimento × criticidade",
     blurb: "SLA QMentum por faixa do parque (Crítico / Semicrítico / Não crítico) em horas úteis. Evento = DataDoAtendimento.",
   },
+  {
+    href: "/indicadores/treinamentos-bombas",
+    label: "Treinamentos · bombas B. Braun",
+    blurb:
+      "Listas 2025/2026, taxa de reciclagem por setor, horas·homem e composição da turma. PDFs de evidência com acesso restrito (LGPD).",
+  },
 ] as const;
 
 export const CADASTROS_HUB_HREF = "/cadastros";

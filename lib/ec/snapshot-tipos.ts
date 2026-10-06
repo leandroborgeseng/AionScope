@@ -10,6 +10,7 @@ export type TelaSala =
   | "programadas"
   | "ciclo-de-vida"
   | "indicadores"
+  | "treinamentos"
   | "processos";
 
 export const TELAS_SALA: Array<{ id: TelaSala; label: string; rotulo: string; titulo: string }> = [
@@ -20,6 +21,7 @@ export const TELAS_SALA: Array<{ id: TelaSala; label: string; rotulo: string; ti
   { id: "programadas", label: "Programadas", rotulo: "P02 · PLANO DO MÊS", titulo: "Programadas" },
   { id: "ciclo-de-vida", label: "Ciclo de vida", rotulo: "P03 · PARQUE", titulo: "Ciclo de vida" },
   { id: "indicadores", label: "Indicadores", rotulo: "MÊS E SEIS MESES", titulo: "Indicadores" },
+  { id: "treinamentos", label: "Treinamentos", rotulo: "BOMBAS B. BRAUN", titulo: "Treinamentos" },
   { id: "processos", label: "Processos", rotulo: "MAPEAMENTO EC", titulo: "Processos" },
 ];
 
