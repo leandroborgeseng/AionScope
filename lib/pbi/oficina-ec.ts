@@ -1,18 +1,20 @@
 /**
  * Oficinas de Engenharia Clínica (SJH / GlobalThings).
- * Allowlist explícita com base na listagem_analitica_das_os (amostra DoisAnosAtuais).
+ * Allowlist explícita (equals, normalizado) para Sala TV, snapshot EC e filas EC-only.
  *
- * Aceitos (equals, normalizado): OFICINA GERAL, ENGENHARIA CLÍNICA,
- * CALIBRAÇÃO DE EQUIPAMENTOS, INSTRUMENTAL, PREVENTIVA EQUIPAMENTOS,
- * SEGURANÇA ELÉTRICA, MOVIMENTAÇÃO EQUIPAMENTOS, ELETRÔNICA.
+ * Aceitos: ENGENHARIA CLÍNICA (e alias EC), CALIBRAÇÃO DE EQUIPAMENTOS,
+ * INSTRUMENTAL, PREVENTIVA EQUIPAMENTOS, SEGURANÇA ELÉTRICA,
+ * MOVIMENTAÇÃO EQUIPAMENTOS, ELETRÔNICA.
  *
- * Rejeitados na amostra: REFRIGERAÇÃO, CIVIL/ OBRAS, PREVENTIVAS (MANUTENÇÃO),
- * TAPEÇARIA, TELAS MOSQUITEIRAS, ANTECIPAÇÃO DOS SERVIÇOS (MANUTENÇÃO).
+ * Excluídos de propósito: OFICINA GERAL e demais oficinas prediais/geral
+ * (REFRIGERAÇÃO, CIVIL/OBRAS, PREVENTIVAS (MANUTENÇÃO), TAPEÇARIA, etc.).
+ * "GERAL" no nome normalizado é rejeitado mesmo se cair na allowlist por engano.
  */
 
+/** Valores já normalizados (sem acento, upper, trim) — equals exato. */
 export const OFICINAS_EC_ALLOWLIST = [
-  "OFICINA GERAL",
   "ENGENHARIA CLINICA",
+  "EC",
   "CALIBRACAO DE EQUIPAMENTOS",
   "INSTRUMENTAL",
   "PREVENTIVA EQUIPAMENTOS",
@@ -23,8 +25,8 @@ export const OFICINAS_EC_ALLOWLIST = [
 
 /** Nomes exibidos no rodapé / documentação (com acento, como na API). */
 export const OFICINAS_EC_LABELS = [
-  "OFICINA GERAL",
   "ENGENHARIA CLÍNICA",
+  "EC",
   "CALIBRAÇÃO DE EQUIPAMENTOS",
   "INSTRUMENTAL",
   "PREVENTIVA EQUIPAMENTOS",
@@ -33,7 +35,14 @@ export const OFICINAS_EC_LABELS = [
   "ELETRÔNICA",
 ] as const;
 
+/** Equals normalizado — nunca entram no recorte EC (manutenção geral / predial). */
+export const OFICINAS_EC_DENYLIST = [
+  "OFICINA GERAL",
+  "GERAL",
+] as const;
+
 const OFICINAS_EC_SET = new Set<string>(OFICINAS_EC_ALLOWLIST);
+const OFICINAS_EC_DENY_SET = new Set<string>(OFICINAS_EC_DENYLIST);
 
 export function normalizeOficina(value: string | null | undefined) {
   return (value ?? "")
@@ -43,12 +52,18 @@ export function normalizeOficina(value: string | null | undefined) {
     .trim();
 }
 
-/** Equals (normalizado) contra a allowlist de oficinas EC. */
+/**
+ * Equals (normalizado) contra a allowlist de oficinas EC.
+ * Rejeita nomes com "GERAL" (ex.: OFICINA GERAL) e a denylist explícita.
+ */
 export function isOficinaEngenhariaClinica(oficina: string | null | undefined) {
   const v = normalizeOficina(oficina);
   if (!v) return false;
+  if (OFICINAS_EC_DENY_SET.has(v)) return false;
+  // Blindagem: qualquer oficina com "GERAL" no nome (ex.: OFICINA GERAL) fica de fora.
+  if (v.includes("GERAL")) return false;
   return OFICINAS_EC_SET.has(v);
 }
 
 export const OFICINA_EC_REGRA_RESUMO =
-  `somente oficinas de Engenharia Clínica (equals): ${OFICINAS_EC_LABELS.join(", ")}`;
+  `somente oficinas de Engenharia Clínica (equals; exclui Oficina Geral): ${OFICINAS_EC_LABELS.join(", ")}`;
