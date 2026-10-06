@@ -402,6 +402,74 @@ function SalaOsDetalhePainel({
   );
 }
 
+type CicloEolItem = SalaSnapshot["ciclo"]["previsaoEol"][number]["itens"][number];
+
+function isCicloEolDrill(id: string): boolean {
+  return /^ciclo\.eol\.\d{4}$/.test(id);
+}
+
+function itensCicloEol(dados: SalaSnapshot, drillId: string): CicloEolItem[] {
+  const match = /^ciclo\.eol\.(\d{4})$/.exec(drillId);
+  if (!match) return [];
+  const bucket = dados.ciclo.previsaoEol.find((item) => item.ano === match[1]);
+  return bucket?.itens ?? [];
+}
+
+function SalaCicloAnoOverlay({
+  drill,
+  itens,
+  onLimpar,
+}: {
+  drill: SalaDrillSelecao;
+  itens: CicloEolItem[];
+  onLimpar: () => void;
+}) {
+  return (
+    <div className="sala-drill-overlay" role="dialog" aria-modal="true" aria-label={`Detalhe: ${drill.titulo}`}>
+      <button type="button" className="sala-drill-backdrop" onClick={onLimpar} aria-label="Fechar detalhe" />
+      <div className="sala-drill-sheet sala-ciclo-ano-sheet">
+        <div className="sala-drill-sheet-cabecalho">
+          <div className="sala-drill-sheet-titulo">
+            <span className="sala-drill-sheet-chip">selecionado</span>
+            <div className="sala-drill-sheet-heading">
+              <span className="sala-drill-sheet-icone" aria-hidden>
+                <CalendarRange size={32} strokeWidth={2.2} />
+              </span>
+              <div>
+                <div className="sala-rotulo-bloco">{drill.titulo}</div>
+                <div className="sala-numero sala-drill-sheet-qtd">{itens.length}</div>
+              </div>
+            </div>
+          </div>
+          <button type="button" className="sala-drill-limpar sala-drill-fechar" onClick={onLimpar}>
+            Fechar · Esc
+          </button>
+        </div>
+        <div className="sala-ciclo-ano-cabeca" aria-hidden>
+          <span>Equipamento</span>
+          <span>EOL</span>
+          <span>Valor</span>
+        </div>
+        <div className="sala-drill-sheet-lista sala-ciclo-ano-lista">
+          {itens.length === 0 ? <p className="sala-vazio">Nenhum equipamento com fim de vida neste ano.</p> : null}
+          {itens.map((item) => (
+            <div key={item.tag} className="sala-ciclo-ano-linha">
+              <div className="sala-ciclo-ano-linha-txt">
+                <strong>{item.equipamento}</strong>
+                <small>
+                  {item.tag} · {item.setor}
+                </small>
+              </div>
+              <span className="sala-numero sala-ciclo-ano-data">{item.data}</span>
+              <span className="sala-numero sala-ciclo-ano-valor">{item.valorSubstituicao}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SalaDrillOverlay({
   drill,
   linhas,
@@ -796,16 +864,25 @@ function TelaAviso({ titulo, texto }: { titulo: string; texto: string }) {
   );
 }
 
-function TelaCiclo({ dados }: { dados: SalaSnapshot }) {
+function TelaCiclo({
+  dados,
+  drill,
+  onDrill,
+}: {
+  dados: SalaSnapshot;
+  drill: SalaDrillSelecao | null;
+  onDrill: (id: string, titulo: string) => void;
+}) {
   const ciclo = dados.ciclo;
   const previsao = ciclo.previsaoEol;
   const maxPrevisao = Math.max(1, ...previsao.map((item) => item.quantidade));
   const maximoIdade = Math.max(1, ...ciclo.histograma.map((faixa) => faixa.emVida + faixa.alem));
   const proximoAno = previsao[0];
   const vencem10 = ciclo.vencem10Anos ?? previsao.reduce((s, i) => s + i.quantidade, 0);
+  const drillAtivo = Boolean(drill && isCicloEolDrill(drill.id));
 
   return (
-    <div className="sala-ciclo">
+    <div className={drillAtivo ? "sala-ciclo com-drill" : "sala-ciclo"}>
       <section className="sala-ciclo-hero" aria-label="Horizonte de 10 anos">
         <div className="sala-ciclo-hero-topo">
           <div className="sala-ciclo-hero-titulo">
@@ -814,7 +891,7 @@ function TelaCiclo({ dados }: { dados: SalaSnapshot }) {
               <div className="sala-rotulo-bloco">HORIZONTE · 10 ANOS</div>
             </div>
             <p className="sala-ciclo-hero-sub">
-              Equipamentos ativos com EndOfLife no próximo ano e nos nove seguintes.
+              Clique em um ano para ver os equipamentos com EndOfLife naquele período.
             </p>
           </div>
           <div className="sala-ciclo-resumo">
@@ -838,22 +915,29 @@ function TelaCiclo({ dados }: { dados: SalaSnapshot }) {
           </div>
         </div>
 
-        <div className="sala-ciclo-barras" role="img" aria-label="Previsão de fim de vida por ano">
+        <div className="sala-ciclo-barras" role="list" aria-label="Previsão de fim de vida por ano — clique para filtrar">
           {previsao.map((item, index) => {
             const urgencia = index < 3;
             const altura = item.quantidade
               ? Math.max(12, Math.round((item.quantidade / maxPrevisao) * 100))
               : 4;
+            const drillId = `ciclo.eol.${item.ano}`;
+            const ativo = drill?.id === drillId;
             return (
-              <div
+              <button
                 key={item.ano}
-                className={`sala-ciclo-barra-col${urgencia ? " urgente" : ""}${item.quantidade ? "" : " vazia"}`}
+                type="button"
+                role="listitem"
+                className={`sala-ciclo-barra-col${urgencia ? " urgente" : ""}${item.quantidade ? "" : " vazia"}${ativo ? " ativo" : ""}${drillAtivo && !ativo ? " dim" : ""}`}
                 style={
                   {
                     "--atraso": `${index * 45}ms`,
                     "--altura": `${altura}%`,
                   } as CSSProperties
                 }
+                aria-pressed={ativo}
+                aria-label={`Ano ${item.ano}, ${item.quantidade} equipamentos`}
+                onClick={() => onDrill(drillId, `Ano ${item.ano}`)}
               >
                 <span className="sala-numero sala-ciclo-barra-qtd">
                   {item.quantidade || "·"}
@@ -862,7 +946,7 @@ function TelaCiclo({ dados }: { dados: SalaSnapshot }) {
                   <div className="sala-ciclo-barra-fill" />
                 </div>
                 <span className="sala-ciclo-barra-ano">{item.ano}</span>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -1706,7 +1790,9 @@ function Conteudo({
     );
   }
   if (tela === "programadas") return <TelaProgramadas dados={dados} />;
-  if (tela === "ciclo-de-vida") return <TelaCiclo dados={dados} />;
+  if (tela === "ciclo-de-vida") {
+    return <TelaCiclo dados={dados} drill={drill} onDrill={onDrill} />;
+  }
   if (tela === "indicadores") return <TelaIndicadores dados={dados} />;
   return <TelaProcessos dados={dados} />;
 }
@@ -1963,7 +2049,17 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   const proxima = sequencia[(indice + 1) % sequencia.length];
   const proximaLabel = TELAS_SALA.find((item) => item.id === proxima)?.label ?? proxima;
   const restante = Math.max(0, Math.ceil((1 - progresso) * segundos));
-  const drillLinhas = drill ? (dados?.detalhes?.[drill.id] ?? []) : [];
+  const drillLinhas = drill
+    ? isCicloEolDrill(drill.id)
+      ? []
+      : (dados?.detalhes?.[drill.id] ?? [])
+    : [];
+  const cicloItens = drill && dados && isCicloEolDrill(drill.id) ? itensCicloEol(dados, drill.id) : [];
+  const drillContagem = drill
+    ? isCicloEolDrill(drill.id)
+      ? cicloItens.length
+      : drillLinhas.length
+    : undefined;
   const osDetalhe = osSelecionada ? (dados?.osDetalhes?.[osSelecionada] ?? null) : null;
 
   return (
@@ -1990,7 +2086,7 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
             tela={tela}
             relogio={relogio}
             drill={drill}
-            drillContagem={drill ? drillLinhas.length : undefined}
+            drillContagem={drillContagem}
             onLimparDrill={limparDrill}
           />
           <div className="sala-miolo">
@@ -2015,7 +2111,10 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
               </div>
             </div>
           </div>
-          {drill && !osDetalhe ? (
+          {drill && !osDetalhe && isCicloEolDrill(drill.id) ? (
+            <SalaCicloAnoOverlay drill={drill} itens={cicloItens} onLimpar={limparDrill} />
+          ) : null}
+          {drill && !osDetalhe && !isCicloEolDrill(drill.id) ? (
             <SalaDrillOverlay
               drill={drill}
               linhas={drillLinhas}

@@ -1178,6 +1178,43 @@
   justify-content: flex-end;
   gap: 8px;
   min-width: 0;
+  margin: 0;
+  padding: 8px 4px 4px;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  transition: border-color 160ms ease, background 160ms ease, opacity 160ms ease, transform 160ms ease;
+}
+
+.sala-ciclo-barra-col:hover,
+.sala-ciclo-barra-col:focus-visible {
+  outline: none;
+  background: rgba(44, 102, 171, 0.06);
+  border-color: rgba(44, 102, 171, 0.28);
+}
+
+.sala-ciclo-barra-col.urgente:hover,
+.sala-ciclo-barra-col.urgente:focus-visible {
+  background: rgba(217, 98, 15, 0.07);
+  border-color: rgba(217, 98, 15, 0.32);
+}
+
+.sala-ciclo-barra-col.ativo {
+  background: rgba(44, 102, 171, 0.1);
+  border-color: var(--aion-azul);
+  transform: translateY(-2px);
+}
+
+.sala-ciclo-barra-col.urgente.ativo {
+  background: rgba(217, 98, 15, 0.1);
+  border-color: var(--atrasada);
+}
+
+.sala-ciclo.com-drill .sala-ciclo-barra-col.dim {
+  opacity: 0.42;
 }
 
 .sala-ciclo-barra-qtd {
@@ -1200,6 +1237,7 @@
   border-radius: 10px 10px 6px 6px;
   background: linear-gradient(180deg, rgba(227, 234, 243, 0.35), var(--trilho));
   overflow: hidden;
+  pointer-events: none;
 }
 
 .sala-ciclo-barra-fill {
@@ -1232,6 +1270,86 @@
 
 .sala-ciclo-barra-col.urgente .sala-ciclo-barra-ano {
   color: var(--atrasada);
+}
+
+.sala-ciclo-barra-col.ativo .sala-ciclo-barra-ano {
+  color: var(--aion-azul);
+}
+
+.sala-ciclo-barra-col.urgente.ativo .sala-ciclo-barra-ano {
+  color: var(--atrasada);
+}
+
+.sala-ciclo-ano-sheet .sala-drill-sheet-lista {
+  padding-top: 0;
+}
+
+.sala-ciclo-ano-cabeca {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px 160px;
+  gap: 16px;
+  padding: 4px 28px 10px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--texto-2);
+  border-bottom: 1px solid var(--borda);
+}
+
+.sala-ciclo-ano-cabeca span:nth-child(2),
+.sala-ciclo-ano-cabeca span:nth-child(3) {
+  text-align: right;
+}
+
+.sala-ciclo-ano-lista {
+  gap: 0;
+}
+
+.sala-ciclo-ano-linha {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px 160px;
+  gap: 16px;
+  align-items: center;
+  min-height: 72px;
+  padding: 12px 28px;
+  border-bottom: 1px solid rgba(220, 228, 238, 0.85);
+}
+
+.sala-ciclo-ano-linha-txt {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sala-ciclo-ano-linha-txt strong {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--texto);
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sala-ciclo-ano-linha-txt small {
+  font-size: 17px;
+  color: var(--texto-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sala-ciclo-ano-data,
+.sala-ciclo-ano-valor {
+  font-size: 22px;
+  text-align: right;
+  color: var(--texto);
+}
+
+.sala-ciclo-ano-valor {
+  font-weight: 700;
 }
 
 .sala-ciclo-secundario {
