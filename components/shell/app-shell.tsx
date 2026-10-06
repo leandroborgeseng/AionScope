@@ -12,9 +12,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const isSalaTv =
     pathname === "/sala" ||
-    /^\/sala\/(agora|fluxo|envelhecimento|compras|programadas|ciclo-de-vida|indicadores|processos)(\/|$)/.test(
+    (/^\/sala\/(agora|fluxo|envelhecimento|compras|programadas|ciclo-de-vida|indicadores|processos)(\/|$)/.test(
       pathname,
-    );
+    ) &&
+      !pathname.includes("/investimentos"));
 
   if (isSalaTv) {
     return <>{children}</>;

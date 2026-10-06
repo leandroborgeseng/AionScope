@@ -1,4 +1,5 @@
-import type { LinhaFila, OsDetalheSnapshot, SalaSnapshot } from "@/lib/ec/snapshot-tipos";
+import type { CicloPrevisaoAno, LinhaFila, OsDetalheSnapshot, SalaSnapshot } from "@/lib/ec/snapshot-tipos";
+import { parseMoeda } from "@/lib/ec/texto";
 
 function detalheDemo(parcial: Partial<OsDetalheSnapshot> & Pick<OsDetalheSnapshot, "os" | "equipamento" | "tag" | "setor">): OsDetalheSnapshot {
   return {
@@ -25,6 +26,15 @@ function detalheDemo(parcial: Partial<OsDetalheSnapshot> & Pick<OsDetalheSnapsho
     requisitante: "ENFERMAGEM",
     ...parcial,
   };
+}
+
+function comInvestimento(
+  buckets: Array<Omit<CicloPrevisaoAno, "investimento">>,
+): CicloPrevisaoAno[] {
+  return buckets.map((bucket) => ({
+    ...bucket,
+    investimento: bucket.itens.reduce((soma, item) => soma + (parseMoeda(item.valorSubstituicao) ?? 0), 0),
+  }));
 }
 
 /** Fixture local para QA visual da TV (`/sala/agora?demo=1`). Não usado em produção. */
@@ -347,7 +357,8 @@ export function snapshotDemoAgora(): SalaSnapshot {
       emCiclo: 1620,
       vencem5Anos: 17,
       vencem10Anos: 32,
-      previsaoEol: [
+      vencemEos10Anos: 41,
+      previsaoEol: comInvestimento([
         {
           ano: "2027",
           quantidade: 5,
@@ -632,7 +643,356 @@ export function snapshotDemoAgora(): SalaSnapshot {
             },
           ],
         },
-      ],
+      ]),
+      previsaoEos: comInvestimento([
+        {
+          ano: "2027",
+          quantidade: 8,
+          itens: [
+            {
+              tag: "HSJ-00440",
+              equipamento: "VENTILADOR PULMONAR",
+              setor: "UTI ADULTO",
+              data: "10/01/2027",
+              valorSubstituicao: "R$ 186.000",
+            },
+            {
+              tag: "HSJ-01079",
+              equipamento: "BISTURI ELETRÔNICO",
+              setor: "CENTRO CIRÚRGICO",
+              data: "15/02/2027",
+              valorSubstituicao: "R$ 42.500",
+            },
+            {
+              tag: "HSJ-00812",
+              equipamento: "MONITOR MULTIPARAMÉTRICO",
+              setor: "PRONTO SOCORRO",
+              data: "03/04/2027",
+              valorSubstituicao: "R$ 28.900",
+            },
+            {
+              tag: "HSJ-00221",
+              equipamento: "DESFIBRILADOR",
+              setor: "UTI NEONATAL",
+              data: "20/05/2027",
+              valorSubstituicao: "R$ 55.000",
+            },
+            {
+              tag: "HSJ-01550",
+              equipamento: "BOMBA DE INFUSÃO",
+              setor: "ENFERMARIA A",
+              data: "11/07/2027",
+              valorSubstituicao: "R$ 9.800",
+            },
+            {
+              tag: "HSJ-00048",
+              equipamento: "AUTOCLAVE",
+              setor: "CME",
+              data: "01/09/2027",
+              valorSubstituicao: "R$ 120.000",
+            },
+            {
+              tag: "HSJ-01102",
+              equipamento: "RAIO-X MÓVEL",
+              setor: "RADIOLOGIA",
+              data: "18/10/2027",
+              valorSubstituicao: "R$ 310.000",
+            },
+            {
+              tag: "HSJ-00677",
+              equipamento: "FOCO CIRÚRGICO",
+              setor: "CENTRO CIRÚRGICO",
+              data: "05/12/2027",
+              valorSubstituicao: "R$ 48.000",
+            },
+          ],
+        },
+        {
+          ano: "2028",
+          quantidade: 5,
+          itens: [
+            {
+              tag: "HSJ-00331",
+              equipamento: "ECOCARDÍOGRAFO",
+              setor: "CARDIOLOGIA",
+              data: "12/03/2028",
+              valorSubstituicao: "R$ 420.000",
+            },
+            {
+              tag: "HSJ-01990",
+              equipamento: "MESA CIRÚRGICA",
+              setor: "CENTRO CIRÚRGICO",
+              data: "22/05/2028",
+              valorSubstituicao: "R$ 95.000",
+            },
+            {
+              tag: "HSJ-00714",
+              equipamento: "BOMBA DE INFUSÃO",
+              setor: "UTI ADULTO",
+              data: "08/07/2028",
+              valorSubstituicao: "R$ 11.200",
+            },
+            {
+              tag: "HSJ-01208",
+              equipamento: "MONITOR MULTIPARAMÉTRICO",
+              setor: "UTI PED",
+              data: "14/09/2028",
+              valorSubstituicao: "R$ 32.000",
+            },
+            {
+              tag: "HSJ-02001",
+              equipamento: "VENTILADOR PULMONAR",
+              setor: "UTI ADULTO",
+              data: "30/11/2028",
+              valorSubstituicao: "R$ 175.000",
+            },
+          ],
+        },
+        {
+          ano: "2029",
+          quantidade: 4,
+          itens: [
+            {
+              tag: "HSJ-02045",
+              equipamento: "DESFIBRILADOR",
+              setor: "PRONTO SOCORRO",
+              data: "04/02/2029",
+              valorSubstituicao: "R$ 58.000",
+            },
+            {
+              tag: "HSJ-02110",
+              equipamento: "AUTOCLAVE",
+              setor: "CME",
+              data: "19/06/2029",
+              valorSubstituicao: "R$ 98.000",
+            },
+            {
+              tag: "HSJ-02200",
+              equipamento: "BISTURI ELETRÔNICO",
+              setor: "CENTRO CIRÚRGICO",
+              data: "11/08/2029",
+              valorSubstituicao: "R$ 45.000",
+            },
+            {
+              tag: "HSJ-02255",
+              equipamento: "FOCO CIRÚRGICO",
+              setor: "CENTRO CIRÚRGICO",
+              data: "27/10/2029",
+              valorSubstituicao: "R$ 52.000",
+            },
+          ],
+        },
+        {
+          ano: "2030",
+          quantidade: 4,
+          itens: [
+            {
+              tag: "HSJ-02301",
+              equipamento: "MONITOR MULTIPARAMÉTRICO",
+              setor: "ENFERMARIA B",
+              data: "15/01/2030",
+              valorSubstituicao: "R$ 27.500",
+            },
+            {
+              tag: "HSJ-02340",
+              equipamento: "BOMBA DE INFUSÃO",
+              setor: "UTI NEONATAL",
+              data: "03/04/2030",
+              valorSubstituicao: "R$ 10.400",
+            },
+            {
+              tag: "HSJ-02388",
+              equipamento: "RAIO-X MÓVEL",
+              setor: "RADIOLOGIA",
+              data: "21/07/2030",
+              valorSubstituicao: "R$ 290.000",
+            },
+            {
+              tag: "HSJ-02412",
+              equipamento: "ECOCARDÍOGRAFO",
+              setor: "CARDIOLOGIA",
+              data: "09/11/2030",
+              valorSubstituicao: "R$ 390.000",
+            },
+          ],
+        },
+        {
+          ano: "2031",
+          quantidade: 3,
+          itens: [
+            {
+              tag: "HSJ-02500",
+              equipamento: "MESA CIRÚRGICA",
+              setor: "CENTRO CIRÚRGICO",
+              data: "18/02/2031",
+              valorSubstituicao: "R$ 88.000",
+            },
+            {
+              tag: "HSJ-02533",
+              equipamento: "VENTILADOR PULMONAR",
+              setor: "UTI PED",
+              data: "06/06/2031",
+              valorSubstituicao: "R$ 168.000",
+            },
+            {
+              tag: "HSJ-02570",
+              equipamento: "DESFIBRILADOR",
+              setor: "UTI ADULTO",
+              data: "25/09/2031",
+              valorSubstituicao: "R$ 61.000",
+            },
+          ],
+        },
+        {
+          ano: "2032",
+          quantidade: 3,
+          itens: [
+            {
+              tag: "HSJ-02610",
+              equipamento: "AUTOCLAVE",
+              setor: "CME",
+              data: "12/03/2032",
+              valorSubstituicao: "R$ 105.000",
+            },
+            {
+              tag: "HSJ-02644",
+              equipamento: "MONITOR MULTIPARAMÉTRICO",
+              setor: "PRONTO SOCORRO",
+              data: "07/07/2032",
+              valorSubstituicao: "R$ 30.000",
+            },
+            {
+              tag: "HSJ-02701",
+              equipamento: "BISTURI ELETRÔNICO",
+              setor: "CENTRO CIRÚRGICO",
+              data: "28/10/2032",
+              valorSubstituicao: "R$ 47.000",
+            },
+          ],
+        },
+        {
+          ano: "2033",
+          quantidade: 4,
+          itens: [
+            {
+              tag: "HSJ-02755",
+              equipamento: "BOMBA DE INFUSÃO",
+              setor: "ENFERMARIA A",
+              data: "14/01/2033",
+              valorSubstituicao: "R$ 9.500",
+            },
+            {
+              tag: "HSJ-02790",
+              equipamento: "FOCO CIRÚRGICO",
+              setor: "CENTRO CIRÚRGICO",
+              data: "22/04/2033",
+              valorSubstituicao: "R$ 50.000",
+            },
+            {
+              tag: "HSJ-02820",
+              equipamento: "RAIO-X MÓVEL",
+              setor: "RADIOLOGIA",
+              data: "09/08/2033",
+              valorSubstituicao: "R$ 305.000",
+            },
+            {
+              tag: "HSJ-02860",
+              equipamento: "ECOCARDÍOGRAFO",
+              setor: "CARDIOLOGIA",
+              data: "01/12/2033",
+              valorSubstituicao: "R$ 410.000",
+            },
+          ],
+        },
+        {
+          ano: "2034",
+          quantidade: 4,
+          itens: [
+            {
+              tag: "HSJ-02899",
+              equipamento: "VENTILADOR PULMONAR",
+              setor: "UTI ADULTO",
+              data: "05/03/2034",
+              valorSubstituicao: "R$ 190.000",
+            },
+            {
+              tag: "HSJ-03001",
+              equipamento: "MONITOR MULTIPARAMÉTRICO",
+              setor: "UTI ADULTO",
+              data: "17/06/2034",
+              valorSubstituicao: "R$ 33.000",
+            },
+            {
+              tag: "HSJ-03022",
+              equipamento: "DESFIBRILADOR",
+              setor: "PRONTO SOCORRO",
+              data: "29/08/2034",
+              valorSubstituicao: "R$ 62.000",
+            },
+            {
+              tag: "HSJ-03055",
+              equipamento: "BOMBA DE INFUSÃO",
+              setor: "ENFERMARIA B",
+              data: "11/11/2034",
+              valorSubstituicao: "R$ 10.100",
+            },
+          ],
+        },
+        {
+          ano: "2035",
+          quantidade: 3,
+          itens: [
+            {
+              tag: "HSJ-03100",
+              equipamento: "AUTOCLAVE",
+              setor: "CME",
+              data: "20/02/2035",
+              valorSubstituicao: "R$ 112.000",
+            },
+            {
+              tag: "HSJ-03140",
+              equipamento: "MESA CIRÚRGICA",
+              setor: "CENTRO CIRÚRGICO",
+              data: "08/07/2035",
+              valorSubstituicao: "R$ 92.000",
+            },
+            {
+              tag: "HSJ-03180",
+              equipamento: "FOCO CIRÚRGICO",
+              setor: "CENTRO CIRÚRGICO",
+              data: "16/10/2035",
+              valorSubstituicao: "R$ 54.000",
+            },
+          ],
+        },
+        {
+          ano: "2036",
+          quantidade: 3,
+          itens: [
+            {
+              tag: "HSJ-03210",
+              equipamento: "BISTURI ELETRÔNICO",
+              setor: "CENTRO CIRÚRGICO",
+              data: "03/01/2036",
+              valorSubstituicao: "R$ 49.000",
+            },
+            {
+              tag: "HSJ-03250",
+              equipamento: "MONITOR MULTIPARAMÉTRICO",
+              setor: "UTI PED",
+              data: "14/05/2036",
+              valorSubstituicao: "R$ 31.500",
+            },
+            {
+              tag: "HSJ-03290",
+              equipamento: "VENTILADOR PULMONAR",
+              setor: "UTI NEONATAL",
+              data: "22/09/2036",
+              valorSubstituicao: "R$ 178.000",
+            },
+          ],
+        },
+      ]),
     },
     indicadores: { meses: [], cartoes: [] },
     processos: {

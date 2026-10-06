@@ -439,6 +439,13 @@ export function montarSnapshotDeDados(
   const previsaoEol: SalaSnapshot["ciclo"]["previsaoEol"] = Array.from({ length: 10 }, (_, index) => ({
     ano: String(anoAtual + index + 1),
     quantidade: 0,
+    investimento: 0,
+    itens: [],
+  }));
+  const previsaoEos: SalaSnapshot["ciclo"]["previsaoEos"] = Array.from({ length: 10 }, (_, index) => ({
+    ano: String(anoAtual + index + 1),
+    quantidade: 0,
+    investimento: 0,
     itens: [],
   }));
   const limite10Anos = new Date(anoAtual + 10, 11, 31, 23, 59, 59, 999);
@@ -460,11 +467,27 @@ export function montarSnapshotDeDados(
       const slot = previsaoEol.find((itemAno) => Number(itemAno.ano) === anoFim);
       if (slot) {
         slot.quantidade += 1;
+        slot.investimento += valor;
         slot.itens.push({
           tag: texto(item.Tag) || "—",
           equipamento: texto(item.Equipamento) || "—",
           setor: texto(item.Setor) || "—",
           data: format(fim, "dd/MM/yyyy"),
+          valorSubstituicao: valor > 0 ? formatoMoeda(valor) : "—",
+        });
+      }
+    }
+    if (fimServico && agora.getTime() < fimServico.getTime() && fimServico.getTime() <= limite10Anos.getTime()) {
+      const anoEos = fimServico.getFullYear();
+      const slotEos = previsaoEos.find((itemAno) => Number(itemAno.ano) === anoEos);
+      if (slotEos) {
+        slotEos.quantidade += 1;
+        slotEos.investimento += valor;
+        slotEos.itens.push({
+          tag: texto(item.Tag) || "—",
+          equipamento: texto(item.Equipamento) || "—",
+          setor: texto(item.Setor) || "—",
+          data: format(fimServico, "dd/MM/yyyy"),
           valorSubstituicao: valor > 0 ? formatoMoeda(valor) : "—",
         });
       }
@@ -505,8 +528,12 @@ export function montarSnapshotDeDados(
   for (const slot of previsaoEol) {
     slot.itens.sort((a, b) => a.equipamento.localeCompare(b.equipamento, "pt-BR") || a.tag.localeCompare(b.tag));
   }
+  for (const slot of previsaoEos) {
+    slot.itens.sort((a, b) => a.equipamento.localeCompare(b.equipamento, "pt-BR") || a.tag.localeCompare(b.tag));
+  }
   const vencem10Anos = previsaoEol.reduce((soma, item) => soma + item.quantidade, 0);
   const vencem5Anos = previsaoEol.slice(0, 5).reduce((soma, item) => soma + item.quantidade, 0);
+  const vencemEos10Anos = previsaoEos.reduce((soma, item) => soma + item.quantidade, 0);
 
   const listaMeses = meses(agora);
   const serieHoras: Array<number | null> = [];
@@ -786,7 +813,9 @@ export function montarSnapshotDeDados(
       emCiclo,
       vencem5Anos,
       vencem10Anos,
+      vencemEos10Anos,
       previsaoEol,
+      previsaoEos,
     },
     indicadores: {
       meses: rotulosMes,
