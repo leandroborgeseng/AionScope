@@ -192,7 +192,7 @@ export function SalaBoard({
           {SALA_RECORTE_LINHA}
         </p>
         <p title={`${OFICINA_EC_REGRA_RESUMO}. Aceitas: ${OFICINAS_EC_LABELS.join(", ")}`}>
-          Somente oficinas de Engenharia Clínica (equals)
+          Somente oficinas de Engenharia Clínica (família EC)
           {!empty && snapshot.foraPorOficina > 0
             ? ` · ${snapshot.foraPorOficina} OS fora por oficina`
             : ""}
