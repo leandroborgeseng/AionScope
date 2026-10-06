@@ -206,9 +206,9 @@ export function snapshotDemoAgora(): SalaSnapshot {
       }),
     },
     agora: {
-      grave: 5,
-      foraDoPrazo: 6,
-      semPrimeiro: 6,
+      grave: grave.length,
+      foraDoPrazo: fora.length,
+      semPrimeiro: fila.length,
       parados: 22,
       parque: 1840,
       gravePct: 0.3,
