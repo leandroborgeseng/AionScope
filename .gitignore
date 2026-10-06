@@ -59,3 +59,7 @@ next-env.d.ts
 # Anexos de OC (persistência local / volume — não versionar)
 /data/ordens-compra-anexos/
 ordens-compra-anexos/
+
+# Evidências de treinamentos (PDFs com PII — 2026 tem CPF/e-mail). Repo público: fora do git.
+/data/treinamentos-evidencias/
+treinamentos-evidencias/

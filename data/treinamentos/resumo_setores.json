@@ -1,0 +1,191 @@
+[
+ {
+  "setor": "Unidade de Emergência",
+  "treinados_2025": 56,
+  "reciclados_2026": 22,
+  "taxa_reciclagem_pct": 39.3,
+  "faixa": "critico"
+ },
+ {
+  "setor": "Centro Cirúrgico",
+  "treinados_2025": 44,
+  "reciclados_2026": 18,
+  "taxa_reciclagem_pct": 40.9,
+  "faixa": "atencao"
+ },
+ {
+  "setor": "UTI Adulto 1",
+  "treinados_2025": 34,
+  "reciclados_2026": 14,
+  "taxa_reciclagem_pct": 41.2,
+  "faixa": "atencao"
+ },
+ {
+  "setor": "Ala 1 – Clínica Médica",
+  "treinados_2025": 32,
+  "reciclados_2026": 16,
+  "taxa_reciclagem_pct": 50.0,
+  "faixa": "atencao"
+ },
+ {
+  "setor": "UTI Adulto 2",
+  "treinados_2025": 29,
+  "reciclados_2026": 17,
+  "taxa_reciclagem_pct": 58.6,
+  "faixa": "atencao"
+ },
+ {
+  "setor": "Ala 5",
+  "treinados_2025": 28,
+  "reciclados_2026": 17,
+  "taxa_reciclagem_pct": 60.7,
+  "faixa": "ok"
+ },
+ {
+  "setor": "UTI Neonatal / Infantil",
+  "treinados_2025": 27,
+  "reciclados_2026": 11,
+  "taxa_reciclagem_pct": 40.7,
+  "faixa": "atencao"
+ },
+ {
+  "setor": "Maternidade",
+  "treinados_2025": 26,
+  "reciclados_2026": 16,
+  "taxa_reciclagem_pct": 61.5,
+  "faixa": "ok"
+ },
+ {
+  "setor": "Ala 2",
+  "treinados_2025": 22,
+  "reciclados_2026": 15,
+  "taxa_reciclagem_pct": 68.2,
+  "faixa": "ok"
+ },
+ {
+  "setor": "Ala 3",
+  "treinados_2025": 22,
+  "reciclados_2026": 11,
+  "taxa_reciclagem_pct": 50.0,
+  "faixa": "atencao"
+ },
+ {
+  "setor": "Endoscopia",
+  "treinados_2025": 18,
+  "reciclados_2026": 9,
+  "taxa_reciclagem_pct": 50.0,
+  "faixa": "atencao"
+ },
+ {
+  "setor": "Pediatria",
+  "treinados_2025": 16,
+  "reciclados_2026": 8,
+  "taxa_reciclagem_pct": 50.0,
+  "faixa": "atencao"
+ },
+ {
+  "setor": "CME",
+  "treinados_2025": 14,
+  "reciclados_2026": 3,
+  "taxa_reciclagem_pct": 21.4,
+  "faixa": "critico"
+ },
+ {
+  "setor": "Unilar",
+  "treinados_2025": 9,
+  "reciclados_2026": 5,
+  "taxa_reciclagem_pct": 55.6,
+  "faixa": "atencao"
+ },
+ {
+  "setor": "Quimioterapia",
+  "treinados_2025": 9,
+  "reciclados_2026": 3,
+  "taxa_reciclagem_pct": 33.3,
+  "faixa": "critico"
+ },
+ {
+  "setor": "CDI",
+  "treinados_2025": 7,
+  "reciclados_2026": 4,
+  "taxa_reciclagem_pct": 57.1,
+  "faixa": "atencao"
+ },
+ {
+  "setor": "Centro Cirúrgico Ambulatorial",
+  "treinados_2025": 7,
+  "reciclados_2026": 4,
+  "taxa_reciclagem_pct": 57.1,
+  "faixa": "atencao"
+ },
+ {
+  "setor": "Hospital Dia",
+  "treinados_2025": 6,
+  "reciclados_2026": 3,
+  "taxa_reciclagem_pct": 50.0,
+  "faixa": "atencao"
+ },
+ {
+  "setor": "Farmácia",
+  "treinados_2025": 6,
+  "reciclados_2026": 0,
+  "taxa_reciclagem_pct": 0.0,
+  "faixa": "critico"
+ },
+ {
+  "setor": "Hemodinâmica",
+  "treinados_2025": 5,
+  "reciclados_2026": 4,
+  "taxa_reciclagem_pct": 80.0,
+  "faixa": "ok"
+ },
+ {
+  "setor": "CDC",
+  "treinados_2025": 5,
+  "reciclados_2026": 2,
+  "taxa_reciclagem_pct": 40.0,
+  "faixa": "atencao"
+ },
+ {
+  "setor": "Tomografia",
+  "treinados_2025": 4,
+  "reciclados_2026": 4,
+  "taxa_reciclagem_pct": 100.0,
+  "faixa": "ok"
+ },
+ {
+  "setor": "Consultório Obstétrico / Prog. Gestante",
+  "treinados_2025": 3,
+  "reciclados_2026": 0,
+  "taxa_reciclagem_pct": 0.0,
+  "faixa": "critico"
+ },
+ {
+  "setor": "CCIH",
+  "treinados_2025": 2,
+  "reciclados_2026": 0,
+  "taxa_reciclagem_pct": 0.0,
+  "faixa": "critico"
+ },
+ {
+  "setor": "Ressonância",
+  "treinados_2025": 1,
+  "reciclados_2026": 0,
+  "taxa_reciclagem_pct": 0.0,
+  "faixa": "critico"
+ },
+ {
+  "setor": "Hemodiálise",
+  "treinados_2025": 1,
+  "reciclados_2026": 1,
+  "taxa_reciclagem_pct": 100.0,
+  "faixa": "ok"
+ },
+ {
+  "setor": "Não informado",
+  "treinados_2025": 1,
+  "reciclados_2026": 0,
+  "taxa_reciclagem_pct": 0.0,
+  "faixa": "critico"
+ }
+]

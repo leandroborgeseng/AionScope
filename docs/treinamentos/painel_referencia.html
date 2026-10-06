@@ -1,0 +1,81 @@
+<title>Indicadores Bombas B. Braun</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: cabeçalho + faixa de KPIs + gráfico por setor + tabela + quadro de indicadores sugeridos */
+:root{--bg:#f5f7f8;--surface:#ffffff;--fg:#17232b;--muted:#5b6b75;--line:#dde4e8;--c25:#9fb3bf;--c26:#0f7c8c;--warn:#b5651d;--ok:#2f7d4f;--low:#b23b3b;
+--display:"Barlow Semi Condensed",system-ui,sans-serif;--body:"Source Sans 3",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f161a;--surface:#162127;--fg:#e4ecf0;--muted:#93a4ae;--line:#26343c;--c25:#4d6170;--c26:#2bb3c4;--warn:#e0954f;--ok:#5fbf86;--low:#e07070;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f161a;--surface:#162127;--fg:#e4ecf0;--muted:#93a4ae;--line:#26343c;--c25:#4d6170;--c26:#2bb3c4;--warn:#e0954f;--ok:#5fbf86;--low:#e07070;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:1040px;margin:0 auto;padding:28px 16px 48px;display:grid;gap:28px}
+h1,h2{font-family:var(--display);margin:0;text-wrap:balance} h1{font-size:2rem;font-weight:700} h2{font-size:1.3rem;font-weight:600}
+.eyebrow{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+p{margin:0;max-width:68ch} .muted{color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:grid;gap:2px}
+.kpi b{font-family:var(--display);font-size:2.1rem;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.1}
+.kpi small{color:var(--muted);font-size:.82rem}
+section{display:grid;gap:12px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.85rem;color:var(--muted)} .sw{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.chart{display:grid;gap:6px}
+.row{display:grid;grid-template-columns:minmax(120px,210px) 1fr 56px;gap:10px;align-items:center;font-size:.88rem}
+.row .lbl{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.track{position:relative;height:18px} .b25,.b26{position:absolute;left:0;border-radius:2px}
+.b25{top:0;height:18px;background:var(--c25)} .b26{top:4px;height:10px;background:var(--c26)}
+.row .n{font-family:var(--mono);font-size:.78rem;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.tbl{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.9rem;font-variant-numeric:tabular-nums}
+th,td{padding:7px 12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap} th:first-child,td:first-child{text-align:left}
+th{font-weight:600;color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.05em}
+.pill{display:inline-block;min-width:46px;padding:1px 8px;border-radius:99px;font-family:var(--mono);font-size:.78rem;text-align:center;border:1px solid currentColor}
+.ok{color:var(--ok)} .warn{color:var(--warn)} .low{color:var(--low)}
+.ind{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;display:grid;gap:6px;min-width:0}
+.card h3{margin:0;font-family:var(--display);font-size:1.05rem;font-weight:600} .card code{font-family:var(--mono);font-size:.8rem;color:var(--c26)}
+.tag{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase}
+.note{border-left:3px solid var(--warn);padding:8px 14px;background:var(--surface);border-radius:0 6px 6px 0}
+</style>
+<div class="wrap">
+<header style="display:grid;gap:6px">
+<span class="eyebrow">Hospital São Joaquim · Unimed Franca · Engenharia Clínica</span>
+<h1>Treinamento em bombas de infusão B. Braun</h1>
+<p class="muted">2025: 30 listas de presença em papel (25/06 a 26/07/2025). 2026: lista do Google Forms (01 e 02/07/2026). Contagem por pessoa única, sem repetir quem assinou duas listas.</p>
+</header>
+<div class="kpis">
+<div class="kpi"><span class="eyebrow">Treinados 2025</span><b>434</b><small>≈ 181 h·homem</small></div>
+<div class="kpi"><span class="eyebrow">Treinados 2026</span><b>294</b><small>147 h·homem · -32% vs 2025</small></div>
+<div class="kpi"><span class="eyebrow">Reciclados em 2026</span><b>207</b><small>48% dos treinados de 2025 refizeram</small></div>
+<div class="kpi"><span class="eyebrow">Primeiro treinamento em 2026</span><b>87</b><small>30% da turma de 2026 · sem setor na lista</small></div>
+</div>
+<section>
+<h2>Treinados por setor</h2>
+<p class="muted">A lista de 2026 não tem campo de setor. O setor de 2026 vem do cruzamento com 2025 (matrícula ou nome), então a barra de 2026 mostra quem foi reciclado em cada setor.</p>
+<div class="legend"><span><i class="sw" style="background:var(--c25)"></i>Treinados 2025</span><span><i class="sw" style="background:var(--c26)"></i>Reciclados em 2026</span></div>
+<div class="chart" id="chart"></div>
+</section>
+<section>
+<h2>Taxa de reciclagem por setor</h2>
+<div class="tbl"><table><thead><tr><th>Setor</th><th>2025</th><th>2026 (reciclados)</th><th>Taxa de reciclagem</th></tr></thead><tbody id="tb"></tbody>
+<tfoot><tr><th style="text-align:left">Sem setor identificado (1º treino em 2026)</th><td>–</td><td>87</td><td></td></tr></tfoot></table></div>
+<p class="muted" style="font-size:.85rem">Faixas: <span class="ok">≥ 60%</span> · <span class="warn">40–59%</span> · <span class="low">&lt; 40%</span></p>
+</section>
+<section>
+<h2>Indicadores que dá para montar</h2>
+<div class="ind">
+<div class="card"><span class="tag ok">Já calculável</span><h3>Volume de treinados por ano</h3><code>nº de colaboradores únicos treinados no ano</code><p class="muted">Comparativo anual e por setor. 2026 teve 140 pessoas a menos que 2025.</p></div>
+<div class="card"><span class="tag ok">Já calculável</span><h3>Taxa de reciclagem anual</h3><code>treinados no ano N que refizeram no ano N+1 ÷ treinados no ano N</code><p class="muted">Geral: 48%. Mostra quantos operadores estão com o treinamento em dia após 12 meses.</p></div>
+<div class="card"><span class="tag ok">Já calculável</span><h3>Horas·homem de treinamento</h3><code>Σ (participantes × carga horária)</code><p class="muted">2025 ≈ 181 h (listas de 20 e 30 min; sem carga informada contei 20 min). 2026 = 147 h.</p></div>
+<div class="card"><span class="tag ok">Já calculável</span><h3>Taxa de novos operadores</h3><code>treinados pela 1ª vez no ano ÷ total treinado no ano</code><p class="muted">30% em 2026. Ajuda a medir rotatividade e integração de novos colaboradores.</p></div>
+<div class="card"><span class="tag warn">Precisa do quadro do RH</span><h3>Cobertura do treinamento</h3><code>treinados no setor ÷ colaboradores assistenciais do setor</code><p class="muted">É o indicador mais forte para acreditação. Falta o número de colaboradores por setor.</p></div>
+<div class="card"><span class="tag warn">Precisa de dado da Eng. Clínica</span><h3>Falhas de operação × treinamento</h3><code>chamados por erro de uso ÷ bombas em uso, antes e depois do treino</code><p class="muted">Cruza a OS de "erro de operador / sem defeito" com a cobertura do setor e mostra se o treinamento teve efeito.</p></div>
+</div>
+</section>
+<div class="note"><p><b>Limites da base.</b> As listas de 2025 são manuscritas: alguns nomes e matrículas foram lidos com dúvida e marcados como "ilegível" na planilha base. Setores escritos de formas diferentes foram padronizados (UTI A, CTI A e UTI 1 viraram UTI Adulto 1; Ala clínica, Clínica médica e Unidade Clínica viraram Ala 1; Unidade 2/3/5 viraram Ala 2/3/5; EDA virou Endoscopia). Para os próximos anos, incluir o campo <b>Setor</b> no Google Forms resolve o problema de 2026.</p></div>
+</div>
+<script>
+const S=[{"s": "Unidade de Emergência", "a": 56, "b": 22}, {"s": "Centro Cirúrgico", "a": 44, "b": 18}, {"s": "UTI Adulto 1", "a": 34, "b": 14}, {"s": "Ala 1 – Clínica Médica", "a": 32, "b": 16}, {"s": "UTI Adulto 2", "a": 29, "b": 17}, {"s": "Ala 5", "a": 28, "b": 17}, {"s": "UTI Neonatal / Infantil", "a": 27, "b": 11}, {"s": "Maternidade", "a": 26, "b": 16}, {"s": "Ala 2", "a": 22, "b": 15}, {"s": "Ala 3", "a": 22, "b": 11}, {"s": "Endoscopia", "a": 18, "b": 9}, {"s": "Pediatria", "a": 16, "b": 8}, {"s": "CME", "a": 14, "b": 3}, {"s": "Unilar", "a": 9, "b": 5}, {"s": "Quimioterapia", "a": 9, "b": 3}, {"s": "CDI", "a": 7, "b": 4}, {"s": "Centro Cirúrgico Ambulatorial", "a": 7, "b": 4}, {"s": "Hospital Dia", "a": 6, "b": 3}, {"s": "Farmácia", "a": 6, "b": 0}, {"s": "Hemodinâmica", "a": 5, "b": 4}, {"s": "CDC", "a": 5, "b": 2}, {"s": "Tomografia", "a": 4, "b": 4}, {"s": "Consultório Obstétrico / Prog. Gestante", "a": 3, "b": 0}, {"s": "CCIH", "a": 2, "b": 0}, {"s": "Ressonância", "a": 1, "b": 0}, {"s": "Hemodiálise", "a": 1, "b": 1}, {"s": "Não informado", "a": 1, "b": 0}];
+const max=Math.max(...S.map(s=>s.a));
+const cls=p=>p>=60?'ok':p>=40?'warn':'low';
+document.getElementById('chart').innerHTML=S.map(s=>`<div class="row"><span class="lbl" title="${s.s}">${s.s}</span><div class="track"><div class="b25" style="width:${100*s.a/max}%"></div><div class="b26" style="width:${100*s.b/max}%"></div></div><span class="n">${s.a} / ${s.b}</span></div>`).join('');
+document.getElementById('tb').innerHTML=S.map(s=>{const p=Math.round(100*s.b/s.a);return `<tr><td>${s.s}</td><td>${s.a}</td><td>${s.b}</td><td><span class="pill ${cls(p)}">${p}%</span></td></tr>`}).join('');
+</script>

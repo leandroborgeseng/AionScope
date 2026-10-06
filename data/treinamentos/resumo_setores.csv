@@ -1,0 +1,28 @@
+﻿setor;treinados_2025;reciclados_2026;taxa_reciclagem_pct;faixa
+Unidade de Emergência;56;22;39.3;critico
+Centro Cirúrgico;44;18;40.9;atencao
+UTI Adulto 1;34;14;41.2;atencao
+Ala 1 – Clínica Médica;32;16;50.0;atencao
+UTI Adulto 2;29;17;58.6;atencao
+Ala 5;28;17;60.7;ok
+UTI Neonatal / Infantil;27;11;40.7;atencao
+Maternidade;26;16;61.5;ok
+Ala 2;22;15;68.2;ok
+Ala 3;22;11;50.0;atencao
+Endoscopia;18;9;50.0;atencao
+Pediatria;16;8;50.0;atencao
+CME;14;3;21.4;critico
+Unilar;9;5;55.6;atencao
+Quimioterapia;9;3;33.3;critico
+CDI;7;4;57.1;atencao
+Centro Cirúrgico Ambulatorial;7;4;57.1;atencao
+Hospital Dia;6;3;50.0;atencao
+Farmácia;6;0;0.0;critico
+Hemodinâmica;5;4;80.0;ok
+CDC;5;2;40.0;atencao
+Tomografia;4;4;100.0;ok
+Consultório Obstétrico / Prog. Gestante;3;0;0.0;critico
+CCIH;2;0;0.0;critico
+Ressonância;1;0;0.0;critico
+Hemodiálise;1;1;100.0;ok
+Não informado;1;0;0.0;critico

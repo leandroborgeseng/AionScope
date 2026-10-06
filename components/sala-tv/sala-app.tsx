@@ -27,6 +27,7 @@ import {
 } from "@/lib/ec/snapshot-tipos";
 import { idsOsAbertas, novasOsDesde } from "@/lib/ec/novas-os";
 import { desbloquearSomTv, SALA_SOM_STORAGE, tocarChimeNovaOs } from "@/components/sala-tv/som-nova-os";
+import { TvTreinamentos } from "@/components/treinamentos/tv-treinamentos";
 import "@/app/sala/sala.css";
 
 const mono = JetBrains_Mono({
@@ -1899,6 +1900,7 @@ function Conteudo({
     return <TelaCiclo dados={dados} drill={drill} onDrill={onDrill} />;
   }
   if (tela === "indicadores") return <TelaIndicadores dados={dados} />;
+  if (tela === "treinamentos") return <TvTreinamentos />;
   return <TelaProcessos dados={dados} />;
 }
 

@@ -63,7 +63,7 @@ function pathMatches(pathname: string, href: string) {
       pathname === "/sala/registros" ||
       pathname === "/sala/pedidos" ||
       pathname === "/sala/ordens-compra" ||
-      /^\/sala\/(agora|fluxo|envelhecimento|compras|programadas|ciclo-de-vida|indicadores|processos)(\/|$)/.test(
+      /^\/sala\/(agora|fluxo|envelhecimento|compras|programadas|ciclo-de-vida|indicadores|treinamentos|processos)(\/|$)/.test(
         pathname,
       )
     );
@@ -120,7 +120,7 @@ export function NavMenu({ pathname, onNavigate }: { pathname: string; onNavigate
           if (child.href === "/sala") {
             return (
               pathname === "/sala" ||
-              /^\/sala\/(agora|fluxo|envelhecimento|compras|programadas|ciclo-de-vida|indicadores|processos)(\/|$)/.test(
+              /^\/sala\/(agora|fluxo|envelhecimento|compras|programadas|ciclo-de-vida|indicadores|treinamentos|processos)(\/|$)/.test(
                 pathname,
               )
             );
@@ -172,7 +172,7 @@ export function NavMenu({ pathname, onNavigate }: { pathname: string; onNavigate
                   const active =
                     child.href === "/sala"
                       ? pathname === "/sala" ||
-                        /^\/sala\/(agora|fluxo|envelhecimento|compras|programadas|ciclo-de-vida|indicadores|processos)(\/|$)/.test(
+                        /^\/sala\/(agora|fluxo|envelhecimento|compras|programadas|ciclo-de-vida|indicadores|treinamentos|processos)(\/|$)/.test(
                           pathname,
                         )
                       : pathMatches(pathname, child.href);
