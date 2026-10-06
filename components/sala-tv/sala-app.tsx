@@ -3,6 +3,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { JetBrains_Mono } from "next/font/google";
 import {
+  AlertOctagon,
+  ClockAlert,
+  Hand,
+  PauseCircle,
+  ShoppingCart,
+  CalendarRange,
+  Timer,
+} from "lucide-react";
+import {
   TELAS_SALA,
   type LinhaDrill,
   type LinhaDrillEquip,
@@ -45,6 +54,15 @@ const DRILL_AGORA = {
   parados: { id: "agora.parados", titulo: "EQUIP. PARADOS" },
 } as const;
 
+type DrillIcone = typeof AlertOctagon;
+
+const DRILL_ICONE: Record<string, DrillIcone> = {
+  "agora.grave": AlertOctagon,
+  "agora.fora-do-prazo": ClockAlert,
+  "agora.sem-primeiro": Hand,
+  "agora.parados": PauseCircle,
+};
+
 function selo(situacao: string) {
   return SELO[situacao] ?? SELO["NO PRAZO"];
 }
@@ -73,9 +91,9 @@ function Cabecalho({
   const atual = TELAS_SALA.find((item) => item.id === tela) ?? TELAS_SALA[0];
   return (
     <header className="sala-cabecalho">
-      <img src="/aion-logo.png" alt="Aion" />
+      <img src="/aion-logo.png" alt="Aion Engenharia" />
       <div className="sala-divisor" />
-      <div>
+      <div className="sala-cabecalho-marca">
         <div className="sala-rotulo">{atual.rotulo}</div>
         <div className="sala-titulo">{atual.titulo}</div>
       </div>
@@ -111,7 +129,112 @@ function Selo({ situacao }: { situacao: string }) {
   );
 }
 
-function SalaDrillDrawer({
+function MetaTags({
+  parado,
+  compra,
+  criticidade,
+}: {
+  parado?: boolean;
+  compra?: boolean;
+  criticidade?: string;
+}) {
+  return (
+    <div className="sala-meta">
+      {parado ? (
+        <span className="sala-meta-badge parado" title="Equipamento parado">
+          <PauseCircle size={18} strokeWidth={2.4} aria-hidden />
+          <span>PARADO</span>
+        </span>
+      ) : null}
+      {compra ? (
+        <span className="sala-meta-badge compra" title="Aguarda compra">
+          <ShoppingCart size={18} strokeWidth={2.4} aria-hidden />
+          <span>COMPRA</span>
+        </span>
+      ) : null}
+      {criticidade ? <span className="sala-meta-crit">{criticidade}</span> : null}
+    </div>
+  );
+}
+
+function LinhaOsTv({
+  os,
+  situacao,
+  equipamento,
+  tag,
+  setor,
+  parado,
+  compra,
+  criticidade,
+  idade,
+  destaque,
+  denso,
+}: {
+  os: string;
+  situacao?: string;
+  equipamento: string;
+  tag: string;
+  setor: string;
+  parado?: boolean;
+  compra?: boolean;
+  criticidade?: string;
+  idade?: string;
+  destaque?: boolean;
+  denso?: boolean;
+}) {
+  return (
+    <div className={denso ? "sala-linha sala-linha-densa" : "sala-linha"} data-destaque={destaque ? "1" : undefined}>
+      <div className="sala-linha-status">
+        {situacao ? <Selo situacao={situacao} /> : <span className="sala-selo sala-selo-vazio">—</span>}
+        <small className="sala-numero sala-linha-os">{os}</small>
+      </div>
+      <div className="sala-linha-equip">
+        <strong>{equipamento}</strong>
+        <small>
+          {tag} · {setor}
+        </small>
+      </div>
+      <MetaTags parado={parado} compra={compra} criticidade={criticidade} />
+      <span className="sala-numero sala-linha-idade">{idade ?? "—"}</span>
+    </div>
+  );
+}
+
+function LinhaEquipTv({
+  equipamento,
+  tag,
+  setor,
+  os,
+  tempo,
+}: {
+  equipamento: string;
+  tag: string;
+  setor: string;
+  os?: string;
+  tempo?: string;
+}) {
+  return (
+    <div className="sala-linha sala-linha-equip-only">
+      <div className="sala-linha-status">
+        <span className="sala-meta-badge parado">
+          <PauseCircle size={18} strokeWidth={2.4} aria-hidden />
+          <span>PARADO</span>
+        </span>
+        {os ? <small className="sala-numero sala-linha-os">{os}</small> : null}
+      </div>
+      <div className="sala-linha-equip">
+        <strong>{equipamento}</strong>
+        <small>
+          {tag} · {setor}
+        </small>
+      </div>
+      <span className="sala-meta" />
+      <span className="sala-numero sala-linha-idade">{tempo ?? "—"}</span>
+    </div>
+  );
+}
+
+function SalaDrillOverlay({
   drill,
   linhas,
   onLimpar,
@@ -121,63 +244,65 @@ function SalaDrillDrawer({
   onLimpar: () => void;
 }) {
   const parados = drill.id === "agora.parados";
+  const Icone = DRILL_ICONE[drill.id] ?? AlertOctagon;
   return (
-    <aside className="sala-drill-drawer" aria-label={`Detalhe: ${drill.titulo}`}>
-      <div className="sala-drill-drawer-cabecalho">
-        <div>
-          <div className="sala-rotulo-bloco">{drill.titulo}</div>
-          <div className="sala-numero sala-drill-drawer-qtd">{linhas.length}</div>
+    <div className="sala-drill-overlay" role="dialog" aria-modal="true" aria-label={`Detalhe: ${drill.titulo}`}>
+      <button type="button" className="sala-drill-backdrop" onClick={onLimpar} aria-label="Fechar detalhe" />
+      <div className="sala-drill-sheet">
+        <div className="sala-drill-sheet-cabecalho">
+          <div className="sala-drill-sheet-titulo">
+            <span className="sala-drill-sheet-chip">selecionado</span>
+            <div className="sala-drill-sheet-heading">
+              <span className="sala-drill-sheet-icone" aria-hidden>
+                <Icone size={32} strokeWidth={2.2} />
+              </span>
+              <div>
+                <div className="sala-rotulo-bloco">{drill.titulo}</div>
+                <div className="sala-numero sala-drill-sheet-qtd">{linhas.length}</div>
+              </div>
+            </div>
+          </div>
+          <button type="button" className="sala-drill-limpar sala-drill-fechar" onClick={onLimpar}>
+            Fechar · Esc
+          </button>
         </div>
-        <button type="button" className="sala-drill-limpar" onClick={onLimpar}>
-          Fechar
-        </button>
+        <div className="sala-drill-sheet-lista">
+          {linhas.length === 0 ? <p className="sala-vazio">Nenhum item neste recorte.</p> : null}
+          {linhas.map((linha, index) => {
+            if (parados && isLinhaEquip(linha)) {
+              return (
+                <LinhaEquipTv
+                  key={`${linha.tag}-${linha.os ?? index}`}
+                  equipamento={linha.equipamento}
+                  tag={linha.tag}
+                  setor={linha.setor}
+                  os={linha.os}
+                  tempo={linha.tempo}
+                />
+              );
+            }
+            if (isLinhaOs(linha)) {
+              return (
+                <LinhaOsTv
+                  key={`${linha.os}-${index}`}
+                  os={linha.os}
+                  situacao={linha.situacao}
+                  equipamento={linha.equipamento}
+                  tag={linha.tag}
+                  setor={linha.setor}
+                  parado={linha.parado}
+                  compra={linha.compra}
+                  criticidade={linha.criticidade}
+                  idade={linha.idade}
+                  denso
+                />
+              );
+            }
+            return null;
+          })}
+        </div>
       </div>
-      <div className="sala-drill-drawer-lista">
-        {linhas.length === 0 ? <p className="sala-vazio">Nenhum item neste recorte.</p> : null}
-        {linhas.map((linha, index) => {
-          if (parados && isLinhaEquip(linha)) {
-            return (
-              <div key={`${linha.tag}-${linha.os ?? index}`} className="sala-drill-linha">
-                <div style={{ minWidth: 0 }}>
-                  <strong>{linha.equipamento}</strong>
-                  <small>
-                    {linha.tag} · {linha.setor}
-                    {linha.os ? ` · OS ${linha.os}` : ""}
-                  </small>
-                </div>
-                <span className="sala-numero" style={{ fontSize: 24 }}>
-                  {linha.tempo ?? "—"}
-                </span>
-              </div>
-            );
-          }
-          if (isLinhaOs(linha)) {
-            return (
-              <div key={`${linha.os}-${index}`} className="sala-drill-linha">
-                <div style={{ flexShrink: 0 }}>
-                  {linha.situacao ? <Selo situacao={linha.situacao} /> : null}
-                  <small className="sala-numero">{linha.os}</small>
-                </div>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <strong>{linha.equipamento}</strong>
-                  <small>
-                    {linha.tag} · {linha.setor}
-                  </small>
-                </div>
-                <div style={{ flexShrink: 0, textAlign: "right" }}>
-                  {linha.parado ? <span className="tag-extra">PARADO</span> : null}
-                  {linha.compra ? <span className="tag-extra">COMPRA</span> : null}
-                  <span className="sala-numero" style={{ fontSize: 24, display: "block" }}>
-                    {linha.idade ?? "—"}
-                  </span>
-                </div>
-              </div>
-            );
-          }
-          return null;
-        })}
-      </div>
-    </aside>
+    </div>
   );
 }
 
@@ -194,7 +319,16 @@ function TelaAgora({
 }) {
   const formatarPct = (pct: number | null) =>
     pct == null ? "—" : `${pct.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 1 })}%`;
-  const contadores = [
+  const contadores: Array<{
+    id: string;
+    titulo: string;
+    valor: number | string;
+    pct: number | null;
+    cor: string;
+    fundo: string;
+    borda: string;
+    icone: DrillIcone;
+  }> = [
     {
       ...DRILL_AGORA.grave,
       valor: dados.agora.grave,
@@ -202,6 +336,7 @@ function TelaAgora({
       cor: "#A3123A",
       fundo: "#FDF1F4",
       borda: "#E7A3B6",
+      icone: AlertOctagon,
     },
     {
       ...DRILL_AGORA.fora,
@@ -210,6 +345,7 @@ function TelaAgora({
       cor: "#A8460A",
       fundo: "#FFF6EE",
       borda: "#F0BD8E",
+      icone: ClockAlert,
     },
     {
       ...DRILL_AGORA.semPrimeiro,
@@ -218,6 +354,7 @@ function TelaAgora({
       cor: "#8A5A00",
       fundo: "#FFFFFF",
       borda: "#DCE4EE",
+      icone: Hand,
     },
     {
       ...DRILL_AGORA.parados,
@@ -226,27 +363,44 @@ function TelaAgora({
       cor: "#2C66AB",
       fundo: "#FFFFFF",
       borda: "#DCE4EE",
+      icone: PauseCircle,
     },
-  ] as const;
+  ];
+  const drillAtivo = Boolean(drill);
   return (
-    <>
+    <div className={drillAtivo ? "sala-agora com-drill" : "sala-agora"}>
       <div className="sala-grid-2">
-        <div className="sala-coluna">
-          <div className={dados.plantao ? "sala-aviso" : "sala-cartao"}>{dados.plantaoTexto}</div>
+        <div className="sala-coluna sala-agora-lat">
+          <div className={dados.plantao ? "sala-aviso sala-plantao" : "sala-cartao sala-plantao sala-plantao-ok"}>
+            <Timer size={22} strokeWidth={2.2} aria-hidden className="sala-plantao-icone" />
+            <span>{dados.plantaoTexto}</span>
+          </div>
           <div className="sala-contadores">
             {contadores.map((item) => {
               const ativo = drill?.id === item.id;
+              const Icone = item.icone;
               return (
                 <button
                   key={item.id}
                   type="button"
-                  className={ativo ? "sala-contador sala-contador-drill ativo" : "sala-contador sala-contador-drill"}
+                  className={
+                    ativo
+                      ? "sala-contador sala-contador-drill ativo"
+                      : drillAtivo
+                        ? "sala-contador sala-contador-drill dim"
+                        : "sala-contador sala-contador-drill"
+                  }
                   style={{ background: item.fundo, border: `2px solid ${ativo ? item.cor : item.borda}`, color: item.cor }}
                   aria-pressed={ativo}
                   onClick={() => onDrill(item.id, item.titulo)}
                 >
-                  <span className="sala-rotulo-bloco" style={{ color: item.cor }}>
-                    {item.titulo}
+                  <span className="sala-contador-topo">
+                    <span className="sala-contador-icone" aria-hidden>
+                      <Icone size={22} strokeWidth={2.3} />
+                    </span>
+                    <span className="sala-rotulo-bloco" style={{ color: item.cor }}>
+                      {item.titulo}
+                    </span>
                   </span>
                   <span className="sala-numero">{item.valor}</span>
                   <span
@@ -259,70 +413,77 @@ function TelaAgora({
               );
             })}
           </div>
-          <div className="sala-cartao">
-            <div className="sala-rotulo-bloco">PLANO DO MÊS</div>
+          <div className="sala-cartao sala-bloco-plano">
+            <div className="sala-bloco-cabeca">
+              <CalendarRange size={20} strokeWidth={2.2} aria-hidden />
+              <div className="sala-rotulo-bloco">PLANO DO MÊS</div>
+            </div>
             {dados.agora.plano.every((item) => item.faltam == null && item.percentual == null) ? (
-              <p className="sala-vazio">{dados.agora.planoAviso}</p>
+              <p className="sala-vazio sala-vazio-compacto">{dados.agora.planoAviso}</p>
             ) : (
               <>
-                <p style={{ margin: "0 0 8px", fontSize: 18, color: "#4E6079" }}>{dados.agora.planoAviso}</p>
-                {dados.agora.plano.map((item) => (
-                  <div key={item.tipo} style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 6 }}>
-                    <strong style={{ fontSize: 20 }}>{item.tipo}</strong>
-                    <span className="sala-numero" style={{ fontSize: 22 }}>
-                      {item.executados ?? "—"}/{item.previstos ?? "—"}
-                      {item.faltam != null && item.faltam > 0 ? ` · faltam ${item.faltam}` : ""}
-                    </span>
-                  </div>
-                ))}
+                <p className="sala-bloco-sub">{dados.agora.planoAviso}</p>
+                <div className="sala-plano-lista">
+                  {dados.agora.plano.map((item) => (
+                    <div key={item.tipo} className="sala-plano-linha">
+                      <strong>{item.tipo}</strong>
+                      <span className="sala-numero">
+                        {item.executados ?? "—"}/{item.previstos ?? "—"}
+                        {item.faltam != null && item.faltam > 0 ? ` · faltam ${item.faltam}` : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </>
             )}
           </div>
-          <div className="sala-cartao" style={{ flex: 1 }}>
-            <div className="sala-rotulo-bloco">PARADOS HÁ MAIS TEMPO</div>
-            <p style={{ margin: "0 0 8px", fontSize: 16, color: "#4E6079" }}>{dados.agora.proxyParada}</p>
+          <div className="sala-cartao sala-bloco-parados" style={{ flex: 1 }}>
+            <div className="sala-bloco-cabeca">
+              <PauseCircle size={20} strokeWidth={2.2} aria-hidden />
+              <div className="sala-rotulo-bloco">PARADOS HÁ MAIS TEMPO</div>
+            </div>
+            <p className="sala-bloco-sub">{dados.agora.proxyParada}</p>
             {dados.agora.paradosMaisTempo.length === 0 ? (
-              <p className="sala-vazio">{dados.agora.parados == null ? "Sem dados de disponibilidade." : "Nenhum equipamento parado agora."}</p>
+              <p className="sala-vazio sala-vazio-compacto">
+                {dados.agora.parados == null ? "Sem dados de disponibilidade." : "Nenhum equipamento parado agora."}
+              </p>
             ) : (
-              dados.agora.paradosMaisTempo.map((item) => (
-                <div key={item.nome} style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 8 }}>
-                  <div style={{ minWidth: 0 }}>
-                    <strong style={{ fontSize: 22 }}>{item.nome}</strong>
-                    <small style={{ display: "block", color: "#4E6079", fontSize: 18 }}>{item.setor}</small>
+              <div className="sala-parados-lista">
+                {dados.agora.paradosMaisTempo.map((item) => (
+                  <div key={item.nome} className="sala-parados-linha">
+                    <div className="sala-linha-equip">
+                      <strong>{item.nome}</strong>
+                      <small>{item.setor}</small>
+                    </div>
+                    <span className="sala-numero sala-linha-idade">{item.tempo}</span>
                   </div>
-                  <span className="sala-numero" style={{ fontSize: 26 }}>{item.tempo}</span>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         </div>
-        <div className="sala-cartao sala-coluna">
-          <div className="sala-rotulo-bloco">FILA DE AÇÃO</div>
+        <div className="sala-cartao sala-coluna sala-fila-painel">
+          <div className="sala-bloco-cabeca sala-fila-cabeca">
+            <AlertOctagon size={20} strokeWidth={2.2} aria-hidden />
+            <div className="sala-rotulo-bloco">FILA DE AÇÃO</div>
+            <span className="sala-fila-qtd sala-numero">{dados.agora.fila.length}</span>
+          </div>
           <div className="sala-fila">
             {dados.agora.fila.length === 0 ? <p className="sala-vazio">Nenhuma OS sem primeiro atendimento.</p> : null}
             {dados.agora.fila.map((item) => (
-              <div
+              <LinhaOsTv
                 key={item.os}
-                className="sala-linha"
-                style={destaque === item.os ? { outline: "3px solid #A3123A" } : undefined}
-              >
-                <div>
-                  <Selo situacao={item.situacao} />
-                  <small className="sala-numero">{item.os}</small>
-                </div>
-                <div style={{ minWidth: 0 }}>
-                  <strong style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {item.equipamento}
-                  </strong>
-                  <small>{item.tag} · {item.setor}</small>
-                </div>
-                <div>
-                  {item.parado ? <span className="tag-extra">PARADO</span> : null}
-                  {item.compra ? <span className="tag-extra">COMPRA</span> : null}
-                  <small>{item.criticidade}</small>
-                </div>
-                <span className="sala-numero" style={{ fontSize: 26 }}>{item.idade}</span>
-              </div>
+                os={item.os}
+                situacao={item.situacao}
+                equipamento={item.equipamento}
+                tag={item.tag}
+                setor={item.setor}
+                parado={item.parado}
+                compra={item.compra}
+                criticidade={item.criticidade}
+                idade={item.idade}
+                destaque={destaque === item.os}
+              />
             ))}
             {dados.agora.filaOcultas > 0 ? (
               <button
@@ -336,7 +497,7 @@ function TelaAgora({
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -1294,7 +1455,7 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
           />
           <div className="sala-miolo">
             {desatualizado ? <div className="sala-desatualizado">Dados desatualizados há {atualizadoHaMin} min</div> : null}
-            <div className={drill ? "sala-miolo-row com-drawer" : "sala-miolo-row"}>
+            <div className="sala-miolo-row">
               <div className="sala-miolo-main">
                 {erro && !dados ? <p className="sala-vazio">Sem conexão com o snapshot ({erro}).</p> : null}
                 {!dados && !erro ? <p className="sala-vazio">Carregando a sala…</p> : null}
@@ -1310,9 +1471,9 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
                   />
                 ) : null}
               </div>
-              {drill ? <SalaDrillDrawer drill={drill} linhas={drillLinhas} onLimpar={limparDrill} /> : null}
             </div>
           </div>
+          {drill ? <SalaDrillOverlay drill={drill} linhas={drillLinhas} onLimpar={limparDrill} /> : null}
           <footer className="sala-rodape">
             {dados ? (
               <>

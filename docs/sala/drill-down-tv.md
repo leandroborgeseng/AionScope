@@ -39,21 +39,22 @@ Referências de dados: `lib/ec/snapshot-tipos.ts`, `lib/ec/montar-snapshot.ts`, 
 
 ## 2. UX na TV 1920×1080
 
-### Layout recomendado: **drawer lateral direito** (não substituir o miolo inteiro)
+### Layout recomendado: **overlay / sheet** (não comprimir a fila)
 
 | Opção | Prós | Contras | Decisão |
 |---|---|---|---|
-| Drawer ~480–560 px à direita | Mantém o mapa visual da tela; hit target do KPI continua visível; padrão “detalhe” familiar | Aperta a coluna esquerda | **Preferida** na Fase 1–2 |
-| Substituir miolo por lista full | Mais linhas | Perde contexto do dashboard; sensação de “navegar para outra página” | Só se a lista for > ~15 linhas e o drawer ficar apertado |
-| Filtrar a lista já existente in-place (ex.: fila da Agora) | Zero layout novo | Não serve quando o KPI não tem lista irmã na mesma tela | Usar como atalho na Agora (fila) **além** do drawer se o filtro couber |
+| Overlay fullscreen no miolo (dim + sheet largo) | Mantém colunas esquerda/centro intactas; lista legível a 3–4 m; fecha com Esc/backdrop/Limpar | Cobre temporariamente o miolo | **Preferida** (pós Fase 1 — redesign TV) |
+| Drawer ~480–560 px à direita | Hit target do KPI continua visível ao lado | **Aperta a FILA** e causa overlap de badges — rejeitado na TV | Evitar |
+| Substituir miolo por lista full | Mais linhas | Perde contexto do dashboard | Alternativa só se a lista for enorme |
+| Filtrar a lista já existente in-place (ex.: fila da Agora) | Zero layout novo | Não serve quando o KPI não tem lista irmã | Atalho “+ N ocultas” ainda abre o overlay |
 
 ### Regras de TV
 
 - Alvos clicáveis ≥ **64×64 px** (contadores já são grandes). Cursor `pointer` + hover/focus ring.  
-- Chip de filtro legível a 3–4 m: fonte ≥ 20 px, contraste alto.  
-- Lista no drawer: linhas ~56–64 px de altura, tipografia alinhada a `.sala-linha`.  
+- Chip de filtro no cabeçalho + título do overlay: fonte ≥ 18–20 px, contraste alto.  
+- Lista no overlay: linhas ~68–76 px, grid `status \| equipamento \| meta \| idade` (sem overlap).  
 - Toque na TV (se houver): mesma área do clique; sem depender de hover.  
-- Não empilhar cards novos no hero da tela — o drawer é overlay estrutural, não card decorativo.
+- Overlay esmaece o board; **não** altera `grid-template-columns` da Agora.
 
 ### Chip de seleção (stub já previsto no app)
 
@@ -225,11 +226,11 @@ type LinhaDrillOs = {
 };
 ```
 
-### 4.3 UI do drawer (implementação futura)
+### 4.3 UI do overlay (implementado na Agora)
 
-- Componente `SalaDrillDrawer` em `components/sala-tv/` (fora de `TelaCompras`).  
-- Recebe `drill`, `linhas`, `onLimpar`.  
-- `TelaAgora` / `TelaFluxo` / … recebem `onDrill(id, titulo)` — **não** editar a lógica interna de Compras além de passar `onDrill` nos cards do funil quando for a fase de Compras.
+- Componente `SalaDrillOverlay` em `components/sala-tv/sala-app.tsx`.  
+- Recebe `drill`, `linhas`, `onLimpar`. Backdrop + sheet com fade; Esc / Limpar / Fechar.  
+- `TelaAgora` / … recebem `onDrill(id, titulo)` — **não** editar a lógica interna de Compras além de passar `onDrill` nos cards do funil quando for a fase de Compras.
 
 ### 4.4 Contrato de ids
 
@@ -247,10 +248,10 @@ Namespace estável: `{tela}.{recorte}` em kebab-case ASCII, sem acento na chave 
    - `agora.fora-do-prazo`
    - `agora.sem-primeiro` (fila completa, não só 8)
    - `agora.parados` (tag + nome + setor + tempo proxy)
-3. Contadores clicáveis → drawer com lista; toggle / Esc / Limpar.  
+3. Contadores clicáveis → **overlay** com lista; toggle / Esc / Limpar / backdrop.  
 4. Opcional: clique em “+ N ocultas” da fila = drill `agora.sem-primeiro`.
 
-**Fora da Fase 1:** plano do mês, rodapé, drawer rico de uma OS.
+**Fora da Fase 1:** plano do mês, rodapé, detalhe rico de uma OS.
 
 ### Fase 2 — Fluxo + Envelhecimento
 
@@ -292,7 +293,8 @@ Namespace estável: `{tela}.{recorte}` em kebab-case ASCII, sem acento na chave 
 
 - [x] Clicar **ATRASO GRAVE** pausa a rotação e mostra as OS graves.
 - [x] Clicar de novo / Esc / Limpar remove o filtro.
-- [x] Quantidade no drawer = valor do contador.
+- [x] Quantidade no overlay = valor do contador.
+- [x] Overlay **não** aperta a FILA (sem drawer side-by-side).
 - [x] Demais telas e rotação continuam iguais sem drill ativo.
 - [x] `TelaCompras` sem regressão (pager + marcar entregue).
 - [x] Documentação deste arquivo alinhada ao que foi implementado.
@@ -301,5 +303,5 @@ Namespace estável: `{tela}.{recorte}` em kebab-case ASCII, sem acento na chave 
 
 ## 8. Próximo passo sugerido
 
-**Fase 1 implementada** (Agora: 4 contadores + fila completa via `detalhes` + drawer).  
-Próximo: **Fase 2 — Fluxo + Envelhecimento** (ver §5).
+**Fase 1 + redesign TV Agora** (4 contadores + fila com grid estável + overlay).  
+Próximo: **Fase 2 — Fluxo + Envelhecimento** (ver §5), reusando o mesmo overlay.
