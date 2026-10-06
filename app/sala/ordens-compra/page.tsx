@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { OsVinculoField } from "@/components/sala/os-vinculo-field";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -659,35 +660,20 @@ export default function SalaOrdensCompraPage() {
                 </div>
 
                 <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <label className="block text-sm sm:col-span-1">
-                    <span className="mb-1 block text-xs font-semibold tracking-wide text-aion-muted uppercase">
-                      Nº OS
-                    </span>
-                    <div className="flex gap-2">
-                      <Input
-                        value={draftOs[ordem.numero_ordem] ?? ""}
-                        disabled={busy}
-                        onChange={(e) =>
-                          setDraftOs((d) => ({ ...d, [ordem.numero_ordem]: e.target.value }))
-                        }
-                        placeholder="vincular OS"
-                      />
-                      <button
-                        type="button"
-                        className="shrink-0 rounded-lg border border-aion-line px-3 text-xs font-semibold disabled:opacity-40"
-                        disabled={busy}
-                        onClick={() =>
-                          void patchOrdem(
-                            ordem.numero_ordem,
-                            { numero_os: draftOs[ordem.numero_ordem]?.trim() || null },
-                            `OS da OC ${ordem.numero_ordem} salva.`,
-                          )
-                        }
-                      >
-                        Salvar
-                      </button>
-                    </div>
-                  </label>
+                  <OsVinculoField
+                    value={draftOs[ordem.numero_ordem] ?? ""}
+                    disabled={busy}
+                    onChange={(valor) =>
+                      setDraftOs((d) => ({ ...d, [ordem.numero_ordem]: valor }))
+                    }
+                    onSalvar={() =>
+                      void patchOrdem(
+                        ordem.numero_ordem,
+                        { numero_os: draftOs[ordem.numero_ordem]?.trim() || null },
+                        `OS da OC ${ordem.numero_ordem} salva.`,
+                      )
+                    }
+                  />
                   <label className="block text-sm">
                     <span className="mb-1 block text-xs font-semibold tracking-wide text-aion-muted uppercase">
                       Data entrega

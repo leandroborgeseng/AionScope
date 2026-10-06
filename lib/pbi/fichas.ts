@@ -169,12 +169,12 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     nomeDoIndicador: "Oficinas de plano — OS abertas × fechadas",
     ...BASE,
     finalidadeDoIndicador:
-      "Proxy operacional do fluxo totalizado das oficinas de plano (Preventiva + Calibração + Segurança elétrica): aberturas × fechamentos no mês e % executado.",
+      "Proxy operacional do cumprimento do cronograma de manutenção planejada: aberturas × fechamentos mês a mês no ano vigente, por oficina de plano (Preventiva, Calibração e TSE/Segurança elétrica) e no total consolidado.",
     meta: "Monitoramento (% executada e equilíbrio entrada × execução)",
     referenciaDaMeta:
-      "Soma das três oficinas de plano. Não inclui OFICINA GERAL. Útil como visão consolidada de capacidade; o filtro da página permite voltar a cada oficina individual.",
+      "Tabela comparativa + soma das três oficinas de plano. Não inclui OFICINA GERAL. Narrativa: se fechadas acompanham abertas no mês, o fluxo da oficina está alinhado ao cronograma; déficit sustentado indica atraso de execução.",
     formula:
-      "Recorte: Oficina equals (normalizado) PREVENTIVA EQUIPAMENTOS ∪ CALIBRAÇÃO DE EQUIPAMENTOS ∪ SEGURANÇA ELÉTRICA. Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês; canceladas (SituacaoDaOS = Cancelada) contam como fechadas (sem data de fechamento → Abertura). % executada = fechadas ÷ abertas × 100. Gráfico: uma barra por mês com rótulo no topo; se abertas = 0 → barra 0 e label “—” (não 0%).",
+      "Recorte: Oficina equals (normalizado) PREVENTIVA EQUIPAMENTOS ∪ CALIBRAÇÃO DE EQUIPAMENTOS ∪ SEGURANÇA ELÉTRICA. Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês; canceladas (SituacaoDaOS = Cancelada) contam como fechadas (sem data de fechamento → Abertura). % executada = fechadas ÷ abertas × 100. Gráfico e tabela: eixo Jan–Dez do ano civil vigente; meses futuros zerados; se abertas = 0 → “—” (não 0%).",
     coletaDeDados:
       "Effort GlobalThings — listagem_analitica_das_os. Filtro local por união das três oficinas (equals). Ano civil vigente (America/Sao_Paulo): 1º jan → fim do mês atual na contagem; eixo Jan–Dez (meses futuros zerados). Não filtra por Tag médica nem por tipo de manutenção.",
     periodicidade: "Mensal",

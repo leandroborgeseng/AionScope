@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { OficinasPlanoComparativoTabela } from "@/components/indicadores/oficinas-plano-comparativo";
 import { OsVolumeCard } from "@/components/indicadores/os-volume-card";
 import { useOsAnaliticoRollingYear } from "@/hooks/use-os-analitico-rolling-year";
 import type { FichaIndicadorId } from "@/lib/pbi/fichas";
@@ -21,6 +22,10 @@ function OficinasPlanoAbertasFechadasContent() {
   const resolved = useMemo(() => resolveOficinaPlanoVolumeOptions(filterKey), [filterKey]);
   const year = range.start.getFullYear();
   const title = `${resolved.titulo} · ano vigente (${year})`;
+  const description =
+    filterKey === "todas"
+      ? `Ano vigente (${year}): abertas × fechadas por mês nas oficinas de plano (Preventiva + Calibração + TSE). Proxy de cumprimento do cronograma — use os chips para individualizar.`
+      : `Fluxo da oficina ${resolved.oficinaLabel} · ano vigente (${year}). Conta abertura × fechamento — alinhado ao cronograma de manutenção planejada.`;
 
   const onOficinaFilterChange = useCallback(
     (key: OficinaPlanoFilterKey) => {
@@ -30,21 +35,27 @@ function OficinasPlanoAbertasFechadasContent() {
   );
 
   return (
-    <OsVolumeCard
-      headingAs="page"
-      range={range}
-      raw={raw}
-      bruta={bruta}
-      loading={loading}
-      error={error}
-      oficinaEquals={resolved.oficinaEquals}
-      oficinaEqualsIn={resolved.oficinaEqualsIn}
-      oficinaLabel={resolved.oficinaLabel}
-      title={title}
-      fichaId={resolved.fichaSlug as FichaIndicadorId}
-      oficinaFilterKey={filterKey}
-      onOficinaFilterChange={onOficinaFilterChange}
-    />
+    <div className="space-y-6">
+      {filterKey === "todas" ? (
+        <OficinasPlanoComparativoTabela raw={raw} range={range} loading={loading} />
+      ) : null}
+      <OsVolumeCard
+        headingAs="page"
+        range={range}
+        raw={raw}
+        bruta={bruta}
+        loading={loading}
+        error={error}
+        oficinaEquals={resolved.oficinaEquals}
+        oficinaEqualsIn={resolved.oficinaEqualsIn}
+        oficinaLabel={resolved.oficinaLabel}
+        title={title}
+        description={description}
+        fichaId={resolved.fichaSlug as FichaIndicadorId}
+        oficinaFilterKey={filterKey}
+        onOficinaFilterChange={onOficinaFilterChange}
+      />
+    </div>
   );
 }
 
