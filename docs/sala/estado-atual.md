@@ -23,7 +23,7 @@ Não há login, middleware nem papel de admin. A Fase 6 (`/sala/registros` prote
 | Dados de tela | TanStack Query 5 + TanStack Table 8 |
 | Gráficos | Recharts 3 |
 | SQLite | better-sqlite3 |
-| Datas | `date-fns` 4, **sem** `date-fns-tz`. Fuso declarado `America/Sao_Paulo` em `lib/pbi/dates.ts` |
+| Datas | `date-fns` 4, **sem** `date-fns-tz`. Fuso declarado `America/Sao_Paulo` em `lib/pbi/dates.ts`. Relógio da TV (`SalaApp`): hora **cliente** em `America/Sao_Paulo` (tick 1s), não `dados.relogio` do snapshot. |
 | Testes | não há runner no `package.json` |
 | Fontes | Outfit (a conferir se é local ou Google) |
 
