@@ -62,7 +62,7 @@ export type LinhaDrillOs = {
   compra?: boolean;
 };
 
-/** Linha de equipamento (ex.: parados) no drawer de drill. */
+  /** Linha de equipamento (ex.: parados) no overlay de drill. */
 export type LinhaDrillEquip = {
   tag: string;
   equipamento: string;
