@@ -21,26 +21,23 @@ function iguais(a: string, b: string) {
   return timingSafeEqual(ba, bb);
 }
 
-/** Diretório fora do git (volume Coolify/local). */
+/** Diretório fora do git (volume Coolify/local). Preferir path estático sob data/. */
 export function diretorioEvidencias() {
   const env = process.env.TREINAMENTOS_EVIDENCIAS_PATH?.trim();
   if (env) return env;
-  const database = process.env.DATABASE_PATH?.trim();
-  if (database) {
-    return path.join(path.dirname(database), "treinamentos-evidencias");
-  }
-  return path.join(process.cwd(), "data", "treinamentos-evidencias");
+  // Escopo estático para o bundler; em Coolify use TREINAMENTOS_EVIDENCIAS_PATH=/data/...
+  return path.join(/* turbopackIgnore: true */ process.cwd(), "data", "treinamentos-evidencias");
 }
 
 export function caminhoEvidencia(ano: string) {
   const arquivo = ARQUIVOS[ano];
   if (!arquivo) return null;
-  return path.join(diretorioEvidencias(), arquivo);
+  return path.join(/* turbopackIgnore: true */ diretorioEvidencias(), arquivo);
 }
 
 export function evidenciaExiste(ano: string) {
   const caminho = caminhoEvidencia(ano);
-  return caminho ? existsSync(caminho) : false;
+  return caminho ? existsSync(/* turbopackIgnore: true */ caminho) : false;
 }
 
 export function anosEvidenciaDisponiveis() {
