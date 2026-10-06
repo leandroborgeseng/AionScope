@@ -2200,21 +2200,27 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
             {desatualizado ? <div className="sala-desatualizado">Dados desatualizados há {atualizadoHaMin} min</div> : null}
             <div className="sala-miolo-row">
               <div className="sala-miolo-main">
-                {erro && !dados ? <p className="sala-vazio">Sem conexão com o snapshot ({erro}).</p> : null}
-                {!dados && !erro ? <p className="sala-vazio">Carregando a sala…</p> : null}
-                {dados ? (
-                  <Conteudo
-                    tela={tela}
-                    dados={dados}
-                    destaque={destaque}
-                    novasOs={new Set(novasOs)}
-                    drill={drill}
-                    onDrill={selecionarDrill}
-                    onSelecionarOs={selecionarOs}
-                    onInteracaoChange={onInteracaoCompras}
-                    onAtualizar={carregar}
-                  />
-                ) : null}
+                {tela === "treinamentos" ? (
+                  <TvTreinamentos />
+                ) : (
+                  <>
+                    {erro && !dados ? <p className="sala-vazio">Sem conexão com o snapshot ({erro}).</p> : null}
+                    {!dados && !erro ? <p className="sala-vazio">Carregando a sala…</p> : null}
+                    {dados ? (
+                      <Conteudo
+                        tela={tela}
+                        dados={dados}
+                        destaque={destaque}
+                        novasOs={new Set(novasOs)}
+                        drill={drill}
+                        onDrill={selecionarDrill}
+                        onSelecionarOs={selecionarOs}
+                        onInteracaoChange={onInteracaoCompras}
+                        onAtualizar={carregar}
+                      />
+                    ) : null}
+                  </>
+                )}
               </div>
             </div>
           </div>
