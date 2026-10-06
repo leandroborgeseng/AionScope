@@ -1066,22 +1066,51 @@
   white-space: nowrap;
 }
 
-/* —— Ciclo de vida · horizonte 10 anos —— */
+/* —— Ciclo de vida · horizonte 10 anos (EOL + EOS) —— */
 .sala-ciclo {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
+}
+
+.sala-ciclo-acoes {
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.sala-ciclo-btn-relatorio {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--borda);
+  background: #fff;
+  color: var(--aion-azul);
+  font-size: 16px;
+  font-weight: 700;
+  text-decoration: none;
+  letter-spacing: 0.2px;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.sala-ciclo-btn-relatorio:hover,
+.sala-ciclo-btn-relatorio:focus-visible {
+  background: rgba(44, 102, 171, 0.08);
+  border-color: var(--aion-azul);
+  outline: none;
 }
 
 .sala-ciclo-hero {
-  flex: 1.15;
+  flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 20px 28px 18px;
+  gap: 8px;
+  padding: 12px 22px 10px;
   border-radius: var(--raio-grande);
   border: 1px solid var(--borda);
   background:
@@ -1092,11 +1121,18 @@
   animation: sala-ciclo-fade 420ms ease-out;
 }
 
+.sala-ciclo-hero-eos {
+  background:
+    radial-gradient(1100px 280px at 10% -20%, rgba(168, 70, 10, 0.1), transparent 55%),
+    radial-gradient(900px 260px at 90% 120%, rgba(44, 102, 171, 0.08), transparent 50%),
+    linear-gradient(180deg, #ffffff 0%, #faf6f1 100%);
+}
+
 .sala-ciclo-hero-topo {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 28px;
+  gap: 20px;
 }
 
 .sala-ciclo-hero-titulo {
@@ -1107,43 +1143,48 @@
   color: var(--aion-azul);
 }
 
+.sala-ciclo-icone.eos {
+  color: var(--atrasada);
+}
+
 .sala-ciclo-hero-sub {
-  margin: 6px 0 0;
-  font-size: 22px;
+  margin: 4px 0 0;
+  font-size: 18px;
   color: var(--texto-2);
   line-height: 1.3;
-  max-width: 720px;
+  max-width: 780px;
 }
 
 .sala-ciclo-resumo {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
 }
 
 .sala-ciclo-kpi {
-  min-width: 132px;
-  padding: 10px 16px 12px;
-  border-radius: 14px;
+  min-width: 112px;
+  padding: 6px 12px 8px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.88);
   border: 1px solid var(--borda);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .sala-ciclo-kpi-rotulo {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 1.2px;
+  letter-spacing: 1.1px;
   text-transform: uppercase;
   color: var(--texto-2);
 }
 
 .sala-ciclo-kpi-valor {
-  font-size: 48px;
+  font-size: 36px;
   color: var(--texto);
   animation: sala-ciclo-numero 520ms ease-out both;
+  line-height: 1.05;
 }
 
 .sala-ciclo-kpi-valor.destaque {
@@ -1155,19 +1196,19 @@
 }
 
 .sala-ciclo-kpi-ano {
-  font-size: 16px;
+  font-size: 14px;
   color: var(--texto-2);
   font-weight: 600;
 }
 
 .sala-ciclo-barras {
   flex: 1;
-  min-height: 220px;
+  min-height: 120px;
   display: grid;
   grid-template-columns: repeat(10, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
   align-items: end;
-  padding: 8px 4px 0;
+  padding: 4px 2px 0;
 }
 
 .sala-ciclo-barra-col {
@@ -1176,50 +1217,50 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
   margin: 0;
-  padding: 8px 4px 4px;
+  padding: 6px 3px 3px;
   border: 2px solid transparent;
-  border-radius: 14px;
+  border-radius: 12px;
   background: transparent;
   cursor: pointer;
-  font: inherit;
   color: inherit;
-  transition: border-color 160ms ease, background 160ms ease, opacity 160ms ease, transform 160ms ease;
+  font: inherit;
+  animation: sala-ciclo-fade 480ms ease-out both;
+  animation-delay: var(--atraso, 0ms);
 }
 
 .sala-ciclo-barra-col:hover,
 .sala-ciclo-barra-col:focus-visible {
+  border-color: rgba(44, 102, 171, 0.35);
+  background: rgba(44, 102, 171, 0.04);
   outline: none;
-  background: rgba(44, 102, 171, 0.06);
-  border-color: rgba(44, 102, 171, 0.28);
 }
 
 .sala-ciclo-barra-col.urgente:hover,
 .sala-ciclo-barra-col.urgente:focus-visible {
-  background: rgba(217, 98, 15, 0.07);
-  border-color: rgba(217, 98, 15, 0.32);
+  border-color: rgba(168, 70, 10, 0.4);
+  background: rgba(168, 70, 10, 0.05);
 }
 
 .sala-ciclo-barra-col.ativo {
-  background: rgba(44, 102, 171, 0.1);
   border-color: var(--aion-azul);
-  transform: translateY(-2px);
+  background: rgba(44, 102, 171, 0.08);
 }
 
 .sala-ciclo-barra-col.urgente.ativo {
-  background: rgba(217, 98, 15, 0.1);
   border-color: var(--atrasada);
+  background: rgba(168, 70, 10, 0.1);
 }
 
 .sala-ciclo.com-drill .sala-ciclo-barra-col.dim {
-  opacity: 0.42;
+  opacity: 0.38;
 }
 
 .sala-ciclo-barra-qtd {
-  font-size: 20px;
-  color: var(--texto);
+  font-size: 22px;
+  line-height: 1;
 }
 
 .sala-ciclo-barra-col.vazia .sala-ciclo-barra-qtd {
@@ -1229,40 +1270,47 @@
 
 .sala-ciclo-barra-trilho {
   width: 100%;
-  max-width: 56px;
-  height: 100%;
-  min-height: 120px;
+  flex: 1;
+  min-height: 48px;
   display: flex;
   align-items: flex-end;
-  border-radius: 10px 10px 6px 6px;
-  background: linear-gradient(180deg, rgba(227, 234, 243, 0.35), var(--trilho));
+  justify-content: center;
+  border-radius: 10px 10px 4px 4px;
+  background: rgba(44, 102, 171, 0.06);
   overflow: hidden;
-  pointer-events: none;
 }
 
 .sala-ciclo-barra-fill {
-  width: 100%;
+  width: 62%;
+  max-width: 42px;
   height: var(--altura, 4%);
-  border-radius: 10px 10px 4px 4px;
-  background: linear-gradient(180deg, #4a86c7 0%, var(--aion-azul) 55%, var(--aion-azul-escuro) 100%);
+  border-radius: 8px 8px 2px 2px;
+  background: linear-gradient(180deg, #4a86c7 0%, #2c66ab 100%);
   transform-origin: bottom;
   animation: sala-ciclo-barra 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: var(--atraso, 0ms);
 }
 
 .sala-ciclo-barra-col.urgente .sala-ciclo-barra-fill {
-  background: linear-gradient(180deg, #e08a45 0%, var(--atrasada-barra) 50%, #a8460a 100%);
+  background: linear-gradient(180deg, #e08a45 0%, #c45c12 100%);
+}
+
+.sala-ciclo-barra-col.eos .sala-ciclo-barra-fill {
+  background: linear-gradient(180deg, #d4783a 0%, #a8460a 100%);
+}
+
+.sala-ciclo-barra-col.eos:not(.urgente) .sala-ciclo-barra-fill {
+  background: linear-gradient(180deg, #5b8fc4 0%, #2c66ab 88%);
 }
 
 .sala-ciclo-barra-col.urgente:not(.vazia):first-child .sala-ciclo-barra-fill {
-  box-shadow: 0 0 0 0 rgba(217, 98, 15, 0.35);
   animation:
     sala-ciclo-barra 700ms cubic-bezier(0.22, 1, 0.36, 1) both,
     sala-ciclo-pulso 2.4s ease-in-out 800ms infinite;
 }
 
 .sala-ciclo-barra-ano {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--texto-2);
   letter-spacing: 0.2px;
@@ -1280,21 +1328,30 @@
   color: var(--atrasada);
 }
 
+.sala-ciclo-chip-eol {
+  background: rgba(44, 102, 171, 0.12) !important;
+  color: var(--aion-azul) !important;
+}
+
+.sala-ciclo-chip-eos {
+  background: rgba(168, 70, 10, 0.12) !important;
+  color: var(--atrasada) !important;
+}
+
 .sala-ciclo-ano-sheet .sala-drill-sheet-lista {
   padding-top: 0;
 }
 
 .sala-ciclo-ano-cabeca {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px 160px;
-  gap: 16px;
-  padding: 4px 28px 10px;
-  font-size: 15px;
+  grid-template-columns: minmax(0, 1fr) 120px 140px;
+  gap: 12px;
+  padding: 8px 28px 6px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--texto-2);
-  border-bottom: 1px solid var(--borda);
 }
 
 .sala-ciclo-ano-cabeca span:nth-child(2),
@@ -1303,42 +1360,39 @@
 }
 
 .sala-ciclo-ano-lista {
-  gap: 0;
+  padding-top: 4px;
 }
 
 .sala-ciclo-ano-linha {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 140px 160px;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 120px 140px;
+  gap: 12px;
   align-items: center;
-  min-height: 72px;
-  padding: 12px 28px;
-  border-bottom: 1px solid rgba(220, 228, 238, 0.85);
+  padding: 12px 0;
+  border-bottom: 1px solid var(--borda-linha);
 }
 
 .sala-ciclo-ano-linha-txt {
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
 }
 
 .sala-ciclo-ano-linha-txt strong {
+  display: block;
   font-size: 22px;
-  font-weight: 700;
-  color: var(--texto);
-  line-height: 1.2;
+  font-weight: 600;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .sala-ciclo-ano-linha-txt small {
-  font-size: 17px;
+  display: block;
+  margin-top: 2px;
+  font-size: 16px;
   color: var(--texto-2);
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .sala-ciclo-ano-data,
@@ -1353,11 +1407,12 @@
 }
 
 .sala-ciclo-secundario {
-  flex: 0.95;
+  flex: 0 0 auto;
+  max-height: 210px;
   min-height: 0;
   display: grid;
   grid-template-columns: 1.35fr 1fr;
-  gap: 16px;
+  gap: 12px;
 }
 
 .sala-ciclo-lista,
@@ -1366,33 +1421,34 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  padding: 12px 16px !important;
 }
 
 .sala-ciclo-lista-cabeca {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 8px;
+  gap: 12px;
+  margin-bottom: 4px;
 }
 
 .sala-ciclo-valor-sub {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   color: var(--grave);
   flex-shrink: 0;
 }
 
 .sala-ciclo-valor-rotulo {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 1px;
   color: var(--texto-2);
 }
 
 .sala-ciclo-valor-numero {
-  font-size: 28px;
+  font-size: 22px;
   color: var(--grave);
   line-height: 1.05;
 }
@@ -1405,10 +1461,10 @@
 
 .sala-ciclo-linha {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px 36px;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 100px 32px;
+  gap: 8px;
   align-items: center;
-  padding: 9px 0;
+  padding: 6px 0;
   border-bottom: 1px solid var(--borda-linha);
 }
 
@@ -1418,7 +1474,7 @@
 
 .sala-ciclo-linha-txt strong {
   display: block;
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -1427,40 +1483,44 @@
 
 .sala-ciclo-linha-txt small {
   display: block;
+  font-size: 13px;
   color: var(--texto-2);
-  font-size: 15px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .sala-ciclo-linha-valor {
-  font-size: 18px;
+  font-size: 15px;
   text-align: right;
-  color: var(--texto);
 }
 
 .sala-ciclo-linha-pts {
-  font-size: 22px;
+  font-size: 18px;
   text-align: right;
-  color: var(--aion-azul);
+  color: var(--atrasada);
+}
+
+.sala-ciclo-idade .sala-bloco-sub {
+  font-size: 14px;
+  margin: 2px 0 6px;
 }
 
 .sala-ciclo-idade-linha {
   display: grid;
-  grid-template-columns: 118px 1fr 52px;
-  gap: 10px;
+  grid-template-columns: 100px minmax(0, 1fr) 40px;
+  gap: 8px;
   align-items: center;
-  margin-top: 10px;
-  font-size: 18px;
+  margin-bottom: 6px;
+  font-size: 14px;
 }
 
 .sala-ciclo-idade-trilho {
   display: flex;
-  height: 14px;
-  background: var(--trilho);
+  height: 12px;
   border-radius: 6px;
   overflow: hidden;
+  background: rgba(44, 102, 171, 0.08);
 }
 
 .sala-ciclo-idade-trilho .em {
@@ -1468,16 +1528,16 @@
 }
 
 .sala-ciclo-idade-trilho .alem {
-  background: var(--atrasada-barra);
+  background: var(--atrasada);
 }
 
 .sala-ciclo-idade-linha .sala-numero {
-  font-size: 18px;
+  font-size: 16px;
   text-align: right;
 }
 
 @keyframes sala-ciclo-fade {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
 }
 
@@ -1495,4 +1555,3 @@
   0%, 100% { box-shadow: 0 0 0 0 rgba(217, 98, 15, 0.28); }
   50% { box-shadow: 0 0 0 8px rgba(217, 98, 15, 0); }
 }
-

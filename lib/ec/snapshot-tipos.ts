@@ -25,6 +25,23 @@ export const TELAS_SALA: Array<{ id: TelaSala; label: string; rotulo: string; ti
 
 export type FonteBloco = "api" | "manual" | "sem-dados";
 
+/** Bucket anual EOL/EOS no horizonte de 10 anos (TV + relatório de investimentos). */
+export type CicloPrevisaoAno = {
+  ano: string;
+  quantidade: number;
+  /** Soma ValorDeSubstituicao dos equipamentos deste ano (número bruto BRL). */
+  investimento: number;
+  /** Equipamentos cujo EndOfLife ou EndOfService cai neste ano. */
+  itens: Array<{
+    tag: string;
+    equipamento: string;
+    setor: string;
+    /** Data formatada dd/MM/yyyy (EOL ou EOS conforme o bucket). */
+    data: string;
+    valorSubstituicao: string;
+  }>;
+};
+
 /** Seleção de drill-down na TV (KPI/card → lista). Ver docs/sala/drill-down-tv.md. */
 export type SalaDrillSelecao = {
   tela: TelaSala;
@@ -208,23 +225,18 @@ export type SalaSnapshot = {
     vencem5Anos: number;
     /** Ativos cujo EndOfLife cai no horizonte de 10 anos (ano corrente+1 … +10). */
     vencem10Anos: number;
+    /** Ativos cujo EndOfService cai no horizonte de 10 anos (ano corrente+1 … +10). */
+    vencemEos10Anos: number;
     /**
-     * Quantidade por ano de fim de vida no horizonte de 10 anos
+     * Quantidade por ano de fim de vida (EOL) no horizonte de 10 anos
      * (ano corrente + 1 até corrente + 10), com itens para drill TV.
      */
-    previsaoEol: Array<{
-      ano: string;
-      quantidade: number;
-      /** Equipamentos cujo EndOfLife cai neste ano (drill `ciclo.eol.{ano}`). */
-      itens: Array<{
-        tag: string;
-        equipamento: string;
-        setor: string;
-        /** EndOfLife formatado dd/MM/yyyy. */
-        data: string;
-        valorSubstituicao: string;
-      }>;
-    }>;
+    previsaoEol: Array<CicloPrevisaoAno>;
+    /**
+     * Quantidade por ano de fim de serviço (EOS) no horizonte de 10 anos
+     * (ano corrente + 1 até corrente + 10), com itens para drill TV.
+     */
+    previsaoEos: Array<CicloPrevisaoAno>;
   };
   indicadores: {
     meses: string[];

@@ -141,8 +141,10 @@ Legenda de prontidão:
 |---|---|---|---|
 | Trilha (em uso, inservível…) | `ciclo.trilha.{etapa}` | Equipamentos da etapa | ⚠️ Contagens; listas parciais (`fimDeVida`, `maisAntigos`) |
 | Histograma idade | `ciclo.idade.{faixa}` | Tags na faixa | ❌ Só agregados; montar arrays |
-| Barras previsão EOL / em ciclo / vencem 5 anos | `ciclo.eol.{ano}` | Tags com EndOfLife naquele ano | ✅ `previsaoEol[].itens` no snapshot; overlay TV |
+| Barras previsão EOL | `ciclo.eol.{ano}` | Tags com EndOfLife naquele ano | ✅ `previsaoEol[].itens`; overlay TV; chip **EOL YYYY** |
+| Barras previsão EOS | `ciclo.eos.{ano}` | Tags com EndOfService naquele ano | ✅ `previsaoEos[].itens`; overlay TV; chip **EOS YYYY** |
 | Lista fim de vida | — | — | ➖ Já detalhe (top 8) |
+| Relatório investimentos | — | `/sala/ciclo-de-vida/investimentos` | ✅ Soma ValorDeSubstituicao por ano EOL/EOS; print PDF |
 
 ### 3.7 Indicadores
 
