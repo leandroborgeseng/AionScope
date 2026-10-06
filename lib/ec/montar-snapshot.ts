@@ -435,11 +435,12 @@ export function montarSnapshotDeDados(
   let valorFimDeVida = 0;
   let emCiclo = 0;
   const anoAtual = agora.getFullYear();
-  const previsaoEol = Array.from({ length: 5 }, (_, index) => ({
-    ano: String(anoAtual + index),
+  /** Horizonte TV: ano corrente+1 … +10 (10 buckets). */
+  const previsaoEol = Array.from({ length: 10 }, (_, index) => ({
+    ano: String(anoAtual + index + 1),
     quantidade: 0,
   }));
-  const limite5Anos = new Date(agora.getFullYear() + 5, agora.getMonth(), agora.getDate());
+  const limite10Anos = new Date(anoAtual + 10, 11, 31, 23, 59, 59, 999);
 
   for (const item of ativos) {
     const aquisicao = parsePbiDate(item.DataDeAquisicao) || parsePbiDate(item["DataDeInstalação"]);
@@ -453,7 +454,7 @@ export function montarSnapshotDeDados(
     const alem = Boolean(fim && agora.getTime() >= fim.getTime());
     const semPeca = Boolean(fimServico && agora.getTime() >= fimServico.getTime());
     if (fim && agora.getTime() < fim.getTime()) emCiclo += 1;
-    if (fim && agora.getTime() < fim.getTime() && fim.getTime() <= limite5Anos.getTime()) {
+    if (fim && agora.getTime() < fim.getTime() && fim.getTime() <= limite10Anos.getTime()) {
       const anoFim = fim.getFullYear();
       const slot = previsaoEol.find((itemAno) => Number(itemAno.ano) === anoFim);
       if (slot) slot.quantidade += 1;
@@ -491,7 +492,8 @@ export function montarSnapshotDeDados(
   }
   fimDeVida.sort((a, b) => b.pontos - a.pontos || a.tag.localeCompare(b.tag));
   maisAntigos.sort((a, b) => a.ms - b.ms);
-  const vencem5Anos = previsaoEol.reduce((soma, item) => soma + item.quantidade, 0);
+  const vencem10Anos = previsaoEol.reduce((soma, item) => soma + item.quantidade, 0);
+  const vencem5Anos = previsaoEol.slice(0, 5).reduce((soma, item) => soma + item.quantidade, 0);
 
   const listaMeses = meses(agora);
   const serieHoras: Array<number | null> = [];
@@ -770,6 +772,7 @@ export function montarSnapshotDeDados(
       maisAntigos: maisAntigos.slice(0, 6).map(({ ms: _ms, ...item }) => item),
       emCiclo,
       vencem5Anos,
+      vencem10Anos,
       previsaoEol,
     },
     indicadores: {

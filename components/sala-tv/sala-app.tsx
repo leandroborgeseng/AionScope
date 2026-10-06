@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { JetBrains_Mono } from "next/font/google";
 import {
   AlertOctagon,
@@ -10,6 +10,8 @@ import {
   ShoppingCart,
   CalendarRange,
   Timer,
+  Hourglass,
+  Replace,
 } from "lucide-react";
 import {
   TELAS_SALA,
@@ -768,123 +770,129 @@ function TelaAviso({ titulo, texto }: { titulo: string; texto: string }) {
 }
 
 function TelaCiclo({ dados }: { dados: SalaSnapshot }) {
-  const maximo = Math.max(1, ...dados.ciclo.histograma.map((faixa) => faixa.emVida + faixa.alem));
-  const maxPrevisao = Math.max(1, ...dados.ciclo.previsaoEol.map((item) => item.quantidade));
+  const ciclo = dados.ciclo;
+  const previsao = ciclo.previsaoEol;
+  const maxPrevisao = Math.max(1, ...previsao.map((item) => item.quantidade));
+  const maximoIdade = Math.max(1, ...ciclo.histograma.map((faixa) => faixa.emVida + faixa.alem));
+  const proximoAno = previsao[0];
+  const vencem10 = ciclo.vencem10Anos ?? previsao.reduce((s, i) => s + i.quantidade, 0);
+
   return (
-    <div className="sala-coluna" style={{ flex: 1, minHeight: 0 }}>
-      <div className="sala-etapas" style={{ gridTemplateColumns: "repeat(5, minmax(0, 1fr))" }}>
-        {dados.ciclo.trilha.map((item) => (
-          <div key={item.etapa} className="sala-etapa">
-            <div className="sala-rotulo-bloco">{item.etapa}</div>
-            <div className="sala-numero q">{item.quantidade == null ? "—" : item.quantidade}</div>
-          </div>
-        ))}
-      </div>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1.1fr 1fr 1.2fr",
-          gap: 16,
-          flex: 1,
-          minHeight: 0,
-        }}
-      >
-        <div className="sala-cartao" style={{ overflow: "hidden" }}>
-          <div className="sala-rotulo-bloco">IDADE DO PARQUE</div>
-          {dados.ciclo.histograma.map((faixa) => (
-            <div
-              key={faixa.faixa}
-              style={{ display: "grid", gridTemplateColumns: "120px 1fr 64px", gap: 8, alignItems: "center", marginTop: 8 }}
-            >
-              <span style={{ fontSize: 18 }}>{faixa.faixa}</span>
-              <div style={{ display: "flex", height: 16, background: "#E3EAF3", borderRadius: 6, overflow: "hidden" }}>
-                <div style={{ width: `${(faixa.emVida / maximo) * 100}%`, background: "#2C66AB" }} />
-                <div style={{ width: `${(faixa.alem / maximo) * 100}%`, background: "#D9620F" }} />
-              </div>
-              <b className="sala-numero" style={{ fontSize: 18 }}>{faixa.emVida + faixa.alem}</b>
+    <div className="sala-ciclo">
+      <section className="sala-ciclo-hero" aria-label="Horizonte de 10 anos">
+        <div className="sala-ciclo-hero-topo">
+          <div className="sala-ciclo-hero-titulo">
+            <div className="sala-bloco-cabeca">
+              <CalendarRange size={22} strokeWidth={2.2} aria-hidden className="sala-ciclo-icone" />
+              <div className="sala-rotulo-bloco">HORIZONTE · 10 ANOS</div>
             </div>
-          ))}
-          <p className="sala-vazio" style={{ marginTop: 10 }}>
-            Laranja: passou do EndOfLife (Anvisa).
-          </p>
+            <p className="sala-ciclo-hero-sub">
+              Equipamentos ativos com EndOfLife no próximo ano e nos nove seguintes.
+            </p>
+          </div>
+          <div className="sala-ciclo-resumo">
+            <div className="sala-ciclo-kpi">
+              <span className="sala-ciclo-kpi-rotulo">próximo ano</span>
+              <span className="sala-numero sala-ciclo-kpi-valor destaque">
+                {proximoAno?.quantidade ?? 0}
+              </span>
+              <span className="sala-ciclo-kpi-ano">{proximoAno?.ano ?? "—"}</span>
+            </div>
+            <div className="sala-ciclo-kpi">
+              <span className="sala-ciclo-kpi-rotulo">no horizonte</span>
+              <span className="sala-numero sala-ciclo-kpi-valor">{vencem10}</span>
+              <span className="sala-ciclo-kpi-ano">10 anos</span>
+            </div>
+            <div className="sala-ciclo-kpi">
+              <span className="sala-ciclo-kpi-rotulo">em ciclo</span>
+              <span className="sala-numero sala-ciclo-kpi-valor azul">{ciclo.emCiclo}</span>
+              <span className="sala-ciclo-kpi-ano">antes do EOL</span>
+            </div>
+          </div>
         </div>
 
-        <div className="sala-cartao" style={{ overflow: "hidden", display: "flex", flexDirection: "column" }}>
-          <div className="sala-rotulo-bloco">FIM DE VIDA · PRÓXIMOS 5 ANOS</div>
-          <div style={{ display: "flex", gap: 16, margin: "8px 0 12px" }}>
-            <div>
-              <div style={{ fontSize: 16, color: "#4E6079" }}>em ciclo</div>
-              <div className="sala-numero" style={{ fontSize: 40, color: "#2C66AB" }}>{dados.ciclo.emCiclo}</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 16, color: "#4E6079" }}>vencem em 5 anos</div>
-              <div className="sala-numero" style={{ fontSize: 40, color: "#A8460A" }}>{dados.ciclo.vencem5Anos}</div>
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 10, flex: 1, minHeight: 160 }}>
-            {dados.ciclo.previsaoEol.map((item) => (
-              <div key={item.ano} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, height: "100%", justifyContent: "flex-end" }}>
-                <span className="sala-numero" style={{ fontSize: 18 }}>{item.quantidade}</span>
-                <div
-                  style={{
-                    width: "100%",
-                    maxWidth: 48,
-                    height: `${Math.max(8, (item.quantidade / maxPrevisao) * 120)}px`,
-                    background: item.quantidade ? "#A8460A" : "#E3EAF3",
-                    borderRadius: "8px 8px 4px 4px",
-                  }}
-                />
-                <span style={{ fontSize: 16, fontWeight: 600, color: "#4E6079" }}>{item.ano}</span>
-              </div>
-            ))}
-          </div>
-          <p className="sala-vazio" style={{ marginTop: 8 }}>
-            Quantidade por ano de EndOfLife. Em ciclo = ativos ainda antes do fim de vida.
-          </p>
-        </div>
-
-        <div className="sala-cartao sala-coluna" style={{ overflow: "hidden" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
-            <div className="sala-rotulo-bloco">FIM DE VIDA · {dados.ciclo.quantidadeFimDeVida}</div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 14, color: "#4E6079", letterSpacing: 1, fontWeight: 700 }}>VALOR SUBSTITUIÇÃO</div>
-              <div className="sala-numero" style={{ fontSize: 28, color: "#A3123A" }}>
-                {dados.ciclo.valorSubstituicaoFimDeVida}
-              </div>
-            </div>
-          </div>
-          <p className="sala-vazio" style={{ margin: "4px 0 8px" }}>{dados.ciclo.avisoDescontinuado}</p>
-          {dados.ciclo.fimDeVida.length === 0 ? (
-            <p className="sala-vazio">Nenhum equipamento ativo bateu os critérios.</p>
-          ) : null}
-          <div style={{ overflow: "auto", flex: 1 }}>
-            {dados.ciclo.fimDeVida.map((item) => (
+        <div className="sala-ciclo-barras" role="img" aria-label="Previsão de fim de vida por ano">
+          {previsao.map((item, index) => {
+            const urgencia = index < 3;
+            const altura = item.quantidade
+              ? Math.max(12, Math.round((item.quantidade / maxPrevisao) * 100))
+              : 4;
+            return (
               <div
-                key={item.tag}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "minmax(0, 1fr) 110px 40px",
-                  gap: 10,
-                  alignItems: "center",
-                  padding: "8px 0",
-                  borderBottom: "1px solid #E6ECF3",
-                }}
+                key={item.ano}
+                className={`sala-ciclo-barra-col${urgencia ? " urgente" : ""}${item.quantidade ? "" : " vazia"}`}
+                style={
+                  {
+                    "--atraso": `${index * 45}ms`,
+                    "--altura": `${altura}%`,
+                  } as CSSProperties
+                }
               >
-                <div style={{ minWidth: 0 }}>
-                  <strong style={{ fontSize: 20 }}>{item.equipamento}</strong>
-                  <small style={{ display: "block", color: "#4E6079", fontSize: 15 }}>
-                    {item.tag} · {item.criterios}
-                  </small>
-                </div>
-                <span className="sala-numero" style={{ fontSize: 18, textAlign: "right" }}>
-                  {item.valorSubstituicao}
+                <span className="sala-numero sala-ciclo-barra-qtd">
+                  {item.quantidade || "·"}
                 </span>
-                <span className="sala-numero" style={{ fontSize: 24, textAlign: "right" }}>{item.pontos}</span>
+                <div className="sala-ciclo-barra-trilho">
+                  <div className="sala-ciclo-barra-fill" />
+                </div>
+                <span className="sala-ciclo-barra-ano">{item.ano}</span>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
+      </section>
+
+      <div className="sala-ciclo-secundario">
+        <section className="sala-cartao sala-ciclo-lista" aria-label="Fim de vida próximo">
+          <div className="sala-ciclo-lista-cabeca">
+            <div className="sala-bloco-cabeca">
+              <Hourglass size={20} strokeWidth={2.2} aria-hidden />
+              <div className="sala-rotulo-bloco">FIM DE VIDA PRÓXIMO · {ciclo.quantidadeFimDeVida}</div>
+            </div>
+            <div className="sala-ciclo-valor-sub">
+              <Replace size={18} strokeWidth={2.2} aria-hidden />
+              <div>
+                <div className="sala-ciclo-valor-rotulo">VALOR SUBSTITUIÇÃO</div>
+                <div className="sala-numero sala-ciclo-valor-numero">{ciclo.valorSubstituicaoFimDeVida}</div>
+              </div>
+            </div>
+          </div>
+          {ciclo.fimDeVida.length === 0 ? (
+            <p className="sala-vazio">Nenhum equipamento ativo bateu os critérios.</p>
+          ) : (
+            <div className="sala-ciclo-lista-itens">
+              {ciclo.fimDeVida.map((item) => (
+                <div key={item.tag} className="sala-ciclo-linha">
+                  <div className="sala-ciclo-linha-txt">
+                    <strong>{item.equipamento}</strong>
+                    <small>
+                      {item.tag} · {item.criterios}
+                    </small>
+                  </div>
+                  <span className="sala-numero sala-ciclo-linha-valor">{item.valorSubstituicao}</span>
+                  <span className="sala-numero sala-ciclo-linha-pts">{item.pontos}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="sala-cartao sala-ciclo-idade" aria-label="Idade do parque">
+          <div className="sala-rotulo-bloco">IDADE DO PARQUE</div>
+          <p className="sala-bloco-sub">Azul em vida · laranja além do EndOfLife</p>
+          {ciclo.histograma.map((faixa) => {
+            const total = faixa.emVida + faixa.alem;
+            return (
+              <div key={faixa.faixa} className="sala-ciclo-idade-linha">
+                <span>{faixa.faixa}</span>
+                <div className="sala-ciclo-idade-trilho">
+                  <div style={{ width: `${(faixa.emVida / maximoIdade) * 100}%` }} className="em" />
+                  <div style={{ width: `${(faixa.alem / maximoIdade) * 100}%` }} className="alem" />
+                </div>
+                <b className="sala-numero">{total}</b>
+              </div>
+            );
+          })}
+        </section>
       </div>
     </div>
   );
