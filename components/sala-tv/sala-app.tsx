@@ -1337,11 +1337,12 @@ function CelulaOsEditavel({
 
 function TelaCompras({
   dados,
-  onInteragir,
+  onInteracaoChange,
   onAtualizar,
 }: {
   dados: SalaSnapshot;
-  onInteragir?: () => void;
+  /** true enquanto edita OS / confirma entrega — pausa rotação só nesse intervalo */
+  onInteracaoChange?: (ativa: boolean) => void;
   onAtualizar?: () => void | Promise<void>;
 }) {
   const c = dados.compras;
@@ -1352,6 +1353,10 @@ function TelaCompras({
   const [erroEntrega, setErroEntrega] = useState<string | null>(null);
   const [osLocal, setOsLocal] = useState<Record<string, string>>({});
   const [editandoOs, setEditandoOs] = useState(false);
+
+  useEffect(() => {
+    onInteracaoChange?.(editandoOs || Boolean(confirmando) || Boolean(busy));
+  }, [editandoOs, confirmando, busy, onInteracaoChange]);
 
   const pedidosVisiveis = c.pedidos.filter((p) => !ocultas.includes(p.numeroOrdem));
   const totalPaginas = Math.max(1, Math.ceil(pedidosVisiveis.length / COMPRAS_POR_PAGINA));
@@ -1369,10 +1374,7 @@ function TelaCompras({
     return () => window.clearTimeout(id);
   }, [confirmando]);
 
-  const tocar = () => onInteragir?.();
-
   const marcarEntregue = async (numeroOrdem: string) => {
-    tocar();
     setBusy(numeroOrdem);
     setErroEntrega(null);
     try {
@@ -1400,7 +1402,6 @@ function TelaCompras({
   };
 
   const cliqueEntrega = (numeroOrdem: string) => {
-    tocar();
     if (confirmando === numeroOrdem) {
       void marcarEntregue(numeroOrdem);
       return;
@@ -1597,10 +1598,7 @@ function TelaCompras({
                       numeroOrdem={pedido.numeroOrdem}
                       valor={osDaLinha(pedido)}
                       desabilitado={Boolean(busy)}
-                      onInteragir={() => {
-                        tocar();
-                        setEditandoOs(true);
-                      }}
+                      onInteragir={() => setEditandoOs(true)}
                       onFimEdicao={() => setEditandoOs(false)}
                       onSalvo={async (numeroOs) => {
                         setOsLocal((atual) => ({
@@ -1636,10 +1634,7 @@ function TelaCompras({
                 <button
                   type="button"
                   disabled={paginaAtual <= 0}
-                  onClick={() => {
-                    tocar();
-                    setPagina((atual) => Math.max(0, atual - 1));
-                  }}
+                  onClick={() => setPagina((atual) => Math.max(0, atual - 1))}
                 >
                   ← Anterior
                 </button>
@@ -1649,10 +1644,7 @@ function TelaCompras({
                 <button
                   type="button"
                   disabled={paginaAtual >= totalPaginas - 1}
-                  onClick={() => {
-                    tocar();
-                    setPagina((atual) => Math.min(totalPaginas - 1, atual + 1));
-                  }}
+                  onClick={() => setPagina((atual) => Math.min(totalPaginas - 1, atual + 1))}
                 >
                   Próxima →
                 </button>
@@ -1673,7 +1665,7 @@ function Conteudo({
   drill,
   onDrill,
   onSelecionarOs,
-  onInteragir,
+  onInteracaoChange,
   onAtualizar,
 }: {
   tela: TelaSala;
@@ -1683,7 +1675,7 @@ function Conteudo({
   drill: SalaDrillSelecao | null;
   onDrill: (id: string, titulo: string) => void;
   onSelecionarOs?: (os: string) => void;
-  onInteragir?: () => void;
+  onInteracaoChange?: (ativa: boolean) => void;
   onAtualizar?: () => void | Promise<void>;
 }) {
   if (tela === "agora") {
@@ -1701,7 +1693,9 @@ function Conteudo({
   if (tela === "fluxo") return <TelaFluxo dados={dados} />;
   if (tela === "envelhecimento") return <TelaEnvelhecimento dados={dados} />;
   if (tela === "compras") {
-    return <TelaCompras dados={dados} onInteragir={onInteragir} onAtualizar={onAtualizar} />;
+    return (
+      <TelaCompras dados={dados} onInteracaoChange={onInteracaoChange} onAtualizar={onAtualizar} />
+    );
   }
   if (tela === "programadas") return <TelaProgramadas dados={dados} />;
   if (tela === "ciclo-de-vida") return <TelaCiclo dados={dados} />;
@@ -1714,7 +1708,10 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   const [erro, setErro] = useState<string | null>(null);
   const [falhaDesde, setFalhaDesde] = useState<number | null>(null);
   const [indice, setIndice] = useState(0);
-  const [pausado, setPausado] = useState(false);
+  /** Pausa manual (Espaço / botão). Overlays e edição de Compras pausam à parte. */
+  const [pausadoManual, setPausadoManual] = useState(false);
+  /** Edição OS / confirmação de entrega na tela Compras — só enquanto ativo. */
+  const [interacaoCompras, setInteracaoCompras] = useState(false);
   const [progresso, setProgresso] = useState(0);
   const [destaque, setDestaque] = useState<string | null>(null);
   const [novasOs, setNovasOs] = useState<string[]>([]);
@@ -1724,6 +1721,11 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   const [osSelecionada, setOsSelecionada] = useState<string | null>(null);
   const [escala, setEscala] = useState(1);
   const [deslocamento, setDeslocamento] = useState(0);
+  /**
+   * Relógio de parede da TV: hora local America/Sao_Paulo no *cliente*, tick 1s.
+   * Independente de `dados.relogio` / fuso do container do servidor (snapshot).
+   * `atualizadoEm` e demais timestamps do snapshot continuam vindos do servidor.
+   */
   const [relogio, setRelogio] = useState("—");
   const [somLigado, setSomLigado] = useState(false);
   const [somPronto, setSomPronto] = useState(false);
@@ -1753,8 +1755,11 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   }, []);
 
   const selecionarOs = useCallback((os: string) => {
-    setPausado(true);
     setOsSelecionada(os);
+  }, []);
+
+  const onInteracaoCompras = useCallback((ativa: boolean) => {
+    setInteracaoCompras(ativa);
   }, []);
 
   const persistirSom = useCallback((ligado: boolean) => {
@@ -1835,16 +1840,14 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   }, [falhaDesde]);
 
   useEffect(() => {
-    const tick = () => {
-      setRelogio(
-        new Intl.DateTimeFormat("pt-BR", {
-          timeZone: "America/Sao_Paulo",
-          hour: "2-digit",
-          minute: "2-digit",
-          hourCycle: "h23",
-        }).format(new Date()),
-      );
-    };
+    // Wall clock: always America/Sao_Paulo from the TV browser clock (not snapshot.relogio).
+    const formatador = new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const tick = () => setRelogio(formatador.format(new Date()));
     tick();
     const id = window.setInterval(tick, 1000);
     return () => window.clearInterval(id);
@@ -1867,10 +1870,12 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   const sequencia = dados?.sequencia?.length ? dados.sequencia : TELAS_SALA.map((item) => item.id);
   const tela = telaFixa ?? sequencia[indice % sequencia.length] ?? "agora";
   const segundos = dados?.segundos || 30;
+  /** Rotação pausa só com overlay/edição ativa ou pausa manual — limpar retoma. */
+  const pausado =
+    pausadoManual || Boolean(drill) || Boolean(osSelecionada) || interacaoCompras;
 
   const selecionarDrill = useCallback(
     (id: string, titulo: string) => {
-      setPausado(true);
       setDrill((atual) => {
         if (atual?.id === id) return null;
         return { tela, id, titulo };
@@ -1882,6 +1887,7 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   useEffect(() => {
     setOsSelecionada(null);
     setDrill(null);
+    setInteracaoCompras(false);
   }, [tela]);
 
   useEffect(() => {
@@ -1929,12 +1935,20 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
       }
       if (evento.key === " ") {
         evento.preventDefault();
-        setPausado((atual) => !atual);
+        // Com overlay/edição: Espaço limpa e retoma. Sem overlay: pausa/continua manual.
+        if (drill || osSelecionada || interacaoCompras) {
+          setOsSelecionada(null);
+          setDrill(null);
+          setInteracaoCompras(false);
+          setPausadoManual(false);
+        } else {
+          setPausadoManual((atual) => !atual);
+        }
       }
     };
     window.addEventListener("keydown", tecla);
     return () => window.removeEventListener("keydown", tecla);
-  }, [sequencia.length, telaFixa]);
+  }, [sequencia.length, telaFixa, drill, osSelecionada, interacaoCompras]);
 
   const atualizadoHaMin = dados ? Math.max(0, Math.round((Date.now() - new Date(dados.atualizadoEm).getTime()) / 60_000)) : null;
   const desatualizado = atualizadoHaMin != null && atualizadoHaMin >= 20;
@@ -1986,7 +2000,7 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
                     drill={drill}
                     onDrill={selecionarDrill}
                     onSelecionarOs={selecionarOs}
-                    onInteragir={() => setPausado(true)}
+                    onInteracaoChange={onInteracaoCompras}
                     onAtualizar={carregar}
                   />
                 ) : null}
@@ -2064,7 +2078,20 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
                 {somLigado && somPronto ? "Som ligado" : "Som: toque para ativar alertas de nova OS"}
               </button>
               {telaFixa ? null : (
-                <button type="button" className="sala-rodape-btn" onClick={() => setPausado((atual) => !atual)}>
+                <button
+                  type="button"
+                  className="sala-rodape-btn"
+                  onClick={() => {
+                    if (pausado) {
+                      setOsSelecionada(null);
+                      setDrill(null);
+                      setInteracaoCompras(false);
+                      setPausadoManual(false);
+                    } else {
+                      setPausadoManual(true);
+                    }
+                  }}
+                >
                   {pausado ? "continuar" : "pausar"} · próxima: {proximaLabel} em 0:{String(restante).padStart(2, "0")}
                 </button>
               )}

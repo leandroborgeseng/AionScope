@@ -18,9 +18,9 @@ Referências de dados: `lib/ec/snapshot-tipos.ts`, `lib/ec/montar-snapshot.ts`, 
 | Clique de novo no mesmo alvo | **Limpa** a seleção (toggle). |
 | Clique em outro alvo na mesma tela | Troca a seleção (um drill ativo por vez). |
 | Esc ou botão **Limpar** no chip | Limpa a seleção. |
-| Durante drill | **Pausa** a auto-rotação de telas (`pausado = true`), igual à interação atual de Compras. |
-| Ao limpar | Mantém pausado até o operador tocar “continuar” (não retomar sozinho — evita sumir o contexto). |
-| Troca de tela (seta / pill / rotação) | Limpa o drill (seleção é por tela). |
+| Durante drill | **Pausa** a auto-rotação enquanto `drill` ou detalhe de OS estão abertos (e enquanto edição/confirmação em Compras). |
+| Ao limpar | **Retoma** a rotação automaticamente (pausa só enquanto a interação está ativa; pausa manual Espaço/botão é independente). |
+| Troca de tela (seta / pill / rotação) | Limpa o drill (seleção é por tela) e retoma se não houver pausa manual. |
 
 ### O que aparece ao “furar”
 
@@ -176,8 +176,8 @@ export type SalaDrillSelecao = {
 // React: drill: SalaDrillSelecao | null
 ```
 
-- Setar `drill` → `setPausado(true)`.  
-- Esc / Limpar → `setDrill(null)`.  
+- Setar `drill` → rotação pausa por derivação (`pausado = pausadoManual || drill || osSelecionada || interacaoCompras`).  
+- Esc / Limpar → `setDrill(null)` → retoma se não houver pausa manual.  
 - Mudança de `tela` → limpar drill.  
 - Stub UI: chip `selecionado: {titulo}` (sem drawer até Fase 1 implementar listas).
 
