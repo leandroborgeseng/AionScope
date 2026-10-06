@@ -98,7 +98,7 @@ Uma rota só: `/sala`. Quadro operacional, não player de 8 telas.
 Regras em `lib/pbi/sala.ts` e `lib/pbi/business-hours.ts`:
 
 - Janela de 30 dias pela data de abertura.
-- Só equipamento médico com tag; sem instrumental; só oficinas da EC.
+- Só equipamento médico com tag; sem instrumental; só oficinas da EC (allowlist em `oficina-ec.ts`; exclui Oficina Geral).
 - Fora da fila: preventiva, TSE e calibração.
 - Horas úteis **seg–sex 07:00–17:00** (`EC_HORA_INICIO` / `EC_HORA_FIM`). Feriados via `EC_FERIADOS` e `/sala/registros`.
 - Situação pela meta de 1º atendimento × criticidade: no prazo, atenção (≤ 25% restante), atrasada, crítica (atraso > 1× a meta).
