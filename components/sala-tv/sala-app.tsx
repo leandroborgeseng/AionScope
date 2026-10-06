@@ -1292,7 +1292,11 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
 
   const carregar = useCallback(async () => {
     try {
-      const resposta = await fetch("/api/sala/snapshot", { cache: "no-store" });
+      const demo =
+        typeof window !== "undefined" && new URLSearchParams(window.location.search).get("demo") === "1";
+      const resposta = await fetch(demo ? "/api/sala/snapshot?demo=1" : "/api/sala/snapshot", {
+        cache: "no-store",
+      });
       if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
       const json = (await resposta.json()) as SalaSnapshot;
       setDados(json);
