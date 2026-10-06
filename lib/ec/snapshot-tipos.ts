@@ -1,3 +1,7 @@
+import type { OsDetalheSnapshot } from "./os-detalhe";
+
+export type { OsDetalheSnapshot };
+
 export type TelaSala =
   | "agora"
   | "fluxo"
@@ -87,6 +91,11 @@ export type SalaSnapshot = {
    * Fase 1: agora.grave | agora.fora-do-prazo | agora.sem-primeiro | agora.parados
    */
   detalhes?: Partial<Record<string, LinhaDrill[]>>;
+  /**
+   * Detalhe operacional por número de OS (clique na fila / linha do drill).
+   * Inclui OS abertas de demanda EC presentes no snapshot.
+   */
+  osDetalhes?: Record<string, OsDetalheSnapshot>;
   agora: {
     grave: number;
     foraDoPrazo: number;

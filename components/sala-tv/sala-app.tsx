@@ -16,6 +16,7 @@ import {
   type LinhaDrill,
   type LinhaDrillEquip,
   type LinhaDrillOs,
+  type OsDetalheSnapshot,
   type SalaDrillSelecao,
   type SalaSnapshot,
   type TelaSala,
@@ -169,6 +170,7 @@ function LinhaOsTv({
   idade,
   destaque,
   denso,
+  onSelecionar,
 }: {
   os: string;
   situacao?: string;
@@ -181,9 +183,33 @@ function LinhaOsTv({
   idade?: string;
   destaque?: boolean;
   denso?: boolean;
+  onSelecionar?: (os: string) => void;
 }) {
+  const clicavel = Boolean(onSelecionar);
+  const classe = [
+    denso ? "sala-linha sala-linha-densa" : "sala-linha",
+    clicavel ? "sala-linha-clicavel" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
   return (
-    <div className={denso ? "sala-linha sala-linha-densa" : "sala-linha"} data-destaque={destaque ? "1" : undefined}>
+    <div
+      className={classe}
+      data-destaque={destaque ? "1" : undefined}
+      role={clicavel ? "button" : undefined}
+      tabIndex={clicavel ? 0 : undefined}
+      onClick={clicavel ? () => onSelecionar?.(os) : undefined}
+      onKeyDown={
+        clicavel
+          ? (evento) => {
+              if (evento.key === "Enter" || evento.key === " ") {
+                evento.preventDefault();
+                onSelecionar?.(os);
+              }
+            }
+          : undefined
+      }
+    >
       <div className="sala-linha-status">
         {situacao ? <Selo situacao={situacao} /> : <span className="sala-selo sala-selo-vazio">—</span>}
         <small className="sala-numero sala-linha-os">{os}</small>
@@ -206,15 +232,33 @@ function LinhaEquipTv({
   setor,
   os,
   tempo,
+  onSelecionar,
 }: {
   equipamento: string;
   tag: string;
   setor: string;
   os?: string;
   tempo?: string;
+  onSelecionar?: (os: string) => void;
 }) {
+  const clicavel = Boolean(os && onSelecionar);
   return (
-    <div className="sala-linha sala-linha-equip-only">
+    <div
+      className={clicavel ? "sala-linha sala-linha-equip-only sala-linha-clicavel" : "sala-linha sala-linha-equip-only"}
+      role={clicavel ? "button" : undefined}
+      tabIndex={clicavel ? 0 : undefined}
+      onClick={clicavel ? () => onSelecionar?.(os!) : undefined}
+      onKeyDown={
+        clicavel
+          ? (evento) => {
+              if (evento.key === "Enter" || evento.key === " ") {
+                evento.preventDefault();
+                onSelecionar?.(os!);
+              }
+            }
+          : undefined
+      }
+    >
       <div className="sala-linha-status">
         <span className="sala-meta-badge parado">
           <PauseCircle size={18} strokeWidth={2.4} aria-hidden />
@@ -234,14 +278,124 @@ function LinhaEquipTv({
   );
 }
 
+function CampoDetalhe({ rotulo, valor }: { rotulo: string; valor: string }) {
+  return (
+    <div className="sala-os-campo">
+      <span className="sala-os-campo-rotulo">{rotulo}</span>
+      <span className="sala-os-campo-valor">{valor || "—"}</span>
+    </div>
+  );
+}
+
+function SalaOsDetalhePainel({
+  detalhe,
+  onVoltar,
+  onFechar,
+}: {
+  detalhe: OsDetalheSnapshot;
+  onVoltar: () => void;
+  onFechar: () => void;
+}) {
+  return (
+    <div className="sala-os-detalhe-overlay" role="dialog" aria-modal="true" aria-label={`OS ${detalhe.os}`}>
+      <button type="button" className="sala-drill-backdrop" onClick={onFechar} aria-label="Fechar detalhe da OS" />
+      <div className="sala-os-detalhe-sheet">
+        <div className="sala-drill-sheet-cabecalho">
+          <div className="sala-drill-sheet-titulo">
+            <span className="sala-drill-sheet-chip">detalhe da OS</span>
+            <div className="sala-drill-sheet-heading">
+              <div>
+                <div className="sala-numero sala-os-detalhe-numero">{detalhe.os}</div>
+                <div className="sala-os-detalhe-equip">{detalhe.equipamento}</div>
+                <small className="sala-os-detalhe-meta">
+                  {detalhe.tag} · {detalhe.setor}
+                </small>
+              </div>
+            </div>
+          </div>
+          <div className="sala-os-detalhe-acoes">
+            <button type="button" className="sala-drill-limpar" onClick={onVoltar}>
+              Voltar
+            </button>
+            <button type="button" className="sala-drill-limpar sala-drill-fechar" onClick={onFechar}>
+              Fechar · Esc
+            </button>
+          </div>
+        </div>
+        <div className="sala-os-detalhe-corpo">
+          <div className="sala-os-flags">
+            {detalhe.manutencaoExterna ? (
+              <span className="sala-os-flag externa">Manutenção externa / EXT</span>
+            ) : null}
+            {detalhe.pendenciaCompra ? (
+              <span className="sala-os-flag compra">Pendência de compra</span>
+            ) : null}
+            {!detalhe.aberto ? <span className="sala-os-flag fechada">OS fechada</span> : null}
+            <span className="sala-os-flag etapa">{detalhe.etapa}</span>
+          </div>
+
+          <section className="sala-os-secao">
+            <h3 className="sala-os-secao-titulo">Solicitação</h3>
+            <p className="sala-os-texto">{detalhe.solicitacao}</p>
+            {detalhe.ocorrencia !== "—" && detalhe.ocorrencia !== detalhe.solicitacao ? (
+              <p className="sala-os-texto secundario">
+                <strong>Ocorrência:</strong> {detalhe.ocorrencia}
+              </p>
+            ) : null}
+            {detalhe.observacaoOs !== "—" && detalhe.observacaoOs !== detalhe.solicitacao ? (
+              <p className="sala-os-texto secundario">
+                <strong>Observação:</strong> {detalhe.observacaoOs}
+              </p>
+            ) : null}
+          </section>
+
+          {(detalhe.pendencia !== "—" || detalhe.observacaoPendencia !== "—") && (
+            <section className="sala-os-secao">
+              <h3 className="sala-os-secao-titulo">Pendência</h3>
+              <p className="sala-os-texto">{detalhe.pendencia}</p>
+              {detalhe.observacaoPendencia !== "—" ? (
+                <p className="sala-os-texto secundario">{detalhe.observacaoPendencia}</p>
+              ) : null}
+            </section>
+          )}
+
+          {detalhe.manutencaoExterna ? (
+            <section className="sala-os-secao">
+              <h3 className="sala-os-secao-titulo">Reparo externo / assistência</h3>
+              <p className="sala-os-texto">{detalhe.assistencia !== "—" ? detalhe.assistencia : "Indicada na OS (EXT / assistência)."}</p>
+            </section>
+          ) : null}
+
+          <div className="sala-os-grade">
+            <CampoDetalhe rotulo="Abertura" valor={detalhe.abertura} />
+            <CampoDetalhe rotulo="1º atendimento" valor={detalhe.primeiroAtendimento} />
+            <CampoDetalhe rotulo="Situação" valor={detalhe.situacaoOs} />
+            <CampoDetalhe rotulo="Criticidade" valor={detalhe.criticidade} />
+            <CampoDetalhe rotulo="Responsável" valor={detalhe.responsavel} />
+            <CampoDetalhe rotulo="Oficina" valor={detalhe.oficina} />
+            <CampoDetalhe rotulo="Tag" valor={detalhe.tag} />
+            <CampoDetalhe rotulo="Setor" valor={detalhe.setor} />
+            <CampoDetalhe rotulo="Tipo" valor={detalhe.tipoManutencao} />
+            <CampoDetalhe rotulo="Prioridade" valor={detalhe.prioridade} />
+            <CampoDetalhe rotulo="Requisitante" valor={detalhe.requisitante} />
+            <CampoDetalhe rotulo="Fechamento" valor={detalhe.fechamento} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SalaDrillOverlay({
   drill,
   linhas,
   onLimpar,
+  onSelecionarOs,
 }: {
   drill: SalaDrillSelecao;
   linhas: LinhaDrill[];
   onLimpar: () => void;
+  onSelecionarOs?: (os: string) => void;
 }) {
   const parados = drill.id === "agora.parados";
   const Icone = DRILL_ICONE[drill.id] ?? AlertOctagon;
@@ -278,6 +432,7 @@ function SalaDrillOverlay({
                   setor={linha.setor}
                   os={linha.os}
                   tempo={linha.tempo}
+                  onSelecionar={onSelecionarOs}
                 />
               );
             }
@@ -295,6 +450,7 @@ function SalaDrillOverlay({
                   criticidade={linha.criticidade}
                   idade={linha.idade}
                   denso
+                  onSelecionar={onSelecionarOs}
                 />
               );
             }
@@ -311,11 +467,13 @@ function TelaAgora({
   destaque,
   drill,
   onDrill,
+  onSelecionarOs,
 }: {
   dados: SalaSnapshot;
   destaque: string | null;
   drill: SalaDrillSelecao | null;
   onDrill: (id: string, titulo: string) => void;
+  onSelecionarOs?: (os: string) => void;
 }) {
   const formatarPct = (pct: number | null) =>
     pct == null ? "—" : `${pct.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 1 })}%`;
@@ -483,6 +641,7 @@ function TelaAgora({
                 criticidade={item.criticidade}
                 idade={item.idade}
                 destaque={destaque === item.os}
+                onSelecionar={onSelecionarOs}
               />
             ))}
             {dados.agora.filaOcultas > 0 ? (
@@ -1251,6 +1410,7 @@ function Conteudo({
   destaque,
   drill,
   onDrill,
+  onSelecionarOs,
   onInteragir,
   onAtualizar,
 }: {
@@ -1259,10 +1419,21 @@ function Conteudo({
   destaque: string | null;
   drill: SalaDrillSelecao | null;
   onDrill: (id: string, titulo: string) => void;
+  onSelecionarOs?: (os: string) => void;
   onInteragir?: () => void;
   onAtualizar?: () => void | Promise<void>;
 }) {
-  if (tela === "agora") return <TelaAgora dados={dados} destaque={destaque} drill={drill} onDrill={onDrill} />;
+  if (tela === "agora") {
+    return (
+      <TelaAgora
+        dados={dados}
+        destaque={destaque}
+        drill={drill}
+        onDrill={onDrill}
+        onSelecionarOs={onSelecionarOs}
+      />
+    );
+  }
   if (tela === "fluxo") return <TelaFluxo dados={dados} />;
   if (tela === "envelhecimento") return <TelaEnvelhecimento dados={dados} />;
   if (tela === "compras") {
@@ -1284,11 +1455,21 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   const [destaque, setDestaque] = useState<string | null>(null);
   /** Drill-down Fase 1 (Agora): docs/sala/drill-down-tv.md */
   const [drill, setDrill] = useState<SalaDrillSelecao | null>(null);
+  /** Detalhe operacional de uma OS (clique na fila / linha do drill). */
+  const [osSelecionada, setOsSelecionada] = useState<string | null>(null);
   const [escala, setEscala] = useState(1);
   const [deslocamento, setDeslocamento] = useState(0);
   const [relogio, setRelogio] = useState("—");
 
-  const limparDrill = useCallback(() => setDrill(null), []);
+  const limparDrill = useCallback(() => {
+    setOsSelecionada(null);
+    setDrill(null);
+  }, []);
+
+  const selecionarOs = useCallback((os: string) => {
+    setPausado(true);
+    setOsSelecionada(os);
+  }, []);
 
   const carregar = useCallback(async () => {
     try {
@@ -1377,18 +1558,23 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   );
 
   useEffect(() => {
+    setOsSelecionada(null);
     setDrill(null);
   }, [tela]);
 
   useEffect(() => {
     const tecla = (evento: KeyboardEvent) => {
       if (evento.key === "Escape") {
+        if (osSelecionada) {
+          setOsSelecionada(null);
+          return;
+        }
         setDrill(null);
       }
     };
     window.addEventListener("keydown", tecla);
     return () => window.removeEventListener("keydown", tecla);
-  }, []);
+  }, [osSelecionada]);
 
   useEffect(() => {
     if (telaFixa || pausado) return;
@@ -1410,10 +1596,12 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
     const tecla = (evento: KeyboardEvent) => {
       if (evento.key === "Escape") return;
       if (evento.key === "ArrowRight") {
+        setOsSelecionada(null);
         setDrill(null);
         setIndice((atual) => atual + 1);
       }
       if (evento.key === "ArrowLeft") {
+        setOsSelecionada(null);
         setDrill(null);
         setIndice((atual) => (atual + sequencia.length - 1) % sequencia.length);
       }
@@ -1432,6 +1620,7 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
   const proximaLabel = TELAS_SALA.find((item) => item.id === proxima)?.label ?? proxima;
   const restante = Math.max(0, Math.ceil((1 - progresso) * segundos));
   const drillLinhas = drill ? (dados?.detalhes?.[drill.id] ?? []) : [];
+  const osDetalhe = osSelecionada ? (dados?.osDetalhes?.[osSelecionada] ?? null) : null;
 
   return (
     <div className={`${mono.variable} sala-root`}>
@@ -1470,6 +1659,7 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
                     destaque={destaque}
                     drill={drill}
                     onDrill={selecionarDrill}
+                    onSelecionarOs={selecionarOs}
                     onInteragir={() => setPausado(true)}
                     onAtualizar={carregar}
                   />
@@ -1477,7 +1667,48 @@ export function SalaApp({ telaFixa }: { telaFixa?: TelaSala }) {
               </div>
             </div>
           </div>
-          {drill ? <SalaDrillOverlay drill={drill} linhas={drillLinhas} onLimpar={limparDrill} /> : null}
+          {drill && !osDetalhe ? (
+            <SalaDrillOverlay
+              drill={drill}
+              linhas={drillLinhas}
+              onLimpar={limparDrill}
+              onSelecionarOs={selecionarOs}
+            />
+          ) : null}
+          {osSelecionada && osDetalhe ? (
+            <SalaOsDetalhePainel
+              detalhe={osDetalhe}
+              onVoltar={() => setOsSelecionada(null)}
+              onFechar={() => {
+                setOsSelecionada(null);
+                setDrill(null);
+              }}
+            />
+          ) : null}
+          {osSelecionada && !osDetalhe ? (
+            <div className="sala-os-detalhe-overlay" role="dialog" aria-modal="true" aria-label={`OS ${osSelecionada}`}>
+              <button
+                type="button"
+                className="sala-drill-backdrop"
+                onClick={() => setOsSelecionada(null)}
+                aria-label="Fechar"
+              />
+              <div className="sala-os-detalhe-sheet sala-os-detalhe-sheet-curto">
+                <div className="sala-drill-sheet-cabecalho">
+                  <div>
+                    <span className="sala-drill-sheet-chip">detalhe da OS</span>
+                    <div className="sala-numero sala-os-detalhe-numero">{osSelecionada}</div>
+                    <p className="sala-vazio" style={{ marginTop: 8 }}>
+                      Sem detalhe operacional no snapshot para esta OS.
+                    </p>
+                  </div>
+                  <button type="button" className="sala-drill-limpar sala-drill-fechar" onClick={() => setOsSelecionada(null)}>
+                    Fechar · Esc
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
           <footer className="sala-rodape">
             {dados ? (
               <>

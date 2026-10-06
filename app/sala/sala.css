@@ -550,6 +550,158 @@
 .sala-drill-sheet-lista .sala-linha {
   grid-template-columns: 140px minmax(0, 1fr) 180px 120px;
 }
+.sala-linha-clicavel {
+  cursor: pointer;
+}
+.sala-linha-clicavel:hover,
+.sala-linha-clicavel:focus-visible {
+  outline: 2px solid var(--aion-azul);
+  outline-offset: 2px;
+  background: #f4f8fc;
+}
+.sala-os-detalhe-overlay {
+  position: absolute;
+  inset: 106px 0 56px 0;
+  z-index: 40;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  padding: 18px 40px 16px;
+  animation: sala-drill-fade 180ms ease-out;
+  pointer-events: none;
+}
+.sala-os-detalhe-sheet {
+  position: relative;
+  z-index: 1;
+  pointer-events: auto;
+  width: min(1100px, 100%);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #fff;
+  border: 1px solid var(--borda);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 18px 48px rgba(18, 35, 58, 0.22);
+  animation: sala-drill-sheet-in 220ms ease-out;
+}
+.sala-os-detalhe-sheet-curto {
+  height: auto;
+  align-self: center;
+}
+.sala-os-detalhe-numero {
+  font-size: 44px;
+  color: var(--aion-azul);
+  line-height: 1.1;
+}
+.sala-os-detalhe-equip {
+  font-size: 26px;
+  font-weight: 700;
+  margin-top: 4px;
+}
+.sala-os-detalhe-meta {
+  display: block;
+  margin-top: 4px;
+  color: var(--texto-2);
+  font-size: 18px;
+}
+.sala-os-detalhe-acoes {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.sala-os-detalhe-corpo {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 16px 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.sala-os-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sala-os-flag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 700;
+  border: 1px solid var(--borda);
+  background: #eef2f7;
+  color: #4e6079;
+}
+.sala-os-flag.externa {
+  background: #eef1f6;
+  border-color: #b8c4d6;
+  color: #3a4a63;
+}
+.sala-os-flag.compra {
+  background: #fff6ee;
+  border-color: #f0bd8e;
+  color: #a8460a;
+}
+.sala-os-flag.fechada {
+  background: #fdf1f4;
+  border-color: #e7a3b6;
+  color: #a3123a;
+}
+.sala-os-flag.etapa {
+  background: #eef6ff;
+  border-color: #9bb8de;
+  color: #2c66ab;
+}
+.sala-os-secao-titulo {
+  margin: 0 0 6px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--aion-azul);
+}
+.sala-os-texto {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.35;
+  color: var(--texto);
+}
+.sala-os-texto.secundario {
+  margin-top: 8px;
+  font-size: 18px;
+  color: var(--texto-2);
+}
+.sala-os-grade {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 16px;
+}
+.sala-os-campo {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f4f8fc;
+  border: 1px solid #e3eaf3;
+}
+.sala-os-campo-rotulo {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--texto-2);
+  margin-bottom: 4px;
+}
+.sala-os-campo-valor {
+  display: block;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--texto);
+  word-break: break-word;
+}
 .sala-rodape {
   display: flex;
   align-items: center;

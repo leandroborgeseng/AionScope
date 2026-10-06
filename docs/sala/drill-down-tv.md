@@ -91,7 +91,7 @@ Legenda de prontidão:
 | Contador **FORA DO PRAZO** | `agora.fora-do-prazo` | GRAVE + ATRASADA (mesmo critério de `fora` em `montar-snapshot`) | ⚠️ Idem |
 | Contador **SEM 1º ATENDIMENTO** | `agora.sem-primeiro` | Todas as demanda abertas sem `DataDoAtendimento` | ⚠️ Contagem ok; lista = fila completa (`fila` + ocultas). Hoje `filaOcultas` esconde o resto |
 | Contador **EQUIP. PARADOS** | `agora.parados` | Tags “paradas agora” (OS demanda aberta ∪ flag mês) | ⚠️ Contagem `parados`; **não há array de tags/OS no snapshot** — só `paradosMaisTempo` (top 4) |
-| **Fila de ação** (linhas) | `agora.fila-item` / destaque | Detalhe da OS (já parcialmente na linha) | ➖ Destaque já existe via `alertas` → `destaque`. Expandir drawer da OS é nice-to-have |
+| **Fila de ação** (linhas) | `agora.fila-item` / detalhe OS | Detalhe operacional da OS (solicitação, EXT, compra, datas…) | ✅ Clique abre `SalaOsDetalhePainel` com `osDetalhes[os]` do snapshot (também nas linhas do overlay de drill) |
 | **Plano do mês** (por tipo) | `agora.plano.{prev\|calib\|tse}` | Equipamentos previstos vs executados / faltantes do tipo | ⚠️ Números em `agora.plano`; lista de pendentes já existe em **Programadas** (`programadas.pendentes`). Reusar ou espelhar |
 | **Parados há mais tempo** | `agora.parados-mais-tempo` | Já é lista curta | ➖ Clique = destacar / abrir detalhe da tag |
 | Rodapé (hoje / semana / 1º at. / TMEF / críticos) | — | — | ❌ Fora do drill Fase 1 (agregados mensais; TMEF sem lista de tags no snapshot) |

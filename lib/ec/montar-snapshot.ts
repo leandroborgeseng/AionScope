@@ -16,6 +16,7 @@ import { ordenarFila } from "./fila";
 import { dentroDoExpediente, diffHorasUteis, horarioUtilConfig, type HorarioUtilConfig } from "./horario-util";
 import { metaHorasEsforco, rotuloCriticidade } from "./meta";
 import { planoAgoraCards, resumoProgramadasMes } from "./programadas-mes";
+import { montarOsDetalhe } from "./os-detalhe";
 import { situacaoPrimeiroAtendimento, type SituacaoOs } from "./situacao";
 import type { LinhaDrillEquip, LinhaFila, SalaSnapshot, TelaSala } from "./snapshot-tipos";
 import { classeDemanda, classeManutencao, parseMoeda, semAcento, texto, type ClasseManutencao } from "./texto";
@@ -576,6 +577,29 @@ export function montarSnapshotDeDados(
     status: item.status,
   }));
 
+  /** Detalhe operacional das OS abertas de demanda (clique na fila / drill). */
+  const osDetalhes: SalaSnapshot["osDetalhes"] = {};
+  for (const item of demandaAberta) {
+    const numero = texto(item.os.OS);
+    if (!numero) continue;
+    osDetalhes[numero] = montarOsDetalhe(item.os, {
+      criticidade: item.criticidade,
+      etapa: item.etapa,
+      aberto: !item.encerrada,
+    });
+  }
+  // Inclui OS referenciadas em parados (mesmo se já no mapa).
+  for (const linha of paradosDetalhes) {
+    if (!linha.os || osDetalhes[linha.os]) continue;
+    const vista = vistas.find((item) => texto(item.os.OS) === linha.os);
+    if (!vista) continue;
+    osDetalhes[linha.os] = montarOsDetalhe(vista.os, {
+      criticidade: vista.criticidade,
+      etapa: vista.etapa,
+      aberto: !vista.encerrada,
+    });
+  }
+
   return {
     atualizadoEm: new Date().toISOString(),
     relogio: format(agora, "HH:mm"),
@@ -593,6 +617,7 @@ export function montarSnapshotDeDados(
       "agora.sem-primeiro": filaCompleta,
       "agora.parados": dados.disponibilidade || paradosAgora.size ? paradosDetalhes : [],
     },
+    osDetalhes,
     agora: {
       grave: grave.length,
       foraDoPrazo: fora.length,
