@@ -22,6 +22,7 @@ describe("calcularPainel — bombas B. Braun", () => {
     assert.equal(painel.variacao_treinados_pct, -32.3);
     assert.equal(painel.reciclados_atual, 207);
     assert.equal(painel.taxa_reciclagem_geral_pct, 47.7);
+    assert.equal(painel.aptos_sem_reforco, 227);
     assert.equal(painel.novos_atual, 87);
     assert.equal(
       painel.setores.reduce((soma, s) => soma + s.novos_atual, 0),

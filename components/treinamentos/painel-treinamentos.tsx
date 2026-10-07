@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import {
   Bar,
   BarChart,
@@ -49,14 +49,20 @@ function fmtNum(n: number) {
   return n.toLocaleString("pt-BR");
 }
 
+type EvidenciasUi = {
+  tokenObrigatorio: boolean;
+  anos: string[];
+  liberado: boolean;
+};
+
 export function PainelTreinamentosView({
   painel,
   participantes,
-  evidenciasConfiguradas,
+  evidencias,
 }: {
   painel: PainelTreinamentos;
   participantes: ParticipanteTreinamento[];
-  evidenciasConfiguradas: boolean;
+  evidencias: EvidenciasUi;
 }) {
   const [anoFiltro, setAnoFiltro] = useState<number | "todos">("todos");
   const [setorFiltro, setSetorFiltro] = useState<string | "todos">("todos");
@@ -66,7 +72,16 @@ export function PainelTreinamentosView({
   const [, startTransition] = useTransition();
   const [tokenInput, setTokenInput] = useState("");
   const [evidenciaMsg, setEvidenciaMsg] = useState<string | null>(null);
-  const [desbloqueado, setDesbloqueado] = useState(false);
+  const [desbloqueado, setDesbloqueado] = useState(evidencias.liberado);
+  const [previewAno, setPreviewAno] = useState<string | null>(
+    evidencias.liberado ? (evidencias.anos[0] ?? null) : null,
+  );
+  const [anosDisponiveis, setAnosDisponiveis] = useState(evidencias.anos);
+
+  useEffect(() => {
+    void atualizarStatusEvidencias();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- status só no mount
+  }, []);
 
   const anosOpts = painel.anos.map((a) => a.ano);
   const setoresOpts = useMemo(() => {
@@ -170,6 +185,15 @@ export function PainelTreinamentosView({
   const aAnt = painel.anos.find((a) => a.ano === painel.ano_anterior);
   const aAtual = painel.anos.find((a) => a.ano === painel.ano_atual);
 
+  async function atualizarStatusEvidencias() {
+    const res = await fetch("/api/treinamentos/evidencias/status", { cache: "no-store" });
+    if (!res.ok) return;
+    const body = (await res.json()) as EvidenciasUi;
+    setAnosDisponiveis(body.anos);
+    setDesbloqueado(body.liberado);
+    if (!previewAno && body.anos[0]) setPreviewAno(body.anos[0]);
+  }
+
   async function desbloquearEvidencias() {
     setEvidenciaMsg(null);
     const res = await fetch("/api/treinamentos/evidencias/desbloquear", {
@@ -186,19 +210,31 @@ export function PainelTreinamentosView({
     setDesbloqueado(true);
     setEvidenciaMsg("Acesso liberado nesta sessão (8 h).");
     setTokenInput("");
+    await atualizarStatusEvidencias();
+    if (anosDisponiveis[0] || evidencias.anos[0]) {
+      setPreviewAno(anosDisponiveis[0] ?? evidencias.anos[0] ?? null);
+    }
+  }
+
+  function abrirLista(ano: string) {
+    setPreviewAno(ano);
+    window.open(`/api/treinamentos/evidencias/${ano}`, "_blank", "noopener,noreferrer");
   }
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Treinamento em bombas de infusão B. Braun"
-        description="Hospital São Joaquim · Unimed Franca · Engenharia Clínica. Capacitação contínua — não é obrigatória para quem já domina o equipamento. 2025: listas manuscritas. 2026: Google Forms. Contagem por pessoa única."
+        description="Hospital São Joaquim · Unimed Franca · Engenharia Clínica. Capacitação contínua e opcional: quem já domina o equipamento pode não participar — isso é maturidade, não atraso. 2025: listas manuscritas. 2026: Google Forms. Contagem por pessoa única."
       />
 
       <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm text-aion-ink">
-        <strong>Base consolidada.</strong> Volume anual menor não é regressão: a equipe já capacitada
-        permanece apta; a turma atual soma <strong>recorrentes (já treinados)</strong> e{" "}
-        <strong>novos</strong>. Treinamento reforça quem precisa — não reinicia a base inteira.
+        <strong>Boa notícia, não regressão.</strong> O treinamento não é obrigatório. Se a pessoa não
+        veio, em geral é porque <strong>já sabe o que precisa</strong> para operar a bomba. A base{" "}
+        {painel.ano_anterior} permanece apta ({fmtNum(painel.aptos_sem_reforco)} sem necessidade de
+        reforço). A turma {painel.ano_atual} soma{" "}
+        <strong>{fmtNum(painel.reciclados_atual)} recorrentes</strong> (atualização) e{" "}
+        <strong>{fmtNum(painel.novos_atual)} novos</strong>.
       </div>
 
       <div className="flex flex-wrap items-end gap-3 rounded-xl border border-aion-line bg-white p-3">
@@ -235,7 +271,7 @@ export function PainelTreinamentosView({
         <p className="max-w-xl text-xs leading-relaxed text-aion-muted">{painel.nota_setor}</p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         <KpiCard
           label={`Base capacitada ${painel.ano_anterior}`}
           value={fmtNum(aAnt?.treinados ?? 0)}
@@ -243,22 +279,22 @@ export function PainelTreinamentosView({
           tone="ok"
         />
         <KpiCard
-          label={`Turma ${painel.ano_atual}`}
-          value={fmtNum(aAtual?.treinados ?? 0)}
-          hint={`${fmtNum(painel.reciclados_atual)} recorrentes + ${fmtNum(painel.novos_atual)} novos · base consolidada`}
+          label="Já aptos (sem reforço)"
+          value={fmtNum(painel.aptos_sem_reforco)}
+          hint={`Da base ${painel.ano_anterior} · sabem operar, não precisaram repetir`}
           tone="ok"
         />
         <KpiCard
-          label="Continuidade (já capacitados)"
+          label={`Turma ${painel.ano_atual}`}
+          value={fmtNum(aAtual?.treinados ?? 0)}
+          hint={`${fmtNum(painel.reciclados_atual)} recorrentes + ${fmtNum(painel.novos_atual)} novos`}
+          tone="ok"
+        />
+        <KpiCard
+          label="Atualização (recorrentes)"
           value={fmtPct(painel.taxa_reciclagem_geral_pct)}
-          hint={`${fmtNum(painel.reciclados_atual)} retornaram · meta ${META_RECICLAGEM_PCT}%`}
-          tone={
-            painel.taxa_reciclagem_geral_pct >= 60
-              ? "ok"
-              : painel.taxa_reciclagem_geral_pct >= 40
-                ? "ok"
-                : "warn"
-          }
+          hint={`${fmtNum(painel.reciclados_atual)} voltaram para reforço · meta ${META_RECICLAGEM_PCT}%`}
+          tone="ok"
         />
         <KpiCard
           label={`Novos capacitados ${painel.ano_atual}`}
@@ -273,26 +309,30 @@ export function PainelTreinamentosView({
         />
       </div>
 
-      <Card className="space-y-3 border-aion-blue/25 bg-aion-mist/40 p-4">
+      <Card className="space-y-4 border-aion-blue/25 bg-aion-mist/40 p-4" id="evidencias">
         <div className="flex items-start gap-2">
-          <FileText className="mt-0.5 h-5 w-5 text-aion-blue" />
+          <FileText className="mt-0.5 h-5 w-5 shrink-0 text-aion-blue" />
           <div>
-            <h2 className="text-lg font-semibold text-aion-ink">Evidências (listas PDF)</h2>
+            <h2 className="text-lg font-semibold text-aion-ink">Listas de presença (PDF)</h2>
             <p className="text-sm text-aion-muted">
-              Listas originais 2025 e 2026. O PDF de 2026 contém CPF e e-mail — acesso com token
-              (LGPD: nomes não aparecem na TV).
+              Evidências originais 2025 (manuscritas) e 2026 (Google Forms). O PDF de 2026 contém CPF e
+              e-mail — nomes não aparecem na TV.
             </p>
           </div>
         </div>
-        {!evidenciasConfiguradas ? (
+
+        {anosDisponiveis.length === 0 ? (
           <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            Configure <code className="font-mono">TREINAMENTOS_EVIDENCIAS_TOKEN</code> e copie os PDFs
-            para o volume <code className="font-mono">treinamentos-evidencias</code> (ao lado do SQLite).
+            Nenhum PDF no volume. Copie{" "}
+            <code className="font-mono">2025_lista_presenca_bomba_infusao.pdf</code> e{" "}
+            <code className="font-mono">2026_lista_presenca_bomba_infusao.pdf</code> para{" "}
+            <code className="font-mono">treinamentos-evidencias</code> (ao lado do SQLite). Token
+            opcional: <code className="font-mono">TREINAMENTOS_EVIDENCIAS_TOKEN</code>.
           </p>
         ) : (
-          <div className="flex flex-wrap items-end gap-2">
-            {!desbloqueado ? (
-              <>
+          <>
+            {evidencias.tokenObrigatorio && !desbloqueado ? (
+              <div className="flex flex-wrap items-end gap-2">
                 <Input
                   type="password"
                   className="w-64"
@@ -303,41 +343,72 @@ export function PainelTreinamentosView({
                     if (e.key === "Enter") void desbloquearEvidencias();
                   }}
                 />
-                <Button type="button" onClick={desbloquearEvidencias}>
-                  Desbloquear e abrir
+                <Button type="button" onClick={() => void desbloquearEvidencias()}>
+                  Desbloquear listas
                 </Button>
-              </>
+              </div>
             ) : (
-              <>
-                <a
-                  className="inline-flex h-10 items-center rounded-lg bg-aion-blue px-4 text-sm font-semibold text-white hover:opacity-90"
-                  href="/api/treinamentos/evidencias/2025"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Abrir lista 2025 (PDF)
-                </a>
-                <a
-                  className="inline-flex h-10 items-center rounded-lg bg-aion-blue px-4 text-sm font-semibold text-white hover:opacity-90"
-                  href="/api/treinamentos/evidencias/2026"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Abrir lista 2026 (PDF)
-                </a>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={async () => {
-                    await fetch("/api/treinamentos/evidencias/desbloquear", { method: "DELETE" });
-                    setDesbloqueado(false);
-                  }}
-                >
-                  Bloquear novamente
-                </Button>
-              </>
+              <div className="flex flex-wrap items-center gap-2">
+                {anosDisponiveis.map((ano) => (
+                  <Button
+                    key={ano}
+                    type="button"
+                    variant={previewAno === ano ? "default" : "outline"}
+                    onClick={() => {
+                      setPreviewAno(ano);
+                      abrirLista(ano);
+                    }}
+                  >
+                    Abrir lista {ano}
+                  </Button>
+                ))}
+                {anosDisponiveis.map((ano) => (
+                  <Button
+                    key={`prev-${ano}`}
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setPreviewAno(ano)}
+                  >
+                    Pré-visualizar {ano}
+                  </Button>
+                ))}
+                {evidencias.tokenObrigatorio ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={async () => {
+                      await fetch("/api/treinamentos/evidencias/desbloquear", { method: "DELETE" });
+                      setDesbloqueado(false);
+                      setPreviewAno(null);
+                    }}
+                  >
+                    Bloquear novamente
+                  </Button>
+                ) : null}
+              </div>
             )}
-          </div>
+
+            {desbloqueado && previewAno ? (
+              <div className="overflow-hidden rounded-xl border border-aion-line bg-white">
+                <div className="flex items-center justify-between gap-2 border-b border-aion-line px-3 py-2 text-sm">
+                  <span className="font-semibold text-aion-ink">Lista {previewAno}</span>
+                  <a
+                    className="text-aion-blue underline-offset-2 hover:underline"
+                    href={`/api/treinamentos/evidencias/${previewAno}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Abrir em nova aba
+                  </a>
+                </div>
+                <iframe
+                  title={`Lista de presença ${previewAno}`}
+                  src={`/api/treinamentos/evidencias/${previewAno}`}
+                  className="h-[min(70vh,720px)] w-full bg-slate-100"
+                />
+              </div>
+            ) : null}
+          </>
         )}
         {evidenciaMsg ? <p className="text-sm text-aion-muted">{evidenciaMsg}</p> : null}
       </Card>
@@ -347,18 +418,18 @@ export function PainelTreinamentosView({
           <div>
             <h2 className="text-lg font-semibold text-aion-ink">Evolução por setor · base → turma</h2>
             <p className="text-sm text-aion-muted">
-              Fundo: base {painel.ano_anterior} (já capacitados). Sobreposição: recorrentes + novos em{" "}
-              {painel.ano_atual} — maturidade, não regressão.
+              Fundo: base {painel.ano_anterior} (já aptos). Sobreposição: quem reforçou + novos em{" "}
+              {painel.ano_atual}. Quem não voltou permanece capacitado.
             </p>
           </div>
           <div className="flex flex-wrap gap-4 text-xs text-aion-muted">
             <span>
               <i className="mr-1 inline-block h-3 w-3 rounded-sm" style={{ background: COR_ANTERIOR }} />
-              Base {painel.ano_anterior}
+              Base {painel.ano_anterior} (já sabem)
             </span>
             <span>
               <i className="mr-1 inline-block h-3 w-3 rounded-sm" style={{ background: COR_ATUAL }} />
-              Já treinados (recorrentes)
+              Reforço (recorrentes)
             </span>
             <span>
               <i className="mr-1 inline-block h-3 w-3 rounded-sm" style={{ background: COR_NOVOS }} />
@@ -417,10 +488,10 @@ export function PainelTreinamentosView({
 
         <Card className="space-y-3 p-4">
           <div>
-            <h2 className="text-lg font-semibold text-aion-ink">Continuidade por setor</h2>
+            <h2 className="text-lg font-semibold text-aion-ink">Atualização por setor</h2>
             <p className="text-sm text-aion-muted">
-              % da base {painel.ano_anterior} que retornou em {painel.ano_atual} · meta{" "}
-              {META_RECICLAGEM_PCT}%.
+              % da base {painel.ano_anterior} que optou por reforço em {painel.ano_atual} · meta{" "}
+              {META_RECICLAGEM_PCT}%. Taxa menor pode significar domínio — treinamento é opcional.
             </p>
           </div>
           <div className="h-[520px] w-full">
@@ -492,7 +563,8 @@ export function PainelTreinamentosView({
         <Card className="space-y-3 p-4">
           <h2 className="text-lg font-semibold text-aion-ink">Comparativo anual</h2>
           <p className="text-sm text-aion-muted">
-            Volume da turma e horas·homem. Queda ano a ano pode indicar base já capacitada — não regressão.
+            Volume da turma e horas·homem. Turma menor = equipe já apta + reforço pontual + novos —
+            sinal positivo de maturidade.
           </p>
           <div className="h-64">
             <ResponsiveContainer>

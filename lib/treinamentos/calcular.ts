@@ -205,6 +205,7 @@ export function calcularPainel(
     variacao_treinados_pct: variacao,
     reciclados_atual: reciclados,
     taxa_reciclagem_geral_pct: taxaGeral,
+    aptos_sem_reforco: Math.max(0, treinadosAnt - reciclados),
     novos_atual: novos,
     taxa_novos_pct: taxaNovos,
     setores,
