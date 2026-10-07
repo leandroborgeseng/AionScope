@@ -210,6 +210,11 @@ export type SalaSnapshot = {
   ciclo: {
     trilha: Array<{ etapa: string; quantidade: number | null }>;
     histograma: Array<{ faixa: string; emVida: number; alem: number }>;
+    /**
+     * Candidatos a fim de serviço (EndOfService): EOS vencido ou no horizonte
+     * de 10 anos, ranqueados por fatores de risco (corretivas / custo).
+     * Campos legados `fimDeVida*` mantêm o mesmo payload (rótulo UI = EOS).
+     */
     fimDeVida: Array<{
       tag: string;
       equipamento: string;
@@ -229,6 +234,13 @@ export type SalaSnapshot = {
     vencem10Anos: number;
     /** Ativos cujo EndOfService cai no horizonte de 10 anos (ano corrente+1 … +10). */
     vencemEos10Anos: number;
+    /**
+     * Soma ValorDeSubstituicao (fallback ValorDeAquisicao) de todo o parque
+     * médico ativo — denominador do % nas barras EOL/EOS.
+     */
+    valorSubstituicaoParque: string;
+    /** Mesmo valor em número bruto BRL (para % e tooltips). */
+    valorSubstituicaoParqueNumero: number;
     /**
      * Quantidade por ano de fim de vida (EOL) no horizonte de 10 anos
      * (ano corrente + 1 até corrente + 10), com itens para drill TV.

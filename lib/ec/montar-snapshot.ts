@@ -430,6 +430,7 @@ export function montarSnapshotDeDados(
     { faixa: "mais de 20", min: 21, max: 80 },
   ];
   const histograma = faixasIdade.map((faixa) => ({ faixa: faixa.faixa, emVida: 0, alem: 0 }));
+  /** Lista TV “FIM DE SERVIÇO PRÓXIMO” — critério EndOfService (não EndOfLife). */
   const fimDeVida: SalaSnapshot["ciclo"]["fimDeVida"] = [];
   const maisAntigos: Array<{ tag: string; equipamento: string; idade: string; fim: string; ms: number }> = [];
   let valorParque = 0;
@@ -508,12 +509,19 @@ export function montarSnapshotDeDados(
       });
     }
     const uso = corretivasPorTag.get(texto(item.Tag));
-    const criterios: string[] = [];
-    if (alem) criterios.push("fim de vida");
-    if (semPeca) criterios.push("sem peça / descontinuado");
-    if ((uso?.quantidade ?? 0) >= 4) criterios.push("4+ corretivas");
-    if (valor > 0 && (uso?.custo ?? 0) >= valor * 0.5) criterios.push("custo ≥ 50%");
-    if (criterios.length) {
+    // KPI secundário = EndOfService (EOS), não EndOfLife.
+    const eosVencido = semPeca;
+    const eosNoHorizonte = Boolean(
+      fimServico &&
+        agora.getTime() < fimServico.getTime() &&
+        fimServico.getTime() <= limite10Anos.getTime(),
+    );
+    if (eosVencido || eosNoHorizonte) {
+      const criterios: string[] = [];
+      if (eosVencido) criterios.push("fim de serviço vencido");
+      else criterios.push("fim de serviço próximo");
+      if ((uso?.quantidade ?? 0) >= 4) criterios.push("4+ corretivas");
+      if (valor > 0 && (uso?.custo ?? 0) >= valor * 0.5) criterios.push("custo ≥ 50%");
       valorFimDeVida += valor;
       fimDeVida.push({
         tag: texto(item.Tag),
@@ -801,7 +809,7 @@ export function montarSnapshotDeDados(
         { etapa: "Aquisição", quantidade: manuais?.aquisicoes.length ?? null },
         { etapa: "Recebimento", quantidade: null },
         { etapa: "Em uso", quantidade: ativos.length },
-        { etapa: "Fim de vida", quantidade: fimDeVida.length },
+        { etapa: "Fim de serviço", quantidade: fimDeVida.length },
         { etapa: "Inservível", quantidade: inativos.length },
       ],
       histograma,
@@ -809,12 +817,14 @@ export function montarSnapshotDeDados(
       valorSubstituicaoFimDeVida: valorFimDeVida > 0 ? formatoMoeda(valorFimDeVida) : "—",
       quantidadeFimDeVida: fimDeVida.length,
       avisoDescontinuado:
-        "Sem peça / descontinuado = EndOfService já passou. Fim de vida = EndOfLife (Anvisa), inclusive 01/01/2050.",
+        "Fim de serviço = EndOfService (peça/suporte). Fim de vida (EOL/Anvisa) aparece só nos gráficos superiores.",
       maisAntigos: maisAntigos.slice(0, 6).map(({ ms: _ms, ...item }) => item),
       emCiclo,
       vencem5Anos,
       vencem10Anos,
       vencemEos10Anos,
+      valorSubstituicaoParque: valorParque > 0 ? formatoMoeda(valorParque) : "—",
+      valorSubstituicaoParqueNumero: valorParque,
       previsaoEol,
       previsaoEos,
     },

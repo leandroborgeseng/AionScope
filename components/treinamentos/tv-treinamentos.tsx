@@ -10,7 +10,7 @@ function corFaixa(faixa: string) {
   return "#A3123A";
 }
 
-/** Tela-resumo TV: KPIs + taxa de reciclagem por setor (sem nomes). */
+/** Tela-resumo TV: KPIs + continuidade por setor (sem nomes — LGPD). */
 export function TvTreinamentos({ painel: inicial }: { painel?: PainelTreinamentos | null }) {
   const [painel, setPainel] = useState<PainelTreinamentos | null>(inicial ?? null);
   const [erro, setErro] = useState<string | null>(null);
@@ -47,7 +47,7 @@ export function TvTreinamentos({ painel: inicial }: { painel?: PainelTreinamento
   return (
     <div className="sala-coluna" style={{ flex: 1, minHeight: 0, gap: 16 }}>
       <p style={{ margin: 0, fontSize: 18, color: "#4E6079" }}>
-        {painel.treinamento} · reciclagem meta {META_RECICLAGEM_PCT}% · sem nomes na TV
+        {painel.treinamento} · base consolidada · sem nomes na TV
       </p>
 
       <div
@@ -58,39 +58,38 @@ export function TvTreinamentos({ painel: inicial }: { painel?: PainelTreinamento
         }}
       >
         <div className="sala-cartao">
-          <div className="sala-rotulo-bloco">TREINADOS {painel.ano_anterior}</div>
-          <div className="sala-numero" style={{ fontSize: 56 }}>
+          <div className="sala-rotulo-bloco">BASE {painel.ano_anterior}</div>
+          <div className="sala-numero" style={{ fontSize: 56, color: "#3E7A1E" }}>
             {aAnt?.treinados ?? "—"}
           </div>
-          <span style={{ fontSize: 18, color: "#4E6079" }}>{aAnt?.horas_homem ?? "—"} h·homem</span>
+          <span style={{ fontSize: 18, color: "#4E6079" }}>já capacitados</span>
         </div>
         <div className="sala-cartao">
-          <div className="sala-rotulo-bloco">TREINADOS {painel.ano_atual}</div>
+          <div className="sala-rotulo-bloco">TURMA {painel.ano_atual}</div>
           <div className="sala-numero" style={{ fontSize: 56 }}>
             {aAtual?.treinados ?? "—"}
           </div>
           <span style={{ fontSize: 18, color: "#4E6079" }}>
-            {painel.variacao_treinados_pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% vs{" "}
-            {painel.ano_anterior}
+            {painel.reciclados_atual} recorrentes + {painel.novos_atual} novos
           </span>
         </div>
         <div className="sala-cartao">
-          <div className="sala-rotulo-bloco">TAXA RECICLAGEM</div>
+          <div className="sala-rotulo-bloco">CONTINUIDADE</div>
           <div
             className="sala-numero"
             style={{
               fontSize: 56,
               color:
-                painel.taxa_reciclagem_geral_pct >= 60
+                painel.taxa_reciclagem_geral_pct >= 40
                   ? "#3E7A1E"
-                  : painel.taxa_reciclagem_geral_pct >= 40
-                    ? "#A8460A"
-                    : "#A3123A",
+                  : "#A8460A",
             }}
           >
             {painel.taxa_reciclagem_geral_pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
           </div>
-          <span style={{ fontSize: 18, color: "#4E6079" }}>{painel.reciclados_atual} reciclados</span>
+          <span style={{ fontSize: 18, color: "#4E6079" }}>
+            já capacitados retornaram · meta {META_RECICLAGEM_PCT}%
+          </span>
         </div>
         <div className="sala-cartao">
           <div className="sala-rotulo-bloco">NOVOS {painel.ano_atual}</div>
@@ -113,7 +112,7 @@ export function TvTreinamentos({ painel: inicial }: { painel?: PainelTreinamento
       </div>
 
       <div className="sala-cartao" style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-        <div className="sala-rotulo-bloco">TAXA DE RECICLAGEM POR SETOR</div>
+        <div className="sala-rotulo-bloco">POR SETOR · BASE → RECORRENTES + NOVOS</div>
         <div
           style={{
             display: "grid",
@@ -127,7 +126,7 @@ export function TvTreinamentos({ painel: inicial }: { painel?: PainelTreinamento
               key={s.setor}
               style={{
                 display: "grid",
-                gridTemplateColumns: "minmax(0, 1fr) 70px 52px",
+                gridTemplateColumns: "minmax(0, 1fr) 90px 70px",
                 gap: 10,
                 alignItems: "center",
               }}
@@ -144,16 +143,9 @@ export function TvTreinamentos({ painel: inicial }: { painel?: PainelTreinamento
               >
                 {s.setor}
               </span>
-              <div style={{ height: 12, borderRadius: 4, background: "#E3EAF3", overflow: "hidden" }}>
-                <div
-                  style={{
-                    height: 12,
-                    width: `${Math.min(100, s.taxa_reciclagem_pct)}%`,
-                    background: corFaixa(s.faixa),
-                    borderRadius: 4,
-                  }}
-                />
-              </div>
+              <strong style={{ fontSize: 18, textAlign: "right", color: "#4E6079" }}>
+                {s.treinados_anterior} → {s.reciclados_atual}+{s.novos_atual}
+              </strong>
               <strong style={{ fontSize: 20, color: corFaixa(s.faixa), textAlign: "right" }}>
                 {Math.round(s.taxa_reciclagem_pct)}%
               </strong>
