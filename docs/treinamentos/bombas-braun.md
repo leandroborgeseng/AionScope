@@ -7,7 +7,7 @@ Painel de desempenho da Engenharia Clínica (HSJ / Unimed Franca).
 | Rota | Uso |
 | --- | --- |
 | `/indicadores/treinamentos-bombas` | Painel completo (KPIs, gráficos, tabela, evidências) |
-| `/sala/treinamentos` | Tela TV (KPIs + taxa por setor, sem nomes) |
+| `/sala/treinamentos` | Tela TV: maturidade (já aptos), setores e abertura das listas PDF (sem nomes) |
 | `/api/treinamentos/resumo` | JSON agregado (sem nomes) |
 | `/api/treinamentos/evidencias/2025` · `/2026` | PDFs (token obrigatório) |
 

@@ -1,22 +1,33 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CheckCircle2, FileText, Sparkles, Users, UserPlus, X } from "lucide-react";
 import type { PainelTreinamentos } from "@/lib/treinamentos/types";
-import { META_RECICLAGEM_PCT } from "@/lib/treinamentos/calcular";
 
-function corFaixa(faixa: string) {
-  if (faixa === "ok") return "#3E7A1E";
-  if (faixa === "atencao") return "#A8460A";
-  return "#A3123A";
-}
+type EvidenciasStatus = {
+  tokenObrigatorio: boolean;
+  anos: string[];
+  liberado: boolean;
+};
 
-/** Tela-resumo TV: KPIs + continuidade por setor (sem nomes — LGPD). */
-export function TvTreinamentos({ painel: inicial }: { painel?: PainelTreinamentos | null }) {
+/** Tela TV: maturidade da equipe + evidências PDF (sem nomes — LGPD). */
+export function TvTreinamentos({
+  painel: inicial,
+  onInteracaoChange,
+}: {
+  painel?: PainelTreinamentos | null;
+  onInteracaoChange?: (ativa: boolean) => void;
+}) {
   const [painel, setPainel] = useState<PainelTreinamentos | null>(inicial ?? null);
   const [erro, setErro] = useState<string | null>(null);
+  const [evidencias, setEvidencias] = useState<EvidenciasStatus | null>(null);
+  const [listaAno, setListaAno] = useState<string | null>(null);
 
   useEffect(() => {
-    if (inicial) return;
+    if (inicial) {
+      setPainel(inicial);
+      return;
+    }
     let cancel = false;
     (async () => {
       try {
@@ -33,6 +44,37 @@ export function TvTreinamentos({ painel: inicial }: { painel?: PainelTreinamento
     };
   }, [inicial]);
 
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/treinamentos/evidencias/status", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as EvidenciasStatus;
+        if (!cancel) setEvidencias(data);
+      } catch {
+        /* evidências opcionais na TV */
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    onInteracaoChange?.(Boolean(listaAno));
+    return () => onInteracaoChange?.(false);
+  }, [listaAno, onInteracaoChange]);
+
+  useEffect(() => {
+    if (!listaAno) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setListaAno(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [listaAno]);
+
   if (erro) {
     return <p className="sala-vazio">Treinamentos: {erro}</p>;
   }
@@ -42,115 +84,213 @@ export function TvTreinamentos({ painel: inicial }: { painel?: PainelTreinamento
 
   const aAnt = painel.anos.find((a) => a.ano === painel.ano_anterior);
   const aAtual = painel.anos.find((a) => a.ano === painel.ano_atual);
-  const topSetores = painel.setores.slice(0, 14);
+  const topSetores = painel.setores.slice(0, 12);
+  const anosLista = evidencias?.anos ?? [];
+  const podeAbrir = evidencias ? !evidencias.tokenObrigatorio || evidencias.liberado : false;
+  const maxSetor = Math.max(
+    1,
+    ...topSetores.map((s) => Math.max(s.treinados_anterior, s.reciclados_atual + s.novos_atual)),
+  );
 
   return (
-    <div className="sala-coluna" style={{ flex: 1, minHeight: 0, gap: 16 }}>
-      <p style={{ margin: 0, fontSize: 18, color: "#4E6079" }}>
-        {painel.treinamento} · treinamento opcional · quem não veio já sabe · sem nomes na TV
-      </p>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
-          gap: 14,
-        }}
-      >
-        <div className="sala-cartao">
-          <div className="sala-rotulo-bloco">BASE {painel.ano_anterior}</div>
-          <div className="sala-numero" style={{ fontSize: 52, color: "#3E7A1E" }}>
-            {aAnt?.treinados ?? "—"}
-          </div>
-          <span style={{ fontSize: 17, color: "#4E6079" }}>já capacitados</span>
-        </div>
-        <div className="sala-cartao">
-          <div className="sala-rotulo-bloco">JÁ APTOS</div>
-          <div className="sala-numero" style={{ fontSize: 52, color: "#3E7A1E" }}>
-            {painel.aptos_sem_reforco}
-          </div>
-          <span style={{ fontSize: 17, color: "#4E6079" }}>sem necessidade de reforço</span>
-        </div>
-        <div className="sala-cartao">
-          <div className="sala-rotulo-bloco">TURMA {painel.ano_atual}</div>
-          <div className="sala-numero" style={{ fontSize: 52 }}>
-            {aAtual?.treinados ?? "—"}
-          </div>
-          <span style={{ fontSize: 17, color: "#4E6079" }}>
-            {painel.reciclados_atual} reforço + {painel.novos_atual} novos
+    <div className="sala-tv-treinamentos">
+      <div className="sala-tv-treinamentos-hero">
+        <div className="sala-tv-treinamentos-hero-copy">
+          <span className="sala-tv-treinamentos-selo">
+            <Sparkles size={18} strokeWidth={2.4} aria-hidden />
+            Resultado positivo
           </span>
+          <h2 className="sala-tv-treinamentos-titulo">
+            {painel.treinamento}
+          </h2>
+          <p className="sala-tv-treinamentos-mensagem">
+            Treinamento <strong>opcional</strong>. Quem não participou em geral{" "}
+            <strong>já sabe operar</strong> a bomba — isso é maturidade da equipe, não atraso.
+          </p>
         </div>
-        <div className="sala-cartao">
-          <div className="sala-rotulo-bloco">ATUALIZAÇÃO</div>
-          <div className="sala-numero" style={{ fontSize: 52, color: "#3E7A1E" }}>
-            {painel.taxa_reciclagem_geral_pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
-          </div>
-          <span style={{ fontSize: 17, color: "#4E6079" }}>
-            optaram por reforço · meta {META_RECICLAGEM_PCT}%
-          </span>
-        </div>
-        <div className="sala-cartao">
-          <div className="sala-rotulo-bloco">NOVOS {painel.ano_atual}</div>
-          <div className="sala-numero" style={{ fontSize: 52 }}>
-            {painel.novos_atual}
-          </div>
-          <span style={{ fontSize: 17, color: "#4E6079" }}>
-            {painel.taxa_novos_pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da turma
-          </span>
-        </div>
-        <div className="sala-cartao">
-          <div className="sala-rotulo-bloco">HORAS·HOMEM</div>
-          <div className="sala-numero" style={{ fontSize: 40 }}>
-            {aAnt?.horas_homem}/{aAtual?.horas_homem}
-          </div>
-          <span style={{ fontSize: 17, color: "#4E6079" }}>
-            {painel.ano_anterior} / {painel.ano_atual}
+        <div className="sala-tv-treinamentos-hero-numero" aria-label="Já aptos sem reforço">
+          <div className="sala-rotulo-bloco">JÁ APTOS · SEM REFORÇO</div>
+          <div className="sala-numero sala-tv-treinamentos-destaque">{painel.aptos_sem_reforco}</div>
+          <span>
+            da base {painel.ano_anterior} ({aAnt?.treinados ?? "—"}) · sabem o que precisam
           </span>
         </div>
       </div>
 
-      <div className="sala-cartao" style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-        <div className="sala-rotulo-bloco">POR SETOR · BASE → RECORRENTES + NOVOS</div>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "6px 28px",
-            marginTop: 8,
-          }}
-        >
-          {topSetores.map((s) => (
-            <div
-              key={s.setor}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(0, 1fr) 90px 70px",
-                gap: 10,
-                alignItems: "center",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 18,
-                  fontWeight: 600,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-                title={s.setor}
-              >
-                {s.setor}
-              </span>
-              <strong style={{ fontSize: 18, textAlign: "right", color: "#4E6079" }}>
-                {s.treinados_anterior} → {s.reciclados_atual}+{s.novos_atual}
-              </strong>
-              <strong style={{ fontSize: 20, color: corFaixa(s.faixa), textAlign: "right" }}>
-                {Math.round(s.taxa_reciclagem_pct)}%
-              </strong>
+      <div className="sala-tv-treinamentos-kpis">
+        <div className="sala-cartao sala-tv-treinamentos-kpi ok">
+          <CheckCircle2 size={28} strokeWidth={2.2} aria-hidden />
+          <div>
+            <div className="sala-rotulo-bloco">BASE {painel.ano_anterior}</div>
+            <div className="sala-numero" style={{ fontSize: 48 }}>
+              {aAnt?.treinados ?? "—"}
             </div>
-          ))}
+            <span>já capacitados</span>
+          </div>
+        </div>
+        <div className="sala-cartao sala-tv-treinamentos-kpi">
+          <Users size={28} strokeWidth={2.2} aria-hidden />
+          <div>
+            <div className="sala-rotulo-bloco">REFORÇO {painel.ano_atual}</div>
+            <div className="sala-numero" style={{ fontSize: 48 }}>
+              {painel.reciclados_atual}
+            </div>
+            <span>
+              {painel.taxa_reciclagem_geral_pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
+              optaram por atualizar
+            </span>
+          </div>
+        </div>
+        <div className="sala-cartao sala-tv-treinamentos-kpi">
+          <UserPlus size={28} strokeWidth={2.2} aria-hidden />
+          <div>
+            <div className="sala-rotulo-bloco">NOVOS {painel.ano_atual}</div>
+            <div className="sala-numero" style={{ fontSize: 48 }}>
+              {painel.novos_atual}
+            </div>
+            <span>
+              {painel.taxa_novos_pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da turma{" "}
+              {aAtual?.treinados ?? ""}
+            </span>
+          </div>
+        </div>
+        <div className="sala-cartao sala-tv-treinamentos-kpi">
+          <div>
+            <div className="sala-rotulo-bloco">HORAS·HOMEM</div>
+            <div className="sala-numero" style={{ fontSize: 40 }}>
+              {aAnt?.horas_homem} / {aAtual?.horas_homem}
+            </div>
+            <span>
+              {painel.ano_anterior} base · {painel.ano_atual} turma
+            </span>
+          </div>
         </div>
       </div>
+
+      <div className="sala-tv-treinamentos-corpo">
+        <div className="sala-cartao sala-tv-treinamentos-setores">
+          <div className="sala-rotulo-bloco">POR SETOR · MATURIDADE</div>
+          <p className="sala-tv-treinamentos-legenda">
+            Base {painel.ano_anterior} · já aptos · reforço · novos — quem não voltou permanece capacitado
+          </p>
+          <div className="sala-tv-treinamentos-setores-lista">
+            {topSetores.map((s) => {
+              const aptos = Math.max(0, s.treinados_anterior - s.reciclados_atual);
+              const turma = s.reciclados_atual + s.novos_atual;
+              return (
+                <div key={s.setor} className="sala-tv-treinamentos-setor-linha">
+                  <span className="sala-tv-treinamentos-setor-nome" title={s.setor}>
+                    {s.setor}
+                  </span>
+                  <div className="sala-tv-treinamentos-setor-barra" aria-hidden>
+                    <i
+                      className="base"
+                      style={{ width: `${(100 * s.treinados_anterior) / maxSetor}%` }}
+                    />
+                    <i className="turma" style={{ width: `${(100 * turma) / maxSetor}%` }}>
+                      <b style={{ width: `${turma ? (100 * s.reciclados_atual) / turma : 0}%` }} />
+                      <b className="novos" style={{ width: `${turma ? (100 * s.novos_atual) / turma : 0}%` }} />
+                    </i>
+                  </div>
+                  <strong className="sala-tv-treinamentos-setor-nums">
+                    <span className="aptos">{aptos} aptos</span>
+                    <span>
+                      {s.reciclados_atual}+{s.novos_atual}
+                    </span>
+                  </strong>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="sala-cartao sala-tv-treinamentos-evidencias">
+          <div className="sala-rotulo-bloco">LISTAS DE PRESENÇA</div>
+          <p className="sala-tv-treinamentos-legenda">
+            Evidências do treinamento · toque para abrir o PDF (sem nomes na grade da TV)
+          </p>
+          <div className="sala-tv-treinamentos-evidencias-botoes">
+            {["2025", "2026"].map((ano) => {
+              const tem = anosLista.includes(ano);
+              return (
+                <button
+                  key={ano}
+                  type="button"
+                  className="sala-tv-treinamentos-btn-lista"
+                  disabled={!tem || !podeAbrir}
+                  onClick={() => setListaAno(ano)}
+                >
+                  <FileText size={32} strokeWidth={2.2} aria-hidden />
+                  <span>
+                    <strong>Lista {ano}</strong>
+                    <small>
+                      {!tem
+                        ? "envie no painel Indicadores"
+                        : !podeAbrir
+                          ? "desbloqueie com token"
+                          : ano === "2025"
+                            ? "manuscritas · evidência"
+                            : "Google Forms · evidência"}
+                    </small>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="sala-tv-treinamentos-resumo-positivo">
+            <CheckCircle2 size={22} strokeWidth={2.4} aria-hidden />
+            <p>
+              <strong>{painel.aptos_sem_reforco} profissionais</strong> da base já dominam o
+              equipamento. A turma {painel.ano_atual} soma reforço pontual e novos — progresso, não
+              regressão.
+            </p>
+          </div>
+          <a className="sala-tv-treinamentos-link-painel" href="/indicadores/treinamentos-bombas">
+            Painel completo · upload e filtros
+          </a>
+        </div>
+      </div>
+
+      {listaAno ? (
+        <div className="sala-drill-overlay" role="dialog" aria-modal="true" aria-label={`Lista ${listaAno}`}>
+          <button
+            type="button"
+            className="sala-drill-backdrop"
+            aria-label="Fechar lista"
+            onClick={() => setListaAno(null)}
+          />
+          <div className="sala-drill-sheet sala-tv-treinamentos-pdf-sheet">
+            <div className="sala-drill-sheet-cabecalho">
+              <div className="sala-drill-sheet-titulo">
+                <span className="sala-drill-sheet-chip">evidência</span>
+                <div className="sala-drill-sheet-heading">
+                  <span className="sala-drill-sheet-icone" aria-hidden>
+                    <FileText size={28} strokeWidth={2.2} />
+                  </span>
+                  <div>
+                    <div className="sala-rotulo-bloco">LISTA DE PRESENÇA {listaAno}</div>
+                    <div className="sala-tv-treinamentos-pdf-sub">
+                      Bombas B. Braun · documento original
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="sala-drill-limpar sala-drill-fechar"
+                onClick={() => setListaAno(null)}
+              >
+                <X size={18} aria-hidden /> Fechar · Esc
+              </button>
+            </div>
+            <iframe
+              title={`Lista de presença ${listaAno}`}
+              src={`/api/treinamentos/evidencias/${listaAno}`}
+              className="sala-tv-treinamentos-pdf-frame"
+            />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
