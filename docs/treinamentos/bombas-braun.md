@@ -28,20 +28,20 @@ Padronização de setores: `lib/treinamentos/setores.ts` (editável).
 
 O repositório é público. Os PDFs **não** são commitados.
 
-1. No Coolify/Railway (ou local), copie para o volume:
+1. No painel `/indicadores/treinamentos-bombas` → **Listas de presença (PDF)** → **Enviar / atualizar lista** (grava no volume `/data/treinamentos-evidencias`).
+
+2. Alternativa: copiar os PDFs manualmente no volume:
 
 ```text
 /data/treinamentos-evidencias/2025_lista_presenca_bomba_infusao.pdf
 /data/treinamentos-evidencias/2026_lista_presenca_bomba_infusao.pdf
 ```
 
-2. (Opcional) `TREINAMENTOS_EVIDENCIAS_TOKEN` e `TREINAMENTOS_EVIDENCIAS_PATH`.
+3. (Opcional) `TREINAMENTOS_EVIDENCIAS_TOKEN` e `TREINAMENTOS_EVIDENCIAS_PATH`.
 
-3. No painel `/indicadores/treinamentos-bombas` → **Listas de presença (PDF)** — abrir / pré-visualizar.
-
-- Sem token no ambiente: PDFs liberados se existirem no volume (painel privado).
+- Sem token: upload/abertura liberados (painel privado).
 - Com token: desbloqueio grava cookie 8 h; token errado → 401.
-- Sem PDF no volume → aviso na UI (não 503 genérico).
+- PDFs **não** vão no git (LGPD / CPF no 2026).
 
 ## Atualizar ano novo
 
