@@ -1644,3 +1644,308 @@
   0%, 100% { box-shadow: 0 0 0 0 rgba(217, 98, 15, 0.28); }
   50% { box-shadow: 0 0 0 8px rgba(217, 98, 15, 0); }
 }
+
+/* ——— TV Treinamentos · maturidade + evidências ——— */
+.sala-tv-treinamentos {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: sala-ciclo-fade 0.45s ease both;
+}
+
+.sala-tv-treinamentos-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.7fr);
+  gap: 16px;
+  padding: 18px 22px;
+  border-radius: 18px;
+  background:
+    linear-gradient(125deg, rgba(63, 122, 30, 0.12) 0%, rgba(243, 248, 236, 0.95) 42%, #fff 100%);
+  border: 1px solid #c9ddae;
+}
+
+.sala-tv-treinamentos-selo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #3e7a1e;
+  margin-bottom: 6px;
+}
+
+.sala-tv-treinamentos-titulo {
+  margin: 0 0 8px;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--texto);
+}
+
+.sala-tv-treinamentos-mensagem {
+  margin: 0;
+  max-width: 920px;
+  font-size: 22px;
+  line-height: 1.35;
+  color: var(--texto-2);
+}
+
+.sala-tv-treinamentos-mensagem strong {
+  color: #2f6a18;
+}
+
+.sala-tv-treinamentos-hero-numero {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 8px 4px 8px 18px;
+  border-left: 1px solid #c9ddae;
+}
+
+.sala-tv-treinamentos-destaque {
+  font-size: 72px;
+  line-height: 1;
+  color: #3e7a1e;
+  margin: 4px 0;
+}
+
+.sala-tv-treinamentos-hero-numero > span {
+  font-size: 18px;
+  color: var(--texto-2);
+}
+
+.sala-tv-treinamentos-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sala-tv-treinamentos-kpi {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px !important;
+  min-height: 0;
+}
+
+.sala-tv-treinamentos-kpi.ok {
+  background: #f3f8ec;
+  border-color: #c9ddae;
+}
+
+.sala-tv-treinamentos-kpi svg {
+  color: #3e7a1e;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.sala-tv-treinamentos-kpi span {
+  display: block;
+  margin-top: 2px;
+  font-size: 16px;
+  color: var(--texto-2);
+  line-height: 1.25;
+}
+
+.sala-tv-treinamentos-corpo {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.75fr);
+  gap: 14px;
+}
+
+.sala-tv-treinamentos-setores,
+.sala-tv-treinamentos-evidencias {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 14px 18px !important;
+}
+
+.sala-tv-treinamentos-legenda {
+  margin: 4px 0 10px;
+  font-size: 16px;
+  color: var(--texto-2);
+  line-height: 1.3;
+}
+
+.sala-tv-treinamentos-setores-lista {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.sala-tv-treinamentos-setor-linha {
+  display: grid;
+  grid-template-columns: minmax(90px, 160px) 1fr minmax(120px, 150px);
+  gap: 10px;
+  align-items: center;
+}
+
+.sala-tv-treinamentos-setor-nome {
+  font-size: 17px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sala-tv-treinamentos-setor-barra {
+  position: relative;
+  height: 18px;
+}
+
+.sala-tv-treinamentos-setor-barra .base {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: #c5d0da;
+  border-radius: 4px;
+}
+
+.sala-tv-treinamentos-setor-barra .turma {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  height: 10px;
+  display: flex;
+  overflow: hidden;
+  border-radius: 3px;
+}
+
+.sala-tv-treinamentos-setor-barra .turma b {
+  display: block;
+  height: 100%;
+  background: #0f7c8c;
+}
+
+.sala-tv-treinamentos-setor-barra .turma b.novos {
+  background: #d97706;
+}
+
+.sala-tv-treinamentos-setor-nums {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sala-tv-treinamentos-setor-nums .aptos {
+  color: #3e7a1e;
+}
+
+.sala-tv-treinamentos-evidencias-botoes {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.sala-tv-treinamentos-btn-lista {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  width: 100%;
+  padding: 16px 18px;
+  border-radius: 14px;
+  border: 1px solid #b7cfe8;
+  background: linear-gradient(180deg, #f4f8fc 0%, #fff 100%);
+  color: var(--texto);
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.sala-tv-treinamentos-btn-lista:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--aion-azul);
+}
+
+.sala-tv-treinamentos-btn-lista:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.sala-tv-treinamentos-btn-lista svg {
+  color: var(--aion-azul);
+  flex-shrink: 0;
+}
+
+.sala-tv-treinamentos-btn-lista strong {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.sala-tv-treinamentos-btn-lista small {
+  display: block;
+  margin-top: 2px;
+  font-size: 16px;
+  color: var(--texto-2);
+}
+
+.sala-tv-treinamentos-resumo-positivo {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f3f8ec;
+  border: 1px solid #c9ddae;
+  color: #2f6a18;
+  margin-top: auto;
+}
+
+.sala-tv-treinamentos-resumo-positivo p {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.sala-tv-treinamentos-resumo-positivo svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.sala-tv-treinamentos-link-painel {
+  margin-top: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--aion-azul);
+  text-decoration: none;
+}
+
+.sala-tv-treinamentos-link-painel:hover {
+  text-decoration: underline;
+}
+
+.sala-tv-treinamentos-pdf-sheet {
+  width: min(1280px, calc(100% - 80px));
+  height: min(900px, calc(100% - 80px));
+  display: flex;
+  flex-direction: column;
+}
+
+.sala-tv-treinamentos-pdf-sub {
+  font-size: 20px;
+  color: var(--texto-2);
+  margin-top: 2px;
+}
+
+.sala-tv-treinamentos-pdf-frame {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  border: 0;
+  background: #e8eef5;
+}

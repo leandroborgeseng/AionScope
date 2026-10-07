@@ -1943,7 +1943,9 @@ function Conteudo({
     return <TelaCiclo dados={dados} drill={drill} onDrill={onDrill} />;
   }
   if (tela === "indicadores") return <TelaIndicadores dados={dados} />;
-  if (tela === "treinamentos") return <TvTreinamentos />;
+  if (tela === "treinamentos") {
+    return <TvTreinamentos onInteracaoChange={onInteracaoChange} />;
+  }
   return <TelaProcessos dados={dados} />;
 }
 
@@ -2252,7 +2254,10 @@ export function SalaApp({
             <div className="sala-miolo-row">
               <div className="sala-miolo-main">
                 {tela === "treinamentos" ? (
-                  <TvTreinamentos painel={painelTreinamentos} />
+                  <TvTreinamentos
+                    painel={painelTreinamentos}
+                    onInteracaoChange={onInteracaoCompras}
+                  />
                 ) : (
                   <>
                     {erro && !dados ? <p className="sala-vazio">Sem conexão com o snapshot ({erro}).</p> : null}
