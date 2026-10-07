@@ -47,65 +47,63 @@ export function TvTreinamentos({ painel: inicial }: { painel?: PainelTreinamento
   return (
     <div className="sala-coluna" style={{ flex: 1, minHeight: 0, gap: 16 }}>
       <p style={{ margin: 0, fontSize: 18, color: "#4E6079" }}>
-        {painel.treinamento} · base consolidada · sem nomes na TV
+        {painel.treinamento} · treinamento opcional · quem não veio já sabe · sem nomes na TV
       </p>
 
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+          gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
           gap: 14,
         }}
       >
         <div className="sala-cartao">
           <div className="sala-rotulo-bloco">BASE {painel.ano_anterior}</div>
-          <div className="sala-numero" style={{ fontSize: 56, color: "#3E7A1E" }}>
+          <div className="sala-numero" style={{ fontSize: 52, color: "#3E7A1E" }}>
             {aAnt?.treinados ?? "—"}
           </div>
-          <span style={{ fontSize: 18, color: "#4E6079" }}>já capacitados</span>
+          <span style={{ fontSize: 17, color: "#4E6079" }}>já capacitados</span>
+        </div>
+        <div className="sala-cartao">
+          <div className="sala-rotulo-bloco">JÁ APTOS</div>
+          <div className="sala-numero" style={{ fontSize: 52, color: "#3E7A1E" }}>
+            {painel.aptos_sem_reforco}
+          </div>
+          <span style={{ fontSize: 17, color: "#4E6079" }}>sem necessidade de reforço</span>
         </div>
         <div className="sala-cartao">
           <div className="sala-rotulo-bloco">TURMA {painel.ano_atual}</div>
-          <div className="sala-numero" style={{ fontSize: 56 }}>
+          <div className="sala-numero" style={{ fontSize: 52 }}>
             {aAtual?.treinados ?? "—"}
           </div>
-          <span style={{ fontSize: 18, color: "#4E6079" }}>
-            {painel.reciclados_atual} recorrentes + {painel.novos_atual} novos
+          <span style={{ fontSize: 17, color: "#4E6079" }}>
+            {painel.reciclados_atual} reforço + {painel.novos_atual} novos
           </span>
         </div>
         <div className="sala-cartao">
-          <div className="sala-rotulo-bloco">CONTINUIDADE</div>
-          <div
-            className="sala-numero"
-            style={{
-              fontSize: 56,
-              color:
-                painel.taxa_reciclagem_geral_pct >= 40
-                  ? "#3E7A1E"
-                  : "#A8460A",
-            }}
-          >
+          <div className="sala-rotulo-bloco">ATUALIZAÇÃO</div>
+          <div className="sala-numero" style={{ fontSize: 52, color: "#3E7A1E" }}>
             {painel.taxa_reciclagem_geral_pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%
           </div>
-          <span style={{ fontSize: 18, color: "#4E6079" }}>
-            já capacitados retornaram · meta {META_RECICLAGEM_PCT}%
+          <span style={{ fontSize: 17, color: "#4E6079" }}>
+            optaram por reforço · meta {META_RECICLAGEM_PCT}%
           </span>
         </div>
         <div className="sala-cartao">
           <div className="sala-rotulo-bloco">NOVOS {painel.ano_atual}</div>
-          <div className="sala-numero" style={{ fontSize: 56 }}>
+          <div className="sala-numero" style={{ fontSize: 52 }}>
             {painel.novos_atual}
           </div>
-          <span style={{ fontSize: 18, color: "#4E6079" }}>
+          <span style={{ fontSize: 17, color: "#4E6079" }}>
             {painel.taxa_novos_pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da turma
           </span>
         </div>
         <div className="sala-cartao">
           <div className="sala-rotulo-bloco">HORAS·HOMEM</div>
-          <div className="sala-numero" style={{ fontSize: 44 }}>
+          <div className="sala-numero" style={{ fontSize: 40 }}>
             {aAnt?.horas_homem}/{aAtual?.horas_homem}
           </div>
-          <span style={{ fontSize: 18, color: "#4E6079" }}>
+          <span style={{ fontSize: 17, color: "#4E6079" }}>
             {painel.ano_anterior} / {painel.ano_atual}
           </span>
         </div>

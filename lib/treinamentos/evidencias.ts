@@ -49,7 +49,8 @@ export function anosEvidenciaDisponiveis() {
 
 export function tokenEvidenciaValido(request: Request) {
   const esperado = tokenConfigurado();
-  if (!esperado) return false;
+  // Sem token no ambiente = painel privado: liberar PDFs se existirem no volume.
+  if (!esperado) return true;
 
   const header = request.headers.get("authorization") ?? "";
   const bearer = /^Bearer\s+(\S+)/i.exec(header);
@@ -76,12 +77,27 @@ export function evidenciasTokenConfigurado() {
   return Boolean(tokenConfigurado());
 }
 
+/** Status para a UI: quais PDFs existem e se o token é obrigatório. */
+export function statusEvidencias(request?: Request) {
+  const anos = anosEvidenciaDisponiveis();
+  const tokenObrigatorio = evidenciasTokenConfigurado();
+  const liberado = tokenObrigatorio
+    ? Boolean(request && tokenEvidenciaValido(request))
+    : anos.length > 0;
+  return {
+    tokenObrigatorio,
+    anos,
+    liberado,
+    diretorio: diretorioEvidencias(),
+  };
+}
+
 export function recusarEvidencia() {
   if (!tokenConfigurado()) {
     return NextResponse.json(
       {
-        erro: "evidências não configuradas",
-        detalhe: `Defina ${TREINAMENTOS_EVIDENCIAS_TOKEN_ENV} e coloque os PDFs em ${diretorioEvidencias()}.`,
+        erro: "evidências não encontradas",
+        detalhe: `Coloque os PDFs em ${diretorioEvidencias()} (opcional: ${TREINAMENTOS_EVIDENCIAS_TOKEN_ENV}).`,
       },
       { status: 503 },
     );

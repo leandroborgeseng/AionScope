@@ -17,10 +17,8 @@ function iguais(a: string, b: string) {
 /** Grava cookie HttpOnly com o token para abrir os PDFs na mesma sessão. */
 export async function POST(request: Request) {
   if (!evidenciasTokenConfigurado()) {
-    return NextResponse.json(
-      { erro: `Defina ${TREINAMENTOS_EVIDENCIAS_TOKEN_ENV} no ambiente.` },
-      { status: 503 },
-    );
+    // Ambiente sem token: PDFs liberados se existirem no volume.
+    return NextResponse.json({ ok: true, liberado: true, tokenObrigatorio: false });
   }
 
   let body: { token?: string } = {};

@@ -48,6 +48,8 @@ export type PainelTreinamentos = {
   variacao_treinados_pct: number;
   reciclados_atual: number;
   taxa_reciclagem_geral_pct: number;
+  /** Base do ano anterior que não retornou — já aptos, sem necessidade de reforço. */
+  aptos_sem_reforco: number;
   novos_atual: number;
   taxa_novos_pct: number;
   setores: ResumoSetor[];
