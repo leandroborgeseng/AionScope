@@ -221,6 +221,24 @@ export function PainelTreinamentosView({
     window.open(`/api/treinamentos/evidencias/${ano}`, "_blank", "noopener,noreferrer");
   }
 
+  async function enviarPdf(ano: string, file: File | null) {
+    if (!file) return;
+    setEvidenciaMsg(null);
+    const form = new FormData();
+    form.set("ano", ano);
+    form.set("arquivo", file);
+    const res = await fetch("/api/treinamentos/evidencias/upload", { method: "POST", body: form });
+    const body = (await res.json().catch(() => ({}))) as { erro?: string };
+    if (!res.ok) {
+      setEvidenciaMsg(body.erro ?? `Falha no upload ${ano}`);
+      return;
+    }
+    setEvidenciaMsg(`Lista ${ano} gravada no volume.`);
+    await atualizarStatusEvidencias();
+    setPreviewAno(ano);
+    setDesbloqueado(true);
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -321,32 +339,29 @@ export function PainelTreinamentosView({
           </div>
         </div>
 
-        {anosDisponiveis.length === 0 ? (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            Nenhum PDF no volume. Copie{" "}
-            <code className="font-mono">2025_lista_presenca_bomba_infusao.pdf</code> e{" "}
-            <code className="font-mono">2026_lista_presenca_bomba_infusao.pdf</code> para{" "}
-            <code className="font-mono">treinamentos-evidencias</code> (ao lado do SQLite). Token
-            opcional: <code className="font-mono">TREINAMENTOS_EVIDENCIAS_TOKEN</code>.
-          </p>
+        {evidencias.tokenObrigatorio && !desbloqueado ? (
+          <div className="flex flex-wrap items-end gap-2">
+            <Input
+              type="password"
+              className="w-64"
+              placeholder="Token de evidências"
+              value={tokenInput}
+              onChange={(e) => setTokenInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void desbloquearEvidencias();
+              }}
+            />
+            <Button type="button" onClick={() => void desbloquearEvidencias()}>
+              Desbloquear listas
+            </Button>
+          </div>
         ) : (
           <>
-            {evidencias.tokenObrigatorio && !desbloqueado ? (
-              <div className="flex flex-wrap items-end gap-2">
-                <Input
-                  type="password"
-                  className="w-64"
-                  placeholder="Token de evidências"
-                  value={tokenInput}
-                  onChange={(e) => setTokenInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") void desbloquearEvidencias();
-                  }}
-                />
-                <Button type="button" onClick={() => void desbloquearEvidencias()}>
-                  Desbloquear listas
-                </Button>
-              </div>
+            {anosDisponiveis.length === 0 ? (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                Nenhum PDF no volume ainda. Envie as listas abaixo (ficam em{" "}
+                <code className="font-mono">/data/treinamentos-evidencias</code>).
+              </p>
             ) : (
               <div className="flex flex-wrap items-center gap-2">
                 {anosDisponiveis.map((ano) => (
@@ -363,12 +378,7 @@ export function PainelTreinamentosView({
                   </Button>
                 ))}
                 {anosDisponiveis.map((ano) => (
-                  <Button
-                    key={`prev-${ano}`}
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setPreviewAno(ano)}
-                  >
+                  <Button key={`prev-${ano}`} type="button" variant="ghost" onClick={() => setPreviewAno(ano)}>
                     Pré-visualizar {ano}
                   </Button>
                 ))}
@@ -388,7 +398,31 @@ export function PainelTreinamentosView({
               </div>
             )}
 
-            {desbloqueado && previewAno ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {["2025", "2026"].map((ano) => (
+                <label
+                  key={`up-${ano}`}
+                  className="flex cursor-pointer flex-col gap-1 rounded-lg border border-dashed border-aion-line bg-white px-3 py-2 text-sm"
+                >
+                  <span className="font-semibold text-aion-ink">
+                    Enviar / atualizar lista {ano}
+                    {anosDisponiveis.includes(ano) ? " (substituir)" : ""}
+                  </span>
+                  <input
+                    type="file"
+                    accept="application/pdf,.pdf"
+                    className="text-xs text-aion-muted file:mr-2 file:rounded file:border-0 file:bg-aion-blue file:px-2 file:py-1 file:text-white"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] ?? null;
+                      void enviarPdf(ano, file);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
+
+            {desbloqueado && previewAno && anosDisponiveis.includes(previewAno) ? (
               <div className="overflow-hidden rounded-xl border border-aion-line bg-white">
                 <div className="flex items-center justify-between gap-2 border-b border-aion-line px-3 py-2 text-sm">
                   <span className="font-semibold text-aion-ink">Lista {previewAno}</span>
