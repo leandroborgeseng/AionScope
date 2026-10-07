@@ -26,6 +26,7 @@ import {
   type TelaSala,
 } from "@/lib/ec/snapshot-tipos";
 import { idsOsAbertas, novasOsDesde } from "@/lib/ec/novas-os";
+import { parseMoeda } from "@/lib/ec/texto";
 import { desbloquearSomTv, SALA_SOM_STORAGE, tocarChimeNovaOs } from "@/components/sala-tv/som-nova-os";
 import { TvTreinamentos } from "@/components/treinamentos/tv-treinamentos";
 import type { PainelTreinamentos } from "@/lib/treinamentos/types";
@@ -404,7 +405,8 @@ function SalaOsDetalhePainel({
   );
 }
 
-type CicloAnoItem = SalaSnapshot["ciclo"]["previsaoEol"][number]["itens"][number];
+type CicloAnoBucket = SalaSnapshot["ciclo"]["previsaoEol"][number];
+type CicloAnoItem = CicloAnoBucket["itens"][number];
 
 function isCicloAnoDrill(id: string): boolean {
   return /^ciclo\.(eol|eos)\.\d{4}$/.test(id);
@@ -415,27 +417,42 @@ function cicloDrillModo(id: string): "eol" | "eos" | null {
   return match ? (match[1] as "eol" | "eos") : null;
 }
 
-function itensCicloAno(dados: SalaSnapshot, drillId: string): CicloAnoItem[] {
+function bucketCicloAno(dados: SalaSnapshot, drillId: string): CicloAnoBucket | null {
   const match = /^ciclo\.(eol|eos)\.(\d{4})$/.exec(drillId);
-  if (!match) return [];
+  if (!match) return null;
   const modo = match[1] as "eol" | "eos";
   const ano = match[2];
   const lista = modo === "eos" ? dados.ciclo.previsaoEos : dados.ciclo.previsaoEol;
-  const bucket = lista.find((item) => item.ano === ano);
-  return bucket?.itens ?? [];
+  return lista.find((item) => item.ano === ano) ?? null;
+}
+
+function itensCicloAno(dados: SalaSnapshot, drillId: string): CicloAnoItem[] {
+  return bucketCicloAno(dados, drillId)?.itens ?? [];
+}
+
+function totalValorItensCiclo(itens: CicloAnoItem[], investimento?: number) {
+  if (typeof investimento === "number" && Number.isFinite(investimento) && investimento > 0) {
+    return investimento;
+  }
+  return itens.reduce((soma, item) => soma + (parseMoeda(item.valorSubstituicao) ?? 0), 0);
 }
 
 function SalaCicloAnoOverlay({
   drill,
   itens,
+  investimento,
   onLimpar,
 }: {
   drill: SalaDrillSelecao;
   itens: CicloAnoItem[];
+  investimento?: number;
   onLimpar: () => void;
 }) {
   const modo = cicloDrillModo(drill.id) ?? "eol";
   const rotuloData = modo === "eos" ? "EOS" : "EOL";
+  const quantidade = itens.length;
+  const totalValor = totalValorItensCiclo(itens, investimento);
+  const totalValorFmt = formatoMoedaCurto(totalValor);
   const vazio =
     modo === "eos"
       ? "Nenhum equipamento com fim de serviço neste ano."
@@ -448,14 +465,26 @@ function SalaCicloAnoOverlay({
           <div className="sala-drill-sheet-titulo">
             <span className={`sala-drill-sheet-chip sala-ciclo-chip-${modo}`}>{drill.titulo}</span>
             <div className="sala-drill-sheet-heading">
-              <span className="sala-drill-sheet-icone" aria-hidden>
+              <span className={`sala-drill-sheet-icone sala-ciclo-icone-${modo}`} aria-hidden>
                 <CalendarRange size={32} strokeWidth={2.2} />
               </span>
               <div>
                 <div className="sala-rotulo-bloco">
                   {modo === "eos" ? "FIM DE SERVIÇO" : "FIM DE VIDA"}
                 </div>
-                <div className="sala-numero sala-drill-sheet-qtd">{itens.length}</div>
+                <div className="sala-ciclo-ano-resumo" aria-label={`${quantidade} equipamentos, ${totalValorFmt}`}>
+                  <div className="sala-ciclo-ano-resumo-item">
+                    <span className="sala-ciclo-ano-resumo-rotulo">QUANTIDADE</span>
+                    <span className="sala-numero sala-drill-sheet-qtd">{quantidade}</span>
+                  </div>
+                  <div className="sala-ciclo-ano-resumo-sep" aria-hidden />
+                  <div className="sala-ciclo-ano-resumo-item">
+                    <span className="sala-ciclo-ano-resumo-rotulo">VALOR DE SUBSTITUIÇÃO</span>
+                    <span className={`sala-numero sala-ciclo-ano-resumo-valor sala-ciclo-ano-resumo-valor-${modo}`}>
+                      {totalValorFmt}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -2182,7 +2211,8 @@ export function SalaApp({
       ? []
       : (dados?.detalhes?.[drill.id] ?? [])
     : [];
-  const cicloItens = drill && dados && isCicloAnoDrill(drill.id) ? itensCicloAno(dados, drill.id) : [];
+  const cicloBucket = drill && dados && isCicloAnoDrill(drill.id) ? bucketCicloAno(dados, drill.id) : null;
+  const cicloItens = cicloBucket?.itens ?? [];
   const drillContagem = drill
     ? isCicloAnoDrill(drill.id)
       ? cicloItens.length
@@ -2246,7 +2276,12 @@ export function SalaApp({
             </div>
           </div>
           {drill && !osDetalhe && isCicloAnoDrill(drill.id) ? (
-            <SalaCicloAnoOverlay drill={drill} itens={cicloItens} onLimpar={limparDrill} />
+            <SalaCicloAnoOverlay
+              drill={drill}
+              itens={cicloItens}
+              investimento={cicloBucket?.investimento}
+              onLimpar={limparDrill}
+            />
           ) : null}
           {drill && !osDetalhe && !isCicloAnoDrill(drill.id) ? (
             <SalaDrillOverlay
