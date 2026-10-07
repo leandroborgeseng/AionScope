@@ -136,11 +136,14 @@ export function calcularPainel(
   let reciclados = 0;
   let novos = 0;
   const recicladosPorSetor = new Map<string, number>();
+  const novosPorSetor = new Map<string, number>();
 
   for (const p of unicosAtual.values()) {
     const vinculo = vincularAnterior(p, idxAnt);
     if (vinculo == null) {
       novos += 1;
+      const setorNovo = padronizarSetor(p.setor) ?? "Não informado";
+      novosPorSetor.set(setorNovo, (novosPorSetor.get(setorNovo) ?? 0) + 1);
       continue;
     }
     reciclados += 1;
@@ -163,9 +166,17 @@ export function calcularPainel(
     contagemSetorAnt.set(setor, (contagemSetorAnt.get(setor) ?? 0) + 1);
   }
 
-  const setores: ResumoSetor[] = [...contagemSetorAnt.entries()]
-    .map(([setor, treinados_anterior]) => {
+  const setoresChaves = new Set<string>([
+    ...contagemSetorAnt.keys(),
+    ...recicladosPorSetor.keys(),
+    ...novosPorSetor.keys(),
+  ]);
+
+  const setores: ResumoSetor[] = [...setoresChaves]
+    .map((setor) => {
+      const treinados_anterior = contagemSetorAnt.get(setor) ?? 0;
       const reciclados_atual = recicladosPorSetor.get(setor) ?? 0;
+      const novos_atual = novosPorSetor.get(setor) ?? 0;
       const taxa_reciclagem_pct = treinados_anterior
         ? arred1((100 * reciclados_atual) / treinados_anterior)
         : 0;
@@ -173,11 +184,17 @@ export function calcularPainel(
         setor,
         treinados_anterior,
         reciclados_atual,
+        novos_atual,
         taxa_reciclagem_pct,
         faixa: faixaReciclagem(taxa_reciclagem_pct),
       };
     })
-    .sort((a, b) => b.treinados_anterior - a.treinados_anterior || a.setor.localeCompare(b.setor, "pt-BR"));
+    .sort(
+      (a, b) =>
+        b.treinados_anterior - a.treinados_anterior ||
+        b.reciclados_atual + b.novos_atual - (a.reciclados_atual + a.novos_atual) ||
+        a.setor.localeCompare(b.setor, "pt-BR"),
+    );
 
   return {
     treinamento: TREINAMENTO_NOME,

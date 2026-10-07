@@ -2,8 +2,11 @@
 
 ## TV (`/sala/ciclo-de-vida`)
 
+- **Valor de substituição do parque:** KPI no topo (`ciclo.valorSubstituicaoParque` / `valorSubstituicaoParqueNumero`) — soma ValorDeSubstituicao (fallback aquisição) dos ativos.
 - **EOL (EndOfLife):** gráfico superior de 10 anos (ano corrente+1 … +10). Clique no ano → overlay com lista; chip **EOL YYYY**.
 - **EOS (EndOfService):** gráfico imediatamente abaixo, mesma linguagem visual (azul/âmbar). Clique → chip **EOS YYYY**. EOS é o sinal mais crítico para peça/suporte.
+- Em cada barra (EOL e EOS): quantidade + **% do valor do parque** (`investimento / valorSubstituicaoParqueNumero`). Hover/title: valor em BRL + qtd.
+- **FIM DE SERVIÇO PRÓXIMO:** lista secundária baseada em **EndOfService** (vencido ou no horizonte), não EndOfLife. Payload legado: `fimDeVida` / `quantidadeFimDeVida`.
 - Snapshot: `ciclo.previsaoEol` e `ciclo.previsaoEos` (quantidade, `investimento` = soma ValorDeSubstituicao, `itens[]` para drill).
 - Botão **Relatório de investimentos** abre nova aba.
 

@@ -22,8 +22,12 @@ export type FaixaReciclagem = "ok" | "atencao" | "critico";
 
 export type ResumoSetor = {
   setor: string;
+  /** Base capacitada no ano anterior (já treinados). */
   treinados_anterior: number;
+  /** Já capacitados que retornaram no ano atual (recorrentes). */
   reciclados_atual: number;
+  /** Novos capacitados no ano atual alocados a este setor. */
+  novos_atual: number;
   taxa_reciclagem_pct: number;
   faixa: FaixaReciclagem;
 };

@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 
 const COR_ANTERIOR = "#9fb3bf";
 const COR_ATUAL = "#0f7c8c";
+const COR_NOVOS = "#d97706";
 const COR_OK = "#2f7d4f";
 const COR_ATENCAO = "#b5651d";
 const COR_CRITICO = "#b23b3b";
@@ -81,11 +82,14 @@ export function PainelTreinamentosView({
     return painel.setores.filter((s) => s.setor === setorFiltro);
   }, [painel.setores, setorFiltro]);
 
-  const maxBarra = Math.max(1, ...setoresFiltrados.map((s) => s.treinados_anterior));
+  const maxBarra = Math.max(
+    1,
+    ...setoresFiltrados.map((s) => Math.max(s.treinados_anterior, s.reciclados_atual + s.novos_atual)),
+  );
 
   const composicao = [
-    { name: `Reciclados (${painel.reciclados_atual})`, value: painel.reciclados_atual },
-    { name: `1º treinamento (${painel.novos_atual})`, value: painel.novos_atual },
+    { name: `Já capacitados / recorrentes (${painel.reciclados_atual})`, value: painel.reciclados_atual },
+    { name: `Novos capacitados (${painel.novos_atual})`, value: painel.novos_atual },
   ];
 
   const comparativo = painel.anos.map((a) => ({
@@ -188,8 +192,14 @@ export function PainelTreinamentosView({
     <div className="space-y-6">
       <PageHeader
         title="Treinamento em bombas de infusão B. Braun"
-        description="Hospital São Joaquim · Unimed Franca · Engenharia Clínica. 2025: listas manuscritas (25/06–26/07). 2026: Google Forms (01–02/07). Contagem por pessoa única."
+        description="Hospital São Joaquim · Unimed Franca · Engenharia Clínica. Capacitação contínua — não é obrigatória para quem já domina o equipamento. 2025: listas manuscritas. 2026: Google Forms. Contagem por pessoa única."
       />
+
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 text-sm text-aion-ink">
+        <strong>Base consolidada.</strong> Volume anual menor não é regressão: a equipe já capacitada
+        permanece apta; a turma atual soma <strong>recorrentes (já treinados)</strong> e{" "}
+        <strong>novos</strong>. Treinamento reforça quem precisa — não reinicia a base inteira.
+      </div>
 
       <div className="flex flex-wrap items-end gap-3 rounded-xl border border-aion-line bg-white p-3">
         <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-aion-muted">
@@ -227,96 +237,190 @@ export function PainelTreinamentosView({
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <KpiCard
-          label={`Treinados ${painel.ano_anterior}`}
+          label={`Base capacitada ${painel.ano_anterior}`}
           value={fmtNum(aAnt?.treinados ?? 0)}
-          hint={`≈ ${fmtNum(aAnt?.horas_homem ?? 0)} h·homem${aAnt?.horas_homem_estimado ? " (est.)" : ""}`}
+          hint={`Já treinados · ≈ ${fmtNum(aAnt?.horas_homem ?? 0)} h·homem${aAnt?.horas_homem_estimado ? " (est.)" : ""}`}
+          tone="ok"
         />
         <KpiCard
-          label={`Treinados ${painel.ano_atual}`}
+          label={`Turma ${painel.ano_atual}`}
           value={fmtNum(aAtual?.treinados ?? 0)}
-          hint={`${fmtNum(aAtual?.horas_homem ?? 0)} h·homem · ${fmtPct(painel.variacao_treinados_pct)} vs ${painel.ano_anterior}`}
-          tone={painel.variacao_treinados_pct < 0 ? "warn" : "ok"}
+          hint={`${fmtNum(painel.reciclados_atual)} recorrentes + ${fmtNum(painel.novos_atual)} novos · base consolidada`}
+          tone="ok"
         />
         <KpiCard
-          label="Taxa de reciclagem"
+          label="Continuidade (já capacitados)"
           value={fmtPct(painel.taxa_reciclagem_geral_pct)}
-          hint={`${fmtNum(painel.reciclados_atual)} reciclados · meta ${META_RECICLAGEM_PCT}%`}
+          hint={`${fmtNum(painel.reciclados_atual)} retornaram · meta ${META_RECICLAGEM_PCT}%`}
           tone={
             painel.taxa_reciclagem_geral_pct >= 60
               ? "ok"
               : painel.taxa_reciclagem_geral_pct >= 40
-                ? "warn"
-                : "danger"
+                ? "ok"
+                : "warn"
           }
         />
         <KpiCard
-          label={`Novos em ${painel.ano_atual}`}
+          label={`Novos capacitados ${painel.ano_atual}`}
           value={fmtNum(painel.novos_atual)}
-          hint={`${fmtPct(painel.taxa_novos_pct)} da turma · sem setor na lista`}
+          hint={`${fmtPct(painel.taxa_novos_pct)} da turma atual`}
+          tone="ok"
         />
         <KpiCard
           label="Horas·homem"
           value={`${fmtNum(aAnt?.horas_homem ?? 0)} / ${fmtNum(aAtual?.horas_homem ?? 0)}`}
-          hint={`${painel.ano_anterior} / ${painel.ano_atual}`}
+          hint={`${painel.ano_anterior} (base) / ${painel.ano_atual} (turma)`}
         />
       </div>
+
+      <Card className="space-y-3 border-aion-blue/25 bg-aion-mist/40 p-4">
+        <div className="flex items-start gap-2">
+          <FileText className="mt-0.5 h-5 w-5 text-aion-blue" />
+          <div>
+            <h2 className="text-lg font-semibold text-aion-ink">Evidências (listas PDF)</h2>
+            <p className="text-sm text-aion-muted">
+              Listas originais 2025 e 2026. O PDF de 2026 contém CPF e e-mail — acesso com token
+              (LGPD: nomes não aparecem na TV).
+            </p>
+          </div>
+        </div>
+        {!evidenciasConfiguradas ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            Configure <code className="font-mono">TREINAMENTOS_EVIDENCIAS_TOKEN</code> e copie os PDFs
+            para o volume <code className="font-mono">treinamentos-evidencias</code> (ao lado do SQLite).
+          </p>
+        ) : (
+          <div className="flex flex-wrap items-end gap-2">
+            {!desbloqueado ? (
+              <>
+                <Input
+                  type="password"
+                  className="w-64"
+                  placeholder="Token de evidências"
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void desbloquearEvidencias();
+                  }}
+                />
+                <Button type="button" onClick={desbloquearEvidencias}>
+                  Desbloquear e abrir
+                </Button>
+              </>
+            ) : (
+              <>
+                <a
+                  className="inline-flex h-10 items-center rounded-lg bg-aion-blue px-4 text-sm font-semibold text-white hover:opacity-90"
+                  href="/api/treinamentos/evidencias/2025"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Abrir lista 2025 (PDF)
+                </a>
+                <a
+                  className="inline-flex h-10 items-center rounded-lg bg-aion-blue px-4 text-sm font-semibold text-white hover:opacity-90"
+                  href="/api/treinamentos/evidencias/2026"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Abrir lista 2026 (PDF)
+                </a>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={async () => {
+                    await fetch("/api/treinamentos/evidencias/desbloquear", { method: "DELETE" });
+                    setDesbloqueado(false);
+                  }}
+                >
+                  Bloquear novamente
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+        {evidenciaMsg ? <p className="text-sm text-aion-muted">{evidenciaMsg}</p> : null}
+      </Card>
 
       <section className="grid gap-4 xl:grid-cols-2">
         <Card className="space-y-3 p-4">
           <div>
-            <h2 className="text-lg font-semibold text-aion-ink">Treinados por setor</h2>
+            <h2 className="text-lg font-semibold text-aion-ink">Evolução por setor · base → turma</h2>
             <p className="text-sm text-aion-muted">
-              Barras: treinados {painel.ano_anterior} × reciclados em {painel.ano_atual} (setor do ano anterior).
+              Fundo: base {painel.ano_anterior} (já capacitados). Sobreposição: recorrentes + novos em{" "}
+              {painel.ano_atual} — maturidade, não regressão.
             </p>
           </div>
           <div className="flex flex-wrap gap-4 text-xs text-aion-muted">
             <span>
               <i className="mr-1 inline-block h-3 w-3 rounded-sm" style={{ background: COR_ANTERIOR }} />
-              Treinados {painel.ano_anterior}
+              Base {painel.ano_anterior}
             </span>
             <span>
               <i className="mr-1 inline-block h-3 w-3 rounded-sm" style={{ background: COR_ATUAL }} />
-              Reciclados {painel.ano_atual}
+              Já treinados (recorrentes)
+            </span>
+            <span>
+              <i className="mr-1 inline-block h-3 w-3 rounded-sm" style={{ background: COR_NOVOS }} />
+              Novos
             </span>
           </div>
           <div className="max-h-[520px] space-y-1.5 overflow-y-auto pr-1">
-            {setoresFiltrados.map((s) => (
-              <div
-                key={s.setor}
-                className="grid grid-cols-[minmax(100px,180px)_1fr_64px] items-center gap-2 text-xs"
-              >
-                <span className="truncate text-aion-ink" title={s.setor}>
-                  {s.setor}
-                </span>
-                <div className="relative h-[18px]">
-                  <div
-                    className="absolute inset-y-0 left-0 rounded-sm"
-                    style={{
-                      width: `${(100 * s.treinados_anterior) / maxBarra}%`,
-                      background: COR_ANTERIOR,
-                    }}
-                  />
-                  <div
-                    className="absolute top-1 left-0 h-2.5 rounded-sm"
-                    style={{
-                      width: `${(100 * s.reciclados_atual) / maxBarra}%`,
-                      background: COR_ATUAL,
-                    }}
-                  />
+            {setoresFiltrados.map((s) => {
+              const turma = s.reciclados_atual + s.novos_atual;
+              return (
+                <div
+                  key={s.setor}
+                  className="grid grid-cols-[minmax(100px,180px)_1fr_88px] items-center gap-2 text-xs"
+                >
+                  <span className="truncate text-aion-ink" title={s.setor}>
+                    {s.setor}
+                  </span>
+                  <div className="relative h-[20px]">
+                    <div
+                      className="absolute inset-y-0 left-0 rounded-sm"
+                      style={{
+                        width: `${(100 * s.treinados_anterior) / maxBarra}%`,
+                        background: COR_ANTERIOR,
+                      }}
+                      title={`Base ${s.treinados_anterior}`}
+                    />
+                    <div
+                      className="absolute top-1 left-0 flex h-2.5 overflow-hidden rounded-sm"
+                      style={{ width: `${(100 * turma) / maxBarra}%` }}
+                    >
+                      <span
+                        style={{
+                          width: `${turma ? (100 * s.reciclados_atual) / turma : 0}%`,
+                          background: COR_ATUAL,
+                        }}
+                      />
+                      <span
+                        style={{
+                          width: `${turma ? (100 * s.novos_atual) / turma : 0}%`,
+                          background: COR_NOVOS,
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <span
+                    className="text-right font-mono text-[11px] text-aion-muted tabular-nums"
+                    title={`Base ${s.treinados_anterior} · recorrentes ${s.reciclados_atual} · novos ${s.novos_atual}`}
+                  >
+                    {s.treinados_anterior} → {s.reciclados_atual}+{s.novos_atual}
+                  </span>
                 </div>
-                <span className="text-right font-mono text-[11px] text-aion-muted tabular-nums">
-                  {s.treinados_anterior} / {s.reciclados_atual}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </Card>
 
         <Card className="space-y-3 p-4">
           <div>
-            <h2 className="text-lg font-semibold text-aion-ink">Taxa de reciclagem por setor</h2>
+            <h2 className="text-lg font-semibold text-aion-ink">Continuidade por setor</h2>
             <p className="text-sm text-aion-muted">
-              Meta {META_RECICLAGEM_PCT}% · faixas ≥60% / 40–59% / &lt;40%.
+              % da base {painel.ano_anterior} que retornou em {painel.ano_atual} · meta{" "}
+              {META_RECICLAGEM_PCT}%.
             </p>
           </div>
           <div className="h-[520px] w-full">
@@ -361,7 +465,9 @@ export function PainelTreinamentosView({
 
       <section className="grid gap-4 lg:grid-cols-2">
         <Card className="space-y-3 p-4">
-          <h2 className="text-lg font-semibold text-aion-ink">Composição da turma {painel.ano_atual}</h2>
+          <h2 className="text-lg font-semibold text-aion-ink">
+            Composição da turma {painel.ano_atual} · recorrentes + novos
+          </h2>
           <div className="h-64">
             <ResponsiveContainer>
               <PieChart>
@@ -374,7 +480,7 @@ export function PainelTreinamentosView({
                   paddingAngle={2}
                 >
                   <Cell fill={COR_ATUAL} />
-                  <Cell fill="#d97706" />
+                  <Cell fill={COR_NOVOS} />
                 </Pie>
                 <Tooltip />
                 <Legend />
@@ -385,7 +491,9 @@ export function PainelTreinamentosView({
 
         <Card className="space-y-3 p-4">
           <h2 className="text-lg font-semibold text-aion-ink">Comparativo anual</h2>
-          <p className="text-sm text-aion-muted">Treinados e horas·homem — pronto para novos anos.</p>
+          <p className="text-sm text-aion-muted">
+            Volume da turma e horas·homem. Queda ano a ano pode indicar base já capacitada — não regressão.
+          </p>
           <div className="h-64">
             <ResponsiveContainer>
               <BarChart data={comparativo}>
@@ -444,72 +552,6 @@ export function PainelTreinamentosView({
           </div>
         </div>
         <DataTable data={linhasTabela} columns={colunas} pageSize={15} />
-      </Card>
-
-      <Card className="space-y-3 p-4">
-        <div className="flex items-start gap-2">
-          <FileText className="mt-0.5 h-5 w-5 text-aion-blue" />
-          <div>
-            <h2 className="text-lg font-semibold text-aion-ink">Evidências (PDFs)</h2>
-            <p className="text-sm text-aion-muted">
-              Listas originais. O PDF de 2026 contém CPF e e-mail — acesso só com token de evidências
-              (não versionado no repositório público).
-            </p>
-          </div>
-        </div>
-        {!evidenciasConfiguradas ? (
-          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            Configure <code className="font-mono">TREINAMENTOS_EVIDENCIAS_TOKEN</code> e copie os PDFs
-            para o volume <code className="font-mono">treinamentos-evidencias</code> (ao lado do SQLite).
-          </p>
-        ) : (
-          <div className="flex flex-wrap items-end gap-2">
-            {!desbloqueado ? (
-              <>
-                <Input
-                  type="password"
-                  className="w-64"
-                  placeholder="Token de evidências"
-                  value={tokenInput}
-                  onChange={(e) => setTokenInput(e.target.value)}
-                />
-                <Button type="button" onClick={desbloquearEvidencias}>
-                  Desbloquear
-                </Button>
-              </>
-            ) : (
-              <>
-                <a
-                  className="inline-flex h-9 items-center rounded-lg border border-aion-line bg-white px-3 text-sm font-medium text-aion-ink hover:border-aion-blue/40 hover:bg-aion-mist"
-                  href="/api/treinamentos/evidencias/2025"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Abrir lista 2025
-                </a>
-                <a
-                  className="inline-flex h-9 items-center rounded-lg border border-aion-line bg-white px-3 text-sm font-medium text-aion-ink hover:border-aion-blue/40 hover:bg-aion-mist"
-                  href="/api/treinamentos/evidencias/2026"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Abrir lista 2026
-                </a>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={async () => {
-                    await fetch("/api/treinamentos/evidencias/desbloquear", { method: "DELETE" });
-                    setDesbloqueado(false);
-                  }}
-                >
-                  Bloquear novamente
-                </Button>
-              </>
-            )}
-          </div>
-        )}
-        {evidenciaMsg ? <p className="text-sm text-aion-muted">{evidenciaMsg}</p> : null}
       </Card>
 
       <div className="rounded-r-lg border-l-4 border-amber-500 bg-white px-4 py-3 text-sm text-aion-muted">

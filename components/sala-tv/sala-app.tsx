@@ -685,30 +685,6 @@ function TelaAgora({
               );
             })}
           </div>
-          <div className="sala-cartao sala-bloco-plano">
-            <div className="sala-bloco-cabeca">
-              <CalendarRange size={20} strokeWidth={2.2} aria-hidden />
-              <div className="sala-rotulo-bloco">PLANO DO MÊS</div>
-            </div>
-            {dados.agora.plano.every((item) => item.faltam == null && item.percentual == null) ? (
-              <p className="sala-vazio sala-vazio-compacto">{dados.agora.planoAviso}</p>
-            ) : (
-              <>
-                <p className="sala-bloco-sub">{dados.agora.planoAviso}</p>
-                <div className="sala-plano-lista">
-                  {dados.agora.plano.map((item) => (
-                    <div key={item.tipo} className="sala-plano-linha">
-                      <strong>{item.tipo}</strong>
-                      <span className="sala-numero">
-                        {item.executados ?? "—"}/{item.previstos ?? "—"}
-                        {item.faltam != null && item.faltam > 0 ? ` · faltam ${item.faltam}` : ""}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
           <div className="sala-cartao sala-bloco-parados" style={{ flex: 1 }}>
             <div className="sala-bloco-cabeca">
               <PauseCircle size={20} strokeWidth={2.2} aria-hidden />
@@ -882,6 +858,20 @@ function TelaAviso({ titulo, texto }: { titulo: string; texto: string }) {
   );
 }
 
+function formatoMoedaCurto(valor: number) {
+  if (!Number.isFinite(valor) || valor <= 0) return "—";
+  return valor.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+  });
+}
+
+function pctParque(investimento: number, valorParque: number) {
+  if (!valorParque || valorParque <= 0 || !investimento) return 0;
+  return Math.round((investimento / valorParque) * 1000) / 10;
+}
+
 function TelaCiclo({
   dados,
   drill,
@@ -901,12 +891,21 @@ function TelaCiclo({
   const proximoEos = previsaoEos[0];
   const vencem10 = ciclo.vencem10Anos ?? previsaoEol.reduce((s, i) => s + i.quantidade, 0);
   const vencemEos10 = ciclo.vencemEos10Anos ?? previsaoEos.reduce((s, i) => s + i.quantidade, 0);
+  const valorParqueNum = ciclo.valorSubstituicaoParqueNumero ?? 0;
+  const valorParqueFmt = ciclo.valorSubstituicaoParque ?? (valorParqueNum > 0 ? formatoMoedaCurto(valorParqueNum) : "—");
   const drillAtivo = Boolean(drill && isCicloAnoDrill(drill.id));
   const modoDrill = drill ? cicloDrillModo(drill.id) : null;
 
   return (
     <div className={drillAtivo ? "sala-ciclo com-drill" : "sala-ciclo"}>
       <div className="sala-ciclo-acoes no-print">
+        <div className="sala-ciclo-parque" aria-label="Valor de substituição do parque">
+          <Replace size={18} strokeWidth={2.2} aria-hidden />
+          <div>
+            <div className="sala-ciclo-parque-rotulo">VALOR DE SUBSTITUIÇÃO DO PARQUE</div>
+            <div className="sala-numero sala-ciclo-parque-valor">{valorParqueFmt}</div>
+          </div>
+        </div>
         <a
           className="sala-ciclo-btn-relatorio"
           href="/sala/ciclo-de-vida/investimentos"
@@ -925,7 +924,7 @@ function TelaCiclo({
               <div className="sala-rotulo-bloco">EOL · FIM DE VIDA · 10 ANOS</div>
             </div>
             <p className="sala-ciclo-hero-sub">
-              Clique em um ano para listar equipamentos com EndOfLife no período.
+              Clique em um ano para listar equipamentos com EndOfLife no período. % = investimento do ano ÷ valor do parque.
             </p>
           </div>
           <div className="sala-ciclo-resumo">
@@ -958,6 +957,9 @@ function TelaCiclo({
             const drillId = `ciclo.eol.${item.ano}`;
             const ativo = drill?.id === drillId;
             const dim = drillAtivo && !ativo;
+            const invest = item.investimento ?? 0;
+            const pct = pctParque(invest, valorParqueNum);
+            const tip = `EOL ${item.ano}: ${item.quantidade} equip. · ${formatoMoedaCurto(invest)} (${pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% do parque)`;
             return (
               <button
                 key={`eol-${item.ano}`}
@@ -971,11 +973,15 @@ function TelaCiclo({
                   } as CSSProperties
                 }
                 aria-pressed={ativo}
-                aria-label={`EOL ${item.ano}, ${item.quantidade} equipamentos`}
+                aria-label={tip}
+                title={tip}
                 onClick={() => onDrill(drillId, `EOL ${item.ano}`)}
               >
                 <span className="sala-numero sala-ciclo-barra-qtd">
                   {item.quantidade || "·"}
+                </span>
+                <span className="sala-ciclo-barra-pct">
+                  {item.quantidade ? `${pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "·"}
                 </span>
                 <div className="sala-ciclo-barra-trilho">
                   <div className="sala-ciclo-barra-fill" />
@@ -995,7 +1001,7 @@ function TelaCiclo({
               <div className="sala-rotulo-bloco">EOS · FIM DE SERVIÇO · 10 ANOS</div>
             </div>
             <p className="sala-ciclo-hero-sub">
-              Mais crítico para peça e suporte — clique no ano para filtrar por EndOfService.
+              Mais crítico para peça e suporte — clique no ano para filtrar por EndOfService. % = investimento do ano ÷ valor do parque.
             </p>
           </div>
           <div className="sala-ciclo-resumo">
@@ -1030,6 +1036,9 @@ function TelaCiclo({
             const drillId = `ciclo.eos.${item.ano}`;
             const ativo = drill?.id === drillId;
             const dim = drillAtivo && !ativo;
+            const invest = item.investimento ?? 0;
+            const pct = pctParque(invest, valorParqueNum);
+            const tip = `EOS ${item.ano}: ${item.quantidade} equip. · ${formatoMoedaCurto(invest)} (${pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% do parque)`;
             return (
               <button
                 key={`eos-${item.ano}`}
@@ -1043,11 +1052,15 @@ function TelaCiclo({
                   } as CSSProperties
                 }
                 aria-pressed={ativo}
-                aria-label={`EOS ${item.ano}, ${item.quantidade} equipamentos`}
+                aria-label={tip}
+                title={tip}
                 onClick={() => onDrill(drillId, `EOS ${item.ano}`)}
               >
                 <span className="sala-numero sala-ciclo-barra-qtd">
                   {item.quantidade || "·"}
+                </span>
+                <span className="sala-ciclo-barra-pct">
+                  {item.quantidade ? `${pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "·"}
                 </span>
                 <div className="sala-ciclo-barra-trilho">
                   <div className="sala-ciclo-barra-fill" />
@@ -1060,11 +1073,11 @@ function TelaCiclo({
       </section>
 
       <div className="sala-ciclo-secundario">
-        <section className="sala-cartao sala-ciclo-lista" aria-label="Fim de vida próximo">
+        <section className="sala-cartao sala-ciclo-lista" aria-label="Fim de serviço próximo">
           <div className="sala-ciclo-lista-cabeca">
             <div className="sala-bloco-cabeca">
               <Hourglass size={18} strokeWidth={2.2} aria-hidden />
-              <div className="sala-rotulo-bloco">FIM DE VIDA PRÓXIMO · {ciclo.quantidadeFimDeVida}</div>
+              <div className="sala-rotulo-bloco">FIM DE SERVIÇO PRÓXIMO · {ciclo.quantidadeFimDeVida}</div>
             </div>
             <div className="sala-ciclo-valor-sub">
               <Replace size={16} strokeWidth={2.2} aria-hidden />
@@ -1075,7 +1088,7 @@ function TelaCiclo({
             </div>
           </div>
           {ciclo.fimDeVida.length === 0 ? (
-            <p className="sala-vazio">Nenhum equipamento ativo bateu os critérios.</p>
+            <p className="sala-vazio">Nenhum equipamento com EndOfService no horizonte ou vencido.</p>
           ) : (
             <div className="sala-ciclo-lista-itens">
               {ciclo.fimDeVida.slice(0, 5).map((item) => (
