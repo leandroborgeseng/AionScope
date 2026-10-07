@@ -576,6 +576,53 @@
   font-size: 40px;
   color: var(--aion-azul);
   margin-top: 0;
+  line-height: 1;
+}
+
+.sala-ciclo-ano-resumo {
+  display: flex;
+  align-items: flex-end;
+  gap: 22px;
+  margin-top: 4px;
+}
+
+.sala-ciclo-ano-resumo-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sala-ciclo-ano-resumo-rotulo {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--texto-2);
+}
+
+.sala-ciclo-ano-resumo-sep {
+  width: 1px;
+  align-self: stretch;
+  min-height: 48px;
+  background: var(--borda-linha);
+  margin-bottom: 4px;
+}
+
+.sala-ciclo-ano-resumo-valor {
+  font-size: 36px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--aion-azul);
+  white-space: nowrap;
+}
+
+.sala-ciclo-ano-resumo-valor-eos {
+  color: var(--atrasada);
+}
+
+.sala-ciclo-icone-eos {
+  background: #fff6ee !important;
+  color: var(--atrasada) !important;
 }
 .sala-drill-sheet-lista {
   flex: 1;
