@@ -94,5 +94,9 @@ describe("buildOficinasPlanoComparativo", () => {
     // Oficina Geral não entra em nenhum total
     const totalAbertas = comp.totais.reduce((s, t) => s + t.abertas, 0);
     assert.equal(totalAbertas, 3);
+    assert.equal(comp.consolidado.abertas, 3);
+    assert.equal(comp.consolidado.fechadas, 2);
+    assert.equal(mar!.consolidado.abertas, 3);
+    assert.equal(mar!.consolidado.fechadas, 2);
   });
 });

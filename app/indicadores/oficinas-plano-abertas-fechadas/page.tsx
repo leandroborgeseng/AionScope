@@ -36,9 +36,7 @@ function OficinasPlanoAbertasFechadasContent() {
 
   return (
     <div className="space-y-6">
-      {filterKey === "todas" ? (
-        <OficinasPlanoComparativoTabela raw={raw} range={range} loading={loading} />
-      ) : null}
+      <OficinasPlanoComparativoTabela raw={raw} range={range} loading={loading} />
       <OsVolumeCard
         headingAs="page"
         range={range}

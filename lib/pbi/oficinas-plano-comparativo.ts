@@ -7,32 +7,28 @@ import {
 } from "./volume-ec";
 import type { OsAnaliticoItem } from "./types";
 
+export type OficinaPlanoCelula = {
+  filterKey: string;
+  chipLabel: string;
+  abertas: number;
+  fechadas: number;
+  pctExecutada: number;
+  pctLabel: string;
+};
+
 export type OficinaPlanoMesComparativo = {
   key: string;
   label: string;
   year: number;
   month: number;
-  porOficina: Array<{
-    filterKey: string;
-    chipLabel: string;
-    abertas: number;
-    fechadas: number;
-    pctExecutada: number;
-    pctLabel: string;
-  }>;
+  porOficina: OficinaPlanoCelula[];
+  consolidado: OficinaPlanoCelula;
 };
 
 export type OficinaPlanoComparativo = {
   months: OficinaPlanoMesComparativo[];
-  totais: Array<{
-    filterKey: string;
-    chipLabel: string;
-    oficinaLabel: string;
-    abertas: number;
-    fechadas: number;
-    pctExecutada: number;
-    pctLabel: string;
-  }>;
+  totais: Array<OficinaPlanoCelula & { oficinaLabel: string }>;
+  consolidado: OficinaPlanoCelula & { oficinaLabel: string };
 };
 
 function pctLabel(abertas: number, fechadas: number) {
@@ -41,9 +37,32 @@ function pctLabel(abertas: number, fechadas: number) {
   return `${pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
 }
 
+function celula(
+  filterKey: string,
+  chipLabel: string,
+  abertas: number,
+  fechadas: number,
+): OficinaPlanoCelula {
+  return {
+    filterKey,
+    chipLabel,
+    abertas,
+    fechadas,
+    pctExecutada: pctExecutadaMes(abertas, fechadas),
+    pctLabel: pctLabel(abertas, fechadas),
+  };
+}
+
+function somaCelulas(filterKey: string, chipLabel: string, cells: OficinaPlanoCelula[]): OficinaPlanoCelula {
+  const abertas = cells.reduce((s, c) => s + c.abertas, 0);
+  const fechadas = cells.reduce((s, c) => s + c.fechadas, 0);
+  return celula(filterKey, chipLabel, abertas, fechadas);
+}
+
 /**
  * Abertas × fechadas mês a mês no ano vigente, por oficina de plano
- * (Preventiva / Calibração / TSE) — narrativa de cumprimento do cronograma.
+ * (Preventiva / Calibração / TSE) + consolidado das três.
+ * Narrativa de cumprimento do cronograma — sempre com quantidades (o % sozinho engana).
  */
 export function buildOficinasPlanoComparativo(
   os: OsAnaliticoItem[],
@@ -54,35 +73,30 @@ export function buildOficinasPlanoComparativo(
     volume: buildVolumeAbertasFechadas(os, range, { oficinaEquals: cfg.oficinaEquals }),
   }));
 
-  const months: OficinaPlanoMesComparativo[] = range.months.map((slot, index) => ({
-    key: slot.key,
-    label: slot.label,
-    year: slot.year,
-    month: slot.month,
-    porOficina: volumes.map(({ cfg, volume }) => {
+  const months: OficinaPlanoMesComparativo[] = range.months.map((slot, index) => {
+    const porOficina = volumes.map(({ cfg, volume }) => {
       const mes: VolumeEcMonth | undefined = volume.months[index];
-      const abertas = mes?.abertas ?? 0;
-      const fechadas = mes?.fechadas ?? 0;
-      return {
-        filterKey: cfg.filterKey,
-        chipLabel: cfg.chipLabel,
-        abertas,
-        fechadas,
-        pctExecutada: pctExecutadaMes(abertas, fechadas),
-        pctLabel: pctLabel(abertas, fechadas),
-      };
-    }),
-  }));
+      return celula(cfg.filterKey, cfg.chipLabel, mes?.abertas ?? 0, mes?.fechadas ?? 0);
+    });
+    return {
+      key: slot.key,
+      label: slot.label,
+      year: slot.year,
+      month: slot.month,
+      porOficina,
+      consolidado: somaCelulas("consolidado", "Consolidado", porOficina),
+    };
+  });
 
   const totais = volumes.map(({ cfg, volume }) => ({
-    filterKey: cfg.filterKey,
-    chipLabel: cfg.chipLabel,
+    ...celula(cfg.filterKey, cfg.chipLabel, volume.totalAbertas, volume.totalFechadas),
     oficinaLabel: cfg.oficinaLabel,
-    abertas: volume.totalAbertas,
-    fechadas: volume.totalFechadas,
-    pctExecutada: pctExecutadaMes(volume.totalAbertas, volume.totalFechadas),
-    pctLabel: pctLabel(volume.totalAbertas, volume.totalFechadas),
   }));
 
-  return { months, totais };
+  const consolidado = {
+    ...somaCelulas("consolidado", "Consolidado", totais),
+    oficinaLabel: "Preventiva + Calibração + TSE",
+  };
+
+  return { months, totais, consolidado };
 }
