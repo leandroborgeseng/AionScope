@@ -34,7 +34,7 @@ docker compose up --build
 
 Persistência: SQLite em `/data/aionscope.sqlite` (Compose: volume `aion-data`). Localmente, se `/data` não existir, o app usa `data/aionscope.sqlite` no workspace.
 
-No Railway: deploy do `Dockerfile` + Volume em **Settings → Volumes** montado em `/data` (não use `VOLUME` no Dockerfile) + `DATABASE_PATH=/data/aionscope.sqlite` nas Variables (junto com os tokens `PBI_*`). O `PORT` é injetado pela plataforma; não commite `.env` nem tokens.
+No Railway: deploy do `Dockerfile` + **Volume** em **Settings → Volumes** montado em **`/data`** (obrigatório — sem isso API/uploads somem no redeploy) + `DATABASE_PATH=/data/aionscope.sqlite` nas Variables (junto com os tokens `PBI_*`). O `PORT` é injetado pela plataforma; não commite `.env` nem tokens. Diagnóstico: `GET /api/v1/health?persistencia=1` — ver `docs/ops/persistencia-railway.md`.
 
 ## Páginas
 

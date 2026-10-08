@@ -27,19 +27,25 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 ENV DATABASE_PATH=/data/aionscope.sqlite
+ENV DATA_ROOT=/data
 
-RUN addgroup --system --gid 1001 nodejs \
+# su-exec: entrypoint ajusta dono do volume /data (Railway monta como root) e desce para nextjs
+RUN apk add --no-cache su-exec \
+  && addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs \
-  && mkdir -p /data \
-  && chown nextjs:nodejs /data
+  && mkdir -p /data/ordens-compra-anexos /data/treinamentos-evidencias \
+  && chown -R nextjs:nodejs /data
 
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # JSON legado para seed na 1ª abertura (tabelas vazias)
 COPY --from=builder --chown=nextjs:nodejs /app/data ./data
+COPY --chmod=755 scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
 
-USER nextjs
+# Entra como root só para chown do volume; o entrypoint faz exec como nextjs
+USER root
 EXPOSE 3000
 
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["node", "server.js"]
