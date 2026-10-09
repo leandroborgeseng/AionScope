@@ -35,13 +35,25 @@ describe("resolveLabelCanvasBackingStore", () => {
     assert.equal(b.smooth, true);
   });
 
-  it("preview sem clientWidth cai no fallback mm × px/mm", () => {
+  it("preview sem clientWidth cai no fallback mm × px/mm (piso 2× print)", () => {
     const b = resolveLabelCanvasBackingStore(size50, "preview", {
       cssW: 0,
       cssH: 0,
       devicePixelRatio: 1,
     });
-    assert.equal(b.width, 400);
-    assert.equal(b.height, 240);
+    // fallback CSS 400×240 @ dpr1 → 400, mas piso 2× print = 800×480
+    assert.equal(b.width, 800);
+    assert.equal(b.height, 480);
+  });
+
+  it("preview em coluna estreita ainda usa piso 2× print", () => {
+    const b = resolveLabelCanvasBackingStore(size50, "preview", {
+      cssW: 292,
+      cssH: 175,
+      devicePixelRatio: 2,
+    });
+    // CSS×DPR = 584×350 < 800×480 → piso
+    assert.equal(b.width, 800);
+    assert.equal(b.height, 480);
   });
 });

@@ -74,8 +74,10 @@ export function resolveLabelCanvasBackingStore(
     const cssW = opts?.cssW && opts.cssW > 0 ? opts.cssW : fallbackW;
     const cssH = opts?.cssH && opts.cssH > 0 ? opts.cssH : fallbackH;
     const dpr = opts?.devicePixelRatio && opts.devicePixelRatio > 0 ? opts.devicePixelRatio : 1;
-    const width = Math.max(1, Math.round(cssW * dpr));
-    const height = Math.max(1, Math.round(cssH * dpr));
+    // CSS×DPR, com piso 2× o bitmap de impressão (kit HTML 800×480) — coluna estreita
+    // não pode deixar a prévia mais pobre que o mock oficial.
+    const width = Math.max(1, Math.round(cssW * dpr), size.wPx * 2);
+    const height = Math.max(1, Math.round(cssH * dpr), size.hPx * 2);
     return {
       width,
       height,
