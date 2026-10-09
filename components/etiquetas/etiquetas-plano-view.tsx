@@ -143,14 +143,29 @@ export function EtiquetasPlanoView() {
   useEffect(() => {
     const canvas = previewCanvas;
     if (!canvas || typeof ResizeObserver === "undefined") return;
-    const bump = () => setPreviewLayoutTick((t) => t + 1);
-    const ro = new ResizeObserver(bump);
-    ro.observe(canvas);
+    let raf = 0;
+    let lastW = -1;
+    let lastH = -1;
+    const bumpLayout = () => {
+      const box = canvas.parentElement ?? canvas;
+      const w = box.clientWidth;
+      const h = box.clientHeight;
+      // Ignora mudanças só do bitmap (canvas.width); redesenha se a caixa CSS mudou.
+      if (w === lastW && h === lastH) return;
+      lastW = w;
+      lastH = h;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => setPreviewLayoutTick((t) => t + 1));
+    };
+    const ro = new ResizeObserver(bumpLayout);
+    ro.observe(canvas.parentElement ?? canvas);
+    const onDpr = () => setPreviewLayoutTick((t) => t + 1);
     const mq = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
-    mq.addEventListener?.("change", bump);
+    mq.addEventListener?.("change", onDpr);
     return () => {
+      cancelAnimationFrame(raf);
       ro.disconnect();
-      mq.removeEventListener?.("change", bump);
+      mq.removeEventListener?.("change", onDpr);
     };
   }, [previewCanvas]);
 
