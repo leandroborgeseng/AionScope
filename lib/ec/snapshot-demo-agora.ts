@@ -126,6 +126,7 @@ export function snapshotDemoAgora(): SalaSnapshot {
       "programadas",
       "agora",
       "ciclo-de-vida",
+      "evolucao",
       "indicadores",
       "processos",
     ],

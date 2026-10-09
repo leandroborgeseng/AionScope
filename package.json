@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test lib/ec/horario-util.test.ts lib/ec/situacao.test.ts lib/ec/os-detalhe.test.ts lib/ec/novas-os.test.ts lib/compras/parse-email.test.ts lib/ordens-compra/validate.test.ts lib/ordens-compra/store.test.ts lib/ordens-compra/anexos.test.ts lib/pbi/oficina-ec.test.ts lib/pbi/oficinas-plano-comparativo.test.ts lib/treinamentos/calcular.test.ts lib/etiquetas/agregar-plano.test.ts lib/etiquetas/branding.test.ts lib/etiquetas/qr-url.test.ts lib/etiquetas/render-label.test.ts"
+    "test": "tsx --test lib/ec/horario-util.test.ts lib/ec/situacao.test.ts lib/ec/os-detalhe.test.ts lib/ec/novas-os.test.ts lib/compras/parse-email.test.ts lib/ordens-compra/validate.test.ts lib/ordens-compra/store.test.ts lib/ordens-compra/anexos.test.ts lib/pbi/oficina-ec.test.ts lib/pbi/oficinas-plano-comparativo.test.ts lib/pbi/evolucao-historica.test.ts lib/treinamentos/calcular.test.ts lib/etiquetas/agregar-plano.test.ts lib/etiquetas/branding.test.ts lib/etiquetas/qr-url.test.ts lib/etiquetas/render-label.test.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.101.4",
