@@ -34,6 +34,8 @@ function filtrosBase(agora: Date): DashboardFilters {
     from: format(new Date(agora.getFullYear() - 20, 0, 1), "yyyy-MM-dd"),
     to: format(agora, "yyyy-MM-dd"),
     tipoManutencao: "Todos",
+    // API traz o parque completo; o recorte médico+ativo é aplicado em montarEvolucaoHistorica
+    // (isEquipamentoMedico + Status/DataDeInativação), igual ao snapshot da Sala.
     somenteMedicos: false,
     empresaIds: empresaIds(),
   };

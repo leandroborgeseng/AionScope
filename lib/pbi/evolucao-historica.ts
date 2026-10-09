@@ -1,9 +1,18 @@
 import { nowInSaoPaulo, parseBrNumber, parsePbiDate } from "./dates";
+import { isEquipamentoMedico } from "./medical";
 import type { EquipamentoItem, OsAnaliticoItem } from "./types";
 import { isOsCancelada, isTipoManutencaoEc } from "./volume-ec";
 
 /** Campo canônico para “cadastro” do parque (preenchimento ~100% na API). */
 export const CAMPO_CADASTRO_PARQUE = "DataDeCadastro" as const;
+
+/** Mesmo recorte da Sala / ciclo: médico + ativo (histórico via DataDeInativação). */
+export const EVOLUCAO_PARQUE_REGRA = [
+  "somente equipamentos médicos (isEquipamentoMedico — exclui predial/infra/hotelaria)",
+  "ativo no fim do ano: DataDeCadastro ≤ ano e (DataDeInativação > fim do ano, ou sem inativação e Status = ATIVO)",
+  "INATIVO sem DataDeInativação não entra no estoque (evita inflar o parque)",
+  "quantidade e ValorDeSubstituicao são acumulados ao fim de cada ano",
+] as const;
 
 export const EVOLUCAO_CHAMADOS_REGRA = [
   "TipoDeManutencao no recorte de Engenharia Clínica (mesmo critério do volume EC)",
@@ -36,16 +45,28 @@ export type EvolucaoHistorica = {
   campoCadastro: typeof CAMPO_CADASTRO_PARQUE;
   anoInicio: number | null;
   anoFim: number;
-  /** Quantidade de equipamentos com DataDeCadastro parseável. */
+  /** Quantidade de eq. médicos com DataDeCadastro parseável. */
   equipamentosComCadastro: number;
-  /** Equipamentos sem DataDeCadastro válida (ignorados na série). */
+  /** Eq. médicos sem DataDeCadastro válida (ignorados na série). */
   equipamentosSemCadastro: number;
+  /** Total bruto da API (antes do filtro médico). */
+  equipamentosApi: number;
+  /** Excluídos por não serem médicos (predial/infra etc.). */
+  equipamentosNaoMedicos: number;
   parque: EvolucaoParqueAno[];
   chamados: EvolucaoChamadoAno[];
   chamadosTotal: number;
   chamadosPeriodoApi: string;
   avisos: string[];
 };
+
+function isStatusAtivo(status: string | null | undefined): boolean {
+  return (status ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleUpperCase("pt-BR")
+    .trim() === "ATIVO";
+}
 
 function endOfYear(year: number): Date {
   return new Date(year, 11, 31, 23, 59, 59, 999);
@@ -74,16 +95,19 @@ export function anoAberturaOs(item: Pick<OsAnaliticoItem, "Abertura">): number |
   return y >= 1990 && y <= 2100 ? y : null;
 }
 
-/** Ainda fazia parte do parque no fim do ano? (cadastro ≤ ano e inativação depois, ou sem inativação). */
+/**
+ * Ainda fazia parte do parque médico ativo no fim do ano?
+ * Cadastro ≤ ano; se há DataDeInativação, permanece até ela; senão exige Status ATIVO.
+ */
 export function noParqueNoFimDoAno(
-  item: Pick<EquipamentoItem, "DataDeCadastro" | "DataDeInativação">,
+  item: Pick<EquipamentoItem, "DataDeCadastro" | "DataDeInativação" | "Status">,
   ano: number,
 ): boolean {
   const cadastro = parsePbiDate(item.DataDeCadastro);
   if (!cadastro || cadastro > endOfYear(ano)) return false;
   const inativacao = parsePbiDate(item["DataDeInativação"]);
-  if (!inativacao) return true;
-  return inativacao > endOfYear(ano);
+  if (inativacao) return inativacao > endOfYear(ano);
+  return isStatusAtivo(item.Status);
 }
 
 export function isChamadoEngenhariaClinica(
@@ -94,8 +118,8 @@ export function isChamadoEngenhariaClinica(
 }
 
 /**
- * Série ano a ano do parque: do menor DataDeCadastro até o ano corrente.
- * Quantidade e valor são acumulados (estoque no fim de cada ano).
+ * Série ano a ano do parque médico: do menor DataDeCadastro até o ano corrente.
+ * Quantidade e valor são acumulados (estoque ativo no fim de cada ano).
  */
 export function agregarEvolucaoParque(
   equipamentos: EquipamentoItem[],
@@ -105,15 +129,21 @@ export function agregarEvolucaoParque(
   anoFim: number;
   comCadastro: number;
   semCadastro: number;
+  apiTotal: number;
+  naoMedicos: number;
   serie: EvolucaoParqueAno[];
 } {
   const anoFim = hoje.getFullYear();
+  const apiTotal = equipamentos.length;
+  const medicos = equipamentos.filter(isEquipamentoMedico);
+  const naoMedicos = apiTotal - medicos.length;
+
   let anoInicio: number | null = null;
   let comCadastro = 0;
   let semCadastro = 0;
   const entrantesPorAno = new Map<number, number>();
 
-  for (const item of equipamentos) {
+  for (const item of medicos) {
     const ano = anoCadastroEquipamento(item);
     if (ano == null) {
       semCadastro += 1;
@@ -121,11 +151,22 @@ export function agregarEvolucaoParque(
     }
     comCadastro += 1;
     if (anoInicio == null || ano < anoInicio) anoInicio = ano;
-    entrantesPorAno.set(ano, (entrantesPorAno.get(ano) ?? 0) + 1);
+    // Entrante só conta se o item faz parte do parque em algum momento (ativo ou com inativação).
+    if (isStatusAtivo(item.Status) || parsePbiDate(item["DataDeInativação"])) {
+      entrantesPorAno.set(ano, (entrantesPorAno.get(ano) ?? 0) + 1);
+    }
   }
 
   if (anoInicio == null) {
-    return { anoInicio: null, anoFim, comCadastro, semCadastro, serie: [] };
+    return {
+      anoInicio: null,
+      anoFim,
+      comCadastro,
+      semCadastro,
+      apiTotal,
+      naoMedicos,
+      serie: [],
+    };
   }
 
   const inicio = Math.min(anoInicio, anoFim);
@@ -134,7 +175,7 @@ export function agregarEvolucaoParque(
     let quantidade = 0;
     let valorSubstituicaoTotal = 0;
     let comValor = 0;
-    for (const item of equipamentos) {
+    for (const item of medicos) {
       if (!noParqueNoFimDoAno(item, ano)) continue;
       quantidade += 1;
       const v = valorSubstituicao(item);
@@ -152,7 +193,7 @@ export function agregarEvolucaoParque(
     });
   }
 
-  return { anoInicio: inicio, anoFim, comCadastro, semCadastro, serie };
+  return { anoInicio: inicio, anoFim, comCadastro, semCadastro, apiTotal, naoMedicos, serie };
 }
 
 /**
@@ -213,11 +254,18 @@ export function montarEvolucaoHistorica(opts: {
   });
 
   const avisos = [...(opts.avisos ?? [])];
+  if (parque.naoMedicos > 0) {
+    avisos.push(
+      `${parque.naoMedicos} equipamento(s) não médico(s) excluído(s) do parque (predial/infra/hotelaria).`,
+    );
+  }
   if (parque.semCadastro > 0) {
-    avisos.push(`${parque.semCadastro} equipamento(s) sem ${CAMPO_CADASTRO_PARQUE} válida — fora da série.`);
+    avisos.push(
+      `${parque.semCadastro} eq. médico(s) sem ${CAMPO_CADASTRO_PARQUE} válida — fora da série.`,
+    );
   }
   if (parque.anoInicio == null) {
-    avisos.push("Nenhum equipamento com DataDeCadastro parseável.");
+    avisos.push("Nenhum equipamento médico com DataDeCadastro parseável.");
   }
 
   return {
@@ -227,6 +275,8 @@ export function montarEvolucaoHistorica(opts: {
     anoFim: parque.anoFim,
     equipamentosComCadastro: parque.comCadastro,
     equipamentosSemCadastro: parque.semCadastro,
+    equipamentosApi: parque.apiTotal,
+    equipamentosNaoMedicos: parque.naoMedicos,
     parque: parque.serie,
     chamados: chamados.serie,
     chamadosTotal: chamados.total,
