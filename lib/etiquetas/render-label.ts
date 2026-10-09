@@ -330,17 +330,24 @@ function ensureLabelFonts(): Promise<void> {
   if (typeof document === "undefined") return Promise.resolve();
   if (fontsReady) return fontsReady;
   fontsReady = (async () => {
-    const font = labelFontStack();
-    const brand = brandFontStack();
-    const loads = Promise.all([
-      document.fonts.load(`600 10px ${font}`),
-      document.fonts.load(`700 21px ${font}`),
-      document.fonts.load(`800 47px ${font}`),
-      document.fonts.load(`800 40px ${brand}`),
-      document.fonts.load(`600 10px ${brand}`),
-    ]).then(() => undefined);
-    // Evita travar o canvas se o FontFaceSet não resolver
-    await Promise.race([loads, new Promise<void>((r) => setTimeout(r, 800))]);
+    try {
+      const font = labelFontStack();
+      const brand = brandFontStack();
+      // loads pode rejeitar (NetworkError no headless/offline) — não pode derrubar o race
+      const loads = Promise.all([
+        document.fonts.load(`600 10px ${font}`),
+        document.fonts.load(`700 21px ${font}`),
+        document.fonts.load(`800 47px ${font}`),
+        document.fonts.load(`800 40px ${brand}`),
+        document.fonts.load(`600 10px ${brand}`),
+      ]).then(
+        () => undefined,
+        () => undefined,
+      );
+      await Promise.race([loads, new Promise<void>((r) => setTimeout(r, 800))]);
+    } catch {
+      // desenha com fallback do stack
+    }
   })();
   return fontsReady;
 }

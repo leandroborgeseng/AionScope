@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "@/components/shell/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -121,6 +121,12 @@ export function EtiquetasPlanoView() {
   const [bleOk, setBleOk] = useState(false);
   const [pending, setPending] = useState(false);
   const previewRef = useRef<HTMLCanvasElement>(null);
+  /** Garante redraw quando o <canvas> monta (ref sozinho não re-dispara effect). */
+  const [previewCanvas, setPreviewCanvas] = useState<HTMLCanvasElement | null>(null);
+  const bindPreviewCanvas = useCallback((node: HTMLCanvasElement | null) => {
+    previewRef.current = node;
+    setPreviewCanvas((prev) => (prev === node ? prev : node));
+  }, []);
 
   useEffect(() => {
     setBleOk(webBluetoothSupported());
@@ -217,16 +223,26 @@ export function EtiquetasPlanoView() {
   );
 
   useEffect(() => {
-    const canvas = previewRef.current;
+    const canvas = previewCanvas ?? previewRef.current;
     if (!canvas || !renderInput) return;
     let cancelled = false;
-    void drawLabelToCanvas(canvas, renderInput).catch((err) => {
-      if (!cancelled) setStatus(err instanceof Error ? err.message : String(err));
-    });
+    // Sinaliza início do draw (ajuda a diagnosticar effect sem canvas)
+    canvas.dataset.draw = "pending";
+    void drawLabelToCanvas(canvas, renderInput)
+      .then(() => {
+        if (cancelled) return;
+        canvas.dataset.draw = "ok";
+        setStatus((s) => (s && /canvas|font|QR|etiqueta|NetworkError/i.test(s) ? null : s));
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        canvas.dataset.draw = "err";
+        setStatus(err instanceof Error ? err.message : String(err));
+      });
     return () => {
       cancelled = true;
     };
-  }, [renderInput]);
+  }, [renderInput, previewCanvas]);
 
   function toggleMonth(key: string) {
     setMonths((prev) => {
@@ -576,7 +592,7 @@ export function EtiquetasPlanoView() {
                   }}
                 >
                   <canvas
-                    ref={previewRef}
+                    ref={bindPreviewCanvas}
                     className="block h-full w-full"
                     style={{ imageRendering: "pixelated" }}
                     aria-label={`Pré-visualização da etiqueta ${size.label}`}
