@@ -3,6 +3,9 @@ import { chipLabels } from "./agregar-plano";
 import { etiquetaContatoLine } from "./branding";
 import { LABEL_SIZES_B1, type LabelRenderInput, type LabelSizePx } from "./tipos";
 
+/** Família legível em 203 dpi (Outfit já carrega no app; fallbacks limpos). */
+const LABEL_FONT = 'Outfit, "Segoe UI", "Helvetica Neue", Arial, sans-serif';
+
 function truncate(text: string, max: number) {
   const t = text.trim();
   if (t.length <= max) return t;
@@ -10,15 +13,20 @@ function truncate(text: string, max: number) {
 }
 
 /**
- * Desenha a etiqueta no canvas (B1 1-bit friendly: preto sobre branco).
+ * Layout 50×30 (384×240 @ 203 dpi) — faixa vertical esquerda + miolo + QR:
  *
- * Layout 50×30 (384×240 @ 203 dpi) — WYSIWYG do que vai à B1:
- *  [logo] brand              [QR ficha vida]
- *  TAG
- *  nome equipamento
- *  [PREV][CAL][TSE]
- *  Realiz. MM/AAAA   Próx. …
- *  site · telefone
+ *  ┌─────────────────────────────────────┐
+ *  │ L │  nome / chips / datas / site   │ QR │
+ *  │ O │                                │    │
+ *  │ G │                                │    │
+ *  │ O │                                │    │
+ *  │ T │                                │    │
+ *  │ A │                                │    │
+ *  │ G │                                │    │
+ *  └─────────────────────────────────────┘
+ *
+ * Logo e TAG deitados (rotacionados −90°). Chips preto/branco.
+ * Mesmo canvas do mockup e da impressão B1 (WYSIWYG).
  */
 export async function drawLabelToCanvas(
   canvas: HTMLCanvasElement,
@@ -32,96 +40,104 @@ export async function drawLabelToCanvas(
 
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, size.wPx, size.hPx);
-  ctx.fillStyle = "#000000";
+
+  const isCompact = size.id === "40x30";
+  const pad = isCompact ? 4 : 5;
+  const stripW = isCompact ? 36 : 46;
+  const qrSide = Math.round(Math.min(size.hPx - pad * 2, size.wPx * (isCompact ? 0.3 : 0.28)));
+  const gap = isCompact ? 3 : 4;
+
+  const mainX = stripW + gap;
+  const mainRight = size.wPx - pad - qrSide - gap;
+  const mainW = Math.max(40, mainRight - mainX);
+
+  // ——— Faixa esquerda: logo + TAG deitados ———
+  await drawLeftStrip(ctx, input, {
+    x: 0,
+    y: 0,
+    w: stripW,
+    h: size.hPx,
+    pad,
+  });
+
+  // Separador faixa | miolo
   ctx.strokeStyle = "#000000";
   ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(stripW + 0.5, pad);
+  ctx.lineTo(stripW + 0.5, size.hPx - pad);
+  ctx.stroke();
 
-  const pad = Math.max(6, Math.round(size.wPx * 0.028));
-  const qrSide = Math.round(Math.min(size.hPx * 0.58, size.wPx * 0.32));
-  const textMaxW = size.wPx - pad * 2 - qrSide - Math.round(pad * 0.6);
-  const isCompact = size.id === "40x30";
+  // ——— Miolo ———
+  let y = pad;
+  ctx.fillStyle = "#000000";
+  ctx.textBaseline = "top";
+  ctx.textAlign = "left";
 
-  // ——— Cabeçalho: logo + brand ———
-  const logoH = Math.round(size.hPx * 0.16);
-  let headerX = pad;
-  const headerY = pad;
-
-  try {
-    const logo = await loadImage(input.logoUrl);
-    const ratio = logo.naturalWidth / Math.max(1, logo.naturalHeight);
-    const logoW = Math.min(Math.round(logoH * ratio), Math.round(textMaxW * 0.55));
-    drawLogoThreshold(ctx, logo, headerX, headerY, logoW, logoH);
-    headerX += logoW + Math.round(pad * 0.5);
-  } catch {
-    // Sem logo: segue só com texto da marca
+  // Marca opcional (só se NEXT_PUBLIC_ETIQUETA_BRAND estiver setado — sem "HSJ Eng. Clínica")
+  const brand = (input.brand ?? "").trim();
+  if (brand) {
+    ctx.font = `600 ${Math.round(size.hPx * 0.07)}px ${LABEL_FONT}`;
+    ctx.fillText(truncate(brand, isCompact ? 18 : 22), mainX, y, mainW);
+    y += Math.round(size.hPx * 0.095);
   }
 
-  ctx.textBaseline = "middle";
-  ctx.font = `bold ${Math.round(size.hPx * 0.075)}px sans-serif`;
-  const brandMax = isCompact ? 16 : 20;
-  ctx.fillText(
-    truncate(input.brand, brandMax),
-    headerX,
-    headerY + logoH / 2,
-    Math.max(20, textMaxW - (headerX - pad)),
-  );
+  // Nome do equipamento (destaque tipográfico)
+  const nameSize = Math.round(size.hPx * (isCompact ? 0.105 : 0.118));
+  ctx.font = `700 ${nameSize}px ${LABEL_FONT}`;
+  const nameLines = wrapText(ctx, input.equipamento || "—", mainW, isCompact ? 2 : 2);
+  for (const line of nameLines) {
+    ctx.fillText(line, mainX, y, mainW);
+    y += Math.round(nameSize * 1.12);
+  }
+  y += Math.round(size.hPx * 0.02);
 
-  // ——— Tag ———
-  const tagY = headerY + logoH + Math.round(size.hPx * 0.04);
-  ctx.textBaseline = "top";
-  ctx.font = `bold ${Math.round(size.hPx * 0.135)}px monospace`;
-  ctx.fillText(truncate(input.tag, isCompact ? 14 : 16), pad, tagY, textMaxW);
-
-  // ——— Nome ———
-  const nameY = tagY + Math.round(size.hPx * 0.145);
-  ctx.font = `${Math.round(size.hPx * 0.085)}px sans-serif`;
-  ctx.fillText(
-    truncate(input.equipamento || "—", isCompact ? 20 : 26),
-    pad,
-    nameY,
-    textMaxW,
-  );
-
-  // ——— Chips PREV · CAL · TSE ———
+  // Chips PRETO / letra BRANCA
   const chips = chipLabels(input.planos);
-  const chipY = nameY + Math.round(size.hPx * 0.115);
-  const chipH = Math.round(size.hPx * 0.125);
-  let chipX = pad;
-  ctx.font = `bold ${Math.round(chipH * 0.52)}px sans-serif`;
+  const chipH = Math.round(size.hPx * 0.135);
+  const chipFont = Math.round(chipH * 0.52);
+  ctx.font = `700 ${chipFont}px ${LABEL_FONT}`;
   ctx.textBaseline = "middle";
+  let chipX = mainX;
   for (const chip of chips) {
     const tw = ctx.measureText(chip).width;
-    const cw = Math.ceil(tw + 8);
-    if (chipX + cw > pad + textMaxW) break;
-    ctx.strokeRect(chipX + 0.5, chipY + 0.5, cw, chipH);
-    ctx.fillText(chip, chipX + 4, chipY + chipH / 2);
+    const cw = Math.ceil(tw + 10);
+    if (chipX + cw > mainX + mainW) break;
+    ctx.fillStyle = "#000000";
+    roundRect(ctx, chipX, y, cw, chipH, 2);
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText(chip, chipX + 5, y + chipH / 2);
     chipX += cw + 4;
   }
+  ctx.fillStyle = "#000000";
+  y += chipH + Math.round(size.hPx * 0.045);
 
-  // ——— Datas ———
+  // Datas
   ctx.textBaseline = "top";
-  const dateY = chipY + chipH + Math.round(size.hPx * 0.045);
-  ctx.font = `${Math.round(size.hPx * 0.08)}px sans-serif`;
-  ctx.fillText(`Realiz. ${input.realizacaoLabel}`, pad, dateY, textMaxW);
-  ctx.fillText(
-    `Próx. ${input.proximaLabel}`,
-    pad,
-    dateY + Math.round(size.hPx * 0.095),
-    textMaxW,
-  );
+  const dateSize = Math.round(size.hPx * 0.088);
+  ctx.font = `600 ${dateSize}px ${LABEL_FONT}`;
+  ctx.fillText(`Realiz. ${input.realizacaoLabel}`, mainX, y, mainW);
+  y += Math.round(dateSize * 1.2);
+  ctx.fillText(`Próx. ${input.proximaLabel}`, mainX, y, mainW);
 
-  // ——— Contato: site · telefone ———
+  // Contato (site · tel) — ancorado no rodapé do miolo
   const contato = etiquetaContatoLine({
     brand: input.brand,
     site: input.site,
     telefone: input.telefone,
     logoUrl: input.logoUrl,
   });
-  const footerY = size.hPx - pad - Math.round(size.hPx * 0.085);
-  ctx.font = `${Math.round(size.hPx * 0.07)}px sans-serif`;
-  ctx.fillText(truncate(contato || input.site, isCompact ? 28 : 36), pad, footerY, textMaxW);
+  const footerSize = Math.round(size.hPx * 0.068);
+  ctx.font = `500 ${footerSize}px ${LABEL_FONT}`;
+  ctx.fillText(
+    truncate(contato, isCompact ? 26 : 32),
+    mainX,
+    size.hPx - pad - footerSize,
+    mainW,
+  );
 
-  // ——— QR (direita, centro vertical da área útil) ———
+  // ——— QR (direita) ———
   const qrDataUrl = await QRCode.toDataURL(input.qrUrl, {
     errorCorrectionLevel: "M",
     margin: 1,
@@ -130,11 +146,148 @@ export async function drawLabelToCanvas(
   });
   const qrImg = await loadImage(qrDataUrl);
   const qrX = size.wPx - pad - qrSide;
-  const qrY = Math.round((size.hPx - qrSide) / 2 - size.hPx * 0.02);
+  const qrY = Math.round((size.hPx - qrSide) / 2);
   ctx.drawImage(qrImg, qrX, qrY, qrSide, qrSide);
 
-  // Moldura fina (ajuda o mockup; a B1 corta ~1 mm de margem)
+  // Moldura
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth = 1;
   ctx.strokeRect(0.5, 0.5, size.wPx - 1, size.hPx - 1);
+}
+
+type StripBox = { x: number; y: number; w: number; h: number; pad: number };
+
+/**
+ * Faixa vertical esquerda: logo Aion deitado (−90°) no topo,
+ * TAG deitada (−90°) na parte inferior — libera o miolo horizontal.
+ */
+async function drawLeftStrip(
+  ctx: CanvasRenderingContext2D,
+  input: LabelRenderInput,
+  box: StripBox,
+) {
+  const { x, y, w, h, pad } = box;
+  const innerW = w - pad;
+  const cx = x + w / 2;
+
+  // Fundo sutil da faixa (linha só; fundo branco)
+  const usableH = h - pad * 2;
+  const logoShare = 0.48;
+  const logoZoneH = Math.round(usableH * logoShare);
+  const tagZoneH = usableH - logoZoneH - 2;
+
+  // Logo rotacionado −90° (wordmark “deitado”)
+  try {
+    const logo = await loadImage(input.logoUrl);
+    // Após −90°: espessura visual ≈ drawH; comprimento ao longo da faixa ≈ drawW
+    const drawH = Math.max(12, innerW - 2);
+    const natRatio = logo.naturalWidth / Math.max(1, logo.naturalHeight);
+    let drawW = Math.round(drawH * natRatio);
+    const maxLen = logoZoneH - 2;
+    if (drawW > maxLen) drawW = maxLen;
+
+    ctx.save();
+    // Centro da zona do logo
+    ctx.translate(cx, y + pad + logoZoneH / 2);
+    ctx.rotate(-Math.PI / 2);
+    // No espaço rotacionado, X = comprimento vertical, Y = espessura
+    drawLogoThreshold(ctx, logo, -drawW / 2, -drawH / 2, drawW, drawH);
+    ctx.restore();
+  } catch {
+    // Fallback: texto "AION" deitado
+    ctx.save();
+    ctx.translate(cx, y + pad + logoZoneH / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = "#000000";
+    ctx.font = `700 ${Math.round(innerW * 0.55)}px ${LABEL_FONT}`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("AION", 0, 0);
+    ctx.restore();
+  }
+
+  // TAG rotacionada −90°
+  const tag = truncate(input.tag.trim() || "—", 16);
+  const tagFont = Math.round(Math.min(innerW * 0.72, 18));
+  ctx.save();
+  ctx.translate(cx, y + pad + logoZoneH + 2 + tagZoneH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = "#000000";
+  ctx.font = `700 ${tagFont}px ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  // Limita ao comprimento da zona
+  const maxTagW = tagZoneH - 4;
+  ctx.fillText(tag, 0, 0, maxTagW);
+  ctx.restore();
+}
+
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxW: number,
+  maxLines: number,
+): string[] {
+  const words = text.trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return ["—"];
+  const lines: string[] = [];
+  let current = "";
+  for (const word of words) {
+    const trial = current ? `${current} ${word}` : word;
+    if (ctx.measureText(trial).width <= maxW) {
+      current = trial;
+    } else {
+      if (current) lines.push(current);
+      current = word;
+      if (lines.length >= maxLines - 1) break;
+    }
+  }
+  if (lines.length < maxLines && current) {
+    lines.push(current);
+  } else if (current && lines.length === maxLines) {
+    // última linha já cheia — ignora resto
+  } else if (current && lines.length === maxLines - 1) {
+    lines.push(truncate(current, 40));
+  }
+  // Truncar última se ainda estourou
+  if (lines.length > 0) {
+    const last = lines[lines.length - 1]!;
+    if (ctx.measureText(last).width > maxW) {
+      let t = last;
+      while (t.length > 1 && ctx.measureText(`${t}…`).width > maxW) t = t.slice(0, -1);
+      lines[lines.length - 1] = `${t}…`;
+    }
+  }
+  // Se estourou palavras e maxLines, truncar última
+  if (words.join(" ").length > 0 && lines.length === maxLines) {
+    const used = lines.join(" ");
+    if (used.length < text.trim().length && !lines[lines.length - 1]!.endsWith("…")) {
+      const last = lines[lines.length - 1]!;
+      lines[lines.length - 1] = truncate(last, Math.max(4, last.length));
+      if (!lines[lines.length - 1]!.endsWith("…")) {
+        lines[lines.length - 1] = `${lines[lines.length - 1]}…`;
+      }
+    }
+  }
+  return lines.slice(0, maxLines);
+}
+
+function roundRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  const radius = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
 }
 
 /** Desenha logo em tons escuros → preto (termossensível). */
@@ -210,4 +363,4 @@ export function resolveLabelSize(id: LabelSizePx["id"] | string): LabelSizePx {
 }
 
 /** Escala de exibição do mockup: 1 mm ≈ N px CSS (mantém proporção 50:30). */
-export const LABEL_PREVIEW_PX_PER_MM = 6.4;
+export const LABEL_PREVIEW_PX_PER_MM = 7.2;

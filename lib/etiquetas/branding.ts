@@ -10,7 +10,8 @@ export type EtiquetaBranding = {
 };
 
 const DEFAULTS: EtiquetaBranding = {
-  brand: "HSJ · Eng. Clínica",
+  /** Vazio por padrão — marca na etiqueta é o logo Aion (faixa vertical). */
+  brand: "",
   site: "aion.eng.br",
   telefone: "",
   logoUrl: "/aion-logo.png",
@@ -18,7 +19,7 @@ const DEFAULTS: EtiquetaBranding = {
 
 export function etiquetaBranding(): EtiquetaBranding {
   return {
-    brand: (process.env.NEXT_PUBLIC_ETIQUETA_BRAND ?? DEFAULTS.brand).trim() || DEFAULTS.brand,
+    brand: (process.env.NEXT_PUBLIC_ETIQUETA_BRAND ?? DEFAULTS.brand).trim(),
     site: (process.env.NEXT_PUBLIC_ETIQUETA_SITE ?? DEFAULTS.site).trim() || DEFAULTS.site,
     telefone: (process.env.NEXT_PUBLIC_ETIQUETA_TELEFONE ?? DEFAULTS.telefone).trim(),
     logoUrl: (process.env.NEXT_PUBLIC_ETIQUETA_LOGO ?? DEFAULTS.logoUrl).trim() || DEFAULTS.logoUrl,

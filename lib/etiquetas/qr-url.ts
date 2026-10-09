@@ -4,17 +4,16 @@ import { absoluteFichaVidaUrl } from "./agregar-plano";
  * Destino do QR nas etiquetas Niimbot.
  *
  * A API PBI de equipamentos **não** devolve URL/link do portal Effort
- * (só Id, Tag, CodigoCliente vazio, etc.). O deep link precisa ser
- * configurado manualmente via template.
+ * (só Id, Tag, CodigoCliente vazio, etc.). O deep link confirmado no Effort SJH:
+ *
+ *   https://sjh.globalthings.net/Mobile/MEquipamentoPropriedade.aspx?eqp={Id}
  *
  * Env (NEXT_PUBLIC_* — embutido no bundle):
- * - `NEXT_PUBLIC_EFFORT_EQUIPAMENTO_URL_TEMPLATE` — ex.:
- *   `{base}/#/equipamento/{Id}` ou `https://sjh.globalthings.net/?tag={Tag}`
- * - `NEXT_PUBLIC_ETIQUETA_QR_BASE` — valor de `{base}`, ou (sem template)
- *   URL-base que vira `{base}/{Tag}` (ou template se contiver `{…}`).
+ * - `NEXT_PUBLIC_EFFORT_EQUIPAMENTO_URL_TEMPLATE` — override do template
+ * - `NEXT_PUBLIC_ETIQUETA_QR_BASE` — valor de `{base}` (default portal SJH)
  *
  * Placeholders: `{Id}`, `{Tag}`, `{CodigoCliente}`, `{base}`.
- * Sem template válido → ficha vida AionScope (`/equipamentos/{tag}`).
+ * Sem Id (quando o template exige `{Id}`) → ficha vida AionScope (`/equipamentos/{tag}`).
  */
 
 export type EtiquetaQrContext = {
@@ -38,6 +37,10 @@ export type EtiquetaQrResolved = {
 
 const DEFAULT_PORTAL_BASE = "https://sjh.globalthings.net";
 
+/** Template padrão confirmado: Mobile → propriedade do equipamento por Id. */
+export const DEFAULT_EFFORT_EQUIPAMENTO_URL_TEMPLATE =
+  "{base}/Mobile/MEquipamentoPropriedade.aspx?eqp={Id}";
+
 export function effortPortalBase(): string {
   const fromQr = (process.env.NEXT_PUBLIC_ETIQUETA_QR_BASE ?? "").trim();
   if (fromQr && !fromQr.includes("{")) {
@@ -48,15 +51,14 @@ export function effortPortalBase(): string {
   return DEFAULT_PORTAL_BASE;
 }
 
-/** Template bruto configurado (pode ser vazio). */
+/** Template bruto: env override, ou padrão Effort Mobile com `{Id}`. */
 export function effortEquipamentoUrlTemplate(): string {
   const tpl = (process.env.NEXT_PUBLIC_EFFORT_EQUIPAMENTO_URL_TEMPLATE ?? "").trim();
   if (tpl) return tpl;
   const base = (process.env.NEXT_PUBLIC_ETIQUETA_QR_BASE ?? "").trim();
-  if (!base) return "";
   if (base.includes("{")) return base;
-  // Só base → path por Tag (padrão seguro sem Id).
-  return `${base.replace(/\/$/, "")}/{Tag}`;
+  // Sem override → deep link Effort confirmado (eqp=Id).
+  return DEFAULT_EFFORT_EQUIPAMENTO_URL_TEMPLATE;
 }
 
 function needsPlaceholder(template: string, name: string): boolean {
