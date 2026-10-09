@@ -7,6 +7,7 @@ import {
   isChamadoEngenhariaClinica,
   montarEvolucaoHistorica,
   noParqueNoFimDoAno,
+  regressaoLinear,
 } from "./evolucao-historica";
 
 function eq(partial: Partial<EquipamentoItem> & Pick<EquipamentoItem, "Id" | "DataDeCadastro">): EquipamentoItem {
@@ -86,6 +87,25 @@ function os(partial: Partial<OsAnaliticoItem> & Pick<OsAnaliticoItem, "OS" | "Ab
     ...partial,
   };
 }
+
+describe("regressaoLinear", () => {
+  it("recupera a e b de uma reta exata", () => {
+    // y = 10·x + 5  → pontos (0,5) (1,15) (2,25)
+    const r = regressaoLinear([
+      { x: 0, y: 5 },
+      { x: 1, y: 15 },
+      { x: 2, y: 25 },
+    ]);
+    assert.ok(r);
+    assert.ok(Math.abs(r.a - 10) < 1e-9);
+    assert.ok(Math.abs(r.b - 5) < 1e-9);
+    assert.equal(r.r2, 1);
+  });
+
+  it("retorna null com menos de 2 pontos", () => {
+    assert.equal(regressaoLinear([{ x: 1, y: 2 }]), null);
+  });
+});
 
 describe("anoCadastroEquipamento", () => {
   it("lê DataDeCadastro BR", () => {
