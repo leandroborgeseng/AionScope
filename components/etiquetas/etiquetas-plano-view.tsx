@@ -20,11 +20,18 @@ import {
   printPngOnNiimbotB1,
   webBluetoothSupported,
 } from "@/lib/etiquetas/niimbot-client";
-import { downloadDataUrl, drawLabelToCanvas, labelToPngDataUrl } from "@/lib/etiquetas/render-label";
+import { etiquetaBranding } from "@/lib/etiquetas/branding";
+import {
+  downloadDataUrl,
+  drawLabelToCanvas,
+  LABEL_PREVIEW_PX_PER_MM,
+  labelToPngDataUrl,
+} from "@/lib/etiquetas/render-label";
 import {
   LABEL_SIZES_B1,
   PLANOS_ETIQUETA,
   type EtiquetaEquipamento,
+  type LabelRenderInput,
   type LabelSizeId,
   type PlanoEtiqueta,
 } from "@/lib/etiquetas/tipos";
@@ -32,8 +39,6 @@ import { EMPTY_FILTERS } from "@/lib/pbi/filters";
 import { nowInSaoPaulo, parsePbiDate } from "@/lib/pbi/dates";
 import type { CronogramaItem } from "@/lib/pbi/types";
 import { cn } from "@/lib/utils";
-
-const BRAND = "HSJ · Eng. Clínica";
 
 function currentMonthKey(today = nowInSaoPaulo()) {
   return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
@@ -59,6 +64,7 @@ function chipTone(plano: PlanoEtiqueta): "info" | "ok" | "warn" {
 export function EtiquetasPlanoView() {
   const today = useMemo(() => nowInSaoPaulo(), []);
   const year = today.getFullYear();
+  const branding = useMemo(() => etiquetaBranding(), []);
   const { range, raw, loading, error } = useOsAnaliticoRollingYear("calendarYear");
 
   const cronoFilters = useMemo(
@@ -81,6 +87,7 @@ export function EtiquetasPlanoView() {
     calibracao: true,
     tse: true,
   });
+  /** Primário: 50×30 mm (B1). 40×30 opcional. */
   const [sizeId, setSizeId] = useState<LabelSizeId>("50x30");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -135,19 +142,32 @@ export function EtiquetasPlanoView() {
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
-  const renderInput = useMemo(() => {
-    if (!selected) return null;
+  function buildRenderInput(row: EtiquetaEquipamento | null): LabelRenderInput {
+    const tag = row?.tag ?? "EQ-DEMO";
+    const equipamento = row?.equipamento || "Monitor multiparamétrico";
+    const planos = row?.planos?.length ? row.planos : (["preventiva", "tse"] as PlanoEtiqueta[]);
+    const realizacao = row?.realizacao ?? new Date(year, today.getMonth(), 1);
+    const proxima = row?.proxima ?? new Date(year + 1, today.getMonth(), 15);
+    const fichaPath = row?.fichaVidaPath ?? `/equipamentos/${encodeURIComponent(tag)}`;
     return {
-      brand: BRAND,
-      tag: selected.tag,
-      equipamento: selected.equipamento,
-      planos: selected.planos,
-      realizacaoLabel: formatMesAno(selected.realizacao),
-      proximaLabel: formatProximaLabel(selected.proxima),
-      qrUrl: absoluteFichaVidaUrl(selected.fichaVidaPath, origin),
+      brand: branding.brand,
+      site: branding.site,
+      telefone: branding.telefone,
+      logoUrl: branding.logoUrl,
+      tag,
+      equipamento,
+      planos,
+      realizacaoLabel: formatMesAno(realizacao),
+      proximaLabel: formatProximaLabel(proxima),
+      qrUrl: absoluteFichaVidaUrl(fichaPath, origin || undefined),
       size,
     };
-  }, [selected, origin, size]);
+  }
+
+  const renderInput = useMemo(
+    () => buildRenderInput(selected),
+    [selected, origin, size, branding, year, today],
+  );
 
   useEffect(() => {
     const canvas = previewRef.current;
@@ -175,16 +195,8 @@ export function EtiquetasPlanoView() {
     row: EtiquetaEquipamento,
     action: (dataUrl: string) => Promise<void>,
   ) {
-    const input = {
-      brand: BRAND,
-      tag: row.tag,
-      equipamento: row.equipamento,
-      planos: row.planos,
-      realizacaoLabel: formatMesAno(row.realizacao),
-      proximaLabel: formatProximaLabel(row.proxima),
-      qrUrl: absoluteFichaVidaUrl(row.fichaVidaPath, window.location.origin),
-      size,
-    };
+    const input = buildRenderInput(row);
+    input.qrUrl = absoluteFichaVidaUrl(row.fichaVidaPath, window.location.origin);
     const dataUrl = await labelToPngDataUrl(input);
     await action(dataUrl);
   }
@@ -276,7 +288,7 @@ export function EtiquetasPlanoView() {
     <div className="space-y-5">
       <PageHeader
         title="Etiquetas · plano Preventiva / Cal / TSE"
-        description="Gera etiquetas a partir de OS abertas das oficinas PREVENTIVA EQUIPAMENTOS, CALIBRAÇÃO DE EQUIPAMENTOS e SEGURANÇA ELÉTRICA. QR aponta para a ficha vida do equipamento. Impressão Web Bluetooth na Niimbot B1 (Chrome/Edge + HTTPS). Guia: docs/ops/etiquetas-niimbot.md."
+        description="Etiqueta 50×30 mm (WYSIWYG): logo Aion, site, telefone, chips PREV/CAL/TSE, realização, próxima e QR da ficha vida. Impressão Web Bluetooth na Niimbot B1 (Chrome/Edge + HTTPS)."
       />
 
       <Card>
@@ -344,7 +356,7 @@ export function EtiquetasPlanoView() {
 
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-aion-muted">
-              Tamanho da etiqueta (B1)
+              Tamanho da etiqueta (B1) — padrão 50×30 mm
             </p>
             <div className="flex flex-wrap gap-2">
               {LABEL_SIZES_B1.map((s) => (
@@ -355,11 +367,13 @@ export function EtiquetasPlanoView() {
                   className={cn(
                     "rounded-md border px-3 py-1.5 text-sm",
                     sizeId === s.id
-                      ? "border-aion-blue bg-aion-mist text-aion-blue"
-                      : "border-aion-line bg-white",
+                      ? "border-aion-blue bg-aion-blue text-white"
+                      : "border-aion-line bg-white text-aion-ink hover:bg-aion-mist",
+                    s.id === "50x30" && sizeId !== "50x30" ? "ring-1 ring-aion-blue/25" : "",
                   )}
                 >
                   {s.label}
+                  {s.id === "50x30" ? " · principal" : ""}
                 </button>
               ))}
             </div>
@@ -484,20 +498,43 @@ export function EtiquetasPlanoView() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Pré-visualização</CardTitle>
+            <CardTitle>Mockup WYSIWYG · {size.label}</CardTitle>
+            <p className="text-xs text-aion-muted">
+              Bitmap exato {size.wPx}×{size.hPx} px @ 203 dpi (proporção {size.wMm}:{size.hMm}). O que
+              você vê é o que a B1 imprime.
+            </p>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex justify-center rounded-lg border border-dashed border-aion-line bg-[linear-gradient(180deg,#f8fbfd,#eef5fa)] p-4">
-              <canvas
-                ref={previewRef}
-                className="max-w-full border border-aion-line bg-white shadow-sm"
-                style={{
-                  width: size.wMm * 3.2,
-                  height: size.hMm * 3.2,
-                  imageRendering: "pixelated",
-                }}
-              />
+            <div className="rounded-xl border border-aion-line bg-[linear-gradient(165deg,#e8f2f8_0%,#f4f8fb_45%,#eef5fa_100%)] p-4">
+              <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-aion-muted">
+                <span>Etiqueta</span>
+                <span>
+                  {size.wMm} × {size.hMm} mm
+                </span>
+              </div>
+              <div className="flex justify-center">
+                <div
+                  className="relative bg-white shadow-[0_8px_28px_rgba(1,104,176,0.12)] ring-1 ring-aion-ink/15"
+                  style={{
+                    width: size.wMm * LABEL_PREVIEW_PX_PER_MM,
+                    aspectRatio: `${size.wMm} / ${size.hMm}`,
+                    maxWidth: "100%",
+                  }}
+                >
+                  <canvas
+                    ref={previewRef}
+                    className="block h-full w-full"
+                    style={{ imageRendering: "pixelated" }}
+                    aria-label={`Pré-visualização da etiqueta ${size.label}`}
+                  />
+                </div>
+              </div>
+              <p className="mt-3 text-center text-[11px] text-aion-muted">
+                Logo Aion · {branding.site}
+                {branding.telefone ? ` · ${branding.telefone}` : " · telefone via NEXT_PUBLIC_ETIQUETA_TELEFONE"}
+              </p>
             </div>
+
             {selected ? (
               <p className="text-xs text-aion-muted break-all">
                 QR →{" "}
@@ -505,7 +542,11 @@ export function EtiquetasPlanoView() {
                   {absoluteFichaVidaUrl(selected.fichaVidaPath, origin || undefined)}
                 </Link>
               </p>
-            ) : null}
+            ) : (
+              <p className="text-xs text-aion-muted">
+                Mockup de demonstração — selecione um equipamento na tabela para dados reais.
+              </p>
+            )}
 
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" disabled={pending || !bleOk} onClick={onConnect}>
@@ -518,7 +559,7 @@ export function EtiquetasPlanoView() {
                 type="button"
                 variant="secondary"
                 disabled={pending || !selected}
-                onClick={() => selected && onDownload(selected)}
+                onClick={() => selected && void onDownload(selected)}
               >
                 Baixar PNG
               </Button>
