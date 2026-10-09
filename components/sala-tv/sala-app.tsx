@@ -2257,7 +2257,6 @@ export function SalaApp({
             drill={drill}
             drillContagem={drillContagem}
             onLimparDrill={limparDrill}
-            ocultarMenu={telaFixa === "evolucao"}
           />
           <div className="sala-miolo">
             {desatualizado ? <div className="sala-desatualizado">Dados desatualizados há {atualizadoHaMin} min</div> : null}

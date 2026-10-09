@@ -224,6 +224,31 @@ describe("isChamadoEngenhariaClinica", () => {
       false,
     );
   });
+
+  it("inclui oficina INSTRUMENTAL mesmo sem a palavra no tipo", () => {
+    assert.equal(
+      isChamadoEngenhariaClinica(
+        os({
+          OS: "10",
+          Abertura: "01/01/2024",
+          TipoDeManutencao: "CORRETIVA",
+          Oficina: "INSTRUMENTAL",
+        }),
+      ),
+      true,
+    );
+    assert.equal(
+      isChamadoEngenhariaClinica(
+        os({
+          OS: "11",
+          Abertura: "01/01/2024",
+          TipoDeManutencao: "A - INSTRUMENTAL",
+          Oficina: "ENGENHARIA CLÍNICA",
+        }),
+      ),
+      true,
+    );
+  });
 });
 
 describe("agregarEvolucaoChamados / montarEvolucaoHistorica", () => {
