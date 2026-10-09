@@ -10,11 +10,12 @@ export type EtiquetaBranding = {
 };
 
 const DEFAULTS: EtiquetaBranding = {
-  /** Vazio por padrão — marca na etiqueta é o logo Aion (faixa vertical branca). */
+  /** Vazio por padrão — marca na etiqueta é a coluna preta AION (sem “HSJ · Eng. Clínica”). */
   brand: "",
-  site: "www.aion.eng.br",
+  site: "aion.eng.br",
   telefone: "(16) 3030-0445",
-  logoUrl: "/aion-logo.png",
+  /** Marca circular na coluna preta; wordmark completo só se sobrescrito. */
+  logoUrl: "/aion-mark.png",
 };
 
 export function etiquetaBranding(): EtiquetaBranding {
@@ -26,9 +27,9 @@ export function etiquetaBranding(): EtiquetaBranding {
   };
 }
 
-/** Texto de contato (site · tel) — usado em UI/listas; na etiqueta o bloco preto sob o QR. */
+/** Texto de contato (tel · site) — UI/listas e rodapé da etiqueta. */
 export function etiquetaContatoLine(b: EtiquetaBranding): string {
-  const site = b.site || "www.aion.eng.br";
+  const site = (b.site || "aion.eng.br").replace(/^www\./i, "");
   const tel = b.telefone || "(16) 3030-0445";
-  return `${site} · ${tel}`;
+  return `${tel} · ${site}`;
 }

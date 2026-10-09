@@ -47,17 +47,22 @@ Defina `NEXT_PUBLIC_APP_URL=https://seu-host` no Railway/Coolify para URLs absol
 Proporção **50:30**, bitmap B1 **384×240 px @ 203 dpi**. O mockup em `/etiquetas` usa o **mesmo canvas** da impressão (WYSIWYG 1:1).
 
 ```
-┌──────────────────────────────────────────┐
-│ logo │ TAG │ nome + grid SERVIÇO/EXEC/… │QR│
-│ Aion │ blk │ PREV/CAL/TSE aplicáveis    │  │
-│ vert │ vert│                            │──│
-│ branco│branco│                          │☎ │
-└──────────────────────────────────────────┘
+┌──────┬────────────────────────────────────┐
+│AION  │ EQUIP. Nº              HSJ-00001   │
+│ENG.  │ ────────────────────────────────── │
+│  ○A  │ REALIZADO 07/26         ┌──────┐   │
+│      │ [PRÓXIMO 07/27]         │  QR  │   │
+│      │ [✓ M.P] [✓ CAL.] […]    │      │   │
+│      │ tel · aion.eng.br       VOID…  │   │
+└──────┴────────────────────────────────────┘
 ```
 
-1. **Esquerda (como na etiqueta física):** faixa **branca** com logo Aion + wordmark (rot. −90°, baixo→cima) + faixa **preta** com **TAG** em branco (mesma rotação) — sem “HSJ · Eng. Clínica”
-2. **Miolo:** nome · grid compacto **SERVIÇO / EXEC / PRÓX** com chips pretos PREV/CAL/TSE (só planos aplicáveis; em 40×30 cai para chips + datas)
-3. **Direita:** QR → Effort `…?eqp={Id}` (ou ficha vida) + bloco preto com telefone e site
+1. **Coluna preta (esquerda):** **AION** + **ENGENHARIA** verticais (baixo→cima) + marca circular branca — sem “HSJ · Eng. Clínica”
+2. **Header:** `EQUIP. Nº` + **TAG** grande; hairline
+3. **Datas:** `REALIZADO MM/AA` + pill preta `PRÓXIMO MM/AA`
+4. **Caixas:** **M.P** / **CAL.** / **T.S.E** — sólidas + check quando há OS aberta do tipo; tracejadas + vazias quando N/A
+5. **Direita:** QR → Effort `…?eqp={Id}` (ou ficha vida) + `VOID IF SEAL IS BROKEN`
+6. **Rodapé:** `(16) 3030-0445 · aion.eng.br`
 
 Tamanho **40×30 mm** permanece opcional; padrão e foco do mockup = **50×30**.
 
@@ -72,17 +77,17 @@ LGPD: sem CPF; apenas Tag e dados de equipamento/OS.
 | `NEXT_PUBLIC_EFFORT_EQUIPAMENTO_URL_TEMPLATE` | `{base}/Mobile/MEquipamentoPropriedade.aspx?eqp={Id}` | Override do deep link Effort |
 | `NEXT_PUBLIC_ETIQUETA_QR_BASE` | `https://sjh.globalthings.net` | Valor de `{base}` |
 | `NEXT_PUBLIC_APP_URL` | _(origin do browser)_ | Base absoluta da ficha vida (fallback) |
-| `NEXT_PUBLIC_ETIQUETA_BRAND` | _(vazio)_ | Texto opcional no miolo (não usar “HSJ · Eng. Clínica”) |
-| `NEXT_PUBLIC_ETIQUETA_SITE` | `www.aion.eng.br` | Site no bloco de contato (sob o QR) |
-| `NEXT_PUBLIC_ETIQUETA_TELEFONE` | `(16) 3030-0445` | Telefone no bloco de contato |
-| `NEXT_PUBLIC_ETIQUETA_LOGO` | `/aion-logo.png` | Path público do logo (faixa branca) |
+| `NEXT_PUBLIC_ETIQUETA_BRAND` | _(vazio)_ | Não usar “HSJ · Eng. Clínica” (marca = coluna AION) |
+| `NEXT_PUBLIC_ETIQUETA_SITE` | `aion.eng.br` | Site no rodapé (`tel · site`) |
+| `NEXT_PUBLIC_ETIQUETA_TELEFONE` | `(16) 3030-0445` | Telefone no rodapé |
+| `NEXT_PUBLIC_ETIQUETA_LOGO` | `/aion-mark.png` | Marca circular na coluna preta |
 
 Exemplo no Railway/Coolify (opcional — o padrão já aponta para o Mobile Effort):
 
 ```env
 NEXT_PUBLIC_ETIQUETA_TELEFONE=(16) 3030-0445
-NEXT_PUBLIC_ETIQUETA_SITE=www.aion.eng.br
-NEXT_PUBLIC_ETIQUETA_LOGO=/aion-logo.png
+NEXT_PUBLIC_ETIQUETA_SITE=aion.eng.br
+NEXT_PUBLIC_ETIQUETA_LOGO=/aion-mark.png
 NEXT_PUBLIC_APP_URL=https://seu-host
 NEXT_PUBLIC_ETIQUETA_QR_BASE=https://sjh.globalthings.net
 NEXT_PUBLIC_EFFORT_EQUIPAMENTO_URL_TEMPLATE={base}/Mobile/MEquipamentoPropriedade.aspx?eqp={Id}
