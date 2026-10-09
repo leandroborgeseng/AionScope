@@ -114,6 +114,9 @@ export const LABEL_SIZES_B1: readonly LabelSizePx[] = [
 
 export type LabelRenderInput = {
   brand: string;
+  site: string;
+  telefone: string;
+  logoUrl: string;
   tag: string;
   equipamento: string;
   planos: PlanoEtiqueta[];
