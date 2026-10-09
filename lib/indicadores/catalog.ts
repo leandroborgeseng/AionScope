@@ -14,6 +14,12 @@ export const INDICADORES = [
       "Preventiva, Calibração e TSE (+ consolidado): gráfico com barras abertas×fechadas + %, e trabalho ainda aberto nos meses à frente. Drill-down das OS.",
   },
   {
+    href: "/etiquetas",
+    label: "Etiquetas · plano (Niimbot B1)",
+    blurb:
+      "OS abertas Prev/Cal/TSE → etiquetas com realização, próxima e QR da ficha vida. Preview, PNG e impressão Web Bluetooth na B1.",
+  },
+  {
     href: "/indicadores/gasto-reparo-equipamentos-medicos",
     label: "Gasto mensal com reparo de eq. médicos",
     blurb: "Soma do Custo das OS de reparo de equipamentos médicos fechadas no intervalo.",
