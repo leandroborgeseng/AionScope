@@ -174,9 +174,9 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     referenciaDaMeta:
       "Tabela comparativa + soma das três oficinas de plano. Não inclui OFICINA GERAL. Narrativa: se fechadas acompanham abertas no mês, o fluxo da oficina está alinhado ao cronograma; déficit sustentado indica atraso de execução.",
     formula:
-      "Recorte: Oficina equals (normalizado) PREVENTIVA EQUIPAMENTOS ∪ CALIBRAÇÃO DE EQUIPAMENTOS ∪ SEGURANÇA ELÉTRICA. Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês; canceladas (SituacaoDaOS = Cancelada) contam como fechadas (sem data de fechamento → Abertura). % executada = fechadas ÷ abertas × 100. Gráfico e tabela: eixo Jan–Dez do ano civil vigente; meses futuros zerados; se abertas = 0 → “—” (não 0%).",
+      "Recorte: Oficina equals (normalizado) PREVENTIVA EQUIPAMENTOS ∪ CALIBRAÇÃO DE EQUIPAMENTOS ∪ SEGURANÇA ELÉTRICA. Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês; canceladas contam como fechadas. % executada = fechadas ÷ abertas × 100. Gráfico: duas barras (abertas × fechadas) + % no rótulo; terceira série = ainda abertas (trabalho a matar), inclusive meses à frente (prazo/abertura). Ano civil Jan–Dez completo.",
     coletaDeDados:
-      "Effort GlobalThings — listagem_analitica_das_os. Filtro local por união das três oficinas (equals). Ano civil vigente (America/Sao_Paulo): 1º jan → fim do mês atual na contagem; eixo Jan–Dez (meses futuros zerados). Não filtra por Tag médica nem por tipo de manutenção.",
+      "Effort GlobalThings — listagem_analitica_das_os. Filtro local por união das três oficinas (equals). Ano civil vigente (America/Sao_Paulo): 1º jan → 31 dez. Não filtra por Tag médica nem por tipo de manutenção.",
     periodicidade: "Mensal",
   },
   "gasto-reparo-medicos": {
