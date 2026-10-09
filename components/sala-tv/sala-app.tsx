@@ -29,6 +29,7 @@ import { idsOsAbertas, novasOsDesde } from "@/lib/ec/novas-os";
 import { parseMoeda } from "@/lib/ec/texto";
 import { desbloquearSomTv, SALA_SOM_STORAGE, tocarChimeNovaOs } from "@/components/sala-tv/som-nova-os";
 import { TvTreinamentos } from "@/components/treinamentos/tv-treinamentos";
+import { TelaEvolucao } from "@/components/sala-tv/tela-evolucao";
 import type { PainelTreinamentos } from "@/lib/treinamentos/types";
 import "@/app/sala/sala.css";
 
@@ -1946,6 +1947,9 @@ function Conteudo({
   if (tela === "treinamentos") {
     return <TvTreinamentos onInteracaoChange={onInteracaoChange} />;
   }
+  if (tela === "evolucao") {
+    return <TelaEvolucao />;
+  }
   return <TelaProcessos dados={dados} />;
 }
 
@@ -2258,6 +2262,8 @@ export function SalaApp({
                     painel={painelTreinamentos}
                     onInteracaoChange={onInteracaoCompras}
                   />
+                ) : tela === "evolucao" ? (
+                  <TelaEvolucao />
                 ) : (
                   <>
                     {erro && !dados ? <p className="sala-vazio">Sem conexão com o snapshot ({erro}).</p> : null}
