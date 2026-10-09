@@ -22,6 +22,60 @@ export const EVOLUCAO_CHAMADOS_REGRA = [
   "ano = ano civil da Abertura (America/Sao_Paulo via parse da API)",
 ] as const;
 
+/** Regressão linear y = a·x + b (x = ano civil). `a` = crescimento médio por ano. */
+export type RegressaoLinear = {
+  a: number;
+  b: number;
+  n: number;
+  /** R² (0–1); null se n < 2. */
+  r2: number | null;
+};
+
+/**
+ * Mínimos quadrados simples. Retorna null com menos de 2 pontos.
+ * `a` é o coeficiente angular (variação de y por unidade de x / ano).
+ */
+export function regressaoLinear(pontos: Array<{ x: number; y: number }>): RegressaoLinear | null {
+  const validos = pontos.filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
+  if (validos.length < 2) return null;
+
+  const n = validos.length;
+  let sumX = 0;
+  let sumY = 0;
+  let sumXY = 0;
+  let sumXX = 0;
+  for (const p of validos) {
+    sumX += p.x;
+    sumY += p.y;
+    sumXY += p.x * p.y;
+    sumXX += p.x * p.x;
+  }
+  const den = n * sumXX - sumX * sumX;
+  if (den === 0) return null;
+  const a = (n * sumXY - sumX * sumY) / den;
+  const b = (sumY - a * sumX) / n;
+
+  const meanY = sumY / n;
+  let ssTot = 0;
+  let ssRes = 0;
+  for (const p of validos) {
+    const yHat = a * p.x + b;
+    ssTot += (p.y - meanY) ** 2;
+    ssRes += (p.y - yHat) ** 2;
+  }
+  const r2 = ssTot === 0 ? 1 : 1 - ssRes / ssTot;
+
+  return { a, b, n, r2 };
+}
+
+/** Avalia a reta nos anos dados (para plotar a tendência). */
+export function pontosTendencia(
+  reg: RegressaoLinear,
+  anos: number[],
+): Array<{ ano: number; tendencia: number }> {
+  return anos.map((ano) => ({ ano, tendencia: reg.a * ano + reg.b }));
+}
+
 export type EvolucaoParqueAno = {
   ano: number;
   /** Equipamentos novos cadastrados neste ano. */

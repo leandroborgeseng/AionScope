@@ -92,16 +92,19 @@ function Cabecalho({
   drill,
   drillContagem,
   onLimparDrill,
+  ocultarMenu = false,
 }: {
   tela: TelaSala;
   relogio: string;
   drill: SalaDrillSelecao | null;
   drillContagem?: number;
   onLimparDrill?: () => void;
+  /** Telas fixas em URL dedicada usam o miolo em tela cheia (sem pills). */
+  ocultarMenu?: boolean;
 }) {
   const atual = TELAS_SALA.find((item) => item.id === tela) ?? TELAS_SALA[0];
   return (
-    <header className="sala-cabecalho">
+    <header className={ocultarMenu ? "sala-cabecalho sala-cabecalho-limpo" : "sala-cabecalho"}>
       <img src="/aion-logo.png" alt="Aion Engenharia" />
       <div className="sala-divisor" />
       <div className="sala-cabecalho-marca">
@@ -119,13 +122,15 @@ function Cabecalho({
           </button>
         </div>
       ) : null}
-      <nav className="sala-pills" aria-label="Telas">
-        {TELAS_SALA.map((item) => (
-          <a key={item.id} className={item.id === tela ? "sala-pill ativa" : "sala-pill"} href={`/sala/${item.id}`}>
-            {item.label}
-          </a>
-        ))}
-      </nav>
+      {ocultarMenu ? null : (
+        <nav className="sala-pills" aria-label="Telas">
+          {TELAS_SALA.map((item) => (
+            <a key={item.id} className={item.id === tela ? "sala-pill ativa" : "sala-pill"} href={`/sala/${item.id}`}>
+              {item.label}
+            </a>
+          ))}
+        </nav>
+      )}
       <div className="sala-relogio">{relogio}</div>
     </header>
   );
@@ -2252,6 +2257,7 @@ export function SalaApp({
             drill={drill}
             drillContagem={drillContagem}
             onLimparDrill={limparDrill}
+            ocultarMenu={telaFixa === "evolucao"}
           />
           <div className="sala-miolo">
             {desatualizado ? <div className="sala-desatualizado">Dados desatualizados há {atualizadoHaMin} min</div> : null}
