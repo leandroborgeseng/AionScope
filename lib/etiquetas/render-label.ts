@@ -1,14 +1,14 @@
 import QRCode from "qrcode";
-import { chipLabels } from "./agregar-plano";
 import { LABEL_SIZES_B1, type LabelRenderInput, type LabelSizePx, type PlanoEtiqueta } from "./tipos";
 
 /** Família legível em 203 dpi (Outfit já carrega no app; fallbacks limpos). */
 const LABEL_FONT = 'Outfit, "Segoe UI", "Helvetica Neue", Arial, sans-serif';
 
-const GRID_ROWS: { id: PlanoEtiqueta; label: string }[] = [
-  { id: "preventiva", label: "PREV" },
-  { id: "calibracao", label: "CAL" },
-  { id: "tse", label: "TSE" },
+/** Caixas de status impressas (sempre as três; ativas = sólidas + check). */
+const STATUS_BOXES: { id: PlanoEtiqueta; label: string }[] = [
+  { id: "preventiva", label: "M.P" },
+  { id: "calibracao", label: "CAL." },
+  { id: "tse", label: "T.S.E" },
 ];
 
 function truncate(text: string, max: number) {
@@ -18,18 +18,20 @@ function truncate(text: string, max: number) {
 }
 
 /**
- * Layout 50×30 (384×240 @ 203 dpi) — esquerda alinhada à foto de referência:
+ * Layout 50×30 (384×240 @ 203 dpi) — kit HTML / mock Aion (screenshots):
  *
- *  ┌──────────────────────────────────────────┐
- *  │ logo │ TAG │  miolo (grid/chips/datas) │QR│
- *  │ Aion │ blk │                           │  │
- *  │ vert │ vert│                           │──│
- *  │      │     │                           │☎ │
- *  └──────────────────────────────────────────┘
+ *  ┌──────┬────────────────────────────────────┐
+ *  │AION  │ EQUIP. Nº              HSJ-00001   │
+ *  │ENG.  │ ────────────────────────────────── │
+ *  │  ○A  │ REALIZADO 07/26         ┌──────┐   │
+ *  │      │ [PRÓXIMO 07/27]         │  QR  │   │
+ *  │      │ [✓ M.P] [✓ CAL.] […]    │      │   │
+ *  │      │ tel · site              VOID…  │   │
+ *  └──────┴────────────────────────────────────┘
  *
- * Faixa branca (logo+wordmark) + faixa preta (TAG) rotacionadas −90° (baixo→cima).
- * Direita do TAG: grid compacto de planos + QR + bloco de contato.
- * Mesmo canvas do mockup e da impressão B1 (WYSIWYG).
+ * Coluna preta: AION + ENGENHARIA (baixo→cima) + marca circular.
+ * Miolo: TAG grande, datas, caixas M.P/CAL./T.S.E, QR Effort, rodapé.
+ * Sem “HSJ · Eng. Clínica”. Mesmo canvas do mockup e da impressão B1 (WYSIWYG).
  */
 export async function drawLabelToCanvas(
   canvas: HTMLCanvasElement,
@@ -45,111 +47,64 @@ export async function drawLabelToCanvas(
   ctx.fillRect(0, 0, size.wPx, size.hPx);
 
   const isCompact = size.id === "40x30";
-  const pad = isCompact ? 3 : 4;
-  const brandW = isCompact ? 26 : 32;
-  const tagW = isCompact ? 34 : 42;
-  const leftW = brandW + tagW;
+  const spineW = isCompact ? 44 : 56;
+  const pad = isCompact ? 5 : 7;
+  const gap = isCompact ? 4 : 6;
 
-  // Coluna direita: QR + contato
-  const contactH = isCompact ? 40 : 46;
-  const qrSide = Math.min(
-    size.hPx - pad * 2 - contactH - 2,
-    Math.round(size.wPx * (isCompact ? 0.28 : 0.26)),
-  );
-  const rightColW = Math.max(qrSide, isCompact ? 72 : 86);
-  const gap = isCompact ? 3 : 4;
-
-  const mainX = leftW + gap;
-  const mainRight = size.wPx - pad - rightColW - gap;
-  const mainW = Math.max(36, mainRight - mainX);
-
-  // ——— Esquerda: faixa branca (logo) + faixa preta (TAG) ———
-  await drawLeftBrandStrip(ctx, input, {
+  await drawBlackSpine(ctx, input, {
     x: 0,
     y: 0,
-    w: brandW,
+    w: spineW,
     h: size.hPx,
-    pad,
-  });
-  drawTagBand(ctx, input, {
-    x: brandW,
-    y: 0,
-    w: tagW,
-    h: size.hPx,
-    pad,
+    pad: 4,
+    compact: isCompact,
   });
 
-  // ——— Miolo (direita do TAG) ———
-  let y = pad;
+  const mainX = spineW + pad;
+  const mainRight = size.wPx - pad;
+  const mainW = mainRight - mainX;
+
+  // ——— Header: EQUIP. Nº + TAG ———
+  const headerH = isCompact ? 34 : 40;
+  const tag = truncate(input.tag.trim() || "—", 16);
+
   ctx.fillStyle = "#000000";
-  ctx.textBaseline = "top";
   ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  const equipFont = Math.round(isCompact ? 8 : 9);
+  ctx.font = `700 ${equipFont}px ${LABEL_FONT}`;
+  ctx.fillText("EQUIP.", mainX, pad + 2);
+  ctx.fillText("Nº", mainX, pad + 2 + equipFont + 1);
 
-  // Marca opcional (só se NEXT_PUBLIC_ETIQUETA_BRAND — sem "HSJ Eng. Clínica")
-  const brand = (input.brand ?? "").trim();
-  if (brand) {
-    ctx.font = `600 ${Math.round(size.hPx * 0.065)}px ${LABEL_FONT}`;
-    ctx.fillText(truncate(brand, isCompact ? 16 : 20), mainX, y, mainW);
-    y += Math.round(size.hPx * 0.085);
-  }
+  const tagFont = Math.round(
+    Math.min(isCompact ? 20 : 24, mainW * (isCompact ? 0.22 : 0.2)),
+  );
+  ctx.font = `800 ${tagFont}px ${LABEL_FONT}`;
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  ctx.fillText(tag, mainRight, pad + headerH / 2 - 1, mainW * 0.72);
 
-  // Nome do equipamento
-  const nameSize = Math.round(size.hPx * (isCompact ? 0.095 : 0.105));
-  ctx.font = `700 ${nameSize}px ${LABEL_FONT}`;
-  const nameLines = wrapText(ctx, input.equipamento || "—", mainW, 2);
-  for (const line of nameLines) {
-    ctx.fillText(line, mainX, y, mainW);
-    y += Math.round(nameSize * 1.1);
-  }
-  y += Math.round(size.hPx * 0.02);
+  // Hairline sob o header
+  const ruleY = pad + headerH;
+  ctx.strokeStyle = "#000000";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(mainX, ruleY + 0.5);
+  ctx.lineTo(mainRight, ruleY + 0.5);
+  ctx.stroke();
 
-  // Grid compacto SERVIÇO / EXEC / PRÓX (só linhas aplicáveis; fallback chips)
-  const planosSet = new Set(input.planos);
-  const activeRows = GRID_ROWS.filter((r) => planosSet.has(r.id));
-  if (activeRows.length > 0 && mainW >= 90) {
-    y = drawServiceGrid(ctx, {
-      x: mainX,
-      y,
-      w: mainW,
-      h: size.hPx - y - pad,
-      rows: activeRows,
-      realizacao: input.realizacaoLabel,
-      proxima: input.proximaLabel,
-      compact: isCompact,
-    });
-  } else {
-    // Fallback: chips pretos se o miolo for estreito (40×30)
-    const chips = chipLabels(input.planos);
-    const chipH = Math.round(size.hPx * 0.13);
-    const chipFont = Math.round(chipH * 0.52);
-    ctx.font = `700 ${chipFont}px ${LABEL_FONT}`;
-    ctx.textBaseline = "middle";
-    let chipX = mainX;
-    for (const chip of chips) {
-      const tw = ctx.measureText(chip).width;
-      const cw = Math.ceil(tw + 8);
-      if (chipX + cw > mainX + mainW) break;
-      ctx.fillStyle = "#000000";
-      roundRect(ctx, chipX, y, cw, chipH, 2);
-      ctx.fill();
-      ctx.fillStyle = "#ffffff";
-      ctx.fillText(chip, chipX + 4, y + chipH / 2);
-      chipX += cw + 3;
-    }
-    ctx.fillStyle = "#000000";
-    y += chipH + Math.round(size.hPx * 0.04);
-    ctx.textBaseline = "top";
-    const dateSize = Math.round(size.hPx * 0.085);
-    ctx.font = `600 ${dateSize}px ${LABEL_FONT}`;
-    ctx.fillText(`Realiz. ${input.realizacaoLabel}`, mainX, y, mainW);
-    y += Math.round(dateSize * 1.18);
-    ctx.fillText(`Próx. ${input.proximaLabel}`, mainX, y, mainW);
-  }
-
-  // ——— Coluna direita: QR + bloco contato ———
-  const rightX = size.wPx - pad - rightColW;
-  const qrX = rightX + Math.round((rightColW - qrSide) / 2);
-  const qrY = pad;
+  // ——— Coluna direita: QR + VOID ———
+  const voidH = isCompact ? 10 : 12;
+  const contentTop = ruleY + gap;
+  const footerH = isCompact ? 12 : 14;
+  const contentBottom = size.hPx - pad - footerH;
+  const qrMax = Math.min(
+    contentBottom - contentTop - voidH - 2,
+    Math.round(mainW * (isCompact ? 0.42 : 0.4)),
+  );
+  const qrSide = Math.max(72, qrMax);
+  const qrX = mainRight - qrSide;
+  const qrY = contentTop;
 
   const qrDataUrl = await QRCode.toDataURL(input.qrUrl, {
     errorCorrectionLevel: "M",
@@ -160,24 +115,90 @@ export async function drawLabelToCanvas(
   const qrImg = await loadImage(qrDataUrl);
   ctx.drawImage(qrImg, qrX, qrY, qrSide, qrSide);
 
-  // Bloco preto de contato sob o QR
-  const contactY = Math.max(qrY + qrSide + 2, size.hPx - pad - contactH);
-  const contactBoxH = size.hPx - pad - contactY;
   ctx.fillStyle = "#000000";
-  ctx.fillRect(rightX, contactY, rightColW, contactBoxH);
-
-  const site = formatSite(input.site);
-  const tel = (input.telefone ?? "").trim() || "(16) 3030-0445";
-  const contactPad = 3;
-  const telSize = Math.round(Math.min(contactBoxH * 0.32, rightColW * 0.14));
-  const siteSize = Math.round(Math.min(contactBoxH * 0.26, rightColW * 0.11));
-  ctx.fillStyle = "#ffffff";
+  ctx.font = `700 ${Math.round(isCompact ? 6.5 : 7.5)}px ${LABEL_FONT}`;
   ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  ctx.fillText("VOID IF SEAL IS BROKEN", qrX + qrSide / 2, qrY + qrSide + 2, qrSide + 4);
+
+  // ——— Coluna esquerda do miolo: datas + status ———
+  const leftW = Math.max(48, qrX - gap - mainX);
+  let y = contentTop;
+
+  const realizacao = shortDate(input.realizacaoLabel);
+  const proxima = shortDate(input.proximaLabel);
+
+  // REALIZADO MM/YY
+  const labelSize = Math.round(isCompact ? 8 : 9);
+  const dateSize = Math.round(isCompact ? 13 : 15);
+  ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.font = `700 ${telSize}px ${LABEL_FONT}`;
-  ctx.fillText(tel, rightX + rightColW / 2, contactY + contactBoxH * 0.38, rightColW - contactPad * 2);
-  ctx.font = `600 ${siteSize}px ${LABEL_FONT}`;
-  ctx.fillText(site, rightX + rightColW / 2, contactY + contactBoxH * 0.72, rightColW - contactPad * 2);
+  ctx.fillStyle = "#000000";
+  ctx.font = `700 ${labelSize}px ${LABEL_FONT}`;
+  const realLabel = "REALIZADO";
+  const realLabelW = ctx.measureText(realLabel).width;
+  const realRowH = Math.max(dateSize, labelSize) + 2;
+  ctx.fillText(realLabel, mainX, y + realRowH / 2);
+  ctx.font = `800 ${dateSize}px ${LABEL_FONT}`;
+  ctx.fillText(realizacao, mainX + realLabelW + 5, y + realRowH / 2, leftW - realLabelW - 6);
+  y += realRowH + 3;
+
+  // Pill PRÓXIMO
+  const pillH = Math.round(isCompact ? 18 : 22);
+  const pillPadX = isCompact ? 5 : 7;
+  ctx.font = `700 ${Math.round(labelSize * 0.95)}px ${LABEL_FONT}`;
+  const proxWord = "PRÓXIMO";
+  const proxWordW = ctx.measureText(proxWord).width;
+  ctx.font = `800 ${dateSize}px ${LABEL_FONT}`;
+  const proxDateW = ctx.measureText(proxima).width;
+  const pillW = Math.min(leftW, Math.ceil(pillPadX * 2 + proxWordW + 5 + proxDateW));
+  ctx.fillStyle = "#000000";
+  roundRect(ctx, mainX, y, pillW, pillH, Math.round(pillH * 0.5));
+  ctx.fill();
+  ctx.fillStyle = "#ffffff";
+  ctx.textBaseline = "middle";
+  ctx.font = `700 ${Math.round(labelSize * 0.95)}px ${LABEL_FONT}`;
+  ctx.fillText(proxWord, mainX + pillPadX, y + pillH / 2);
+  ctx.font = `800 ${dateSize}px ${LABEL_FONT}`;
+  ctx.fillText(proxima, mainX + pillPadX + proxWordW + 5, y + pillH / 2);
+  y += pillH + (isCompact ? 4 : 6);
+
+  // Caixas M.P / CAL. / T.S.E
+  const planosSet = new Set(input.planos);
+  const boxGap = isCompact ? 3 : 4;
+  const boxesBottom = contentBottom - 2;
+  const boxH = Math.min(
+    isCompact ? 22 : 26,
+    Math.floor((boxesBottom - y - boxGap * 2) / 3),
+  );
+  const boxW = Math.min(leftW, isCompact ? 72 : 88);
+  const boxFont = Math.round(Math.min(boxH * 0.48, isCompact ? 10 : 12));
+  const checkSize = Math.round(boxH * 0.48);
+
+  for (const row of STATUS_BOXES) {
+    const active = planosSet.has(row.id);
+    drawStatusBox(ctx, {
+      x: mainX,
+      y,
+      w: boxW,
+      h: boxH,
+      label: row.label,
+      active,
+      fontSize: boxFont,
+      checkSize,
+    });
+    y += boxH + boxGap;
+  }
+
+  // Rodapé contato (canto inferior esquerdo do miolo)
+  const tel = (input.telefone ?? "").trim() || "(16) 3030-0445";
+  const site = formatSite(input.site);
+  const contact = `${tel} · ${site}`;
+  ctx.fillStyle = "#000000";
+  ctx.font = `600 ${Math.round(isCompact ? 7 : 8)}px ${LABEL_FONT}`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "bottom";
+  ctx.fillText(contact, mainX, size.hPx - pad, mainW);
 
   // Moldura
   ctx.strokeStyle = "#000000";
@@ -185,222 +206,161 @@ export async function drawLabelToCanvas(
   ctx.strokeRect(0.5, 0.5, size.wPx - 1, size.hPx - 1);
 }
 
-type Box = { x: number; y: number; w: number; h: number; pad: number };
+type SpineBox = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  pad: number;
+  compact: boolean;
+};
 
-/** Faixa branca esquerda: logo Aion (ícone + AION / ENGENHARIA) rotacionado −90°. */
-async function drawLeftBrandStrip(
+/** Coluna preta: marca circular embaixo + AION / ENGENHARIA (baixo→cima). */
+async function drawBlackSpine(
   ctx: CanvasRenderingContext2D,
   input: LabelRenderInput,
-  box: Box,
+  box: SpineBox,
 ) {
-  const { x, y, w, h, pad } = box;
-  const cx = x + w / 2;
-  const usableH = h - pad * 2;
-
-  try {
-    const logo = await loadImage(input.logoUrl);
-    // Após −90°: espessura ≈ drawH (largura da faixa); comprimento vertical ≈ drawW
-    const drawH = Math.max(14, w - 4);
-    const natRatio = logo.naturalWidth / Math.max(1, logo.naturalHeight);
-    let drawW = Math.round(drawH * natRatio);
-    const maxLen = usableH - 2;
-    if (drawW > maxLen) drawW = maxLen;
-
-    ctx.save();
-    ctx.translate(cx, y + h / 2);
-    ctx.rotate(-Math.PI / 2);
-    drawLogoThreshold(ctx, logo, -drawW / 2, -drawH / 2, drawW, drawH);
-    ctx.restore();
-  } catch {
-    // Fallback tipográfico: AION / ENGENHARIA deitados
-    ctx.save();
-    ctx.translate(cx, y + h / 2);
-    ctx.rotate(-Math.PI / 2);
-    ctx.fillStyle = "#000000";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    const aionSize = Math.round(w * 0.55);
-    ctx.font = `800 ${aionSize}px ${LABEL_FONT}`;
-    ctx.fillText("AION", 0, -aionSize * 0.15);
-    ctx.font = `600 ${Math.round(aionSize * 0.42)}px ${LABEL_FONT}`;
-    ctx.fillText("ENGENHARIA", 0, aionSize * 0.55);
-    ctx.restore();
-  }
-}
-
-/** Faixa preta com TAG em branco, rotacionada −90° (baixo→cima). */
-function drawTagBand(ctx: CanvasRenderingContext2D, input: LabelRenderInput, box: Box) {
-  const { x, y, w, h, pad } = box;
+  const { x, y, w, h, pad, compact } = box;
   ctx.fillStyle = "#000000";
   ctx.fillRect(x, y, w, h);
 
-  const tag = truncate(input.tag.trim() || "—", 16);
-  const tagFont = Math.round(Math.min(w * 0.62, 20));
+  const logoSize = Math.round(Math.min(w - 8, compact ? 22 : 28));
+  const logoCx = x + w / 2;
+  const logoCy = y + h - pad - logoSize / 2;
+
+  const markUrl = (input.logoUrl || "").includes("mark")
+    ? input.logoUrl
+    : "/aion-mark.png";
+  try {
+    const logo = await loadImage(markUrl);
+    drawLogoOnBlack(ctx, logo, logoCx - logoSize / 2, logoCy - logoSize / 2, logoSize, logoSize);
+  } catch {
+    drawFallbackMark(ctx, logoCx, logoCy, logoSize);
+  }
+
+  // Texto vertical acima da marca
+  const textBottom = logoCy - logoSize / 2 - 4;
+  const textTop = y + pad;
+  const textLen = Math.max(24, textBottom - textTop);
+  const cx = x + w / 2;
+  const cy = textTop + textLen / 2;
+
   ctx.save();
-  ctx.translate(x + w / 2, y + h / 2);
+  ctx.translate(cx, cy);
   ctx.rotate(-Math.PI / 2);
   ctx.fillStyle = "#ffffff";
-  ctx.font = `800 ${tagFont}px ${LABEL_FONT}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(tag, 0, 0, h - pad * 2 - 4);
+
+  const aionSize = Math.round(Math.min(w * 0.48, compact ? 14 : 18));
+  const engSize = Math.round(Math.min(w * 0.22, compact ? 7 : 8));
+  // No eixo pré-rotação: +Y → direita da faixa (lado do miolo)
+  ctx.font = `800 ${aionSize}px ${LABEL_FONT}`;
+  ctx.fillText("AION", 0, -aionSize * 0.22, textLen);
+  ctx.font = `600 ${engSize}px ${LABEL_FONT}`;
+  ctx.fillText("ENGENHARIA", 0, aionSize * 0.42, textLen);
   ctx.restore();
 }
 
-/**
- * Mini-tabela térmica: cabeçalhos SERVIÇO / EXEC / PRÓX + linhas dos planos ativos.
- * Retorna o Y final após o grid.
- */
-function drawServiceGrid(
+function drawStatusBox(
   ctx: CanvasRenderingContext2D,
   opts: {
     x: number;
     y: number;
     w: number;
     h: number;
-    rows: { id: PlanoEtiqueta; label: string }[];
-    realizacao: string;
-    proxima: string;
-    compact: boolean;
+    label: string;
+    active: boolean;
+    fontSize: number;
+    checkSize: number;
   },
-): number {
-  const { x, y, w, rows, realizacao, proxima, compact } = opts;
-  const headerH = compact ? 28 : 34;
-  const rowH = Math.min(
-    Math.floor((opts.h - headerH - 2) / Math.max(1, rows.length)),
-    compact ? 28 : 34,
-  );
-  const colSvc = Math.round(w * 0.28);
-  const colExec = Math.round(w * 0.36);
-  const colProx = w - colSvc - colExec;
-  const fontHdr = Math.round(compact ? 8 : 9);
-  const fontCell = Math.round(compact ? 11 : 12);
-
-  // Cabeçalho
+) {
+  const { x, y, w, h, label, active, fontSize, checkSize } = opts;
+  const r = Math.round(h * 0.22);
+  ctx.save();
   ctx.strokeStyle = "#000000";
-  ctx.lineWidth = 1;
-  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, headerH + rowH * rows.length - 1);
-
-  // Separadores verticais
-  ctx.beginPath();
-  ctx.moveTo(x + colSvc + 0.5, y);
-  ctx.lineTo(x + colSvc + 0.5, y + headerH + rowH * rows.length);
-  ctx.moveTo(x + colSvc + colExec + 0.5, y);
-  ctx.lineTo(x + colSvc + colExec + 0.5, y + headerH + rowH * rows.length);
+  ctx.lineWidth = 1.25;
+  if (active) {
+    ctx.setLineDash([]);
+  } else {
+    ctx.setLineDash([2.5, 2]);
+  }
+  roundRect(ctx, x + 0.5, y + 0.5, w - 1, h - 1, r);
   ctx.stroke();
+  ctx.setLineDash([]);
 
-  // Separador sob cabeçalho
-  ctx.beginPath();
-  ctx.moveTo(x, y + headerH + 0.5);
-  ctx.lineTo(x + w, y + headerH + 0.5);
-  ctx.stroke();
-
-  // Labels do cabeçalho (rotacionados +90° / topo→baixo, como na foto)
-  const headers = [
-    { label: "SERVIÇO", cx: x + colSvc / 2 },
-    { label: "EXEC", cx: x + colSvc + colExec / 2 },
-    { label: "PRÓX", cx: x + colSvc + colExec + colProx / 2 },
-  ];
-  for (const h of headers) {
-    ctx.save();
-    ctx.translate(h.cx, y + headerH / 2);
-    ctx.rotate(Math.PI / 2);
+  const checkX = x + Math.round(h * 0.22);
+  const checkY = y + (h - checkSize) / 2;
+  if (active) {
     ctx.fillStyle = "#000000";
-    ctx.font = `700 ${fontHdr}px ${LABEL_FONT}`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(h.label, 0, 0);
-    ctx.restore();
+    roundRect(ctx, checkX, checkY, checkSize, checkSize, 2);
+    ctx.fill();
+    // Check branco
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = Math.max(1.5, checkSize * 0.14);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(checkX + checkSize * 0.22, checkY + checkSize * 0.52);
+    ctx.lineTo(checkX + checkSize * 0.42, checkY + checkSize * 0.72);
+    ctx.lineTo(checkX + checkSize * 0.78, checkY + checkSize * 0.28);
+    ctx.stroke();
+  } else {
+    ctx.strokeStyle = "#000000";
+    ctx.lineWidth = 1;
+    roundRect(ctx, checkX, checkY, checkSize, checkSize, 2);
+    ctx.stroke();
   }
 
-  // Linhas de dados
-  ctx.textAlign = "center";
+  ctx.fillStyle = "#000000";
+  ctx.font = `700 ${fontSize}px ${LABEL_FONT}`;
+  ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  rows.forEach((row, i) => {
-    const ry = y + headerH + i * rowH;
-    if (i > 0) {
-      ctx.beginPath();
-      ctx.moveTo(x, ry + 0.5);
-      ctx.lineTo(x + w, ry + 0.5);
-      ctx.stroke();
-    }
-    // Chip preto no rótulo do serviço
-    ctx.font = `800 ${fontCell}px ${LABEL_FONT}`;
-    const tw = ctx.measureText(row.label).width;
-    const chipW = Math.min(colSvc - 6, Math.ceil(tw + 8));
-    const chipH = Math.min(rowH - 6, fontCell + 8);
-    const chipX = x + (colSvc - chipW) / 2;
-    const chipY = ry + (rowH - chipH) / 2;
-    ctx.fillStyle = "#000000";
-    roundRect(ctx, chipX, chipY, chipW, chipH, 2);
-    ctx.fill();
-    ctx.fillStyle = "#ffffff";
-    ctx.fillText(row.label, x + colSvc / 2, ry + rowH / 2);
-
-    ctx.fillStyle = "#000000";
-    ctx.font = `700 ${fontCell}px ${LABEL_FONT}`;
-    ctx.fillText(shortDate(realizacao), x + colSvc + colExec / 2, ry + rowH / 2, colExec - 4);
-    ctx.fillText(shortDate(proxima), x + colSvc + colExec + colProx / 2, ry + rowH / 2, colProx - 4);
-  });
-
-  return y + headerH + rowH * rows.length;
+  ctx.fillText(label, checkX + checkSize + 5, y + h / 2);
+  ctx.restore();
 }
 
-/** Compacta MM/AAAA ou DD/MM/AAAA → MM/AA quando couber melhor na célula. */
+function drawFallbackMark(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number) {
+  const r = size / 2;
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = Math.max(1.5, size * 0.07);
+  ctx.beginPath();
+  ctx.arc(cx, cy, r - ctx.lineWidth, 0, Math.PI * 2);
+  ctx.stroke();
+  // Ponto orbital
+  const dotR = Math.max(1.2, size * 0.07);
+  const ang = -Math.PI / 4;
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.arc(cx + Math.cos(ang) * (r - ctx.lineWidth), cy + Math.sin(ang) * (r - ctx.lineWidth), dotR, 0, Math.PI * 2);
+  ctx.fill();
+  // A estilizado
+  ctx.font = `800 ${Math.round(size * 0.55)}px ${LABEL_FONT}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("A", cx, cy + size * 0.02);
+}
+
+/** Compacta MM/AAAA ou DD/MM/AAAA → MM/AA. */
 function shortDate(label: string): string {
   const t = label.trim();
   if (!t || t === "—") return "—";
-  // DD/MM/AAAA
   const full = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(t);
   if (full) return `${full[2]}/${full[3]!.slice(2)}`;
-  // MM/AAAA
   const my = /^(\d{2})\/(\d{4})$/.exec(t);
   if (my) return `${my[1]}/${my[2]!.slice(2)}`;
+  // Já MM/AA
+  const short = /^(\d{2})\/(\d{2})$/.exec(t);
+  if (short) return t;
   return t;
 }
 
+/** Site do rodapé — preferir aion.eng.br (sem www), como no kit. */
 function formatSite(site: string): string {
-  const s = (site || "www.aion.eng.br").trim().replace(/^https?:\/\//i, "");
-  if (s.startsWith("www.")) return s;
-  // Preferir www. no bloco de contato (como na etiqueta física)
-  if (s === "aion.eng.br") return "www.aion.eng.br";
-  return s;
-}
-
-function wrapText(
-  ctx: CanvasRenderingContext2D,
-  text: string,
-  maxW: number,
-  maxLines: number,
-): string[] {
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return ["—"];
-  const lines: string[] = [];
-  let current = "";
-  for (const word of words) {
-    const trial = current ? `${current} ${word}` : word;
-    if (ctx.measureText(trial).width <= maxW || !current) {
-      current = trial;
-      continue;
-    }
-    lines.push(current);
-    current = word;
-    if (lines.length >= maxLines) break;
-  }
-  if (lines.length < maxLines && current) lines.push(current);
-
-  const out = lines.slice(0, maxLines);
-  const lastIdx = out.length - 1;
-  if (lastIdx >= 0) {
-    let last = out[lastIdx]!;
-    if (ctx.measureText(last).width > maxW || words.join(" ").length > out.join(" ").length) {
-      while (last.length > 1 && ctx.measureText(`${last}…`).width > maxW) {
-        last = last.slice(0, -1);
-      }
-      out[lastIdx] = last.endsWith("…") ? last : `${last}…`;
-    }
-  }
-  return out;
+  const s = (site || "aion.eng.br").trim().replace(/^https?:\/\//i, "");
+  if (s.startsWith("www.")) return s.slice(4);
+  return s || "aion.eng.br";
 }
 
 function roundRect(
@@ -421,8 +381,8 @@ function roundRect(
   ctx.closePath();
 }
 
-/** Desenha logo em tons escuros → preto (termossensível). */
-function drawLogoThreshold(
+/** Marca colorida → branco opaco sobre fundo preto (termossensível). */
+function drawLogoOnBlack(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
   x: number,
@@ -444,18 +404,23 @@ function drawLogoThreshold(
   for (let i = 0; i < d.length; i += 4) {
     const a = d[i + 3] ?? 0;
     if (a < 40) {
-      d[i] = 255;
-      d[i + 1] = 255;
-      d[i + 2] = 255;
+      d[i] = 0;
+      d[i + 1] = 0;
+      d[i + 2] = 0;
       d[i + 3] = 0;
       continue;
     }
     const lum = 0.299 * (d[i] ?? 0) + 0.587 * (d[i + 1] ?? 0) + 0.114 * (d[i + 2] ?? 0);
-    const v = lum < 160 ? 0 : 255;
-    d[i] = v;
-    d[i + 1] = v;
-    d[i + 2] = v;
-    d[i + 3] = v === 0 ? 255 : 0;
+    // Pixels da marca (não-brancos) → branco sólido
+    const isInk = lum < 245 || a > 200;
+    if (isInk && lum < 250) {
+      d[i] = 255;
+      d[i + 1] = 255;
+      d[i + 2] = 255;
+      d[i + 3] = 255;
+    } else {
+      d[i + 3] = 0;
+    }
   }
   octx.putImageData(image, 0, 0);
   ctx.drawImage(off, x, y, w, h);
