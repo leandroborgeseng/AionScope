@@ -1,10 +1,26 @@
 import QRCode from "qrcode";
 import { LABEL_SIZES_B1, type LabelRenderInput, type LabelSizePx, type PlanoEtiqueta } from "./tipos";
 
-/** Kit oficial: Barlow Condensed em todo o texto (LEIA-ME). */
-const LABEL_FONT = '"Barlow Condensed", "Arial Narrow", Arial, sans-serif';
-/** Wordmark da faixa: Montserrat (como no SVG do HTML). */
-const BRAND_FONT = 'Montserrat, "Barlow Condensed", Arial, sans-serif';
+/** Fallbacks se next/font ainda não injetou as variáveis CSS. */
+const LABEL_FONT_FALLBACK = '"Barlow Condensed", "Arial Narrow", Arial, sans-serif';
+const BRAND_FONT_FALLBACK = 'Montserrat, "Barlow Condensed", Arial, sans-serif';
+
+/** Resolve família do next/font (variável CSS) para o canvas 2D. */
+function labelFontStack(): string {
+  if (typeof document === "undefined") return LABEL_FONT_FALLBACK;
+  const v = getComputedStyle(document.documentElement)
+    .getPropertyValue("--font-barlow-condensed")
+    .trim();
+  return v ? `${v}, ${LABEL_FONT_FALLBACK}` : LABEL_FONT_FALLBACK;
+}
+
+function brandFontStack(): string {
+  if (typeof document === "undefined") return BRAND_FONT_FALLBACK;
+  const v = getComputedStyle(document.documentElement)
+    .getPropertyValue("--font-montserrat")
+    .trim();
+  return v ? `${v}, ${BRAND_FONT_FALLBACK}` : BRAND_FONT_FALLBACK;
+}
 
 /** Caixas de status impressas (sempre as três; ativas = sólidas + check). */
 const STATUS_BOXES: { id: PlanoEtiqueta; label: string }[] = [
@@ -61,21 +77,23 @@ export async function drawLabelToCanvas(
 }
 
 async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInput) {
+  const font = labelFontStack();
+
   // ——— Faixa da marca (x 0–85) ———
   ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, 85, 240);
-  await drawSpineBrand(ctx);
+  drawSpineBrand(ctx);
 
   // ——— ID: EQUIP. Nº + TAG (x 97–390, y 8–60) ———
   const tag = truncate(input.tag.trim() || "—", 16);
   ctx.fillStyle = "#000000";
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  ctx.font = `600 10px ${LABEL_FONT}`;
+  ctx.font = `600 10px ${font}`;
   fillTextSpaced(ctx, "EQUIP.", 97, 14, 1.5);
   fillTextSpaced(ctx, "Nº", 97, 26, 1.5);
 
-  ctx.font = `800 47px ${LABEL_FONT}`;
+  ctx.font = `800 47px ${font}`;
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
   ctx.fillText(tag, 390, 34, 280);
@@ -91,9 +109,9 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   ctx.fillStyle = "#000000";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.font = `700 9px ${LABEL_FONT}`;
+  ctx.font = `700 9px ${font}`;
   fillTextSpaced(ctx, "REALIZADO", 97, 82, 1.5);
-  ctx.font = `700 21px ${LABEL_FONT}`;
+  ctx.font = `700 21px ${font}`;
   ctx.textAlign = "right";
   ctx.fillText(realizacao, 235, 82, 80);
   ctx.fillRect(97, 93, 138, 1);
@@ -105,9 +123,9 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.font = `800 9px ${LABEL_FONT}`;
+  ctx.font = `800 9px ${font}`;
   fillTextSpaced(ctx, "PRÓXIMO", 107, 112, 1.5);
-  ctx.font = `800 26px ${LABEL_FONT}`;
+  ctx.font = `800 26px ${font}`;
   ctx.textAlign = "right";
   ctx.fillText(proxima, 227, 112, 70);
 
@@ -126,6 +144,7 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
       h: chipH,
       label: row.label,
       active: planosSet.has(row.id),
+      font,
     });
     chipY += chipH + chipGap;
   }
@@ -134,7 +153,7 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   const tel = (input.telefone ?? "").trim() || "(16) 3030-0445";
   const site = formatSite(input.site);
   ctx.fillStyle = "#000000";
-  ctx.font = `600 10px ${LABEL_FONT}`;
+  ctx.font = `600 10px ${font}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.fillText(`${tel} · ${site}`, 97, 225, 138);
@@ -144,14 +163,14 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
 
   // ——— Lacre (x 245–390, y 220–230) ———
   ctx.fillStyle = "#000000";
-  ctx.font = `700 8px ${LABEL_FONT}`;
+  ctx.font = `700 8px ${font}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   fillTextSpaced(ctx, "VOID IF SEAL IS BROKEN", 245 + 145 / 2, 225, 1.5);
 }
 
 /** Logo AION + ENGENHARIA na faixa preta, −90° (lê de baixo para cima), 210 pt. */
-async function drawSpineBrand(ctx: CanvasRenderingContext2D) {
+function drawSpineBrand(ctx: CanvasRenderingContext2D) {
   // viewBox 214×68 do kit, escalado para ~210×66,5 e centrado na faixa 85×240
   const brandW = 210;
   const brandH = 66.5;
@@ -159,6 +178,7 @@ async function drawSpineBrand(ctx: CanvasRenderingContext2D) {
   const cy = 240 / 2;
   const sx = brandW / 214;
   const sy = brandH / 68;
+  const brand = brandFontStack();
 
   ctx.save();
   ctx.translate(cx, cy);
@@ -171,26 +191,38 @@ async function drawSpineBrand(ctx: CanvasRenderingContext2D) {
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   ctx.lineWidth = 5;
-  ctx.stroke(new Path2D("M54.45 15 A28 28 0 1 1 40.25 5.95"));
+  try {
+    ctx.stroke(new Path2D("M54.45 15 A28 28 0 1 1 40.25 5.95"));
+    ctx.stroke(new Path2D("M22 47 L33 20 L44 47 M27 38 H39"));
+  } catch {
+    // Path2D indisponível — só tipografia
+  }
   ctx.beginPath();
   ctx.arc(48.25, 9.52, 3.4, 0, Math.PI * 2);
   ctx.fill();
-  ctx.stroke(new Path2D("M22 47 L33 20 L44 47 M27 38 H39"));
 
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
-  ctx.font = `800 40px ${BRAND_FONT}`;
+  ctx.font = `800 40px ${brand}`;
   ctx.fillText("AION", 74, 44);
-  ctx.font = `600 10px ${BRAND_FONT}`;
+  ctx.font = `600 10px ${brand}`;
   ctx.fillText("ENGENHARIA", 75, 61);
   ctx.restore();
 }
 
 function drawStatusChip(
   ctx: CanvasRenderingContext2D,
-  opts: { x: number; y: number; w: number; h: number; label: string; active: boolean },
+  opts: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+    label: string;
+    active: boolean;
+    font: string;
+  },
 ) {
-  const { x, y, w, h, label, active } = opts;
+  const { x, y, w, h, label, active, font } = opts;
   const r = 5;
   const check = 13;
   const checkX = x + 8;
@@ -219,7 +251,7 @@ function drawStatusChip(
     ctx.stroke();
 
     ctx.fillStyle = "#000000";
-    ctx.font = `800 15px ${LABEL_FONT}`;
+    ctx.font = `800 15px ${font}`;
   } else {
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 2]);
@@ -233,7 +265,7 @@ function drawStatusChip(
     ctx.stroke();
 
     ctx.fillStyle = "#000000";
-    ctx.font = `600 15px ${LABEL_FONT}`;
+    ctx.font = `600 15px ${font}`;
   }
 
   ctx.textAlign = "left";
@@ -250,28 +282,46 @@ async function drawCrispQr(
   y: number,
   box: number,
 ) {
-  const qr = QRCode.create(url, { errorCorrectionLevel: "M" });
-  const modules = qr.modules;
-  const n = modules.size;
-  // Preferir 5 pt/módulo quando couber; senão o maior inteiro que cabe
-  let modulePt = 5;
-  if (modulePt * n > box) {
-    modulePt = Math.max(1, Math.floor(box / n));
-  }
-  const qrSize = modulePt * n;
-  const ox = x + Math.floor((box - qrSize) / 2);
-  const oy = y + Math.floor((box - qrSize) / 2);
-
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(x, y, box, box);
-  ctx.fillStyle = "#000000";
-  for (let row = 0; row < n; row++) {
-    for (let col = 0; col < n; col++) {
-      if (modules.get(row, col)) {
-        ctx.fillRect(ox + col * modulePt, oy + row * modulePt, modulePt, modulePt);
+
+  try {
+    const qr = QRCode.create(url, { errorCorrectionLevel: "M" });
+    const modules = qr.modules;
+    const n = modules.size;
+    let modulePt = 5;
+    if (modulePt * n > box) {
+      modulePt = Math.max(1, Math.floor(box / n));
+    }
+    const qrSize = modulePt * n;
+    const ox = x + Math.floor((box - qrSize) / 2);
+    const oy = y + Math.floor((box - qrSize) / 2);
+    ctx.fillStyle = "#000000";
+    for (let row = 0; row < n; row++) {
+      for (let col = 0; col < n; col++) {
+        if (modules.get(row, col)) {
+          ctx.fillRect(ox + col * modulePt, oy + row * modulePt, modulePt, modulePt);
+        }
       }
     }
+    return;
+  } catch {
+    // Fallback: raster do helper qrcode (menos nítido, mas sempre desenha)
   }
+
+  const dataUrl = await QRCode.toDataURL(url, {
+    errorCorrectionLevel: "M",
+    margin: 0,
+    width: box * 2,
+    color: { dark: "#000000", light: "#ffffff" },
+  });
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = () => reject(new Error("QR image fail"));
+    el.src = dataUrl;
+  });
+  ctx.drawImage(img, x, y, box, box);
 }
 
 let fontsReady: Promise<void> | null = null;
@@ -280,17 +330,17 @@ function ensureLabelFonts(): Promise<void> {
   if (typeof document === "undefined") return Promise.resolve();
   if (fontsReady) return fontsReady;
   fontsReady = (async () => {
-    try {
-      await Promise.all([
-        document.fonts.load(`600 10px ${LABEL_FONT}`),
-        document.fonts.load(`700 21px ${LABEL_FONT}`),
-        document.fonts.load(`800 47px ${LABEL_FONT}`),
-        document.fonts.load(`800 40px ${BRAND_FONT}`),
-        document.fonts.load(`600 10px ${BRAND_FONT}`),
-      ]);
-    } catch {
-      // Fallback do stack do canvas
-    }
+    const font = labelFontStack();
+    const brand = brandFontStack();
+    const loads = Promise.all([
+      document.fonts.load(`600 10px ${font}`),
+      document.fonts.load(`700 21px ${font}`),
+      document.fonts.load(`800 47px ${font}`),
+      document.fonts.load(`800 40px ${brand}`),
+      document.fonts.load(`600 10px ${brand}`),
+    ]).then(() => undefined);
+    // Evita travar o canvas se o FontFaceSet não resolver
+    await Promise.race([loads, new Promise<void>((r) => setTimeout(r, 800))]);
   })();
   return fontsReady;
 }
