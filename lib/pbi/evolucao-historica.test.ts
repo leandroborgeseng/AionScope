@@ -103,6 +103,7 @@ describe("noParqueNoFimDoAno", () => {
       Id: 1,
       DataDeCadastro: "01/03/2018",
       "DataDeInativação": "15/06/2018",
+      Status: "INATIVO",
     });
     assert.equal(noParqueNoFimDoAno(item, 2017), false);
     assert.equal(noParqueNoFimDoAno(item, 2018), false);
@@ -114,9 +115,19 @@ describe("noParqueNoFimDoAno", () => {
       Id: 2,
       DataDeCadastro: "01/01/2016",
       "DataDeInativação": "10/02/2020",
+      Status: "INATIVO",
     });
     assert.equal(noParqueNoFimDoAno(item, 2019), true);
     assert.equal(noParqueNoFimDoAno(item, 2020), false);
+  });
+
+  it("INATIVO sem DataDeInativação fica fora do estoque", () => {
+    const item = eq({
+      Id: 3,
+      DataDeCadastro: "01/01/2016",
+      Status: "INATIVO",
+    });
+    assert.equal(noParqueNoFimDoAno(item, 2019), false);
   });
 });
 
@@ -124,19 +135,30 @@ describe("agregarEvolucaoParque", () => {
   it("começa no menor DataDeCadastro e acumula quantidade/valor", () => {
     const hoje = new Date(2020, 5, 15);
     const itens = [
-      eq({ Id: 1, DataDeCadastro: "14/05/2015", ValorDeSubstituicao: "1000" }),
-      eq({ Id: 2, DataDeCadastro: "01/01/2018", ValorDeSubstituicao: "2.500,00" }),
+      eq({ Id: 1, DataDeCadastro: "14/05/2015", ValorDeSubstituicao: "1000", Equipamento: "Monitor multiparamétrico" }),
+      eq({ Id: 2, DataDeCadastro: "01/01/2018", ValorDeSubstituicao: "2.500,00", Equipamento: "Ventilador" }),
       eq({
         Id: 3,
         DataDeCadastro: "01/06/2017",
         ValorDeSubstituicao: "500",
         "DataDeInativação": "01/01/2019",
+        Status: "INATIVO",
+        Equipamento: "Bomba de infusão",
       }),
       eq({ Id: 4, DataDeCadastro: "" }),
+      // predial — fora do recorte médico
+      eq({
+        Id: 5,
+        DataDeCadastro: "01/01/2015",
+        ValorDeSubstituicao: "99999",
+        Equipamento: "Ar condicionado split",
+        Tipo: "Predial",
+      }),
     ];
     const r = agregarEvolucaoParque(itens, hoje);
     assert.equal(r.anoInicio, 2015);
     assert.equal(r.anoFim, 2020);
+    assert.equal(r.naoMedicos, 1);
     assert.equal(r.semCadastro, 1);
     assert.equal(r.serie[0]?.ano, 2015);
     assert.equal(r.serie[0]?.quantidade, 1);
@@ -145,7 +167,7 @@ describe("agregarEvolucaoParque", () => {
 
     const y2018 = r.serie.find((s) => s.ano === 2018);
     assert.ok(y2018);
-    // 2015 + 2017 + 2018 (ainda ativos)
+    // 2015 + 2017 + 2018 (ainda ativos) — sem o split predial
     assert.equal(y2018.quantidade, 3);
     assert.equal(y2018.valorSubstituicao, 1000 + 2500 + 500);
     assert.equal(y2018.entrantes, 1);

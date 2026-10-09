@@ -16,6 +16,7 @@ import { History, Replace, Ticket } from "lucide-react";
 import {
   CAMPO_CADASTRO_PARQUE,
   EVOLUCAO_CHAMADOS_REGRA,
+  EVOLUCAO_PARQUE_REGRA,
   type EvolucaoHistorica,
 } from "@/lib/pbi/evolucao-historica";
 
@@ -125,10 +126,13 @@ export function TelaEvolucao() {
             <div className="sala-rotulo-bloco">PARQUE · CADASTRO → HOJE</div>
           </div>
           <p className="sala-evolucao-sub">
-            Ano inicial = menor {CAMPO_CADASTRO_PARQUE}
-            {dados.anoInicio != null ? ` (${dados.anoInicio})` : ""}. Quantidade e valor são
-            acumulados ao fim de cada ano (inativações saem do estoque). Valor = soma atual de
-            ValorDeSubstituicao.
+            Parque médico ativo — mesmo recorte da Sala ({EVOLUCAO_PARQUE_REGRA[0]}). Ano inicial =
+            menor {CAMPO_CADASTRO_PARQUE}
+            {dados.anoInicio != null ? ` (${dados.anoInicio})` : ""}. Quantidade e valor acumulados
+            ao fim de cada ano; inativações saem do estoque. Valor = soma de ValorDeSubstituicao.
+            {dados.equipamentosNaoMedicos > 0
+              ? ` ${dados.equipamentosNaoMedicos.toLocaleString("pt-BR")} não médicos excluídos.`
+              : ""}
           </p>
         </div>
         <div className="sala-evolucao-kpis">
@@ -137,7 +141,7 @@ export function TelaEvolucao() {
             <span className="sala-numero sala-evolucao-kpi-valor">{dados.anoInicio ?? "—"}</span>
           </div>
           <div className="sala-evolucao-kpi">
-            <span className="sala-evolucao-kpi-rotulo">parque hoje</span>
+            <span className="sala-evolucao-kpi-rotulo">médicos ativos</span>
             <span className="sala-numero sala-evolucao-kpi-valor azul">
               {ultimo?.quantidade?.toLocaleString("pt-BR") ?? "—"}
             </span>
@@ -162,7 +166,7 @@ export function TelaEvolucao() {
           <div className="sala-evolucao-painel-cabeca">
             <div className="sala-bloco-cabeca">
               <Replace size={18} strokeWidth={2.2} aria-hidden />
-              <div className="sala-rotulo-bloco">EQUIPAMENTOS E VALOR DE SUBSTITUIÇÃO</div>
+              <div className="sala-rotulo-bloco">EQ. MÉDICOS ATIVOS E VALOR DE SUBSTITUIÇÃO</div>
             </div>
             <span className="sala-evolucao-badge">{parqueChart.length} anos</span>
           </div>
