@@ -10,10 +10,10 @@ export type EtiquetaBranding = {
 };
 
 const DEFAULTS: EtiquetaBranding = {
-  /** Vazio por padrão — marca na etiqueta é o logo Aion (faixa vertical). */
+  /** Vazio por padrão — marca na etiqueta é o logo Aion (faixa vertical branca). */
   brand: "",
-  site: "aion.eng.br",
-  telefone: "",
+  site: "www.aion.eng.br",
+  telefone: "(16) 3030-0445",
   logoUrl: "/aion-logo.png",
 };
 
@@ -26,9 +26,9 @@ export function etiquetaBranding(): EtiquetaBranding {
   };
 }
 
-/** Texto de contato no rodapé da etiqueta (site · tel). Tel. sempre presente no layout. */
+/** Texto de contato (site · tel) — usado em UI/listas; na etiqueta o bloco preto sob o QR. */
 export function etiquetaContatoLine(b: EtiquetaBranding): string {
-  const site = b.site || "aion.eng.br";
-  const tel = b.telefone || "Tel. —";
+  const site = b.site || "www.aion.eng.br";
+  const tel = b.telefone || "(16) 3030-0445";
   return `${site} · ${tel}`;
 }

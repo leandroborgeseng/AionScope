@@ -340,7 +340,7 @@ export function EtiquetasPlanoView() {
     <div className="space-y-5">
       <PageHeader
         title="Etiquetas · plano Preventiva / Cal / TSE"
-        description="Etiqueta 50×30 mm (WYSIWYG): logo + TAG deitados à esquerda, chips pretos PREV/CAL/TSE, datas, site/tel e QR (Effort se configurado; senão ficha vida). Impressão Web Bluetooth na Niimbot B1."
+        description="Etiqueta 50×30 mm (WYSIWYG): faixa branca Aion + faixa preta TAG à esquerda; grid PREV/CAL/TSE + datas; QR Effort e contato à direita. Impressão Web Bluetooth na Niimbot B1."
       />
 
       <Card>
@@ -553,7 +553,7 @@ export function EtiquetasPlanoView() {
             <CardTitle>Mockup WYSIWYG · {size.label}</CardTitle>
             <p className="text-xs text-aion-muted">
               Canvas 1:1 com a impressão — {size.wPx}×{size.hPx} px @ 203 dpi ({size.wMm}:{size.hMm}).
-              Faixa esquerda: logo + TAG deitados · chips pretos · QR à direita.
+              Esquerda: logo branco + TAG preta (verticais) · miolo grid · QR + contato.
             </p>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -582,8 +582,8 @@ export function EtiquetasPlanoView() {
                 </div>
               </div>
               <p className="mt-3 text-center text-[11px] text-aion-muted">
-                Logo∥TAG verticais · {branding.site}
-                {branding.telefone ? ` · ${branding.telefone}` : " · NEXT_PUBLIC_ETIQUETA_TELEFONE"}
+                Logo + TAG verticais · {branding.site}
+                {branding.telefone ? ` · ${branding.telefone}` : " · (16) 3030-0445"}
               </p>
             </div>
 
