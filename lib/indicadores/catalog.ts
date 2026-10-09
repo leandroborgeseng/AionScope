@@ -11,7 +11,7 @@ export const INDICADORES = [
     href: "/indicadores/oficinas-plano-abertas-fechadas",
     label: "Preventivas · abertas × fechadas por oficina",
     blurb:
-      "Preventiva, Calibração e TSE (+ consolidado): em cada mês, OS abertas vs fechadas, % e quantidades. Clique para drill-down das OS. Sem Oficina Geral.",
+      "Preventiva, Calibração e TSE (+ consolidado): gráfico com barras abertas×fechadas + %, e trabalho ainda aberto nos meses à frente. Drill-down das OS.",
   },
   {
     href: "/indicadores/gasto-reparo-equipamentos-medicos",
