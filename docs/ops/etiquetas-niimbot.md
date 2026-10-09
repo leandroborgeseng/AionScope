@@ -124,7 +124,8 @@ Alterar `NEXT_PUBLIC_*` exige **rebuild/redeploy** (valores são embutidos no bu
 2. Escolha o(s) mês(es) e os tipos PREV / CAL / TSE.
 3. Confira o **mockup WYSIWYG** (50×30 por padrão) e a URL Effort do QR.
 4. **Baixar PNG** — funciona em qualquer navegador (fallback).
-5. **Conectar B1** / **Imprimir** — Web Bluetooth (veja abaixo).
+5. **Uma etiqueta** — clique na linha (mockup) → **Imprimir esta**, ou o botão **B1** na linha.
+6. **Várias etiquetas** — marque os checkboxes (ou **Selecionar todas**), depois **Imprimir selecionadas (N)**. A app conecta uma vez à B1, imprime em sequência com progresso `N de M` e erros por item; **Cancelar fila** interrompe entre etiquetas.
 
 ## Impressão Niimbot B1 (Web Bluetooth)
 
