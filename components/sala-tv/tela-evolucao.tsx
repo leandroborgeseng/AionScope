@@ -309,7 +309,7 @@ export function TelaEvolucao() {
           <div className="sala-evolucao-painel-cabeca">
             <div className="sala-bloco-cabeca">
               <Ticket size={18} strokeWidth={2.2} aria-hidden />
-              <div className="sala-rotulo-bloco">CHAMADOS ENGENHARIA CLÍNICA / ANO</div>
+              <div className="sala-rotulo-bloco">CHAMADOS EC + INSTRUMENTAIS / ANO</div>
             </div>
             <span className="sala-evolucao-badge">
               {regChamados
@@ -318,7 +318,7 @@ export function TelaEvolucao() {
             </span>
           </div>
           <p className="sala-evolucao-chamados-regra" title={EVOLUCAO_CHAMADOS_REGRA.join(" · ")}>
-            Só anos com chamados · TipoDeManutencao EC · Abertura · API: {dados.chamadosPeriodoApi}
+            Só anos com dados · EC + oficina Instrumental · Abertura · API: {dados.chamadosPeriodoApi}
             {regChamados
               ? ` · y = ${regChamados.a.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}·ano + ${regChamados.b.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`
               : ""}

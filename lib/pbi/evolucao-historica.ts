@@ -1,5 +1,6 @@
 import { nowInSaoPaulo, parseBrNumber, parsePbiDate } from "./dates";
 import { isEquipamentoMedico } from "./medical";
+import { normalizeOficina } from "./oficina-ec";
 import type { EquipamentoItem, OsAnaliticoItem } from "./types";
 import { isOsCancelada, isTipoManutencaoEc } from "./volume-ec";
 
@@ -15,9 +16,10 @@ export const EVOLUCAO_PARQUE_REGRA = [
 ] as const;
 
 export const EVOLUCAO_CHAMADOS_REGRA = [
-  "TipoDeManutencao no recorte de Engenharia Clínica (mesmo critério do volume EC)",
+  "TipoDeManutencao no recorte de Engenharia Clínica (volume EC) OU Oficina = INSTRUMENTAL",
   "exclui M - (predial) e O - (obras)",
   "inclui A - …, ENGENHARIA CLÍNICA, CALIBRA*, SEGURANÇA ELÉTRICA/TSE, INSTRUMENTAL, PREVENTIVA EQUIPAMENTOS MÉDICOS",
+  "inclui gestão de instrumentais (oficina INSTRUMENTAL), mesmo quando o tipo não traz a palavra",
   "exclui OS canceladas",
   "ano = ano civil da Abertura (America/Sao_Paulo via parse da API)",
 ] as const;
@@ -164,11 +166,29 @@ export function noParqueNoFimDoAno(
   return isStatusAtivo(item.Status);
 }
 
+function isOficinaInstrumental(oficina: string | null | undefined): boolean {
+  const v = normalizeOficina(oficina);
+  return v === "INSTRUMENTAL" || v.includes("INSTRUMENTAL");
+}
+
+/**
+ * Chamado da família EC para a série histórica — inclui instrumentais.
+ * Aceita tipo EC (volume) ou Oficina INSTRUMENTAL (gestão de instrumentais).
+ */
 export function isChamadoEngenhariaClinica(
-  os: Pick<OsAnaliticoItem, "TipoDeManutencao" | "SituacaoDaOS">,
+  os: Pick<OsAnaliticoItem, "TipoDeManutencao" | "SituacaoDaOS" | "Oficina">,
 ): boolean {
   if (isOsCancelada(os)) return false;
-  return isTipoManutencaoEc(os.TipoDeManutencao);
+  const tipo = (os.TipoDeManutencao ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleUpperCase("pt-BR")
+    .trim();
+  if (tipo.startsWith("M -") || tipo.startsWith("M-") || tipo.startsWith("O -") || tipo.startsWith("O-")) {
+    return false;
+  }
+  if (isTipoManutencaoEc(os.TipoDeManutencao)) return true;
+  return isOficinaInstrumental(os.Oficina);
 }
 
 /**
