@@ -64,6 +64,8 @@ Proporção **50:30**, bitmap B1 **384×240 px @ 203 dpi**. O mockup em `/etique
 
 Tamanho **40×30 mm** permanece opcional; padrão e foco do mockup = **50×30**.
 
+Prévia estática (layout): `docs/ops/etiqueta-50x30-layout.png`.
+
 LGPD: sem CPF; apenas Tag e dados de equipamento/OS.
 
 ## Variáveis de ambiente

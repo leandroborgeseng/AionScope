@@ -234,42 +234,28 @@ function wrapText(
   let current = "";
   for (const word of words) {
     const trial = current ? `${current} ${word}` : word;
-    if (ctx.measureText(trial).width <= maxW) {
+    if (ctx.measureText(trial).width <= maxW || !current) {
       current = trial;
-    } else {
-      if (current) lines.push(current);
-      current = word;
-      if (lines.length >= maxLines - 1) break;
+      continue;
     }
-  }
-  if (lines.length < maxLines && current) {
     lines.push(current);
-  } else if (current && lines.length === maxLines) {
-    // última linha já cheia — ignora resto
-  } else if (current && lines.length === maxLines - 1) {
-    lines.push(truncate(current, 40));
+    current = word;
+    if (lines.length >= maxLines) break;
   }
-  // Truncar última se ainda estourou
-  if (lines.length > 0) {
-    const last = lines[lines.length - 1]!;
-    if (ctx.measureText(last).width > maxW) {
-      let t = last;
-      while (t.length > 1 && ctx.measureText(`${t}…`).width > maxW) t = t.slice(0, -1);
-      lines[lines.length - 1] = `${t}…`;
-    }
-  }
-  // Se estourou palavras e maxLines, truncar última
-  if (words.join(" ").length > 0 && lines.length === maxLines) {
-    const used = lines.join(" ");
-    if (used.length < text.trim().length && !lines[lines.length - 1]!.endsWith("…")) {
-      const last = lines[lines.length - 1]!;
-      lines[lines.length - 1] = truncate(last, Math.max(4, last.length));
-      if (!lines[lines.length - 1]!.endsWith("…")) {
-        lines[lines.length - 1] = `${lines[lines.length - 1]}…`;
+  if (lines.length < maxLines && current) lines.push(current);
+
+  const out = lines.slice(0, maxLines);
+  const lastIdx = out.length - 1;
+  if (lastIdx >= 0) {
+    let last = out[lastIdx]!;
+    if (ctx.measureText(last).width > maxW || words.join(" ").length > out.join(" ").length) {
+      while (last.length > 1 && ctx.measureText(`${last}…`).width > maxW) {
+        last = last.slice(0, -1);
       }
+      out[lastIdx] = last.endsWith("…") ? last : `${last}…`;
     }
   }
-  return lines.slice(0, maxLines);
+  return out;
 }
 
 function roundRect(
