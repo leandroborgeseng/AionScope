@@ -8,7 +8,8 @@ import {
 } from "@/lib/pbi/evolucao-historica";
 import type { EquipamentoItem, OsAnaliticoItem, OsResumidaItem } from "@/lib/pbi/types";
 
-const CACHE_MS = 5 * 60_000;
+/** Snapshot montado (parque + chamados). Equipamentos já têm TTL longo no fetchPbi. */
+const CACHE_MS = 30 * 60_000;
 const PAGE_SIZE = 5000;
 const MAX_PAGES = 80;
 
