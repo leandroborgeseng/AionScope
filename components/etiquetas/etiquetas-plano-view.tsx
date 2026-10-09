@@ -16,6 +16,7 @@ import {
 } from "@/lib/etiquetas/agregar-plano";
 import {
   loadNiimbot,
+  printPngBatchOnNiimbotB1,
   printPngOnNiimbotB1,
   webBluetoothSupported,
 } from "@/lib/etiquetas/niimbot-client";
@@ -116,10 +117,15 @@ export function EtiquetasPlanoView() {
   });
   /** Primário: 50×30 mm (B1). 40×30 opcional. */
   const [sizeId, setSizeId] = useState<LabelSizeId>("50x30");
+  /** Linha em foco no mockup (clique na tabela). */
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  /** Tags marcadas para impressão em lote. */
+  const [checkedTags, setCheckedTags] = useState<Set<string>>(() => new Set());
   const [status, setStatus] = useState<string | null>(null);
   const [bleOk, setBleOk] = useState(false);
   const [pending, setPending] = useState(false);
+  const [batchRunning, setBatchRunning] = useState(false);
+  const cancelBatchRef = useRef(false);
   const previewRef = useRef<HTMLCanvasElement>(null);
   /** Garante redraw quando o <canvas> monta (ref sozinho não re-dispara effect). */
   const [previewCanvas, setPreviewCanvas] = useState<HTMLCanvasElement | null>(null);
@@ -181,6 +187,13 @@ export function EtiquetasPlanoView() {
   );
 
   const selected = rows.find((r) => r.tag === selectedTag) ?? rows[0] ?? null;
+  const visibleTags = useMemo(() => rows.map((r) => r.tag), [rows]);
+  const checkedCount = useMemo(
+    () => visibleTags.reduce((n, tag) => n + (checkedTags.has(tag) ? 1 : 0), 0),
+    [visibleTags, checkedTags],
+  );
+  const allVisibleChecked =
+    visibleTags.length > 0 && visibleTags.every((tag) => checkedTags.has(tag));
 
   useEffect(() => {
     if (!selected) return;
@@ -188,6 +201,42 @@ export function EtiquetasPlanoView() {
       setSelectedTag(selected.tag);
     }
   }, [selected, selectedTag, rows]);
+
+  /** Remove da seleção em lote tags que saíram do filtro. */
+  useEffect(() => {
+    const visible = new Set(visibleTags);
+    setCheckedTags((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      for (const tag of prev) {
+        if (visible.has(tag)) next.add(tag);
+        else changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [visibleTags]);
+
+  function toggleChecked(tag: string) {
+    setCheckedTags((prev) => {
+      const next = new Set(prev);
+      if (next.has(tag)) next.delete(tag);
+      else next.add(tag);
+      return next;
+    });
+  }
+
+  function selectAllVisible() {
+    setCheckedTags(new Set(visibleTags));
+  }
+
+  function clearChecked() {
+    setCheckedTags(new Set());
+  }
+
+  function toggleAllVisible() {
+    if (allVisibleChecked) clearChecked();
+    else selectAllVisible();
+  }
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
@@ -315,9 +364,74 @@ export function EtiquetasPlanoView() {
     }
   }
 
-  function onPrintSelected() {
+  function onPrintFocused() {
     if (!selected) return;
     void onPrintOne(selected);
+  }
+
+  async function onPrintChecked() {
+    const selectedRows = rows.filter((r) => checkedTags.has(r.tag));
+    if (!selectedRows.length) return;
+
+    cancelBatchRef.current = false;
+    setBatchRunning(true);
+    setPending(true);
+    const total = selectedRows.length;
+    const errors: string[] = [];
+
+    try {
+      setStatus(`Preparando ${total} etiqueta${total === 1 ? "" : "s"}…`);
+      const items: { tag: string; dataUrl: string }[] = [];
+      for (let i = 0; i < selectedRows.length; i++) {
+        if (cancelBatchRef.current) {
+          setStatus(`Cancelado na preparação · ${i} de ${total} geradas`);
+          return;
+        }
+        const row = selectedRows[i]!;
+        setStatus(`Gerando PNG ${i + 1} de ${total} · ${row.tag}…`);
+        const input = buildRenderInput(row);
+        const qr = qrForRow(row, row.tag);
+        input.qrUrl = qr.url;
+        items.push({ tag: row.tag, dataUrl: await labelToPngDataUrl(input) });
+      }
+
+      const results = await printPngBatchOnNiimbotB1(items, size, {
+        shouldCancel: () => cancelBatchRef.current,
+        onProgress: (info) => setStatus(info.detail),
+      });
+
+      const ok = results.filter((r) => r.ok).length;
+      const failed = results.filter((r) => !r.ok && !r.skipped);
+      const skipped = results.filter((r) => r.skipped).length;
+      for (const r of failed) {
+        errors.push(`${r.tag}: ${r.error ?? "erro"}`);
+      }
+
+      if (cancelBatchRef.current || skipped > 0) {
+        setStatus(
+          `Cancelado · ${ok} impressa${ok === 1 ? "" : "s"} de ${total}` +
+            (failed.length ? ` · ${failed.length} erro(s)` : ""),
+        );
+      } else if (failed.length === 0) {
+        setStatus(`${ok} etiqueta${ok === 1 ? "" : "s"} impressa${ok === 1 ? "" : "s"} na B1`);
+      } else {
+        setStatus(
+          `${ok} ok · ${failed.length} erro(s) de ${total}` +
+            (errors.length ? ` — ${errors.slice(0, 3).join("; ")}` : ""),
+        );
+      }
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBatchRunning(false);
+      setPending(false);
+      cancelBatchRef.current = false;
+    }
+  }
+
+  function onCancelBatch() {
+    cancelBatchRef.current = true;
+    setStatus("Cancelando após a etiqueta atual…");
   }
 
   async function onConnect() {
@@ -370,7 +484,7 @@ export function EtiquetasPlanoView() {
     <div className="space-y-5">
       <PageHeader
         title="Etiquetas · plano Preventiva / Cal / TSE"
-        description="Etiqueta 50×30 mm (WYSIWYG): coluna preta AION + caixas M.P/CAL./T.S.E, datas e QR Effort. Impressão Web Bluetooth na Niimbot B1."
+        description="Etiqueta 50×30 mm (WYSIWYG): coluna preta AION + caixas M.P/CAL./T.S.E, datas e QR Effort. Selecione várias na tabela e imprima em fila na Niimbot B1 (Web Bluetooth)."
       />
 
       <Card>
@@ -473,8 +587,46 @@ export function EtiquetasPlanoView() {
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
             <CardTitle>
               Equipamentos ({loading ? "…" : rows.length})
+              {checkedCount > 0 ? (
+                <span className="ml-2 text-sm font-normal text-aion-muted">
+                  · {checkedCount} selecionada{checkedCount === 1 ? "" : "s"}
+                </span>
+              ) : null}
             </CardTitle>
             <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={pending || !rows.length}
+                onClick={selectAllVisible}
+              >
+                Selecionar todas
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={pending || checkedCount === 0}
+                onClick={clearChecked}
+              >
+                Limpar seleção
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                disabled={pending || checkedCount === 0 || !bleOk}
+                onClick={() => void onPrintChecked()}
+                title={
+                  !bleOk
+                    ? "Web Bluetooth indisponível"
+                    : checkedCount === 0
+                      ? "Marque etiquetas na tabela"
+                      : `Imprimir ${checkedCount} na B1`
+                }
+              >
+                Imprimir selecionadas{checkedCount > 0 ? ` (${checkedCount})` : ""}
+              </Button>
               <Button type="button" size="sm" variant="outline" disabled={pending || !rows.length} onClick={onDownloadAll}>
                 Baixar PNG (todos)
               </Button>
@@ -495,6 +647,22 @@ export function EtiquetasPlanoView() {
                 <table className="w-full text-left text-sm">
                   <thead className="text-xs uppercase text-aion-muted">
                     <tr>
+                      <th className="w-10 py-2 pr-2">
+                        <input
+                          type="checkbox"
+                          checked={allVisibleChecked}
+                          ref={(el) => {
+                            if (el) {
+                              el.indeterminate =
+                                checkedCount > 0 && !allVisibleChecked;
+                            }
+                          }}
+                          disabled={pending || !rows.length}
+                          onChange={toggleAllVisible}
+                          aria-label="Selecionar todas as etiquetas visíveis"
+                          className="align-middle"
+                        />
+                      </th>
                       <th className="py-2 pr-2">Tag</th>
                       <th className="py-2 pr-2">Equipamento</th>
                       <th className="py-2 pr-2">Setor</th>
@@ -511,9 +679,23 @@ export function EtiquetasPlanoView() {
                         className={cn(
                           "border-t border-aion-line/70 cursor-pointer",
                           selected?.tag === row.tag ? "bg-aion-mist/70" : "hover:bg-aion-mist/40",
+                          checkedTags.has(row.tag) && selected?.tag !== row.tag
+                            ? "bg-sky-50/80"
+                            : "",
                         )}
                         onClick={() => setSelectedTag(row.tag)}
                       >
+                        <td className="py-2 pr-2">
+                          <input
+                            type="checkbox"
+                            checked={checkedTags.has(row.tag)}
+                            disabled={pending}
+                            onChange={() => toggleChecked(row.tag)}
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={`Selecionar ${row.tag}`}
+                            className="align-middle"
+                          />
+                        </td>
                         <td className="py-2 pr-2 font-mono text-xs">
                           <Link
                             href={row.fichaVidaPath}
@@ -668,9 +850,33 @@ export function EtiquetasPlanoView() {
               <Button type="button" variant="outline" disabled={pending || !bleOk} onClick={onConnect}>
                 Conectar B1
               </Button>
-              <Button type="button" disabled={pending || !selected || !bleOk} onClick={onPrintSelected}>
-                Imprimir selecionada
+              <Button
+                type="button"
+                disabled={pending || !selected || !bleOk}
+                onClick={onPrintFocused}
+                title="Imprime a etiqueta do mockup (linha em foco)"
+              >
+                Imprimir esta
               </Button>
+              <Button
+                type="button"
+                disabled={pending || checkedCount === 0 || !bleOk}
+                onClick={() => void onPrintChecked()}
+                title={
+                  !bleOk
+                    ? "Web Bluetooth indisponível"
+                    : checkedCount === 0
+                      ? "Marque etiquetas na tabela"
+                      : `Fila B1: ${checkedCount} etiqueta(s)`
+                }
+              >
+                Imprimir selecionadas{checkedCount > 0 ? ` (${checkedCount})` : ""}
+              </Button>
+              {batchRunning ? (
+                <Button type="button" variant="outline" onClick={onCancelBatch}>
+                  Cancelar fila
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="secondary"

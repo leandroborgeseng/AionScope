@@ -137,3 +137,108 @@ export async function printPngOnNiimbotB1(
     onProgress: opts?.onProgress,
   });
 }
+
+export type BatchPrintItem = {
+  tag: string;
+  dataUrl: string;
+};
+
+export type BatchPrintResult = {
+  tag: string;
+  ok: boolean;
+  error?: string;
+  skipped?: boolean;
+};
+
+export type BatchPrintProgress = {
+  index: number;
+  total: number;
+  tag: string;
+  detail: string;
+};
+
+/**
+ * Conecta uma vez à B1 e imprime cada PNG em sequência.
+ * Erros por item não abortam o lote; cancelamento (se pedido) vale entre etiquetas.
+ */
+export async function printPngBatchOnNiimbotB1(
+  items: BatchPrintItem[],
+  size: LabelSizePx,
+  opts?: {
+    onProgress?: (info: BatchPrintProgress) => void;
+    shouldCancel?: () => boolean;
+  },
+): Promise<BatchPrintResult[]> {
+  if (!items.length) return [];
+  if (!webBluetoothSupported()) {
+    throw new Error(
+      "Web Bluetooth indisponível. Use Chrome/Edge em HTTPS (ou localhost) com Bluetooth ligado.",
+    );
+  }
+  const Niimbot = await loadNiimbot();
+  if (!Niimbot.isSupported()) {
+    throw new Error("Este navegador não suporta Web Bluetooth (Chrome/Edge recomendados).");
+  }
+
+  const total = items.length;
+  const niimSize = labelSizeToNiimbot(size);
+  const results: BatchPrintResult[] = [];
+
+  opts?.onProgress?.({
+    index: 0,
+    total,
+    tag: items[0]!.tag,
+    detail: "Conectando à Niimbot B1…",
+  });
+  await Niimbot.connect(NIIMBOT_B1_MODEL);
+
+  for (let i = 0; i < total; i++) {
+    if (opts?.shouldCancel?.()) {
+      for (let j = i; j < total; j++) {
+        results.push({ tag: items[j]!.tag, ok: false, skipped: true, error: "Cancelado" });
+      }
+      opts?.onProgress?.({
+        index: i,
+        total,
+        tag: items[i]!.tag,
+        detail: `Cancelado · ${i} de ${total} enviadas`,
+      });
+      break;
+    }
+
+    const item = items[i]!;
+    const n = i + 1;
+    try {
+      opts?.onProgress?.({
+        index: n,
+        total,
+        tag: item.tag,
+        detail: `Imprimindo ${n} de ${total} · ${item.tag}…`,
+      });
+      await Niimbot.printImage(item.dataUrl, {
+        model: NIIMBOT_B1_MODEL,
+        size: niimSize,
+        copies: 1,
+        onProgress: (s) =>
+          opts?.onProgress?.({
+            index: n,
+            total,
+            tag: item.tag,
+            detail: `${n} de ${total} · ${item.tag}: ${s}`,
+          }),
+      });
+      results.push({ tag: item.tag, ok: true });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      results.push({ tag: item.tag, ok: false, error: message });
+      opts?.onProgress?.({
+        index: n,
+        total,
+        tag: item.tag,
+        detail: `Erro ${n} de ${total} · ${item.tag}: ${message}`,
+      });
+    }
+  }
+
+  return results;
+}
