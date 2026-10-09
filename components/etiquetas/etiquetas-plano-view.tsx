@@ -226,18 +226,14 @@ export function EtiquetasPlanoView() {
     const canvas = previewCanvas ?? previewRef.current;
     if (!canvas || !renderInput) return;
     let cancelled = false;
-    // Sinaliza início do draw (ajuda a diagnosticar effect sem canvas)
-    canvas.dataset.draw = "pending";
     void drawLabelToCanvas(canvas, renderInput)
       .then(() => {
-        if (cancelled) return;
-        canvas.dataset.draw = "ok";
-        setStatus((s) => (s && /canvas|font|QR|etiqueta|NetworkError/i.test(s) ? null : s));
+        if (!cancelled) {
+          setStatus((s) => (s && /canvas|font|QR|etiqueta|NetworkError/i.test(s) ? null : s));
+        }
       })
       .catch((err) => {
-        if (cancelled) return;
-        canvas.dataset.draw = "err";
-        setStatus(err instanceof Error ? err.message : String(err));
+        if (!cancelled) setStatus(err instanceof Error ? err.message : String(err));
       });
     return () => {
       cancelled = true;
