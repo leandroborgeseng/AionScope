@@ -319,6 +319,113 @@ export function AbertasFechadasPctChart({
   );
 }
 
+export type AbertasFechadasDualChartRow = {
+  name: string;
+  abertas: number;
+  fechadas: number;
+  aindaAbertas?: number;
+  pctExecutada: number;
+  pctLabel: string;
+  /** 1 = mês futuro (ainda não chegou). */
+  futuro?: number;
+} & Record<string, string | number | undefined>;
+
+function AbertasFechadasDualTooltip({ active, payload, label }: TooltipContentProps) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload as AbertasFechadasDualChartRow | undefined;
+  if (!row) return null;
+  const pctTexto = row.abertas <= 0 ? "— (sem abertas)" : row.pctLabel;
+  const matar = Number(row.aindaAbertas ?? 0);
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm shadow-md">
+      <p className="font-semibold text-slate-800">
+        {String(label)}
+        {row.futuro ? <span className="ml-1 text-xs font-normal text-amber-700">· à frente</span> : null}
+      </p>
+      <p className="mt-1 text-slate-700">
+        Abertas: <span className="font-semibold tabular-nums">{row.abertas}</span>
+        {" · "}
+        Fechadas: <span className="font-semibold tabular-nums">{row.fechadas}</span>
+      </p>
+      <p className="mt-1 text-slate-800">
+        % executada: <span className="font-semibold tabular-nums">{pctTexto}</span>
+      </p>
+      {matar > 0 ? (
+        <p className="mt-1 text-amber-800">
+          Ainda abertas (trabalho a matar): <span className="font-semibold tabular-nums">{matar}</span>
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Duas barras (abertas × fechadas) + rótulo de % no topo do grupo. */
+export function AbertasFechadasDualBarChart({
+  data,
+  xKey,
+  className,
+  maxBarSize = 28,
+  onRowClick,
+}: {
+  data: AbertasFechadasDualChartRow[];
+  xKey: string;
+  className?: string;
+  maxBarSize?: number;
+  onRowClick?: (row: AbertasFechadasDualChartRow) => void;
+}) {
+  const resolveRow = (state: { activeIndex?: number | string | null; activeLabel?: string | number }) => {
+    const index = chartClickIndex(state.activeIndex);
+    return Number.isFinite(index) ? data[index] : data.find((item) => item[xKey] === state.activeLabel);
+  };
+
+  const yMax = Math.max(
+    1,
+    ...data.map((row) => Math.max(row.abertas, row.fechadas, Number(row.aindaAbertas ?? 0))),
+  );
+
+  return (
+    <div className={cn("h-72 w-full", className)}>
+      <ResponsiveContainer width="100%" height="100%" minHeight={240} debounce={1}>
+        <BarChart
+          data={data}
+          margin={{ top: 22, right: 8, left: 0, bottom: 0 }}
+          barCategoryGap="18%"
+          barGap={2}
+          onClick={(state) => {
+            const row = resolveRow(state);
+            if (row) onRowClick?.(row);
+          }}
+        >
+          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+          <XAxis dataKey={xKey} tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={60} />
+          <YAxis tick={{ fontSize: 11 }} allowDecimals={false} domain={[0, Math.ceil(yMax * 1.15) || 1]} />
+          <Tooltip content={AbertasFechadasDualTooltip} />
+          <Legend />
+          <Bar dataKey="abertas" name="Abertas" fill="#0369a1" maxBarSize={maxBarSize} radius={[3, 3, 0, 0]} cursor="pointer">
+            {data.map((row) => (
+              <Cell key={`a-${row.name}`} fill={row.futuro ? "#7dd3fc" : "#0369a1"} />
+            ))}
+          </Bar>
+          <Bar dataKey="fechadas" name="Fechadas" fill="#0f766e" maxBarSize={maxBarSize} radius={[3, 3, 0, 0]} cursor="pointer">
+            {data.map((row) => (
+              <Cell key={`f-${row.name}`} fill={Number(row.futuro) ? "#5eead4" : "#0f766e"} />
+            ))}
+            <LabelList dataKey="pctLabel" content={PctExecutadaTopLabel} />
+          </Bar>
+          <Bar
+            dataKey="aindaAbertas"
+            name="Ainda abertas"
+            fill="#d97706"
+            maxBarSize={maxBarSize}
+            radius={[3, 3, 0, 0]}
+            cursor="pointer"
+          />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 export type GastoChartRow = {
   name: string;
   gasto: number;

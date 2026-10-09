@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { SaldoStackBarChart, AbertasFechadasPctChart } from "@/components/charts/charts";
+import { SaldoStackBarChart, AbertasFechadasDualBarChart } from "@/components/charts/charts";
 import {
   ChartCard,
   ChartFullscreenDialog,
@@ -19,7 +19,7 @@ import { DataTable } from "@/components/tables/data-table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet } from "@/components/ui/sheet";
-import { formatDateBR } from "@/lib/pbi/dates";
+import { formatDateBR, nowInSaoPaulo } from "@/lib/pbi/dates";
 import { FICHAS, type FichaIndicadorId } from "@/lib/pbi/fichas";
 import type { OsAnaliticoItem } from "@/lib/pbi/types";
 import {
@@ -31,6 +31,8 @@ import {
   VOLUME_EC_TIPO_API,
   buildVolumeAbertasFechadas,
   fraseSaldo,
+  isOsAindaAberta,
+  mesTrabalhoPendente,
   osDataFechadaIndicador,
   pctExecutadaMes,
   rotuloSaldo,
@@ -123,11 +125,15 @@ export function OsVolumeCard({
     [raw, range, volumeOptions],
   );
 
+  const hoje = useMemo(() => nowInSaoPaulo(), []);
   const chartData = useMemo(
     () =>
       volume.months.map((m) => {
         const pct = pctExecutadaMes(m.abertas, m.fechadas);
         const pctRounded = Math.round(pct * 10) / 10;
+        const isFuturo =
+          m.year > hoje.getFullYear() ||
+          (m.year === hoje.getFullYear() && m.month > hoje.getMonth());
         return {
           name: m.label,
           key: m.key,
@@ -135,12 +141,15 @@ export function OsVolumeCard({
           month: m.month,
           abertas: m.abertas,
           fechadas: m.fechadas,
+          aindaAbertas: m.aindaAbertas,
           coberto: m.coberto,
           deficit: m.deficit,
           superavit: m.superavit,
           saldo: m.saldo,
           saldoLabel: m.saldo === 0 ? "" : rotuloSaldo(m.saldo),
           pctExecutada: pctRounded,
+          // 1 = mês à frente (estilo mais claro nas barras)
+          futuro: isFuturo ? 1 : 0,
           // Sem abertas: barra 0 e label "—" (não 0%) — % indefinido.
           pctLabel:
             m.abertas <= 0
@@ -148,7 +157,7 @@ export function OsVolumeCard({
               : `${pctRounded.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`,
         };
       }),
-    [volume.months],
+    [volume.months, hoje],
   );
 
   const pctPeriodo = useMemo(
@@ -200,6 +209,61 @@ export function OsVolumeCard({
     [range, volume.aposEc],
   );
 
+  const openAindaAbertas = useCallback(() => {
+    const rows: VolumeEcRow[] = (volume.aindaAbertasLista ?? volume.aposEc.filter(isOsAindaAberta)).map(
+      (item) => ({
+        ...item,
+        movimento: "Aberta" as const,
+      }),
+    );
+    setMesFiltro("Aberta");
+    setDrill({
+      title: `Trabalho a matar · ainda abertas`,
+      subtitle: `${rows.length} OS sem fechamento nesta oficina — prazo/abertura nos meses à frente entram no gráfico`,
+      rows,
+    });
+  }, [volume.aindaAbertasLista, volume.aposEc]);
+
+  const openMesListaCompleto = useCallback(
+    (row: {
+      name: string;
+      year?: string | number;
+      month?: string | number;
+      abertas?: number;
+      fechadas?: number;
+    }) => {
+      const year = Number(row.year);
+      const month = Number(row.month);
+      const base = volumeEcDoMes(volume.aposEc, year, month);
+      const pendentes = volume.aposEc.filter((item) => {
+        const m = mesTrabalhoPendente(item);
+        return Boolean(m && m.year === year && m.month === month);
+      });
+      const seen = new Set(base.map((r) => `${r.CodigoSerialOS}-${r.OS}`));
+      const merged = [...base];
+      for (const item of pendentes) {
+        const key = `${item.CodigoSerialOS}-${item.OS}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        merged.push({ ...item, movimento: "Aberta" });
+      }
+      const slot = volume.months.find((m) => m.year === year && m.month === month);
+      const abertas = slot?.abertas ?? Number(row.abertas) ?? 0;
+      const fechadas = slot?.fechadas ?? Number(row.fechadas) ?? 0;
+      const pct = pctExecutadaMes(abertas, fechadas);
+      const pctTexto =
+        abertas <= 0 ? "—" : `${pct.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+      setMesFiltro("Todas");
+      setDrill({
+        title: `OS · ${row.name}`,
+        mesLabel: row.name,
+        subtitle: `${abertas} abertas · ${fechadas} fechadas · ${pctTexto} · ${pendentes.length} ainda abertas`,
+        rows: merged,
+      });
+    },
+    [volume.aposEc, volume.months],
+  );
+
   const drillVisible = useMemo(() => {
     if (!drill) return [];
     if (!mesFiltro || mesFiltro === "Todas") return drill.rows;
@@ -225,7 +289,7 @@ export function OsVolumeCard({
   const Heading = headingAs === "page" ? PageHeader : IndicadorHeading;
   const listaTitle = tituloListaVolume(drill, mesFiltro);
 
-  const intervaloOrigemTexto = `ano civil vigente (${range.start.getFullYear()}): ${range.fromISO} a ${range.toISO} (1º de janeiro → fim do mês atual; eixo do gráfico Jan–Dez, meses futuros zerados)`;
+  const intervaloOrigemTexto = `ano civil vigente (${range.start.getFullYear()}): ${range.fromISO} a ${range.toISO} (1º de janeiro → 31 de dezembro; meses à frente mostram abertas/fechadas e trabalho ainda aberto)`;
 
   const defaultDescription = multiOficina
     ? `Soma das oficinas de plano (Preventiva + Calibração + Segurança elétrica) · ${range.label}.`
@@ -434,14 +498,14 @@ export function OsVolumeCard({
 
   const chartKey = oficinaEquals ?? oficinaEqualsIn?.join("|") ?? "ec";
   const chartTitle = porOficina
-    ? `% executada por mês · ${range.label}`
+    ? `Abertas × fechadas por mês · ${range.label}`
     : `Entrada × execução por mês · ${range.label}`;
   const chartHint = porOficina
-    ? "Uma barra = % executada (fechadas÷abertas×100). Rótulo no topo; se abertas=0 → barra 0 e label —. Eixo Jan–Dez; meses futuros zerados. Clique no mês para listar as OS."
-    : "Cada coluna empilha o volume pareado (coberto) e o saldo do mês. Eixo Jan–Dez do ano vigente; meses futuros zerados. Clique no mês para listar as OS abaixo.";
+    ? "Duas barras = abertas e fechadas; rótulo = % (fechadas÷abertas). Laranja = ainda abertas (trabalho a matar), inclusive meses à frente. Clique no mês para listar as OS."
+    : "Cada coluna empilha o volume pareado (coberto) e o saldo do mês. Eixo Jan–Dez do ano vigente. Clique no mês para listar as OS abaixo.";
 
   const chartNode = porOficina ? (
-    <AbertasFechadasPctChart data={chartData} xKey="name" onRowClick={openMesLista} />
+    <AbertasFechadasDualBarChart data={chartData} xKey="name" onRowClick={openMesListaCompleto} />
   ) : (
     <SaldoStackBarChart data={chartData} xKey="name" onRowClick={openMesLista} />
   );
@@ -480,27 +544,36 @@ export function OsVolumeCard({
               }
             />
             {porOficina ? (
-              <KpiCard
-                label="% executada no período"
-                value={
-                  volume.totalAbertas <= 0
-                    ? "—"
-                    : `${pctPeriodo.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`
-                }
-                hint={
-                  volume.totalAbertas <= 0
-                    ? "Sem abertas no ano vigente — % indefinido (—)"
-                    : `fechadas ÷ abertas × 100 no ${range.label}`
-                }
-                tone={volume.totalAbertas <= 0 ? undefined : pctPeriodo >= 100 ? "ok" : "warn"}
-                onClick={() =>
-                  openPeriodo(
-                    "todas",
-                    `Movimento · ${range.label}`,
-                    "OS com abertura ou fechamento no intervalo",
-                  )
-                }
-              />
+              <>
+                <KpiCard
+                  label="% executada no período"
+                  value={
+                    volume.totalAbertas <= 0
+                      ? "—"
+                      : `${pctPeriodo.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`
+                  }
+                  hint={
+                    volume.totalAbertas <= 0
+                      ? "Sem abertas no ano vigente — % indefinido (—)"
+                      : `${volume.totalFechadas} fechadas ÷ ${volume.totalAbertas} abertas`
+                  }
+                  tone={volume.totalAbertas <= 0 ? undefined : pctPeriodo >= 100 ? "ok" : "warn"}
+                  onClick={() =>
+                    openPeriodo(
+                      "todas",
+                      `Movimento · ${range.label}`,
+                      "OS com abertura ou fechamento no intervalo",
+                    )
+                  }
+                />
+                <KpiCard
+                  label="Trabalho a matar"
+                  value={String(volume.totalAindaAbertas ?? 0)}
+                  hint="OS ainda abertas (sem fechamento) — inclui as dos meses à frente"
+                  tone={(volume.totalAindaAbertas ?? 0) > 0 ? "warn" : "ok"}
+                  onClick={openAindaAbertas}
+                />
+              </>
             ) : (
               <KpiCard
                 label="Saldo do período"
@@ -576,14 +649,14 @@ export function OsVolumeCard({
         }
       >
         {porOficina ? (
-          <AbertasFechadasPctChart
+          <AbertasFechadasDualBarChart
             key={`fullscreen-oficina-${range.fromISO}-${range.toISO}-${chartKey}`}
             data={chartData}
             xKey="name"
             className="h-full min-h-[280px]"
-            maxBarSize={48}
+            maxBarSize={40}
             onRowClick={(row) => {
-              openMesLista(row);
+              openMesListaCompleto(row);
               closeFullscreen();
             }}
           />

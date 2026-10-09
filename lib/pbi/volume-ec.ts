@@ -33,6 +33,11 @@ export type VolumeEcMonth = {
   label: string;
   abertas: number;
   fechadas: number;
+  /**
+   * OS ainda abertas cujo prazo/abertura cai neste mês —
+   * trabalho a matar (inclui meses futuros).
+   */
+  aindaAbertas: number;
   /** min(abertas, fechadas) — volume pareado */
   coberto: number;
   /** max(0, abertas − fechadas) — entrou mais do que fechou */
@@ -166,13 +171,14 @@ export function rollingYearRange(today = nowInSaoPaulo()): RollingYearRange {
 
 /**
  * Ano civil vigente (America/Sao_Paulo):
- * - eixo do gráfico: Jan–Dez (meses futuros ainda não ocorridos ficam zerados);
- * - contagem / API: 1º de janeiro → fim do mês atual (inclusive).
+ * - eixo do gráfico: Jan–Dez completo;
+ * - contagem / API: 1º de janeiro → 31 de dezembro (inclui meses futuros —
+ *   OS já abertas com prazo/abertura à frente = trabalho a matar).
  */
 export function currentCalendarYearRange(today = nowInSaoPaulo()): RollingYearRange {
   const year = today.getFullYear();
   const start = new Date(year, 0, 1);
-  const end = new Date(year, today.getMonth() + 1, 0, 23, 59, 59, 999);
+  const end = new Date(year, 11, 31, 23, 59, 59, 999);
   const months: RollingYearRange["months"] = [];
   for (let month = 0; month < 12; month += 1) {
     months.push({
@@ -186,10 +192,37 @@ export function currentCalendarYearRange(today = nowInSaoPaulo()): RollingYearRa
     start,
     end,
     fromISO: format(start, "yyyy-MM-dd"),
-    toISO: format(new Date(year, today.getMonth() + 1, 0), "yyyy-MM-dd"),
+    toISO: format(end, "yyyy-MM-dd"),
     label: `ano vigente (${year})`,
     months,
   };
+}
+
+/** OS ainda em aberto (sem fechamento/solução e não cancelada). */
+export function isOsAindaAberta(
+  os: Pick<OsAnaliticoItem, "Fechamento" | "DataDaSolucao" | "Abertura" | "SituacaoDaOS">,
+) {
+  if (isOsCancelada(os)) return false;
+  return !osDataFechadaIndicador(os);
+}
+
+/**
+ * Mês em que a OS ainda aberta “pesa” no gráfico de trabalho à frente:
+ * PrazoDeEncerramentoOs → DataLimiteDaSolucao → mês da Abertura.
+ */
+export function mesTrabalhoPendente(
+  os: Pick<
+    OsAnaliticoItem,
+    "PrazoDeEncerramentoOs" | "DataLimiteDaSolucao" | "Abertura" | "Fechamento" | "DataDaSolucao" | "SituacaoDaOS"
+  >,
+): { year: number; month: number } | null {
+  if (!isOsAindaAberta(os)) return null;
+  const prazo =
+    parsePbiDate(os.PrazoDeEncerramentoOs) ||
+    parsePbiDate(os.DataLimiteDaSolucao) ||
+    parsePbiDate(os.Abertura);
+  if (!prazo) return null;
+  return { year: prazo.getFullYear(), month: prazo.getMonth() };
 }
 
 function inRange(date: Date | null, start: Date, end: Date) {
@@ -269,17 +302,24 @@ export function buildVolumeAbertasFechadas(
   const months: VolumeEcMonth[] = range.months.map((slot) => {
     let abertas = 0;
     let fechadas = 0;
+    let aindaAbertas = 0;
     for (const item of aposEc) {
       if (inMonth(parsePbiDate(item.Abertura), slot.year, slot.month)) abertas += 1;
       if (inMonth(osDataFechadaIndicador(item), slot.year, slot.month)) fechadas += 1;
+      const pendente = mesTrabalhoPendente(item);
+      if (pendente && pendente.year === slot.year && pendente.month === slot.month) {
+        aindaAbertas += 1;
+      }
     }
-    return { ...slot, abertas, fechadas, ...composeSaldoMes(abertas, fechadas) };
+    return { ...slot, abertas, fechadas, aindaAbertas, ...composeSaldoMes(abertas, fechadas) };
   });
 
   const totalAbertas = aposEc.filter((item) => inRange(parsePbiDate(item.Abertura), range.start, range.end)).length;
   const totalFechadas = aposEc.filter((item) =>
     inRange(osDataFechadaIndicador(item), range.start, range.end),
   ).length;
+  const aindaAbertasLista = aposEc.filter((item) => isOsAindaAberta(item));
+  const totalAindaAbertas = aindaAbertasLista.length;
 
   return {
     aposEc,
@@ -287,6 +327,8 @@ export function buildVolumeAbertasFechadas(
     months,
     totalAbertas,
     totalFechadas,
+    totalAindaAbertas,
+    aindaAbertasLista,
     saldo: totalAbertas - totalFechadas,
     exemplos: sampleOsParaConferencia(noIntervalo),
   };
