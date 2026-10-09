@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Etiqueta AION — Nimbot B1 50x30 mm</title>
+<!--
+  Referência visual da etiqueta para o gerador (Nimbot B1).
+  Escala 2x: 1 px CSS = 0,5 ponto da impressora (16 px = 1 mm).
+  #impressao: 800x480 px (= 400x240 pt) -> é o que vai para a B1.
+  Logo + ID: bloco de 440x248 px girado 90° anti-horário (lê de baixo para cima), na ponta esquerda.
+  Tabela, contato e QR: na horizontal, à direita.
+  Ao gerar o bitmap: reduza 50% (400x240) e converta para 1 bit com limiar 50%.
+-->
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Montserrat:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;background:#ddd;font-family:'Barlow Condensed',sans-serif}
+</style>
+</head>
+<body>
+<div id="impressao" style="width: 800px; height: 480px; position: relative; overflow: hidden; background: #ffffff; color: #000000; font-family: 'Barlow Condensed', sans-serif">
+
+  <div style="position: absolute; left: 0px; top: 0px; width: 170px; height: 480px; background: #000000"></div>
+  <div style="position: absolute; left: 10px; top: 20px; width: 150px; height: 440px">
+    <div style="position: absolute; left: -145px; top: 145px; width: 440px; height: 150px; transform: rotate(-90deg); display: flex; align-items: center; justify-content: center">
+      <svg width="420" height="133" viewBox="0 0 214 68" role="img" aria-label="AION Engenharia" style="display: block; color: #ffffff">
+        <path d="M54.45 15 A28 28 0 1 1 40.25 5.95" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"></path>
+        <circle cx="48.25" cy="9.52" r="3.4" fill="currentColor"></circle>
+        <path d="M22 47 L33 20 L44 47 M27 38 H39" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path>
+        <text x="74" y="44" textLength="136" lengthAdjust="spacing" fill="currentColor" style="font-family: Montserrat, sans-serif; font-weight: 800; font-size: 40px">AION</text>
+        <text x="75" y="61" textLength="134" lengthAdjust="spacing" fill="currentColor" style="font-family: Montserrat, sans-serif; font-weight: 600; font-size: 10px">ENGENHARIA</text>
+      </svg>
+    </div>
+  </div>
+
+  <div style="position: absolute; left: 194px; top: 16px; width: 586px; height: 104px; display: flex; align-items: center; justify-content: space-between; border-bottom: 6px solid #000000; box-sizing: border-box">
+    <div style="font-weight: 600; font-size: 20px; letter-spacing: 3px; line-height: 1.15">EQUIP.<br>Nº</div>
+    <div style="font-weight: 800; font-size: 94px; line-height: 1; letter-spacing: 3px">HSJ-00001</div>
+  </div>
+
+  <div style="position: absolute; left: 194px; top: 140px; width: 276px; height: 320px; display: flex; flex-direction: column; justify-content: space-between">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="height: 48px; display: flex; align-items: center; justify-content: space-between; padding: 0 4px; border-bottom: 2px solid #000000">
+        <div style="font-weight: 700; font-size: 18px; letter-spacing: 3px">REALIZADO</div>
+        <div style="font-weight: 700; font-size: 42px; line-height: 1">07/26</div>
+      </div>
+      <div style="height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px; background: #000000; color: #ffffff; border-radius: 12px">
+        <div style="font-weight: 800; font-size: 18px; letter-spacing: 3px">PRÓXIMO</div>
+        <div style="font-weight: 800; font-size: 52px; line-height: 1">07/27</div>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <div style="height: 44px; box-sizing: border-box; border: 4px solid #000000; border-radius: 10px; display: flex; align-items: center; gap: 12px; padding-left: 10px">
+        <svg width="26" height="26" viewBox="0 0 36 36" aria-hidden="true" style="display: block; flex: 0 0 26px"><rect x="0" y="0" width="36" height="36" rx="8" fill="#000000"></rect><path d="M9 19 L15.5 25.5 L27.5 11.5" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        <div style="font-weight: 800; font-size: 30px; line-height: 1">M.P</div>
+      </div>
+      <div style="height: 44px; box-sizing: border-box; border: 4px solid #000000; border-radius: 10px; display: flex; align-items: center; gap: 12px; padding-left: 10px">
+        <svg width="26" height="26" viewBox="0 0 36 36" aria-hidden="true" style="display: block; flex: 0 0 26px"><rect x="0" y="0" width="36" height="36" rx="8" fill="#000000"></rect><path d="M9 19 L15.5 25.5 L27.5 11.5" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        <div style="font-weight: 800; font-size: 30px; line-height: 1">CAL.</div>
+      </div>
+      <div style="height: 44px; box-sizing: border-box; border: 2px dashed #000000; border-radius: 10px; display: flex; align-items: center; gap: 12px; padding-left: 12px">
+        <svg width="26" height="26" viewBox="0 0 36 36" aria-hidden="true" style="display: block; flex: 0 0 26px"><rect x="2" y="2" width="32" height="32" rx="7" fill="none" stroke="#000000" stroke-width="4"></rect></svg>
+        <div style="font-weight: 600; font-size: 30px; line-height: 1">T.S.E</div>
+      </div>
+    </div>
+    <div style="font-weight: 600; font-size: 20px; line-height: 1; padding-left: 4px">(16) 3030-0445 · aion.eng.br</div>
+  </div>
+
+  <svg width="290" height="290" viewBox="0 0 29 29" shape-rendering="crispEdges" role="img" aria-label="QR code do equipamento" style="position: absolute; left: 490px; top: 140px; display: block">
+    <path fill="#000000" d="M0 0h7v1h-7zM8 0h2v1h-2zM12 0h1v1h-1zM15 0h1v1h-1zM19 0h2v1h-2zM22 0h7v1h-7zM0 1h1v1h-1zM6 1h1v1h-1zM8 1h1v1h-1zM10 1h2v1h-2zM14 1h1v1h-1zM16 1h1v1h-1zM20 1h1v1h-1zM22 1h1v1h-1zM28 1h1v1h-1zM0 2h1v1h-1zM2 2h3v1h-3zM6 2h1v1h-1zM10 2h1v1h-1zM13 2h1v1h-1zM16 2h1v1h-1zM22 2h1v1h-1zM24 2h3v1h-3zM28 2h1v1h-1zM0 3h1v1h-1zM2 3h3v1h-3zM6 3h1v1h-1zM8 3h5v1h-5zM15 3h4v1h-4zM22 3h1v1h-1zM24 3h3v1h-3zM28 3h1v1h-1zM0 4h1v1h-1zM2 4h3v1h-3zM6 4h1v1h-1zM9 4h1v1h-1zM12 4h4v1h-4zM19 4h1v1h-1zM22 4h1v1h-1zM24 4h3v1h-3zM28 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM9 5h1v1h-1zM12 5h1v1h-1zM14 5h1v1h-1zM16 5h4v1h-4zM22 5h1v1h-1zM28 5h1v1h-1zM0 6h7v1h-7zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h7v1h-7zM8 7h1v1h-1zM10 7h1v1h-1zM13 7h2v1h-2zM17 7h3v1h-3zM0 8h1v1h-1zM2 8h2v1h-2zM5 8h3v1h-3zM9 8h2v1h-2zM12 8h3v1h-3zM17 8h2v1h-2zM22 8h1v1h-1zM25 8h1v1h-1zM27 8h2v1h-2zM0 9h1v1h-1zM2 9h2v1h-2zM5 9h1v1h-1zM10 9h1v1h-1zM12 9h1v1h-1zM18 9h2v1h-2zM21 9h4v1h-4zM28 9h1v1h-1zM6 10h1v1h-1zM11 10h1v1h-1zM14 10h1v1h-1zM17 10h2v1h-2zM23 10h2v1h-2zM26 10h2v1h-2zM0 11h1v1h-1zM2 11h1v1h-1zM9 11h1v1h-1zM12 11h3v1h-3zM16 11h1v1h-1zM18 11h1v1h-1zM20 11h5v1h-5zM28 11h1v1h-1zM0 12h1v1h-1zM4 12h4v1h-4zM9 12h3v1h-3zM15 12h3v1h-3zM25 12h2v1h-2zM1 13h1v1h-1zM3 13h3v1h-3zM8 13h2v1h-2zM12 13h2v1h-2zM15 13h1v1h-1zM17 13h3v1h-3zM22 13h2v1h-2zM26 13h3v1h-3zM1 14h2v1h-2zM4 14h1v1h-1zM6 14h1v1h-1zM9 14h1v1h-1zM11 14h1v1h-1zM14 14h1v1h-1zM16 14h1v1h-1zM19 14h1v1h-1zM23 14h2v1h-2zM26 14h3v1h-3zM1 15h1v1h-1zM3 15h1v1h-1zM8 15h1v1h-1zM10 15h1v1h-1zM12 15h2v1h-2zM15 15h1v1h-1zM19 15h2v1h-2zM23 15h2v1h-2zM27 15h1v1h-1zM0 16h1v1h-1zM4 16h4v1h-4zM9 16h1v1h-1zM12 16h1v1h-1zM16 16h1v1h-1zM19 16h3v1h-3zM24 16h2v1h-2zM27 16h1v1h-1zM1 17h1v1h-1zM3 17h2v1h-2zM7 17h1v1h-1zM9 17h2v1h-2zM13 17h1v1h-1zM15 17h3v1h-3zM20 17h1v1h-1zM23 17h1v1h-1zM25 17h3v1h-3zM0 18h1v1h-1zM6 18h3v1h-3zM10 18h3v1h-3zM15 18h1v1h-1zM17 18h1v1h-1zM20 18h1v1h-1zM22 18h2v1h-2zM26 18h1v1h-1zM2 19h1v1h-1zM4 19h2v1h-2zM7 19h1v1h-1zM10 19h2v1h-2zM17 19h2v1h-2zM21 19h2v1h-2zM26 19h1v1h-1zM1 20h1v1h-1zM4 20h4v1h-4zM9 20h1v1h-1zM11 20h3v1h-3zM18 20h9v1h-9zM8 21h1v1h-1zM11 21h1v1h-1zM13 21h2v1h-2zM17 21h2v1h-2zM20 21h1v1h-1zM24 21h5v1h-5zM0 22h7v1h-7zM8 22h1v1h-1zM12 22h2v1h-2zM16 22h2v1h-2zM19 22h2v1h-2zM22 22h1v1h-1zM24 22h2v1h-2zM27 22h1v1h-1zM0 23h1v1h-1zM6 23h1v1h-1zM8 23h1v1h-1zM11 23h2v1h-2zM20 23h1v1h-1zM24 23h2v1h-2zM28 23h1v1h-1zM0 24h1v1h-1zM2 24h3v1h-3zM6 24h1v1h-1zM9 24h1v1h-1zM12 24h1v1h-1zM14 24h1v1h-1zM20 24h5v1h-5zM26 24h1v1h-1zM0 25h1v1h-1zM2 25h3v1h-3zM6 25h1v1h-1zM8 25h3v1h-3zM14 25h2v1h-2zM17 25h2v1h-2zM21 25h1v1h-1zM24 25h2v1h-2zM28 25h1v1h-1zM0 26h1v1h-1zM2 26h3v1h-3zM6 26h1v1h-1zM8 26h2v1h-2zM13 26h1v1h-1zM16 26h2v1h-2zM20 26h1v1h-1zM23 26h1v1h-1zM26 26h1v1h-1zM28 26h1v1h-1zM0 27h1v1h-1zM6 27h1v1h-1zM10 27h1v1h-1zM12 27h3v1h-3zM20 27h1v1h-1zM22 27h2v1h-2zM25 27h1v1h-1zM27 27h1v1h-1zM0 28h7v1h-7zM8 28h1v1h-1zM10 28h1v1h-1zM14 28h2v1h-2zM17 28h2v1h-2zM20 28h1v1h-1zM22 28h1v1h-1zM25 28h1v1h-1zM27 28h1v1h-1z"></path>
+  </svg>
+  <div style="position: absolute; left: 490px; top: 440px; width: 290px; height: 20px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; letter-spacing: 3px">VOID IF SEAL IS BROKEN</div>
+
+</div>
+</body>
+</html>

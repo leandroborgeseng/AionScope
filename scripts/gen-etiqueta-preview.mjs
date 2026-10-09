@@ -1,10 +1,10 @@
 /**
- * Gera docs/ops/etiqueta-50x30-layout.png (384×240) via Chrome headless.
- * Espelha o layout de lib/etiquetas/render-label.ts (kit HTML / screenshots).
+ * Gera docs/ops/etiqueta-50x30-layout.png (400×240) via Chrome headless.
+ * Espelha o layout do kit oficial (LEIA-ME / etiqueta-aion.html) e de render-label.ts.
  */
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
-import { readFileSync, writeFileSync, copyFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, copyFileSync, mkdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import QRCode from "qrcode";
@@ -14,28 +14,42 @@ const root = join(__dirname, "..");
 const outDocs = join(root, "docs/ops/etiqueta-50x30-layout.png");
 const outArt = join("/tmp/cursor/artifacts/etiqueta-50x30-layout.png");
 
-const markB64 = readFileSync(join(root, "public/aion-mark.png")).toString("base64");
 const qrUrl =
   "https://sjh.globalthings.net/Mobile/MEquipamentoPropriedade.aspx?eqp=59";
-const qrDataUrl = await QRCode.toDataURL(qrUrl, {
-  errorCorrectionLevel: "M",
-  margin: 1,
-  width: 240,
-  color: { dark: "#000000", light: "#ffffff" },
-});
+
+const AION_SPINE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="420" height="133" viewBox="0 0 214 68">
+  <path d="M54.45 15 A28 28 0 1 1 40.25 5.95" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="48.25" cy="9.52" r="3.4" fill="#ffffff"/>
+  <path d="M22 47 L33 20 L44 47 M27 38 H39" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="74" y="44" textLength="136" lengthAdjust="spacing" fill="#ffffff" style="font-family: Arial Black, Arial, sans-serif; font-weight: 800; font-size: 40px">AION</text>
+  <text x="75" y="61" textLength="134" lengthAdjust="spacing" fill="#ffffff" style="font-family: Arial, sans-serif; font-weight: 600; font-size: 10px">ENGENHARIA</text>
+</svg>`;
+
+const qr = QRCode.create(qrUrl, { errorCorrectionLevel: "M" });
+const modulesJson = [];
+const n = qr.modules.size;
+for (let row = 0; row < n; row++) {
+  const line = [];
+  for (let col = 0; col < n; col++) line.push(qr.modules.get(row, col) ? 1 : 0);
+  modulesJson.push(line);
+}
 
 const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><style>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Montserrat:wght@600;800&display=swap" rel="stylesheet">
+<style>
   html,body{margin:0;padding:0;background:#fff}
-  canvas{display:block;width:384px;height:240px}
+  canvas{display:block;width:400px;height:240px}
 </style></head><body>
-<canvas id="c" width="384" height="240"></canvas>
+<canvas id="c" width="400" height="240"></canvas>
 <script>
-const LABEL_FONT = 'Arial, "Helvetica Neue", sans-serif';
+const LABEL_FONT = '"Barlow Condensed", Arial, sans-serif';
+const MODULES = ${JSON.stringify(modulesJson)};
+const SPINE_SVG = ${JSON.stringify(AION_SPINE_SVG)};
 const STATUS = [
-  { id: 'preventiva', label: 'M.P', active: true },
-  { id: 'calibracao', label: 'CAL.', active: true },
-  { id: 'tse', label: 'T.S.E', active: false },
+  { label: 'M.P', active: true },
+  { label: 'CAL.', active: true },
+  { label: 'T.S.E', active: false },
 ];
 function roundRect(ctx,x,y,w,h,r){
   const radius=Math.min(r,w/2,h/2);
@@ -47,164 +61,112 @@ function roundRect(ctx,x,y,w,h,r){
   ctx.arcTo(x,y,x+w,y,radius);
   ctx.closePath();
 }
+function fillTextSpaced(ctx,text,x,y,tracking){
+  let total=0; const widths=[];
+  for(const ch of text){ const w=ctx.measureText(ch).width; widths.push(w); total+=w; }
+  total += tracking*Math.max(0,text.length-1);
+  let cursor=x;
+  if(ctx.textAlign==='center') cursor=x-total/2;
+  else if(ctx.textAlign==='right'||ctx.textAlign==='end') cursor=x-total;
+  const prev=ctx.textAlign; ctx.textAlign='left';
+  for(let i=0;i<text.length;i++){ ctx.fillText(text[i],cursor,y); cursor+=widths[i]+tracking; }
+  ctx.textAlign=prev;
+}
 function loadImage(src){
-  return new Promise((res,rej)=>{
-    const img=new Image();
-    img.onload=()=>res(img);
-    img.onerror=()=>rej(new Error(src));
-    img.src=src;
-  });
+  return new Promise((res,rej)=>{ const img=new Image(); img.onload=()=>res(img); img.onerror=()=>rej(new Error(src)); img.src=src; });
 }
-function drawLogoOnBlack(ctx,img,x,y,w,h){
-  const off=document.createElement('canvas');
-  off.width=Math.max(1,Math.round(w));
-  off.height=Math.max(1,Math.round(h));
-  const o=off.getContext('2d');
-  o.drawImage(img,0,0,off.width,off.height);
-  const image=o.getImageData(0,0,off.width,off.height);
-  const d=image.data;
-  for(let i=0;i<d.length;i+=4){
-    const a=d[i+3];
-    if(a<40){d[i+3]=0;continue;}
-    const lum=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
-    if(lum<250){d[i]=d[i+1]=d[i+2]=255;d[i+3]=255;}
-    else d[i+3]=0;
-  }
-  o.putImageData(image,0,0);
-  ctx.drawImage(off,x,y,w,h);
-}
-function drawStatusBox(ctx,opts){
-  const {x,y,w,h,label,active,fontSize,checkSize}=opts;
-  const r=Math.round(h*0.22);
+function drawChip(ctx,opts){
+  const {x,y,w,h,label,active}=opts;
+  const check=13, checkX=x+8, checkY=y+(h-check)/2;
   ctx.save();
   ctx.strokeStyle='#000';
-  ctx.lineWidth=1.25;
-  ctx.setLineDash(active?[]:[2.5,2]);
-  roundRect(ctx,x+0.5,y+0.5,w-1,h-1,r);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  const checkX=x+Math.round(h*0.22);
-  const checkY=y+(h-checkSize)/2;
   if(active){
-    ctx.fillStyle='#000';
-    roundRect(ctx,checkX,checkY,checkSize,checkSize,2); ctx.fill();
-    ctx.strokeStyle='#fff';
-    ctx.lineWidth=Math.max(1.5,checkSize*0.14);
-    ctx.lineCap='round'; ctx.lineJoin='round';
+    ctx.lineWidth=2; ctx.setLineDash([]);
+    roundRect(ctx,x+1,y+1,w-2,h-2,5); ctx.stroke();
+    roundRect(ctx,checkX,checkY,check,check,3); ctx.fillStyle='#000'; ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.lineCap='round'; ctx.lineJoin='round';
     ctx.beginPath();
-    ctx.moveTo(checkX+checkSize*0.22,checkY+checkSize*0.52);
-    ctx.lineTo(checkX+checkSize*0.42,checkY+checkSize*0.72);
-    ctx.lineTo(checkX+checkSize*0.78,checkY+checkSize*0.28);
+    ctx.moveTo(checkX+check*0.22,checkY+check*0.52);
+    ctx.lineTo(checkX+check*0.42,checkY+check*0.72);
+    ctx.lineTo(checkX+check*0.78,checkY+check*0.28);
     ctx.stroke();
+    ctx.fillStyle='#000'; ctx.font='800 15px '+LABEL_FONT;
   } else {
-    ctx.strokeStyle='#000'; ctx.lineWidth=1;
-    roundRect(ctx,checkX,checkY,checkSize,checkSize,2); ctx.stroke();
+    ctx.lineWidth=1; ctx.setLineDash([3,2]);
+    roundRect(ctx,x+0.5,y+0.5,w-1,h-1,5); ctx.stroke(); ctx.setLineDash([]);
+    ctx.lineWidth=2; roundRect(ctx,checkX,checkY,check,check,3); ctx.stroke();
+    ctx.fillStyle='#000'; ctx.font='600 15px '+LABEL_FONT;
   }
-  ctx.fillStyle='#000';
-  ctx.font='700 '+fontSize+'px '+LABEL_FONT;
   ctx.textAlign='left'; ctx.textBaseline='middle';
-  ctx.fillText(label, checkX+checkSize+5, y+h/2);
+  ctx.fillText(label, checkX+check+8, y+h/2);
   ctx.restore();
 }
 async function draw(){
+  await document.fonts.ready;
   const canvas=document.getElementById('c');
   const ctx=canvas.getContext('2d');
-  const W=384,H=240;
-  const spineW=56, pad=7, gap=6;
-  ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
-  // spine
-  ctx.fillStyle='#000'; ctx.fillRect(0,0,spineW,H);
-  const logoSize=28;
-  const logoCx=spineW/2;
-  const logoCy=H-4-logoSize/2;
-  try{
-    const mark=await loadImage('data:image/png;base64,${markB64}');
-    drawLogoOnBlack(ctx,mark,logoCx-logoSize/2,logoCy-logoSize/2,logoSize,logoSize);
-  }catch(e){}
-  const textBottom=logoCy-logoSize/2-4;
-  const textTop=4;
-  const textLen=Math.max(24,textBottom-textTop);
-  ctx.save();
-  ctx.translate(logoCx, textTop+textLen/2);
-  ctx.rotate(-Math.PI/2);
-  ctx.fillStyle='#fff';
-  ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.font='800 18px '+LABEL_FONT;
-  ctx.fillText('AION',0,-18*0.22,textLen);
-  ctx.font='600 8px '+LABEL_FONT;
-  ctx.fillText('ENGENHARIA',0,18*0.42,textLen);
-  ctx.restore();
+  ctx.imageSmoothingEnabled=false;
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,400,240);
 
-  const mainX=spineW+pad, mainRight=W-pad, mainW=mainRight-mainX;
-  const headerH=40;
+  ctx.fillStyle='#000'; ctx.fillRect(0,0,85,240);
+  try{
+    const img=await loadImage('data:image/svg+xml;charset=utf-8,'+encodeURIComponent(SPINE_SVG));
+    ctx.save(); ctx.translate(42.5,120); ctx.rotate(-Math.PI/2);
+    ctx.drawImage(img,-105,-33.25,210,66.5); ctx.restore();
+  }catch(e){}
+
   ctx.fillStyle='#000';
   ctx.textAlign='left'; ctx.textBaseline='top';
-  ctx.font='700 9px '+LABEL_FONT;
-  ctx.fillText('EQUIP.',mainX,pad+2);
-  ctx.fillText('Nº',mainX,pad+2+10);
-  ctx.font='800 24px '+LABEL_FONT;
+  ctx.font='600 10px '+LABEL_FONT;
+  fillTextSpaced(ctx,'EQUIP.',97,14,1.5);
+  fillTextSpaced(ctx,'Nº',97,26,1.5);
+  ctx.font='800 47px '+LABEL_FONT;
   ctx.textAlign='right'; ctx.textBaseline='middle';
-  ctx.fillText('HSJ-00001',mainRight,pad+headerH/2-1,mainW*0.72);
-  const ruleY=pad+headerH;
-  ctx.strokeStyle='#000'; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(mainX,ruleY+0.5); ctx.lineTo(mainRight,ruleY+0.5); ctx.stroke();
+  ctx.fillText('HSJ-00001',390,34,280);
+  ctx.fillRect(97,57,293,3);
 
-  const voidH=12, footerH=14;
-  const contentTop=ruleY+gap;
-  const contentBottom=H-pad-footerH;
-  const qrSide=Math.max(72, Math.min(contentBottom-contentTop-voidH-2, Math.round(mainW*0.4)));
-  const qrX=mainRight-qrSide, qrY=contentTop;
-  const qrImg=await loadImage(${JSON.stringify(qrDataUrl)});
-  ctx.drawImage(qrImg,qrX,qrY,qrSide,qrSide);
-  ctx.fillStyle='#000';
-  ctx.font='700 7.5px '+LABEL_FONT;
-  ctx.textAlign='center'; ctx.textBaseline='top';
-  ctx.fillText('VOID IF SEAL IS BROKEN', qrX+qrSide/2, qrY+qrSide+2, qrSide+4);
-
-  const leftW=Math.max(48, qrX-gap-mainX);
-  let y=contentTop;
-  const labelSize=9, dateSize=15;
   ctx.textAlign='left'; ctx.textBaseline='middle';
-  ctx.font='700 '+labelSize+'px '+LABEL_FONT;
-  const realLabel='REALIZADO';
-  const realLabelW=ctx.measureText(realLabel).width;
-  const realRowH=Math.max(dateSize,labelSize)+2;
-  ctx.fillText(realLabel,mainX,y+realRowH/2);
-  ctx.font='800 '+dateSize+'px '+LABEL_FONT;
-  ctx.fillText('07/26',mainX+realLabelW+5,y+realRowH/2);
-  y+=realRowH+3;
+  ctx.font='700 9px '+LABEL_FONT;
+  fillTextSpaced(ctx,'REALIZADO',97,82,1.5);
+  ctx.font='700 21px '+LABEL_FONT;
+  ctx.textAlign='right';
+  ctx.fillText('07/26',235,82,80);
+  ctx.fillRect(97,93,138,1);
 
-  const pillH=22, pillPadX=7;
-  ctx.font='700 '+Math.round(labelSize*0.95)+'px '+LABEL_FONT;
-  const proxWord='PRÓXIMO';
-  const proxWordW=ctx.measureText(proxWord).width;
-  ctx.font='800 '+dateSize+'px '+LABEL_FONT;
-  const proxDateW=ctx.measureText('07/27').width;
-  const pillW=Math.min(leftW, Math.ceil(pillPadX*2+proxWordW+5+proxDateW));
-  ctx.fillStyle='#000';
-  roundRect(ctx,mainX,y,pillW,pillH,Math.round(pillH*0.5)); ctx.fill();
+  roundRect(ctx,97,97,138,30,6); ctx.fillStyle='#000'; ctx.fill();
   ctx.fillStyle='#fff';
-  ctx.font='700 '+Math.round(labelSize*0.95)+'px '+LABEL_FONT;
-  ctx.fillText(proxWord,mainX+pillPadX,y+pillH/2);
-  ctx.font='800 '+dateSize+'px '+LABEL_FONT;
-  ctx.fillText('07/27',mainX+pillPadX+proxWordW+5,y+pillH/2);
-  y+=pillH+6;
+  ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.font='800 9px '+LABEL_FONT;
+  fillTextSpaced(ctx,'PRÓXIMO',107,112,1.5);
+  ctx.font='800 26px '+LABEL_FONT;
+  ctx.textAlign='right';
+  ctx.fillText('07/27',227,112,70);
 
-  const boxGap=4;
-  const boxH=Math.min(26, Math.floor((contentBottom-2-y-boxGap*2)/3));
-  const boxW=Math.min(leftW,88);
-  const boxFont=Math.round(Math.min(boxH*0.48,12));
-  const checkSize=Math.round(boxH*0.48);
+  let chipY=137;
   for(const row of STATUS){
-    drawStatusBox(ctx,{x:mainX,y,w:boxW,h:boxH,label:row.label,active:row.active,fontSize:boxFont,checkSize});
-    y+=boxH+boxGap;
+    drawChip(ctx,{x:97,y:chipY,w:138,h:22,label:row.label,active:row.active});
+    chipY+=25;
   }
+
   ctx.fillStyle='#000';
-  ctx.font='600 8px '+LABEL_FONT;
-  ctx.textAlign='left'; ctx.textBaseline='bottom';
-  ctx.fillText('(16) 3030-0445 · aion.eng.br', mainX, H-pad, mainW);
-  ctx.strokeStyle='#000'; ctx.lineWidth=1;
-  ctx.strokeRect(0.5,0.5,W-1,H-1);
+  ctx.font='600 10px '+LABEL_FONT;
+  ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText('(16) 3030-0445 · aion.eng.br',97,225,138);
+
+  const n=MODULES.length;
+  let modulePt=5;
+  if(modulePt*n>145) modulePt=Math.max(1,Math.floor(145/n));
+  const qrSize=modulePt*n;
+  const ox=245+Math.floor((145-qrSize)/2);
+  const oy=70+Math.floor((145-qrSize)/2);
+  ctx.fillStyle='#fff'; ctx.fillRect(245,70,145,145);
+  ctx.fillStyle='#000';
+  for(let row=0;row<n;row++) for(let col=0;col<n;col++) if(MODULES[row][col]) ctx.fillRect(ox+col*modulePt,oy+row*modulePt,modulePt,modulePt);
+
+  ctx.font='700 8px '+LABEL_FONT;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  fillTextSpaced(ctx,'VOID IF SEAL IS BROKEN',245+72.5,225,1.5);
+
   window.__DONE__=canvas.toDataURL('image/png');
 }
 draw().catch(e=>{ window.__ERR__=String(e); });
@@ -226,8 +188,21 @@ const url = `http://127.0.0.1:${port}/`;
 const userData = `/tmp/etiqueta-chrome-profile-${process.pid}`;
 mkdirSync(userData, { recursive: true });
 
-const chrome = spawn(
+const chromeBin = [
   "/usr/local/bin/google-chrome",
+  "/usr/bin/google-chrome",
+  "/usr/bin/chromium-browser",
+  "/usr/bin/chromium",
+].find((p) => existsSync(p));
+
+if (!chromeBin) {
+  server.close();
+  console.error("Chrome/Chromium não encontrado — pulando preview PNG");
+  process.exit(0);
+}
+
+const chrome = spawn(
+  chromeBin,
   [
     "--headless=new",
     "--disable-gpu",
@@ -256,16 +231,11 @@ if (!dbgPort) {
   throw new Error("Chrome DevTools não iniciou:\n" + errBuf.join(""));
 }
 
-async function cdp(method, params = {}, sessionId) {
-  // Use HTTP /json/new then WebSocket — simpler: fetch version + page evaluate via /json
-  const res = await fetch(`http://127.0.0.1:${dbgPort}/json`);
-  const targets = await res.json();
-  const page = targets.find((t) => t.type === "page" && t.url.startsWith("http"));
-  if (!page) throw new Error("Sem página: " + JSON.stringify(targets));
-  return page;
-}
+const res = await fetch(`http://127.0.0.1:${dbgPort}/json`);
+const targets = await res.json();
+const page = targets.find((t) => t.type === "page" && t.url.startsWith("http"));
+if (!page) throw new Error("Sem página: " + JSON.stringify(targets));
 
-const page = await cdp();
 const ws = new WebSocket(page.webSocketDebuggerUrl);
 await new Promise((resolve, reject) => {
   ws.addEventListener("open", () => resolve(), { once: true });
@@ -293,7 +263,7 @@ function send(method, params = {}) {
 
 await send("Runtime.enable");
 let dataUrl = null;
-for (let i = 0; i < 40; i++) {
+for (let i = 0; i < 60; i++) {
   const r = await send("Runtime.evaluate", {
     expression: "window.__DONE__ || window.__ERR__ || null",
     returnByValue: true,

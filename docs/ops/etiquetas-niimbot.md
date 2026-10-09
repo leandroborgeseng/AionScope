@@ -2,11 +2,23 @@
 
 Gera e imprime etiquetas para equipamentos com OS **abertas** nas oficinas de plano:
 
-- `PREVENTIVA EQUIPAMENTOS` → chip **PREV**
-- `CALIBRAÇÃO DE EQUIPAMENTOS` → chip **CAL**
-- `SEGURANÇA ELÉTRICA` → chip **TSE**
+- `PREVENTIVA EQUIPAMENTOS` → caixa **M.P**
+- `CALIBRAÇÃO DE EQUIPAMENTOS` → caixa **CAL.**
+- `SEGURANÇA ELÉTRICA` → caixa **T.S.E**
 
-Um equipamento pode ter só Preventiva, Prev+TSE, ou os três. A etiqueta mostra todos os chips aplicáveis.
+Um equipamento pode ter só Preventiva, Prev+TSE, ou os três. A etiqueta mostra as três caixas; as aplicáveis saem sólidas com ✓.
+
+## Kit oficial
+
+Fonte da verdade do layout:
+
+| Arquivo | Conteúdo |
+| --- | --- |
+| `docs/ops/etiqueta-aion-LEIA-ME.md` | Briefing (coordenadas 400×240 pt, tipografia, QR) |
+| `docs/ops/etiqueta-aion.html` | Mock HTML/CSS escala 2× (800×480) |
+| `docs/ops/etiqueta-nimbot-400x240.png` | Bitmap 1-bit 400×240 esperado |
+| `docs/ops/etiqueta-preview-2x.png` | Prévia alta resolução |
+| `docs/ops/etiqueta-50x30-layout.png` | Prévia gerada pelo app (`scripts/gen-etiqueta-preview.mjs`) |
 
 ## URLs
 
@@ -42,31 +54,33 @@ Placeholders do template: `{Id}`, `{Tag}`, `{CodigoCliente}`, `{base}`.
 
 Defina `NEXT_PUBLIC_APP_URL=https://seu-host` no Railway/Coolify para URLs absolutas da ficha vida quando não houver `window` (na UI o QR usa `window.location.origin` como origin da ficha).
 
-## Layout da etiqueta (50×30 mm · principal)
+## Layout da etiqueta (50×30 mm · kit oficial)
 
-Proporção **50:30**, bitmap B1 **384×240 px @ 203 dpi**. O mockup em `/etiquetas` usa o **mesmo canvas** da impressão (WYSIWYG 1:1).
+Proporção **50:30**, bitmap B1 **400×240 pt @ 203 dpi** (8 pt/mm). O mockup em `/etiquetas` usa o **mesmo canvas** da impressão (WYSIWYG 1:1). Fonte: **Barlow Condensed**.
 
 ```
 ┌──────┬────────────────────────────────────┐
 │AION  │ EQUIP. Nº              HSJ-00001   │
 │ENG.  │ ────────────────────────────────── │
-│  ○A  │ REALIZADO 07/26         ┌──────┐   │
-│      │ [PRÓXIMO 07/27]         │  QR  │   │
-│      │ [✓ M.P] [✓ CAL.] […]    │      │   │
+│  ○A  │ REALIZADO      07/26    ┌──────┐   │
+│      │ [PRÓXIMO       07/27]   │  QR  │   │
+│      │ [✓ M.P]                 │      │   │
+│      │ [✓ CAL.]                │      │   │
+│      │ [  T.S.E]               │      │   │
 │      │ tel · aion.eng.br       VOID…  │   │
 └──────┴────────────────────────────────────┘
 ```
 
-1. **Coluna preta (esquerda):** **AION** + **ENGENHARIA** verticais (baixo→cima) + marca circular branca — sem “HSJ · Eng. Clínica”
-2. **Header:** `EQUIP. Nº` + **TAG** grande; hairline
-3. **Datas:** `REALIZADO MM/AA` + pill preta `PRÓXIMO MM/AA`
-4. **Caixas:** **M.P** / **CAL.** / **T.S.E** — sólidas + check quando há OS aberta do tipo; tracejadas + vazias quando N/A
-5. **Direita:** QR → Effort `…?eqp={Id}` (ou ficha vida) + `VOID IF SEAL IS BROKEN`
-6. **Rodapé:** `(16) 3030-0445 · aion.eng.br`
+1. **Faixa preta (x 0–85):** logo AION + ENGENHARIA em branco, −90° (baixo→cima), 210 pt — sem “HSJ · Eng. Clínica”
+2. **Header (y 8–60):** `EQUIP. Nº` + **TAG** 47 pt; linha 3 pt
+3. **REALIZADO / PRÓXIMO:** data MM/AA; pill preta no próximo
+4. **Caixas:** **M.P** / **CAL.** / **T.S.E** — feitas = borda sólida + ✓; não feitas = tracejado + vazio
+5. **QR:** 145×145, ECC **M**, módulo inteiro (ideal 5 pt); Effort `…?eqp={Id}`
+6. **Rodapé:** `(16) 3030-0445 · aion.eng.br` + `VOID IF SEAL IS BROKEN`
 
-Tamanho **40×30 mm** permanece opcional; padrão e foco do mockup = **50×30**.
+A B1 pode deixar ~1 mm branco na borda da faixa preta; isso é normal.
 
-Prévia estática (layout): `docs/ops/etiqueta-50x30-layout.png`.
+Tamanho **40×30 mm** permanece opcional (escala do kit); padrão = **50×30**.
 
 LGPD: sem CPF; apenas Tag e dados de equipamento/OS.
 
@@ -77,17 +91,16 @@ LGPD: sem CPF; apenas Tag e dados de equipamento/OS.
 | `NEXT_PUBLIC_EFFORT_EQUIPAMENTO_URL_TEMPLATE` | `{base}/Mobile/MEquipamentoPropriedade.aspx?eqp={Id}` | Override do deep link Effort |
 | `NEXT_PUBLIC_ETIQUETA_QR_BASE` | `https://sjh.globalthings.net` | Valor de `{base}` |
 | `NEXT_PUBLIC_APP_URL` | _(origin do browser)_ | Base absoluta da ficha vida (fallback) |
-| `NEXT_PUBLIC_ETIQUETA_BRAND` | _(vazio)_ | Não usar “HSJ · Eng. Clínica” (marca = coluna AION) |
+| `NEXT_PUBLIC_ETIQUETA_BRAND` | _(vazio)_ | Não usar “HSJ · Eng. Clínica” (marca = faixa AION) |
 | `NEXT_PUBLIC_ETIQUETA_SITE` | `aion.eng.br` | Site no rodapé (`tel · site`) |
 | `NEXT_PUBLIC_ETIQUETA_TELEFONE` | `(16) 3030-0445` | Telefone no rodapé |
-| `NEXT_PUBLIC_ETIQUETA_LOGO` | `/aion-mark.png` | Marca circular na coluna preta |
+| `NEXT_PUBLIC_ETIQUETA_LOGO` | `/aion-mark.png` | Reservado (faixa usa SVG do kit) |
 
 Exemplo no Railway/Coolify (opcional — o padrão já aponta para o Mobile Effort):
 
 ```env
 NEXT_PUBLIC_ETIQUETA_TELEFONE=(16) 3030-0445
 NEXT_PUBLIC_ETIQUETA_SITE=aion.eng.br
-NEXT_PUBLIC_ETIQUETA_LOGO=/aion-mark.png
 NEXT_PUBLIC_APP_URL=https://seu-host
 NEXT_PUBLIC_ETIQUETA_QR_BASE=https://sjh.globalthings.net
 NEXT_PUBLIC_EFFORT_EQUIPAMENTO_URL_TEMPLATE={base}/Mobile/MEquipamentoPropriedade.aspx?eqp={Id}
