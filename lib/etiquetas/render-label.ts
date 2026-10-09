@@ -101,18 +101,17 @@ export async function drawLabelToCanvas(
   const { size } = input;
   const mode: DrawLabelMode = options?.mode ?? "print";
 
-  await ensureLabelFonts();
-
   const dpr =
     options?.devicePixelRatio ??
     (typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1);
+  const parent = canvas.parentElement;
   const backing = resolveLabelCanvasBackingStore(size, mode, {
-    cssW: canvas.clientWidth,
-    cssH: canvas.clientHeight,
+    cssW: canvas.clientWidth || parent?.clientWidth || 0,
+    cssH: canvas.clientHeight || parent?.clientHeight || 0,
     devicePixelRatio: mode === "preview" ? dpr : 1,
   });
 
-  // width/height reseta o estado do contexto — configurar depois.
+  // Dimensionar antes de await(fonts) — senão um load lento deixa o canvas no default 300×150.
   canvas.width = backing.width;
   canvas.height = backing.height;
   const ctx = canvas.getContext("2d");
@@ -120,8 +119,20 @@ export async function drawLabelToCanvas(
 
   ctx.setTransform(backing.mapX, 0, 0, backing.mapY, 0, 0);
   ctx.imageSmoothingEnabled = backing.smooth;
-  if (backing.smooth) ctx.imageSmoothingQuality = "high";
+  if (backing.smooth) {
+    try {
+      ctx.imageSmoothingQuality = "high";
+    } catch {
+      // browsers antigos
+    }
+  }
 
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, size.wPx, size.hPx);
+
+  await ensureLabelFonts();
+  // Reaplicar transform (por segurança) e limpar antes do kit com fontes prontas.
+  ctx.setTransform(backing.mapX, 0, 0, backing.mapY, 0, 0);
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, size.wPx, size.hPx);
 
@@ -401,26 +412,39 @@ let fontsReady: Promise<void> | null = null;
 function ensureLabelFonts(): Promise<void> {
   if (typeof document === "undefined") return Promise.resolve();
   if (fontsReady) return fontsReady;
-  fontsReady = (async () => {
+  fontsReady = new Promise<void>((resolve) => {
+    const done = () => resolve();
+    const timer = setTimeout(done, 800);
     try {
+      if (!document.fonts?.load) {
+        clearTimeout(timer);
+        done();
+        return;
+      }
       const font = labelFontStack();
       const brand = brandFontStack();
-      // loads pode rejeitar (NetworkError no headless/offline) — não pode derrubar o race
-      const loads = Promise.all([
+      // loads pode rejeitar (NetworkError no headless/offline)
+      void Promise.all([
         document.fonts.load(`600 10px ${font}`),
         document.fonts.load(`700 21px ${font}`),
         document.fonts.load(`800 47px ${font}`),
         document.fonts.load(`800 40px ${brand}`),
         document.fonts.load(`600 10px ${brand}`),
       ]).then(
-        () => undefined,
-        () => undefined,
+        () => {
+          clearTimeout(timer);
+          done();
+        },
+        () => {
+          clearTimeout(timer);
+          done();
+        },
       );
-      await Promise.race([loads, new Promise<void>((r) => setTimeout(r, 800))]);
     } catch {
-      // desenha com fallback do stack
+      clearTimeout(timer);
+      done();
     }
-  })();
+  });
   return fontsReady;
 }
 
