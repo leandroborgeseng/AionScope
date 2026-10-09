@@ -340,7 +340,7 @@ export function EtiquetasPlanoView() {
     <div className="space-y-5">
       <PageHeader
         title="Etiquetas · plano Preventiva / Cal / TSE"
-        description="Etiqueta 50×30 mm (WYSIWYG): logo Aion, site, telefone, chips PREV/CAL/TSE, realização, próxima e QR (Effort se configurado; senão ficha vida AionScope). Impressão Web Bluetooth na Niimbot B1 (Chrome/Edge + HTTPS)."
+        description="Etiqueta 50×30 mm (WYSIWYG): logo + TAG deitados à esquerda, chips pretos PREV/CAL/TSE, datas, site/tel e QR (Effort se configurado; senão ficha vida). Impressão Web Bluetooth na Niimbot B1."
       />
 
       <Card>
