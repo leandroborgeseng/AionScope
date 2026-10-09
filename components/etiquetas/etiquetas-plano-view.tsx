@@ -552,8 +552,8 @@ export function EtiquetasPlanoView() {
           <CardHeader>
             <CardTitle>Mockup WYSIWYG · {size.label}</CardTitle>
             <p className="text-xs text-aion-muted">
-              Bitmap exato {size.wPx}×{size.hPx} px @ 203 dpi (proporção {size.wMm}:{size.hMm}). O que
-              você vê é o que a B1 imprime.
+              Canvas 1:1 com a impressão — {size.wPx}×{size.hPx} px @ 203 dpi ({size.wMm}:{size.hMm}).
+              Faixa esquerda: logo + TAG deitados · chips pretos · QR à direita.
             </p>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -582,8 +582,8 @@ export function EtiquetasPlanoView() {
                 </div>
               </div>
               <p className="mt-3 text-center text-[11px] text-aion-muted">
-                Logo Aion · {branding.site}
-                {branding.telefone ? ` · ${branding.telefone}` : " · telefone via NEXT_PUBLIC_ETIQUETA_TELEFONE"}
+                Logo∥TAG verticais · {branding.site}
+                {branding.telefone ? ` · ${branding.telefone}` : " · NEXT_PUBLIC_ETIQUETA_TELEFONE"}
               </p>
             </div>
 
@@ -618,10 +618,12 @@ export function EtiquetasPlanoView() {
                   </p>
                 ) : (
                   <p>
-                    Sem deep link Effort: configure{" "}
-                    <code className="text-[11px]">NEXT_PUBLIC_EFFORT_EQUIPAMENTO_URL_TEMPLATE</code>{" "}
-                    (a API de equipamentos não devolve URL). Ver{" "}
-                    <code className="text-[11px]">docs/ops/etiquetas-niimbot.md</code>.
+                    Sem Id do equipamento na API — QR cai na ficha vida AionScope. Com Id, o
+                    padrão é Effort{" "}
+                    <code className="text-[11px]">
+                      …/Mobile/MEquipamentoPropriedade.aspx?eqp=&#123;Id&#125;
+                    </code>
+                    . Ver <code className="text-[11px]">docs/ops/etiquetas-niimbot.md</code>.
                   </p>
                 )}
               </div>
