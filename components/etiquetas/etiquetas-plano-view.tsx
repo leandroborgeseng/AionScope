@@ -23,7 +23,7 @@ import { etiquetaBranding } from "@/lib/etiquetas/branding";
 import { resolveEtiquetaQrUrl } from "@/lib/etiquetas/qr-url";
 import {
   downloadDataUrl,
-  drawLabelToCanvas,
+  drawLabelPreviewToCanvas,
   LABEL_PREVIEW_PX_PER_MM,
   labelToPngDataUrl,
 } from "@/lib/etiquetas/render-label";
@@ -123,6 +123,8 @@ export function EtiquetasPlanoView() {
   const previewRef = useRef<HTMLCanvasElement>(null);
   /** Garante redraw quando o <canvas> monta (ref sozinho não re-dispara effect). */
   const [previewCanvas, setPreviewCanvas] = useState<HTMLCanvasElement | null>(null);
+  /** Redraw hi-DPI quando a caixa CSS ou o DPR mudam. */
+  const [previewLayoutTick, setPreviewLayoutTick] = useState(0);
   const bindPreviewCanvas = useCallback((node: HTMLCanvasElement | null) => {
     previewRef.current = node;
     setPreviewCanvas((prev) => (prev === node ? prev : node));
@@ -131,6 +133,20 @@ export function EtiquetasPlanoView() {
   useEffect(() => {
     setBleOk(webBluetoothSupported());
   }, []);
+
+  useEffect(() => {
+    const canvas = previewCanvas;
+    if (!canvas || typeof ResizeObserver === "undefined") return;
+    const bump = () => setPreviewLayoutTick((t) => t + 1);
+    const ro = new ResizeObserver(bump);
+    ro.observe(canvas);
+    const mq = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
+    mq.addEventListener?.("change", bump);
+    return () => {
+      ro.disconnect();
+      mq.removeEventListener?.("change", bump);
+    };
+  }, [previewCanvas]);
 
   const size = LABEL_SIZES_B1.find((s) => s.id === sizeId) ?? LABEL_SIZES_B1[0]!;
   const monthsOpts = monthOptions(year);
@@ -226,7 +242,7 @@ export function EtiquetasPlanoView() {
     const canvas = previewCanvas ?? previewRef.current;
     if (!canvas || !renderInput) return;
     let cancelled = false;
-    void drawLabelToCanvas(canvas, renderInput)
+    void drawLabelPreviewToCanvas(canvas, renderInput)
       .then(() => {
         if (!cancelled) {
           setStatus((s) => (s && /canvas|font|QR|etiqueta|NetworkError/i.test(s) ? null : s));
@@ -238,7 +254,7 @@ export function EtiquetasPlanoView() {
     return () => {
       cancelled = true;
     };
-  }, [renderInput, previewCanvas]);
+  }, [renderInput, previewCanvas, previewLayoutTick]);
 
   function toggleMonth(key: string) {
     setMonths((prev) => {
@@ -566,8 +582,10 @@ export function EtiquetasPlanoView() {
           <CardHeader>
             <CardTitle>Mockup WYSIWYG · {size.label}</CardTitle>
             <p className="text-xs text-aion-muted">
-              Canvas 1:1 com a impressão — {size.wPx}×{size.hPx} px @ 203 dpi ({size.wMm}:{size.hMm}).
-              Coluna AION · EQUIP. Nº + TAG · REALIZADO/PRÓXIMO · M.P/CAL./T.S.E · QR + VOID.
+              Layout idêntico à B1 — impressão {size.wPx}×{size.hPx} px @ 203 dpi ({size.wMm}:
+              {size.hMm} mm). Prévia em tela usa hi-DPI (CSS × devicePixelRatio); PNG/Bluetooth
+              seguem o bitmap 1:1. Coluna AION · EQUIP. Nº + TAG · REALIZADO/PRÓXIMO · M.P/CAL./T.S.E
+              · QR + VOID.
             </p>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -590,7 +608,6 @@ export function EtiquetasPlanoView() {
                   <canvas
                     ref={bindPreviewCanvas}
                     className="block h-full w-full"
-                    style={{ imageRendering: "pixelated" }}
                     aria-label={`Pré-visualização da etiqueta ${size.label}`}
                   />
                 </div>

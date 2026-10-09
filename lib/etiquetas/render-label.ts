@@ -43,24 +43,87 @@ const STATUS_BOXES: { id: PlanoEtiqueta; label: string }[] = [
  *  │      │ tel · site              VOID…  │   │
  *  └──────┴────────────────────────────────────┘
  *
- * Coordenadas em pontos (origem canto superior esquerdo). Mesmo canvas do mockup e da B1.
+ * Coordenadas em pontos (origem canto superior esquerdo).
+ * - mode "print" (default): bitmap 1:1 B1 @ 203 dpi (ex. 400×240) — PNG / Niimbot.
+ * - mode "preview": backing store = caixa CSS × devicePixelRatio (tela nítida).
  */
+export type DrawLabelMode = "print" | "preview";
+
+export type DrawLabelOptions = {
+  /** Default `"print"`. Preview usa DPR; print permanece 203 dpi 1:1. */
+  mode?: DrawLabelMode;
+  /** Override de DPR (testes). Só aplica em mode `"preview"`. */
+  devicePixelRatio?: number;
+};
+
+/**
+ * Escala de exibição do mockup: 1 mm ≈ N px CSS (mantém proporção 50:30).
+ * 8 → 50×30 mm = 400×240 CSS (igual ao pt do print); com DPR 2 ≈ kit HTML 800×480.
+ */
+export const LABEL_PREVIEW_PX_PER_MM = 8;
+
+/** Dimensões do bitmap e escala lógica→físico (print 1:1 vs preview CSS×DPR). */
+export function resolveLabelCanvasBackingStore(
+  size: LabelSizePx,
+  mode: DrawLabelMode,
+  opts?: { cssW?: number; cssH?: number; devicePixelRatio?: number },
+): { width: number; height: number; mapX: number; mapY: number; smooth: boolean } {
+  if (mode === "preview") {
+    const fallbackW = size.wMm * LABEL_PREVIEW_PX_PER_MM;
+    const fallbackH = size.hMm * LABEL_PREVIEW_PX_PER_MM;
+    const cssW = opts?.cssW && opts.cssW > 0 ? opts.cssW : fallbackW;
+    const cssH = opts?.cssH && opts.cssH > 0 ? opts.cssH : fallbackH;
+    const dpr = opts?.devicePixelRatio && opts.devicePixelRatio > 0 ? opts.devicePixelRatio : 1;
+    const width = Math.max(1, Math.round(cssW * dpr));
+    const height = Math.max(1, Math.round(cssH * dpr));
+    return {
+      width,
+      height,
+      mapX: width / size.wPx,
+      mapY: height / size.hPx,
+      smooth: true,
+    };
+  }
+  return {
+    width: size.wPx,
+    height: size.hPx,
+    mapX: 1,
+    mapY: 1,
+    smooth: false,
+  };
+}
+
 export async function drawLabelToCanvas(
   canvas: HTMLCanvasElement,
   input: LabelRenderInput,
+  options?: DrawLabelOptions,
 ): Promise<void> {
   const { size } = input;
-  canvas.width = size.wPx;
-  canvas.height = size.hPx;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas 2D indisponível");
+  const mode: DrawLabelMode = options?.mode ?? "print";
 
   await ensureLabelFonts();
 
+  const dpr =
+    options?.devicePixelRatio ??
+    (typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1);
+  const backing = resolveLabelCanvasBackingStore(size, mode, {
+    cssW: canvas.clientWidth,
+    cssH: canvas.clientHeight,
+    devicePixelRatio: mode === "preview" ? dpr : 1,
+  });
+
+  // width/height reseta o estado do contexto — configurar depois.
+  canvas.width = backing.width;
+  canvas.height = backing.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas 2D indisponível");
+
+  ctx.setTransform(backing.mapX, 0, 0, backing.mapY, 0, 0);
+  ctx.imageSmoothingEnabled = backing.smooth;
+  if (backing.smooth) ctx.imageSmoothingQuality = "high";
+
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, size.wPx, size.hPx);
-  // Sem antialias em texto/formas onde possível (termossensível 1-bit)
-  ctx.imageSmoothingEnabled = false;
 
   if (size.id === "50x30" && size.wPx === 400 && size.hPx === 240) {
     await drawKit50x30(ctx, input);
@@ -74,6 +137,15 @@ export async function drawLabelToCanvas(
   ctx.scale(scaleX, scaleY);
   await drawKit50x30(ctx, { ...input, size: { ...size, wPx: 400, hPx: 240, id: "50x30" } });
   ctx.restore();
+}
+
+/** Mockup de tela: layout idêntico ao print, resolução do backing store = CSS × DPR. */
+export async function drawLabelPreviewToCanvas(
+  canvas: HTMLCanvasElement,
+  input: LabelRenderInput,
+  options?: Omit<DrawLabelOptions, "mode">,
+): Promise<void> {
+  return drawLabelToCanvas(canvas, input, { ...options, mode: "preview" });
 }
 
 async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInput) {
@@ -434,7 +506,8 @@ export async function labelToPngDataUrl(
   canvas?: HTMLCanvasElement,
 ): Promise<string> {
   const el = canvas ?? document.createElement("canvas");
-  await drawLabelToCanvas(el, input);
+  // Sempre bitmap de impressão (203 dpi 1:1) — nunca o preview hi-DPI.
+  await drawLabelToCanvas(el, input, { mode: "print" });
   return el.toDataURL("image/png");
 }
 
@@ -451,6 +524,3 @@ export function downloadDataUrl(dataUrl: string, filename: string) {
 export function resolveLabelSize(id: LabelSizePx["id"] | string): LabelSizePx {
   return LABEL_SIZES_B1.find((s) => s.id === id) ?? LABEL_SIZES_B1[0]!;
 }
-
-/** Escala de exibição do mockup: 1 mm ≈ N px CSS (mantém proporção 50:30). */
-export const LABEL_PREVIEW_PX_PER_MM = 7.2;

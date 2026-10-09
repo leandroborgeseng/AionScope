@@ -56,7 +56,7 @@ Defina `NEXT_PUBLIC_APP_URL=https://seu-host` no Railway/Coolify para URLs absol
 
 ## Layout da etiqueta (50×30 mm · kit oficial)
 
-Proporção **50:30**, bitmap B1 **400×240 pt @ 203 dpi** (8 pt/mm). O mockup em `/etiquetas` usa o **mesmo canvas** da impressão (WYSIWYG 1:1). Fonte: **Barlow Condensed**.
+Proporção **50:30**, bitmap B1 **400×240 pt @ 203 dpi** (8 pt/mm). O mockup em `/etiquetas` desenha o **mesmo layout** em coordenadas de impressão; a prévia de tela usa backing store **CSS × devicePixelRatio** (nítido em retina). PNG / Niimbot continuam no bitmap 203 dpi 1:1 — sem suavizar o dado térmico. Fonte: **Barlow Condensed**.
 
 ```
 ┌──────┬────────────────────────────────────┐
