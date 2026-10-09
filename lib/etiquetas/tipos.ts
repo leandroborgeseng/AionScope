@@ -90,14 +90,18 @@ export type LabelSizePx = {
   offsetYPx: number;
 };
 
-/** Tamanhos de etiqueta para Niimbot B1 (203 dpi). */
+/**
+ * Tamanhos de etiqueta para Niimbot B1 (203 dpi = 8 pt/mm).
+ * Kit oficial 50×30 → **400 × 240 pt** (LEIA-ME / etiqueta-aion.html).
+ * A B1 pode deixar ~1 mm branco na borda da faixa preta — normal.
+ */
 export const LABEL_SIZES_B1: readonly LabelSizePx[] = [
   {
     id: "50x30",
     label: "50 × 30 mm",
     wMm: 50,
     hMm: 30,
-    wPx: 384,
+    wPx: 400,
     hPx: 240,
     offsetYPx: 4,
   },
