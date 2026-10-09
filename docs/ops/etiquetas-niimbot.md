@@ -19,6 +19,7 @@ Fonte da verdade do layout:
 | `docs/ops/etiqueta-nimbot-400x240.png` | Bitmap 1-bit 400×240 esperado |
 | `docs/ops/etiqueta-preview-2x.png` | Prévia alta resolução |
 | `docs/ops/etiqueta-50x30-layout.png` | Prévia gerada pelo app (`scripts/gen-etiqueta-preview.mjs`) |
+| `docs/ops/etiqueta-preview-hidpi.png` | Mockup hi-DPI (CSS × DPR) capturado de `/etiquetas` |
 
 ## URLs
 
