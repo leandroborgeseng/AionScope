@@ -6,20 +6,20 @@ describe("etiquetaContatoLine", () => {
   it("inclui site e telefone", () => {
     const b: EtiquetaBranding = {
       brand: "HSJ",
-      site: "aion.eng.br",
-      telefone: "(11) 1234-5678",
+      site: "www.aion.eng.br",
+      telefone: "(16) 3030-0445",
       logoUrl: "/aion-logo.png",
     };
-    assert.equal(etiquetaContatoLine(b), "aion.eng.br · (11) 1234-5678");
+    assert.equal(etiquetaContatoLine(b), "www.aion.eng.br · (16) 3030-0445");
   });
 
-  it("mantém slot de telefone quando vazio", () => {
+  it("usa telefone padrão Aion quando vazio", () => {
     const b: EtiquetaBranding = {
       brand: "HSJ",
-      site: "aion.eng.br",
+      site: "www.aion.eng.br",
       telefone: "",
       logoUrl: "/aion-logo.png",
     };
-    assert.equal(etiquetaContatoLine(b), "aion.eng.br · Tel. —");
+    assert.equal(etiquetaContatoLine(b), "www.aion.eng.br · (16) 3030-0445");
   });
 });
