@@ -49,8 +49,8 @@ No Railway: deploy do `Dockerfile` + **Volume** em **Settings → Volumes** mont
 | `/sala` | TV da EC (1920×1080, rotação de telas) |
 | `/sala/registros` | Cadastro manual: impedimentos, P04–P07, melhorias, feriados |
 | `/indicadores/treinamentos-bombas` | Treinamentos bombas B. Braun (KPIs, setores, tabela, evidências) |
-| `/etiquetas` | Etiquetas Prev/Cal/TSE (OS abertas) + QR ficha vida + Niimbot B1 |
-| `/equipamentos/[tag]` | Ficha vida do equipamento (destino do QR) |
+| `/etiquetas` | Etiquetas Prev/Cal/TSE (OS abertas) + QR Effort/ficha vida + Niimbot B1 |
+| `/equipamentos/[tag]` | Ficha vida do equipamento (fallback do QR) |
 | `/sala/treinamentos` | TV — resumo de treinamentos B. Braun (sem nomes) |
 | `/sala/ordens-compra` | Ordens formais do robô E-Mails Compras (filtros + categoria) |
 
