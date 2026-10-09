@@ -17,7 +17,7 @@ export const INDICADORES = [
     href: "/etiquetas",
     label: "Etiquetas · plano (Niimbot B1)",
     blurb:
-      "OS abertas Prev/Cal/TSE → etiquetas com realização, próxima e QR da ficha vida. Preview, PNG e impressão Web Bluetooth na B1.",
+      "OS abertas Prev/Cal/TSE → etiquetas com realização, próxima e QR (Effort se template configurado; senão ficha vida). Preview, PNG e impressão Web Bluetooth na B1.",
   },
   {
     href: "/indicadores/gasto-reparo-equipamentos-medicos",

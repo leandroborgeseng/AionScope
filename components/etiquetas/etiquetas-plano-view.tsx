@@ -10,7 +10,6 @@ import { TableSkeleton } from "@/components/ui/skeleton";
 import { useOsAnaliticoRollingYear } from "@/hooks/use-os-analitico-rolling-year";
 import { dataOf, usePbiQuery } from "@/hooks/use-pbi";
 import {
-  absoluteFichaVidaUrl,
   agregarEtiquetasPlano,
   formatMesAno,
   formatProximaLabel,
@@ -21,6 +20,7 @@ import {
   webBluetoothSupported,
 } from "@/lib/etiquetas/niimbot-client";
 import { etiquetaBranding } from "@/lib/etiquetas/branding";
+import { resolveEtiquetaQrUrl } from "@/lib/etiquetas/qr-url";
 import {
   downloadDataUrl,
   drawLabelToCanvas,
@@ -37,7 +37,7 @@ import {
 } from "@/lib/etiquetas/tipos";
 import { EMPTY_FILTERS } from "@/lib/pbi/filters";
 import { nowInSaoPaulo, parsePbiDate } from "@/lib/pbi/dates";
-import type { CronogramaItem } from "@/lib/pbi/types";
+import type { CronogramaItem, EquipamentoItem } from "@/lib/pbi/types";
 import { cn } from "@/lib/utils";
 
 function currentMonthKey(today = nowInSaoPaulo()) {
@@ -80,6 +80,33 @@ export function EtiquetasPlanoView() {
   const cronoQ = usePbiQuery<CronogramaItem[]>("cronograma", cronoFilters, {
     qtdPorPagina: "100000",
   });
+
+  /** Cadastro: Id / CodigoCliente para deep link Effort no QR (API não traz URL). */
+  const eqFilters = useMemo(
+    () => ({
+      ...EMPTY_FILTERS,
+      from: "",
+      to: "",
+      tipoManutencao: "Todos" as const,
+      somenteMedicos: false,
+    }),
+    [],
+  );
+  const eqQ = usePbiQuery<EquipamentoItem[]>("equipamentos", eqFilters, {
+    apenasAtivos: "false",
+    incluirComponentes: "false",
+    incluirCustoSubstituicao: "false",
+    qtdPorPagina: "100000",
+  });
+
+  const eqByTag = useMemo(() => {
+    const map = new Map<string, EquipamentoItem>();
+    for (const item of dataOf(eqQ.data) ?? []) {
+      const key = (item.Tag ?? "").trim().toLocaleUpperCase("pt-BR");
+      if (key) map.set(key, item);
+    }
+    return map;
+  }, [eqQ.data]);
 
   const [months, setMonths] = useState<string[]>(() => [currentMonthKey(today)]);
   const [planosOn, setPlanosOn] = useState<Record<PlanoEtiqueta, boolean>>({
@@ -142,13 +169,26 @@ export function EtiquetasPlanoView() {
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
+  function qrForRow(row: EtiquetaEquipamento | null, tagFallback: string) {
+    const tag = row?.tag ?? tagFallback;
+    const fichaPath = row?.fichaVidaPath ?? `/equipamentos/${encodeURIComponent(tag)}`;
+    const eq = eqByTag.get(tag.trim().toLocaleUpperCase("pt-BR"));
+    return resolveEtiquetaQrUrl({
+      tag,
+      id: eq?.Id,
+      codigoCliente: eq?.CodigoCliente,
+      fichaVidaPath: fichaPath,
+      origin: origin || undefined,
+    });
+  }
+
   function buildRenderInput(row: EtiquetaEquipamento | null): LabelRenderInput {
     const tag = row?.tag ?? "EQ-DEMO";
     const equipamento = row?.equipamento || "Monitor multiparamétrico";
     const planos = row?.planos?.length ? row.planos : (["preventiva", "tse"] as PlanoEtiqueta[]);
     const realizacao = row?.realizacao ?? new Date(year, today.getMonth(), 1);
     const proxima = row?.proxima ?? new Date(year + 1, today.getMonth(), 15);
-    const fichaPath = row?.fichaVidaPath ?? `/equipamentos/${encodeURIComponent(tag)}`;
+    const qr = qrForRow(row, tag);
     return {
       brand: branding.brand,
       site: branding.site,
@@ -159,14 +199,19 @@ export function EtiquetasPlanoView() {
       planos,
       realizacaoLabel: formatMesAno(realizacao),
       proximaLabel: formatProximaLabel(proxima),
-      qrUrl: absoluteFichaVidaUrl(fichaPath, origin || undefined),
+      qrUrl: qr.url,
       size,
     };
   }
 
+  const selectedQr = useMemo(
+    () => (selected ? qrForRow(selected, selected.tag) : null),
+    [selected, eqByTag, origin],
+  );
+
   const renderInput = useMemo(
     () => buildRenderInput(selected),
-    [selected, origin, size, branding, year, today],
+    [selected, origin, size, branding, year, today, eqByTag],
   );
 
   useEffect(() => {
@@ -196,7 +241,14 @@ export function EtiquetasPlanoView() {
     action: (dataUrl: string) => Promise<void>,
   ) {
     const input = buildRenderInput(row);
-    input.qrUrl = absoluteFichaVidaUrl(row.fichaVidaPath, window.location.origin);
+    const qr = resolveEtiquetaQrUrl({
+      tag: row.tag,
+      id: eqByTag.get(row.tag.trim().toLocaleUpperCase("pt-BR"))?.Id,
+      codigoCliente: eqByTag.get(row.tag.trim().toLocaleUpperCase("pt-BR"))?.CodigoCliente,
+      fichaVidaPath: row.fichaVidaPath,
+      origin: window.location.origin,
+    });
+    input.qrUrl = qr.url;
     const dataUrl = await labelToPngDataUrl(input);
     await action(dataUrl);
   }
@@ -288,7 +340,7 @@ export function EtiquetasPlanoView() {
     <div className="space-y-5">
       <PageHeader
         title="Etiquetas · plano Preventiva / Cal / TSE"
-        description="Etiqueta 50×30 mm (WYSIWYG): logo Aion, site, telefone, chips PREV/CAL/TSE, realização, próxima e QR da ficha vida. Impressão Web Bluetooth na Niimbot B1 (Chrome/Edge + HTTPS)."
+        description="Etiqueta 50×30 mm (WYSIWYG): logo Aion, site, telefone, chips PREV/CAL/TSE, realização, próxima e QR (Effort se configurado; senão ficha vida AionScope). Impressão Web Bluetooth na Niimbot B1 (Chrome/Edge + HTTPS)."
       />
 
       <Card>
@@ -535,13 +587,44 @@ export function EtiquetasPlanoView() {
               </p>
             </div>
 
-            {selected ? (
-              <p className="text-xs text-aion-muted break-all">
-                QR →{" "}
-                <Link href={selected.fichaVidaPath} className="text-aion-blue hover:underline">
-                  {absoluteFichaVidaUrl(selected.fichaVidaPath, origin || undefined)}
-                </Link>
-              </p>
+            {selected && selectedQr ? (
+              <div className="space-y-1 text-xs text-aion-muted break-all">
+                <p>
+                  QR →{" "}
+                  {selectedQr.source === "effort-template" ? (
+                    <a
+                      href={selectedQr.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-aion-blue hover:underline"
+                    >
+                      {selectedQr.url}
+                    </a>
+                  ) : (
+                    <Link href={selected.fichaVidaPath} className="text-aion-blue hover:underline">
+                      {selectedQr.url}
+                    </Link>
+                  )}{" "}
+                  <Badge tone={selectedQr.source === "effort-template" ? "ok" : "info"}>
+                    {selectedQr.source === "effort-template" ? "Effort" : "Ficha vida"}
+                  </Badge>
+                </p>
+                {selectedQr.source === "effort-template" ? (
+                  <p>
+                    Ficha AionScope (secundária):{" "}
+                    <Link href={selected.fichaVidaPath} className="text-aion-blue hover:underline">
+                      {selectedQr.fichaVidaUrl}
+                    </Link>
+                  </p>
+                ) : (
+                  <p>
+                    Sem deep link Effort: configure{" "}
+                    <code className="text-[11px]">NEXT_PUBLIC_EFFORT_EQUIPAMENTO_URL_TEMPLATE</code>{" "}
+                    (a API de equipamentos não devolve URL). Ver{" "}
+                    <code className="text-[11px]">docs/ops/etiquetas-niimbot.md</code>.
+                  </p>
+                )}
+              </div>
             ) : (
               <p className="text-xs text-aion-muted">
                 Mockup de demonstração — selecione um equipamento na tabela para dados reais.
