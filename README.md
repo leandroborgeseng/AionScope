@@ -81,4 +81,4 @@ Esse endpoint exige `empresasId`. O São Joaquim é o id `2` (`PBI_DEFAULT_EMPRE
 
 ## Cache
 
-As API Routes guardam respostas em memória por 15 minutos (`PBI_CACHE_SECONDS=900`) para não sobrecarregar a GlobalThings.
+As API Routes guardam respostas em memória por 15 minutos (`PBI_CACHE_SECONDS=900`) para não sobrecarregar a GlobalThings. O cadastro de **equipamentos** usa TTL longo (`PBI_CACHE_EQUIPAMENTOS_SECONDS`, padrão 12h) com cache em disco no volume (`/data/pbi-cache`), porque o parque muda pouco.
