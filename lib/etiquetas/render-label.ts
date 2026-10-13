@@ -30,9 +30,9 @@ function brandFontStack(): string {
 
 /** Caixas de status impressas (sempre as três; ativas = sólidas + check). */
 const STATUS_BOXES: { id: PlanoEtiqueta; label: string }[] = [
-  { id: "preventiva", label: "M. Preventiva" },
+  { id: "preventiva", label: "Manut. Preventiva" },
   { id: "calibracao", label: "Calibração" },
-  { id: "tse", label: "T. Seg. Elétrica" },
+  { id: "tse", label: "Teste Seg. Elétrica" },
 ];
 
 /**
@@ -44,7 +44,7 @@ const STATUS_BOXES: { id: PlanoEtiqueta; label: string }[] = [
  *  │    │ ──────────────────────────────────── │
  *  │    │ REALIZADO      07/26      ┌──────┐   │
  *  │    │ [PRÓXIMO       07/27]     │  QR  │   │
- *  │    │ [✓ M. Preventiva] …       │      │   │
+ *  │    │ [✓ Manut. Preventiva] …   │      │   │
  *  │    │ (16) … · aion.eng.br                 │
  *  └────┴──────────────────────────────────────┘
  *
