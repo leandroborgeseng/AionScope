@@ -30,9 +30,9 @@ function brandFontStack(): string {
 
 /** Caixas de status impressas (sempre as três; ativas = sólidas + check). */
 const STATUS_BOXES: { id: PlanoEtiqueta; label: string }[] = [
-  { id: "preventiva", label: "M.P" },
-  { id: "calibracao", label: "CAL." },
-  { id: "tse", label: "T.S.E" },
+  { id: "preventiva", label: "M. Preventiva" },
+  { id: "calibracao", label: "Calibração" },
+  { id: "tse", label: "T. Seg. Elétrica" },
 ];
 
 /**
@@ -44,7 +44,7 @@ const STATUS_BOXES: { id: PlanoEtiqueta; label: string }[] = [
  *  │  ○A  │ ────────────────────────────────── │
  *  │      │ REALIZADO      07/26    ┌──────┐   │
  *  │      │ [PRÓXIMO       07/27]   │  QR  │   │
- *  │      │ [✓ M.P]  [✓ CAL.] …     │      │   │
+ *  │      │ [✓ M. Preventiva] …     │      │   │
  *  │      │ tel · site              VOID…  │   │
  *  └──────┴────────────────────────────────────┘
  *
@@ -234,7 +234,7 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   ctx.textAlign = "right";
   fillThermalText(ctx, proxima, 227, 112, 70);
 
-  // ——— Testes M.P / CAL. / T.S.E (x 97–235, y 137–207) ———
+  // ——— Testes M. Preventiva / Calibração / T. Seg. Elétrica ———
   const planosSet = new Set(input.planos);
   const chipCount = STATUS_BOXES.length;
   const chipGap = 3;
