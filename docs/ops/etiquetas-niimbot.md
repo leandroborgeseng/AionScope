@@ -133,8 +133,19 @@ Alterar `NEXT_PUBLIC_*` exige **rebuild/redeploy** (valores são embutidos no bu
 
 - Layout em **cards** + mockup no topo + **barra de ações fixa** na base.
 - **Android Chrome/Edge** + HTTPS: Web Bluetooth pode imprimir direto na B1.
-- **iPhone (Safari):** sem Web Bluetooth — use **PNG sel.** e o app Niimbot.
+- **iPhone (Safari):** sem Web Bluetooth — use **PNG sel.** / **Imprimir setor** e o app Niimbot.
 - Adicione à tela inicial (PWA leve via `apple-mobile-web-app`) para uso mais próximo de app.
+
+### Fluxo operacional
+
+| Recurso | Onde |
+| --- | --- |
+| Histórico “já impressa” (tag+mês) | `localStorage` neste aparelho · filtro **Ocultar já impressas** |
+| **Imprimir setor** | Seleciona o setor filtrado e imprime na B1 (ou baixa PNG no iOS) |
+| Pré-checagem BLE | Banner Android/iOS/desktop no topo dos filtros |
+| Pacote offline | **Guardar setor offline** → IndexedDB; baixar depois sem rede |
+| Traço térmico | Slider fino↔forte (limiar PNG + densidade B1) |
+| **Abrir QR** | Valida o link Effort/ficha no navegador antes de gastar etiqueta |
 
 ## Impressão Niimbot B1 (Web Bluetooth)
 

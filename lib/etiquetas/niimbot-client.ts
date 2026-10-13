@@ -123,7 +123,7 @@ export function loadNiimbot(): Promise<NiimbotApi> {
 export async function printPngOnNiimbotB1(
   dataUrl: string,
   size: LabelSizePx,
-  opts?: { copies?: number; onProgress?: (s: string) => void },
+  opts?: { copies?: number; density?: number; onProgress?: (s: string) => void },
 ) {
   if (!webBluetoothSupported()) {
     throw new Error(
@@ -134,10 +134,13 @@ export async function printPngOnNiimbotB1(
   if (!Niimbot.isSupported()) {
     throw new Error("Este navegador não suporta Web Bluetooth (Chrome/Edge recomendados).");
   }
+  const density = opts?.density ?? NIIMBOT_B1_MODEL.density;
+  const model = density === NIIMBOT_B1_MODEL.density ? NIIMBOT_B1_MODEL : { ...NIIMBOT_B1_MODEL, density };
   await Niimbot.printImage(dataUrl, {
-    model: NIIMBOT_B1_MODEL,
+    model,
     size: labelSizeToNiimbot(size),
     copies: opts?.copies ?? 1,
+    density,
     onProgress: opts?.onProgress,
   });
 }
@@ -169,6 +172,7 @@ export async function printPngBatchOnNiimbotB1(
   items: BatchPrintItem[],
   size: LabelSizePx,
   opts?: {
+    density?: number;
     onProgress?: (info: BatchPrintProgress) => void;
     shouldCancel?: () => boolean;
   },
@@ -184,6 +188,8 @@ export async function printPngBatchOnNiimbotB1(
     throw new Error("Este navegador não suporta Web Bluetooth (Chrome/Edge recomendados).");
   }
 
+  const density = opts?.density ?? NIIMBOT_B1_MODEL.density;
+  const model = density === NIIMBOT_B1_MODEL.density ? NIIMBOT_B1_MODEL : { ...NIIMBOT_B1_MODEL, density };
   const total = items.length;
   const niimSize = labelSizeToNiimbot(size);
   const results: BatchPrintResult[] = [];
@@ -194,7 +200,7 @@ export async function printPngBatchOnNiimbotB1(
     tag: items[0]!.tag,
     detail: "Conectando à Niimbot B1…",
   });
-  await Niimbot.connect(NIIMBOT_B1_MODEL);
+  await Niimbot.connect(model);
 
   for (let i = 0; i < total; i++) {
     if (opts?.shouldCancel?.()) {
@@ -220,9 +226,10 @@ export async function printPngBatchOnNiimbotB1(
         detail: `Imprimindo ${n} de ${total} · ${item.tag}…`,
       });
       await Niimbot.printImage(item.dataUrl, {
-        model: NIIMBOT_B1_MODEL,
+        model,
         size: niimSize,
         copies: 1,
+        density,
         onProgress: (s) =>
           opts?.onProgress?.({
             index: n,
