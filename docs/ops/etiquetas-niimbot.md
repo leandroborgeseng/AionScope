@@ -57,7 +57,7 @@ Defina `NEXT_PUBLIC_APP_URL=https://seu-host` no Railway/Coolify para URLs absol
 
 ## Layout da etiqueta (50×30 mm · kit oficial)
 
-Proporção **50:30**. Kit de desenho **400×240 pt**; bitmap enviado à B1 = **384×240 pt** (largura do cabeçote térmico @ 203 dpi) — 400 px estourava e cortava TAG/VOID à direita. O mockup em `/etiquetas` usa o mesmo layout (escalado); a prévia de tela usa backing store **CSS × devicePixelRatio**. Fonte: **Barlow Condensed**.
+Proporção **50:30**. Kit de desenho **400×240 pt**; bitmap enviado à B1 = **384×240 pt** (largura do cabeçote térmico @ 203 dpi) — 400 px estourava e cortava TAG/VOID à direita. Header: **TAG ~30 pt** + **nome do equipamento** na linha de baixo (truncado). O mockup em `/etiquetas` usa o mesmo layout (escalado); a prévia de tela usa backing store **CSS × devicePixelRatio**. Fonte: **Barlow Condensed**.
 
 ```
 ┌──────┬────────────────────────────────────┐

@@ -40,12 +40,11 @@ const STATUS_BOXES: { id: PlanoEtiqueta; label: string }[] = [
  *
  *  ┌──────┬────────────────────────────────────┐
  *  │AION  │ EQUIP. Nº              HSJ-00001   │
- *  │ENG.  │ ────────────────────────────────── │
- *  │  ○A  │ REALIZADO      07/26    ┌──────┐   │
+ *  │ENG.  │ NOME DO EQUIPAMENTO…               │
+ *  │  ○A  │ ────────────────────────────────── │
+ *  │      │ REALIZADO      07/26    ┌──────┐   │
  *  │      │ [PRÓXIMO       07/27]   │  QR  │   │
- *  │      │ [✓ M.P]                 │      │   │
- *  │      │ [✓ CAL.]                │      │   │
- *  │      │ [  T.S.E]               │      │   │
+ *  │      │ [✓ M.P]  [✓ CAL.] …     │      │   │
  *  │      │ tel · site              VOID…  │   │
  *  └──────┴────────────────────────────────────┘
  *
@@ -180,24 +179,32 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   ctx.fillRect(0, 0, 85, 240);
   drawSpineBrand(ctx);
 
-  // ——— ID: EQUIP. Nº + TAG (x 97–390, y 8–60) ———
+  // ——— Header: EQUIP. Nº + TAG menor + nome do equipamento ———
+  // Linha 1: rótulo à esquerda, TAG ~30 pt à direita (antes 47 pt — liberava espaço).
+  // Linha 2: nome do equipamento (truncado à largura útil).
   const tag = truncate(input.tag.trim() || "—", 16);
+  const nomeEq = (input.equipamento ?? "").trim() || "—";
+
   ctx.fillStyle = "#000000";
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  ctx.font = `600 10px ${font}`;
-  fillTextSpaced(ctx, "EQUIP.", 97, 14, 1.5);
-  fillTextSpaced(ctx, "Nº", 97, 26, 1.5);
+  ctx.font = `600 9px ${font}`;
+  fillTextSpaced(ctx, "EQUIP. Nº", 97, 10, 1.2);
 
-  // TAG ancorada em x=378 (antes 390) — folga à direita no cabeçote 384 pt
-  ctx.font = `800 47px ${font}`;
+  ctx.font = `800 30px ${font}`;
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
-  ctx.fillText(tag, 378, 34, 268);
+  ctx.fillText(tag, 378, 22, 200);
 
-  // Linha 3 pt sob o header
+  ctx.font = `700 13px ${font}`;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  const nomeFit = fitTextWidth(ctx, nomeEq.toLocaleUpperCase("pt-BR"), 281);
+  ctx.fillText(nomeFit, 97, 44, 281);
+
+  // Linha 2 pt sob o header
   ctx.fillStyle = "#000000";
-  ctx.fillRect(97, 57, 281, 3);
+  ctx.fillRect(97, 56, 281, 2);
 
   // ——— REALIZADO (x 97–235, y 70–94) ———
   const realizacao = shortDate(input.realizacaoLabel);
@@ -466,6 +473,22 @@ function truncate(text: string, max: number) {
   const t = text.trim();
   if (t.length <= max) return t;
   return `${t.slice(0, Math.max(0, max - 1))}…`;
+}
+
+/** Corta com reticências para caber em `maxWidth` pt (usa measureText do canvas). */
+function fitTextWidth(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string {
+  const t = text.trim();
+  if (!t) return "—";
+  if (ctx.measureText(t).width <= maxWidth) return t;
+  let lo = 0;
+  let hi = t.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    const candidate = `${t.slice(0, mid)}…`;
+    if (ctx.measureText(candidate).width <= maxWidth) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo <= 0 ? "…" : `${t.slice(0, lo)}…`;
 }
 
 /** Compacta MM/AAAA ou DD/MM/AAAA → MM/AA. */
