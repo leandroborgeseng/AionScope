@@ -84,16 +84,22 @@ export type LabelSizePx = {
   label: string;
   wMm: number;
   hMm: number;
-  /** Geometria B1 @ 203 dpi */
+  /** Geometria B1 @ 203 dpi (largura ≤ cabeçote 384 pt). */
   wPx: number;
   hPx: number;
+  /** Deslocamento vertical na impressão (dy > 0 desce). */
   offsetYPx: number;
+  /**
+   * Deslocamento horizontal na impressão (dx < 0 puxa à esquerda).
+   * Compensa margem branca à esquerda / corte à direita na B1.
+   */
+  offsetXPx: number;
 };
 
 /**
  * Tamanhos de etiqueta para Niimbot B1 (203 dpi = 8 pt/mm).
- * Kit oficial 50×30 → **400 × 240 pt** (LEIA-ME / etiqueta-aion.html).
- * A B1 pode deixar ~1 mm branco na borda da faixa preta — normal.
+ * Kit de desenho 50×30 = 400×240 pt; bitmap de impressão B1 = **384×240**
+ * (largura do cabeçote térmico — 400 px estourava e cortava a direita).
  */
 export const LABEL_SIZES_B1: readonly LabelSizePx[] = [
   {
@@ -101,9 +107,11 @@ export const LABEL_SIZES_B1: readonly LabelSizePx[] = [
     label: "50 × 30 mm",
     wMm: 50,
     hMm: 30,
-    wPx: 400,
+    wPx: 384,
     hPx: 240,
     offsetYPx: 4,
+    /** Ajuste fino horizontal (dx < 0 puxa à esquerda). 0 = alinhado ao cabeçote. */
+    offsetXPx: 0,
   },
   {
     id: "40x30",
@@ -113,8 +121,12 @@ export const LABEL_SIZES_B1: readonly LabelSizePx[] = [
     wPx: 320,
     hPx: 240,
     offsetYPx: 4,
+    offsetXPx: 0,
   },
 ] as const;
+
+/** Coordenadas do kit oficial (LEIA-ME / etiqueta-aion.html). */
+export const LABEL_KIT_DESIGN_PX = { w: 400, h: 240 } as const;
 
 export type LabelRenderInput = {
   brand: string;

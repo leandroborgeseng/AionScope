@@ -17,6 +17,8 @@ export type NiimbotSize = {
   w_px: number;
   h_px: number;
   offset_y_px?: number;
+  /** dx < 0 desloca o bitmap à esquerda (reduz margem esquerda na B1). */
+  offset_x_px?: number;
   dpi?: number;
 };
 
@@ -70,6 +72,7 @@ export function labelSizeToNiimbot(size: LabelSizePx): NiimbotSize {
     w_px: size.wPx,
     h_px: size.hPx,
     offset_y_px: size.offsetYPx,
+    offset_x_px: size.offsetXPx,
     dpi: 203,
   };
 }

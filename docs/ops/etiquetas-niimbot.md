@@ -57,7 +57,7 @@ Defina `NEXT_PUBLIC_APP_URL=https://seu-host` no Railway/Coolify para URLs absol
 
 ## Layout da etiqueta (50×30 mm · kit oficial)
 
-Proporção **50:30**, bitmap B1 **400×240 pt @ 203 dpi** (8 pt/mm). O mockup em `/etiquetas` desenha o **mesmo layout** em coordenadas de impressão; a prévia de tela usa backing store **CSS × devicePixelRatio** (nítido em retina). PNG / Niimbot continuam no bitmap 203 dpi 1:1 — sem suavizar o dado térmico. Fonte: **Barlow Condensed**.
+Proporção **50:30**. Kit de desenho **400×240 pt**; bitmap enviado à B1 = **384×240 pt** (largura do cabeçote térmico @ 203 dpi) — 400 px estourava e cortava TAG/VOID à direita. O mockup em `/etiquetas` usa o mesmo layout (escalado); a prévia de tela usa backing store **CSS × devicePixelRatio**. Fonte: **Barlow Condensed**.
 
 ```
 ┌──────┬────────────────────────────────────┐
@@ -79,7 +79,7 @@ Proporção **50:30**, bitmap B1 **400×240 pt @ 203 dpi** (8 pt/mm). O mockup e
 5. **QR:** 145×145, ECC **M**, módulo inteiro (ideal 5 pt); Effort `…?eqp={Id}`
 6. **Rodapé:** `(16) 3030-0445 · aion.eng.br` + `VOID IF SEAL IS BROKEN`
 
-A B1 pode deixar ~1 mm branco na borda da faixa preta; isso é normal.
+A B1 pode deixar uma faixa branca mecânica à esquerda do adesivo (fora do cabeçote); o bitmap agora usa os 384 pt úteis para não cortar a direita.
 
 Tamanho **40×30 mm** permanece opcional (escala do kit); padrão = **50×30**.
 
