@@ -188,20 +188,20 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   ctx.fillStyle = "#000000";
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  // Texto pequeno: peso alto + pt ≥ 11 (203 dpi ≈ 1,4 mm) — menos “borrado” no térmico
-  ctx.font = `800 11px ${font}`;
-  fillTextSpaced(ctx, "EQUIP. Nº", 97, 9, 1);
+  // Texto pequeno: ≥12 pt, tracking 0, stroke+fill (hastes mais grossas no 203 dpi)
+  ctx.font = `800 12px ${font}`;
+  fillTextSpaced(ctx, "EQUIP. Nº", 97, 8, 0);
 
   ctx.font = `800 30px ${font}`;
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
-  ctx.fillText(tag, 378, 22, 200);
+  fillThermalText(ctx, tag, 378, 22, 200);
 
-  ctx.font = `800 14px ${font}`;
+  ctx.font = `800 15px ${font}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   const nomeFit = fitTextWidth(ctx, nomeEq.toLocaleUpperCase("pt-BR"), 281);
-  ctx.fillText(nomeFit, 97, 44, 281);
+  fillThermalText(ctx, nomeFit, 97, 44, 281);
 
   // Linha 2 pt sob o header
   ctx.fillStyle = "#000000";
@@ -214,11 +214,11 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   ctx.fillStyle = "#000000";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.font = `800 11px ${font}`;
-  fillTextSpaced(ctx, "REALIZADO", 97, 82, 1);
-  ctx.font = `800 21px ${font}`;
+  ctx.font = `800 12px ${font}`;
+  fillTextSpaced(ctx, "REALIZADO", 97, 82, 0);
+  ctx.font = `800 22px ${font}`;
   ctx.textAlign = "right";
-  ctx.fillText(realizacao, 235, 82, 80);
+  fillThermalText(ctx, realizacao, 235, 82, 80);
   ctx.fillRect(97, 93, 138, 1);
 
   // ——— PRÓXIMO (x 97–235, y 97–127) ———
@@ -228,11 +228,11 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.font = `800 11px ${font}`;
-  fillTextSpaced(ctx, "PRÓXIMO", 107, 112, 1);
+  ctx.font = `800 12px ${font}`;
+  fillTextSpaced(ctx, "PRÓXIMO", 107, 112, 0);
   ctx.font = `800 26px ${font}`;
   ctx.textAlign = "right";
-  ctx.fillText(proxima, 227, 112, 70);
+  fillThermalText(ctx, proxima, 227, 112, 70);
 
   // ——— Testes M.P / CAL. / T.S.E (x 97–235, y 137–207) ———
   const planosSet = new Set(input.planos);
@@ -258,20 +258,20 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   const tel = (input.telefone ?? "").trim() || "(16) 3030-0445";
   const site = formatSite(input.site);
   ctx.fillStyle = "#000000";
-  ctx.font = `800 12px ${font}`;
+  ctx.font = `800 13px ${font}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText(`${tel} · ${site}`, 97, 225, 138);
+  fillThermalText(ctx, `${tel} · ${site}`, 97, 225, 138);
 
   // ——— QR (x 242–378, y 70–206) 136×136 — cabe no cabeçote 384 com folga ———
   await drawCrispQr(ctx, input.qrUrl, 242, 70, 136);
 
   // ——— Lacre sob o QR ———
   ctx.fillStyle = "#000000";
-  ctx.font = `800 10px ${font}`;
+  ctx.font = `800 11px ${font}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  fillTextSpaced(ctx, "VOID IF SEAL IS BROKEN", 242 + 136 / 2, 225, 1);
+  fillTextSpaced(ctx, "VOID IF SEAL IS BROKEN", 242 + 136 / 2, 225, 0);
 }
 
 /** Logo AION + ENGENHARIA na faixa preta, −90° (lê de baixo para cima), 210 pt. */
@@ -375,7 +375,7 @@ function drawStatusChip(
 
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText(label, checkX + check + 8, y + h / 2);
+  fillThermalText(ctx, label, checkX + check + 8, y + h / 2);
   ctx.restore();
 }
 
@@ -512,7 +512,35 @@ function formatSite(site: string): string {
   return s || "aion.eng.br";
 }
 
-/** Letter-spacing aproximado (pt) — canvas não tem tracking nativo. Posições em pt inteiros. */
+/**
+ * Texto para térmico: stroke leve + fill engrossa hastes (antialias vira bloco preto no limiar).
+ * `maxWidth` opcional — mesmo contrato do fillText.
+ */
+function fillThermalText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth?: number,
+) {
+  const xPt = Math.round(x);
+  const yPt = Math.round(y);
+  ctx.save();
+  ctx.lineJoin = "round";
+  ctx.miterLimit = 2;
+  ctx.lineWidth = 0.9;
+  ctx.strokeStyle = ctx.fillStyle;
+  if (maxWidth != null) {
+    ctx.strokeText(text, xPt, yPt, maxWidth);
+    ctx.fillText(text, xPt, yPt, maxWidth);
+  } else {
+    ctx.strokeText(text, xPt, yPt);
+    ctx.fillText(text, xPt, yPt);
+  }
+  ctx.restore();
+}
+
+/** Letter-spacing aproximado (pt). Preferir tracking 0 em rótulos pequenos. */
 function fillTextSpaced(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -536,18 +564,28 @@ function fillTextSpaced(
   else if (align === "right" || align === "end") cursor = x - total;
 
   const prevAlign = ctx.textAlign;
+  const prevFill = ctx.fillStyle;
   ctx.textAlign = "left";
   ctx.textBaseline = baseline;
   const yPt = Math.round(y);
   for (let i = 0; i < text.length; i++) {
-    ctx.fillText(text[i]!, Math.round(cursor), yPt);
+    ctx.fillStyle = prevFill;
+    fillThermalText(ctx, text[i]!, Math.round(cursor), yPt);
     cursor += (widths[i] ?? 0) + tracking;
   }
   ctx.textAlign = prevAlign;
+  ctx.fillStyle = prevFill;
 }
 
+/** Limiar / voto padrão do PNG de impressão (mais agressivo = hastes mais grossas). */
+export const LABEL_PRINT_THRESHOLD = 190;
+export const LABEL_PRINT_DARK_RATIO = 0.18;
+
 /** Aplica limiar 1-bit in-place em buffer RGBA. */
-export function hardenRgbaTo1Bit(data: Uint8ClampedArray, threshold = 168): void {
+export function hardenRgbaTo1Bit(
+  data: Uint8ClampedArray,
+  threshold = LABEL_PRINT_THRESHOLD,
+): void {
   for (let i = 0; i < data.length; i += 4) {
     const lum = 0.299 * data[i]! + 0.587 * data[i + 1]! + 0.114 * data[i + 2]!;
     const v = lum < threshold ? 0 : 255;
@@ -560,13 +598,13 @@ export function hardenRgbaTo1Bit(data: Uint8ClampedArray, threshold = 168): void
 
 /**
  * Força bitmap 1-bit puro (sem cinza do antialias).
- * Limiar alto (~168) engrossa traços finos — melhor legibilidade na B1 203 dpi.
+ * Limiar alto engrossa traços finos — melhor legibilidade na B1 203 dpi.
  */
 export function hardenCanvasTo1Bit(
   ctx: CanvasRenderingContext2D,
   w: number,
   h: number,
-  threshold = 168,
+  threshold = LABEL_PRINT_THRESHOLD,
 ): void {
   const img = ctx.getImageData(0, 0, w, h);
   hardenRgbaTo1Bit(img.data, threshold);
@@ -587,8 +625,8 @@ export function downsampleRgbaThreshold(
   }
   const sx = sw / dw;
   const sy = sh / dh;
-  const threshold = opts?.threshold ?? 168;
-  const darkRatio = opts?.darkRatio ?? 0.28;
+  const threshold = opts?.threshold ?? LABEL_PRINT_THRESHOLD;
+  const darkRatio = opts?.darkRatio ?? LABEL_PRINT_DARK_RATIO;
   const out = new Uint8ClampedArray(dw * dh * 4);
 
   for (let y = 0; y < dh; y++) {
@@ -642,8 +680,8 @@ export function downsampleThreshold(
   dctx.putImageData(out, 0, 0);
 }
 
-/** Fator de supersampling do PNG de impressão (2× kit → downsample 1-bit). */
-export const LABEL_PRINT_SUPERSAMPLE = 2;
+/** Fator de supersampling do PNG de impressão (3× kit → downsample 1-bit). */
+export const LABEL_PRINT_SUPERSAMPLE = 3;
 
 function roundRect(
   ctx: CanvasRenderingContext2D,
@@ -665,8 +703,8 @@ function roundRect(
 
 /**
  * PNG 1-bit para B1 / download.
- * Pipeline: desenha o kit em 2× (800×480) → downsample com limiar → tamanho do cabeçote
- * (ex. 384×240). Remove cinza do antialias que “borra” letras pequenas no térmico.
+ * Pipeline: kit em 3× → downsample com limiar agressivo → cabeçote (ex. 384×240).
+ * Stroke+fill no desenho + voto de escuridão engrossam letras pequenas no térmico.
  */
 export async function labelToPngDataUrl(
   input: LabelRenderInput,
@@ -676,6 +714,8 @@ export async function labelToPngDataUrl(
   const ss = LABEL_PRINT_SUPERSAMPLE;
   const kitW = LABEL_KIT_DESIGN_PX.w;
   const kitH = LABEL_KIT_DESIGN_PX.h;
+  const thr = LABEL_PRINT_THRESHOLD;
+  const ratio = LABEL_PRINT_DARK_RATIO;
 
   const hi = document.createElement("canvas");
   hi.width = kitW * ss;
@@ -697,11 +737,11 @@ export async function labelToPngDataUrl(
     size: { ...size, wPx: kitW, hPx: kitH, id: "50x30" },
   });
 
-  // 800×480 → 400×240 (bloco 2×2, voto de escuridão)
+  // 1200×720 → 400×240 (bloco 3×3, voto de escuridão)
   const mid = document.createElement("canvas");
   mid.width = kitW;
   mid.height = kitH;
-  downsampleThreshold(hi, mid, { threshold: 168, darkRatio: 0.28 });
+  downsampleThreshold(hi, mid, { threshold: thr, darkRatio: ratio });
 
   const el = canvas ?? document.createElement("canvas");
   el.width = size.wPx;
@@ -710,10 +750,10 @@ export async function labelToPngDataUrl(
     const ctx = el.getContext("2d");
     if (!ctx) throw new Error("Canvas 2D indisponível");
     ctx.drawImage(mid, 0, 0);
-    hardenCanvasTo1Bit(ctx, el.width, el.height, 168);
+    hardenCanvasTo1Bit(ctx, el.width, el.height, thr);
   } else {
-    // 400×240 → 384×240 (ou 40×30): outro passo com limiar
-    downsampleThreshold(mid, el, { threshold: 168, darkRatio: 0.3 });
+    // 400×240 → 384×240 (ou 40×30)
+    downsampleThreshold(mid, el, { threshold: thr, darkRatio: Math.max(ratio, 0.2) });
   }
 
   return el.toDataURL("image/png");
