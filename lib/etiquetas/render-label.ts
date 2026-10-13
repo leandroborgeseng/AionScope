@@ -38,15 +38,15 @@ const STATUS_BOXES: { id: PlanoEtiqueta; label: string }[] = [
 /**
  * Layout 50×30 — kit oficial AION (coordenadas de desenho 400×240):
  *
- *  ┌──────┬────────────────────────────────────┐
- *  │AION  │ EQUIP. Nº              HSJ-00001   │
- *  │ENG.  │ NOME DO EQUIPAMENTO…               │
- *  │  ○A  │ ────────────────────────────────── │
- *  │      │ REALIZADO      07/26    ┌──────┐   │
- *  │      │ [PRÓXIMO       07/27]   │  QR  │   │
- *  │      │ [✓ M. Preventiva] …     │      │   │
- *  │      │ tel · site              VOID…  │   │
- *  └──────┴────────────────────────────────────┘
+ *  ┌────┬──────────────────────────────────────┐
+ *  │AION│ EQUIP. Nº                HSJ-00001   │
+ *  │ ○A │ NOME DO EQUIPAMENTO…                 │
+ *  │    │ ──────────────────────────────────── │
+ *  │    │ REALIZADO      07/26      ┌──────┐   │
+ *  │    │ [PRÓXIMO       07/27]     │  QR  │   │
+ *  │    │ [✓ M. Preventiva] …       │      │   │
+ *  │    │ (16) … · aion.eng.br                 │
+ *  └────┴──────────────────────────────────────┘
  *
  * Coordenadas do kit em 400×240; bitmap B1 = 384×240 (cabeçote) com escala X.
  * - mode "print": 203 dpi 1:1 no wPx/hPx da geometria (384×240 na 50×30).
@@ -171,43 +171,49 @@ export async function drawLabelPreviewToCanvas(
   return drawLabelToCanvas(canvas, input, { ...options, mode: "preview" });
 }
 
+/** Largura da faixa preta (só marca AION — sem “ENGENHARIA”). */
+const SPINE_W = 68;
+/** Início do conteúdo à direita da faixa. */
+const CONTENT_X = 78;
+/** Folga direita no kit 400 pt. */
+const CONTENT_RIGHT = 378;
+
 async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInput) {
   const font = labelFontStack();
+  const colW = 148; // coluna datas/chips
+  const colRight = CONTENT_X + colW;
 
-  // ——— Faixa da marca (x 0–85) ———
+  // ——— Faixa da marca (mais estreita — sem “ENGENHARIA”) ———
   ctx.fillStyle = "#000000";
-  ctx.fillRect(0, 0, 85, 240);
+  ctx.fillRect(0, 0, SPINE_W, 240);
   drawSpineBrand(ctx);
 
-  // ——— Header: EQUIP. Nº + TAG menor + nome do equipamento ———
-  // Linha 1: rótulo à esquerda, TAG ~30 pt à direita (antes 47 pt — liberava espaço).
-  // Linha 2: nome do equipamento (truncado à largura útil).
+  // ——— Header: EQUIP. Nº + TAG + nome ———
   const tag = truncate(input.tag.trim() || "—", 16);
   const nomeEq = (input.equipamento ?? "").trim() || "—";
+  const contentW = CONTENT_RIGHT - CONTENT_X;
 
   ctx.fillStyle = "#000000";
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  // Texto pequeno: ≥12 pt, tracking 0, stroke+fill (hastes mais grossas no 203 dpi)
   ctx.font = `800 12px ${font}`;
-  fillTextSpaced(ctx, "EQUIP. Nº", 97, 8, 0);
+  fillTextSpaced(ctx, "EQUIP. Nº", CONTENT_X, 8, 0);
 
   ctx.font = `800 30px ${font}`;
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
-  fillThermalText(ctx, tag, 378, 22, 200);
+  fillThermalText(ctx, tag, CONTENT_RIGHT, 22, 220);
 
   ctx.font = `800 15px ${font}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  const nomeFit = fitTextWidth(ctx, nomeEq.toLocaleUpperCase("pt-BR"), 281);
-  fillThermalText(ctx, nomeFit, 97, 44, 281);
+  const nomeFit = fitTextWidth(ctx, nomeEq.toLocaleUpperCase("pt-BR"), contentW);
+  fillThermalText(ctx, nomeFit, CONTENT_X, 44, contentW);
 
-  // Linha 2 pt sob o header
   ctx.fillStyle = "#000000";
-  ctx.fillRect(97, 56, 281, 2);
+  ctx.fillRect(CONTENT_X, 56, contentW, 2);
 
-  // ——— REALIZADO (x 97–235, y 70–94) ———
+  // ——— REALIZADO ———
   const realizacao = shortDate(input.realizacaoLabel);
   const proxima = shortDate(input.proximaLabel);
 
@@ -215,37 +221,37 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.font = `800 12px ${font}`;
-  fillTextSpaced(ctx, "REALIZADO", 97, 82, 0);
+  fillTextSpaced(ctx, "REALIZADO", CONTENT_X, 82, 0);
   ctx.font = `800 22px ${font}`;
   ctx.textAlign = "right";
-  fillThermalText(ctx, realizacao, 235, 82, 80);
-  ctx.fillRect(97, 93, 138, 1);
+  fillThermalText(ctx, realizacao, colRight, 82, 90);
+  ctx.fillRect(CONTENT_X, 93, colW, 1);
 
-  // ——— PRÓXIMO (x 97–235, y 97–127) ———
-  roundRect(ctx, 97, 97, 138, 30, 6);
+  // ——— PRÓXIMO ———
+  roundRect(ctx, CONTENT_X, 97, colW, 30, 6);
   ctx.fillStyle = "#000000";
   ctx.fill();
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.font = `800 12px ${font}`;
-  fillTextSpaced(ctx, "PRÓXIMO", 107, 112, 0);
+  fillTextSpaced(ctx, "PRÓXIMO", CONTENT_X + 10, 112, 0);
   ctx.font = `800 26px ${font}`;
   ctx.textAlign = "right";
-  fillThermalText(ctx, proxima, 227, 112, 70);
+  fillThermalText(ctx, proxima, colRight - 8, 112, 80);
 
-  // ——— Testes M. Preventiva / Calibração / T. Seg. Elétrica ———
+  // ——— Planos ———
   const planosSet = new Set(input.planos);
   const chipCount = STATUS_BOXES.length;
   const chipGap = 3;
-  const areaH = 207 - 137; // 70
+  const areaH = 207 - 137;
   const chipH = Math.min(22, Math.floor((areaH - chipGap * (chipCount - 1)) / chipCount));
   let chipY = 137;
   for (const row of STATUS_BOXES) {
     drawStatusChip(ctx, {
-      x: 97,
+      x: CONTENT_X,
       y: chipY,
-      w: 138,
+      w: colW,
       h: chipH,
       label: row.label,
       active: planosSet.has(row.id),
@@ -254,48 +260,46 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
     chipY += chipH + chipGap;
   }
 
-  // ——— Contato (x 97–235, y 220–230) ———
+  // ——— QR (maior, aproveitando faixa mais estreita) ———
+  const qrX = colRight + 10;
+  const qrBox = Math.min(136, CONTENT_RIGHT - qrX);
+  await drawCrispQr(ctx, input.qrUrl, qrX, 70, qrBox);
+
+  // ——— Contato prioritário: telefone + site em toda a largura útil (sem VOID) ———
   const tel = (input.telefone ?? "").trim() || "(16) 3030-0445";
   const site = formatSite(input.site);
+  const contato = `${tel}  ·  ${site}`;
   ctx.fillStyle = "#000000";
-  ctx.font = `800 13px ${font}`;
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  fillThermalText(ctx, `${tel} · ${site}`, 97, 225, 138);
-
-  // ——— QR (x 242–378, y 70–206) 136×136 — cabe no cabeçote 384 com folga ———
-  await drawCrispQr(ctx, input.qrUrl, 242, 70, 136);
-
-  // ——— Lacre sob o QR ———
-  ctx.fillStyle = "#000000";
-  ctx.font = `800 11px ${font}`;
+  ctx.font = `800 15px ${font}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  fillTextSpaced(ctx, "VOID IF SEAL IS BROKEN", 242 + 136 / 2, 225, 0);
+  fillThermalText(ctx, fitTextWidth(ctx, contato, contentW), CONTENT_X + contentW / 2, 226, contentW);
 }
 
-/** Logo AION + ENGENHARIA na faixa preta, −90° (lê de baixo para cima), 210 pt. */
+/** Marca AION (ícone + palavra) na faixa preta, −90°, sem “ENGENHARIA”. */
 function drawSpineBrand(ctx: CanvasRenderingContext2D) {
-  // viewBox 214×68 do kit, escalado para ~210×66,5 e centrado na faixa 85×240
-  const brandW = 210;
-  const brandH = 66.5;
-  const cx = 85 / 2;
+  // Bloco compacto ~170×48 no espaço rotacionado, centrado na faixa SPINE_W×240
+  const brandW = 170;
+  const brandH = 48;
+  const cx = SPINE_W / 2;
   const cy = 240 / 2;
-  const sx = brandW / 214;
-  const sy = brandH / 68;
   const brand = brandFontStack();
 
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(-Math.PI / 2);
   ctx.translate(-brandW / 2, -brandH / 2);
-  ctx.scale(sx, sy);
 
+  // Escala do path original (~54×47) + tipografia AION
+  const markScale = 0.72;
+  ctx.save();
+  ctx.translate(4, 2);
+  ctx.scale(markScale, markScale);
   ctx.strokeStyle = "#ffffff";
   ctx.fillStyle = "#ffffff";
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
-  ctx.lineWidth = 5;
+  ctx.lineWidth = 5.5;
   try {
     ctx.stroke(new Path2D("M54.45 15 A28 28 0 1 1 40.25 5.95"));
     ctx.stroke(new Path2D("M22 47 L33 20 L44 47 M27 38 H39"));
@@ -305,13 +309,13 @@ function drawSpineBrand(ctx: CanvasRenderingContext2D) {
   ctx.beginPath();
   ctx.arc(48.25, 9.52, 3.4, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
 
+  ctx.fillStyle = "#ffffff";
   ctx.textAlign = "left";
-  ctx.textBaseline = "alphabetic";
-  ctx.font = `800 40px ${brand}`;
-  ctx.fillText("AION", 74, 44);
-  ctx.font = `600 10px ${brand}`;
-  ctx.fillText("ENGENHARIA", 75, 61);
+  ctx.textBaseline = "middle";
+  ctx.font = `800 36px ${brand}`;
+  ctx.fillText("AION", 52, brandH / 2 + 1);
   ctx.restore();
 }
 
