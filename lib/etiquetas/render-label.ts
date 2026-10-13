@@ -188,15 +188,16 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   ctx.fillStyle = "#000000";
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  ctx.font = `600 9px ${font}`;
-  fillTextSpaced(ctx, "EQUIP. Nº", 97, 10, 1.2);
+  // Texto pequeno: peso alto + pt ≥ 11 (203 dpi ≈ 1,4 mm) — menos “borrado” no térmico
+  ctx.font = `800 11px ${font}`;
+  fillTextSpaced(ctx, "EQUIP. Nº", 97, 9, 1);
 
   ctx.font = `800 30px ${font}`;
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
   ctx.fillText(tag, 378, 22, 200);
 
-  ctx.font = `700 13px ${font}`;
+  ctx.font = `800 14px ${font}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   const nomeFit = fitTextWidth(ctx, nomeEq.toLocaleUpperCase("pt-BR"), 281);
@@ -213,9 +214,9 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   ctx.fillStyle = "#000000";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.font = `700 9px ${font}`;
-  fillTextSpaced(ctx, "REALIZADO", 97, 82, 1.5);
-  ctx.font = `700 21px ${font}`;
+  ctx.font = `800 11px ${font}`;
+  fillTextSpaced(ctx, "REALIZADO", 97, 82, 1);
+  ctx.font = `800 21px ${font}`;
   ctx.textAlign = "right";
   ctx.fillText(realizacao, 235, 82, 80);
   ctx.fillRect(97, 93, 138, 1);
@@ -227,8 +228,8 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.font = `800 9px ${font}`;
-  fillTextSpaced(ctx, "PRÓXIMO", 107, 112, 1.5);
+  ctx.font = `800 11px ${font}`;
+  fillTextSpaced(ctx, "PRÓXIMO", 107, 112, 1);
   ctx.font = `800 26px ${font}`;
   ctx.textAlign = "right";
   ctx.fillText(proxima, 227, 112, 70);
@@ -257,7 +258,7 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   const tel = (input.telefone ?? "").trim() || "(16) 3030-0445";
   const site = formatSite(input.site);
   ctx.fillStyle = "#000000";
-  ctx.font = `600 10px ${font}`;
+  ctx.font = `800 12px ${font}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.fillText(`${tel} · ${site}`, 97, 225, 138);
@@ -267,10 +268,10 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
 
   // ——— Lacre sob o QR ———
   ctx.fillStyle = "#000000";
-  ctx.font = `700 8px ${font}`;
+  ctx.font = `800 10px ${font}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  fillTextSpaced(ctx, "VOID IF SEAL IS BROKEN", 242 + 136 / 2, 225, 1.2);
+  fillTextSpaced(ctx, "VOID IF SEAL IS BROKEN", 242 + 136 / 2, 225, 1);
 }
 
 /** Logo AION + ENGENHARIA na faixa preta, −90° (lê de baixo para cima), 210 pt. */
@@ -511,7 +512,7 @@ function formatSite(site: string): string {
   return s || "aion.eng.br";
 }
 
-/** Letter-spacing aproximado (pt) — canvas não tem tracking nativo. */
+/** Letter-spacing aproximado (pt) — canvas não tem tracking nativo. Posições em pt inteiros. */
 function fillTextSpaced(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -537,12 +538,112 @@ function fillTextSpaced(
   const prevAlign = ctx.textAlign;
   ctx.textAlign = "left";
   ctx.textBaseline = baseline;
+  const yPt = Math.round(y);
   for (let i = 0; i < text.length; i++) {
-    ctx.fillText(text[i]!, cursor, y);
+    ctx.fillText(text[i]!, Math.round(cursor), yPt);
     cursor += (widths[i] ?? 0) + tracking;
   }
   ctx.textAlign = prevAlign;
 }
+
+/** Aplica limiar 1-bit in-place em buffer RGBA. */
+export function hardenRgbaTo1Bit(data: Uint8ClampedArray, threshold = 168): void {
+  for (let i = 0; i < data.length; i += 4) {
+    const lum = 0.299 * data[i]! + 0.587 * data[i + 1]! + 0.114 * data[i + 2]!;
+    const v = lum < threshold ? 0 : 255;
+    data[i] = v;
+    data[i + 1] = v;
+    data[i + 2] = v;
+    data[i + 3] = 255;
+  }
+}
+
+/**
+ * Força bitmap 1-bit puro (sem cinza do antialias).
+ * Limiar alto (~168) engrossa traços finos — melhor legibilidade na B1 203 dpi.
+ */
+export function hardenCanvasTo1Bit(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  threshold = 168,
+): void {
+  const img = ctx.getImageData(0, 0, w, h);
+  hardenRgbaTo1Bit(img.data, threshold);
+  ctx.putImageData(img, 0, 0);
+}
+
+/** Downsample RGBA → RGBA 1-bit por voto de escuridão (puro, testável sem DOM). */
+export function downsampleRgbaThreshold(
+  src: Uint8ClampedArray,
+  sw: number,
+  sh: number,
+  dw: number,
+  dh: number,
+  opts?: { threshold?: number; darkRatio?: number },
+): Uint8ClampedArray {
+  if (dw <= 0 || dh <= 0 || sw < dw || sh < dh) {
+    throw new Error("downsampleRgbaThreshold: dimensões inválidas");
+  }
+  const sx = sw / dw;
+  const sy = sh / dh;
+  const threshold = opts?.threshold ?? 168;
+  const darkRatio = opts?.darkRatio ?? 0.28;
+  const out = new Uint8ClampedArray(dw * dh * 4);
+
+  for (let y = 0; y < dh; y++) {
+    const y0 = Math.floor(y * sy);
+    const y1 = Math.min(sh, Math.floor((y + 1) * sy));
+    for (let x = 0; x < dw; x++) {
+      const x0 = Math.floor(x * sx);
+      const x1 = Math.min(sw, Math.floor((x + 1) * sx));
+      let dark = 0;
+      let total = 0;
+      for (let yy = y0; yy < y1; yy++) {
+        for (let xx = x0; xx < x1; xx++) {
+          const i = (yy * sw + xx) * 4;
+          const lum = 0.299 * src[i]! + 0.587 * src[i + 1]! + 0.114 * src[i + 2]!;
+          if (lum < threshold) dark += 1;
+          total += 1;
+        }
+      }
+      const v = total > 0 && dark / total >= darkRatio ? 0 : 255;
+      const o = (y * dw + x) * 4;
+      out[o] = v;
+      out[o + 1] = v;
+      out[o + 2] = v;
+      out[o + 3] = 255;
+    }
+  }
+  return out;
+}
+
+/**
+ * Reduz `src` para o destino com voto de escuridão.
+ * Bloco com ≥ `darkRatio` pixels escuros → preto (preserva hastes finas do texto).
+ */
+export function downsampleThreshold(
+  src: HTMLCanvasElement,
+  dest: HTMLCanvasElement,
+  opts?: { threshold?: number; darkRatio?: number },
+): void {
+  const dw = dest.width;
+  const dh = dest.height;
+  const sw = src.width;
+  const sh = src.height;
+  const sctx = src.getContext("2d");
+  const dctx = dest.getContext("2d");
+  if (!sctx || !dctx) throw new Error("Canvas 2D indisponível");
+
+  const srcData = sctx.getImageData(0, 0, sw, sh).data;
+  const pixels = downsampleRgbaThreshold(srcData, sw, sh, dw, dh, opts);
+  const out = dctx.createImageData(dw, dh);
+  out.data.set(pixels);
+  dctx.putImageData(out, 0, 0);
+}
+
+/** Fator de supersampling do PNG de impressão (2× kit → downsample 1-bit). */
+export const LABEL_PRINT_SUPERSAMPLE = 2;
 
 function roundRect(
   ctx: CanvasRenderingContext2D,
@@ -562,13 +663,59 @@ function roundRect(
   ctx.closePath();
 }
 
+/**
+ * PNG 1-bit para B1 / download.
+ * Pipeline: desenha o kit em 2× (800×480) → downsample com limiar → tamanho do cabeçote
+ * (ex. 384×240). Remove cinza do antialias que “borra” letras pequenas no térmico.
+ */
 export async function labelToPngDataUrl(
   input: LabelRenderInput,
   canvas?: HTMLCanvasElement,
 ): Promise<string> {
+  const size = input.size;
+  const ss = LABEL_PRINT_SUPERSAMPLE;
+  const kitW = LABEL_KIT_DESIGN_PX.w;
+  const kitH = LABEL_KIT_DESIGN_PX.h;
+
+  const hi = document.createElement("canvas");
+  hi.width = kitW * ss;
+  hi.height = kitH * ss;
+  const hiCtx = hi.getContext("2d");
+  if (!hiCtx) throw new Error("Canvas 2D indisponível");
+
+  hiCtx.setTransform(ss, 0, 0, ss, 0, 0);
+  hiCtx.imageSmoothingEnabled = false;
+  hiCtx.fillStyle = "#ffffff";
+  hiCtx.fillRect(0, 0, kitW, kitH);
+  await ensureLabelFonts();
+  hiCtx.setTransform(ss, 0, 0, ss, 0, 0);
+  hiCtx.imageSmoothingEnabled = false;
+  hiCtx.fillStyle = "#ffffff";
+  hiCtx.fillRect(0, 0, kitW, kitH);
+  await drawKit50x30(hiCtx, {
+    ...input,
+    size: { ...size, wPx: kitW, hPx: kitH, id: "50x30" },
+  });
+
+  // 800×480 → 400×240 (bloco 2×2, voto de escuridão)
+  const mid = document.createElement("canvas");
+  mid.width = kitW;
+  mid.height = kitH;
+  downsampleThreshold(hi, mid, { threshold: 168, darkRatio: 0.28 });
+
   const el = canvas ?? document.createElement("canvas");
-  // Sempre bitmap de impressão (203 dpi 1:1) — nunca o preview hi-DPI.
-  await drawLabelToCanvas(el, input, { mode: "print" });
+  el.width = size.wPx;
+  el.height = size.hPx;
+  if (size.wPx === kitW && size.hPx === kitH) {
+    const ctx = el.getContext("2d");
+    if (!ctx) throw new Error("Canvas 2D indisponível");
+    ctx.drawImage(mid, 0, 0);
+    hardenCanvasTo1Bit(ctx, el.width, el.height, 168);
+  } else {
+    // 400×240 → 384×240 (ou 40×30): outro passo com limiar
+    downsampleThreshold(mid, el, { threshold: 168, darkRatio: 0.3 });
+  }
+
   return el.toDataURL("image/png");
 }
 
