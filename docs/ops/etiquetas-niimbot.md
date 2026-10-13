@@ -122,7 +122,7 @@ Alterar `NEXT_PUBLIC_*` exige **rebuild/redeploy** (valores são embutidos no bu
 ## Como usar
 
 1. Abra `/etiquetas` no Chrome ou Edge.
-2. Escolha o(s) mês(es) e os tipos PREV / CAL / TSE.
+2. Filtre por **setor** (e/ou busque tag/equipamento), escolha o(s) mês(es) e os tipos PREV / CAL / TSE.
 3. Confira o **mockup WYSIWYG** (50×30 por padrão) e a URL Effort do QR.
 4. **Baixar PNG** — funciona em qualquer navegador (fallback).
 5. **Uma etiqueta** — clique na linha (mockup) → **Imprimir esta**, ou o botão **B1** na linha.

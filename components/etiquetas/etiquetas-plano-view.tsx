@@ -117,6 +117,10 @@ export function EtiquetasPlanoView() {
   });
   /** Primário: 50×30 mm (B1). 40×30 opcional. */
   const [sizeId, setSizeId] = useState<LabelSizeId>("50x30");
+  /** Filtro de setor na lista de impressão (`todos` = sem filtro). */
+  const [setorFiltro, setSetorFiltro] = useState("todos");
+  /** Busca rápida por tag, equipamento ou setor. */
+  const [busca, setBusca] = useState("");
   /** Linha em foco no mockup (clique na tabela). */
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   /** Tags marcadas para impressão em lote. */
@@ -191,7 +195,7 @@ export function EtiquetasPlanoView() {
     return [...map.entries()].map(([tag, proxima]) => ({ tag, proxima }));
   }, [cronoQ.data]);
 
-  const rows = useMemo(
+  const rowsBase = useMemo(
     () =>
       agregarEtiquetasPlano(raw, {
         monthKeys: months,
@@ -200,6 +204,45 @@ export function EtiquetasPlanoView() {
       }),
     [raw, months, planosAtivos, cronogramaProximas],
   );
+
+  /** Completa setor vazio com o cadastro de equipamentos. */
+  const rowsEnriched = useMemo(
+    () =>
+      rowsBase.map((row) => {
+        if (row.setor) return row;
+        const eq = eqByTag.get(row.tag.trim().toLocaleUpperCase("pt-BR"));
+        const setor = (eq?.Setor ?? "").trim();
+        return setor ? { ...row, setor } : row;
+      }),
+    [rowsBase, eqByTag],
+  );
+
+  const setoresOpts = useMemo(() => {
+    const set = new Set<string>();
+    for (const row of rowsEnriched) {
+      if (row.setor) set.add(row.setor);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [rowsEnriched]);
+
+  useEffect(() => {
+    if (setorFiltro !== "todos" && !setoresOpts.includes(setorFiltro)) {
+      setSetorFiltro("todos");
+    }
+  }, [setorFiltro, setoresOpts]);
+
+  const rows = useMemo(() => {
+    const q = busca.trim().toLocaleLowerCase("pt-BR");
+    return rowsEnriched.filter((row) => {
+      if (setorFiltro !== "todos" && row.setor !== setorFiltro) return false;
+      if (!q) return true;
+      return (
+        row.tag.toLocaleLowerCase("pt-BR").includes(q) ||
+        row.equipamento.toLocaleLowerCase("pt-BR").includes(q) ||
+        row.setor.toLocaleLowerCase("pt-BR").includes(q)
+      );
+    });
+  }, [rowsEnriched, setorFiltro, busca]);
 
   const selected = rows.find((r) => r.tag === selectedTag) ?? rows[0] ?? null;
   const visibleTags = useMemo(() => rows.map((r) => r.tag), [rows]);
@@ -499,7 +542,7 @@ export function EtiquetasPlanoView() {
     <div className="space-y-5">
       <PageHeader
         title="Etiquetas · plano Preventiva / Cal / TSE"
-        description="Etiqueta 50×30 mm (WYSIWYG): coluna preta AION + caixas M.P/CAL./T.S.E, datas e QR Effort. Selecione várias na tabela e imprima em fila na Niimbot B1 (Web Bluetooth)."
+        description="Etiqueta 50×30 mm (WYSIWYG): coluna preta AION + caixas Manut. Preventiva / Calibração / Teste Seg. Elétrica, datas e QR Effort. Filtre por setor, selecione na tabela e imprima em fila na Niimbot B1 (Web Bluetooth)."
       />
 
       <Card>
@@ -507,6 +550,48 @@ export function EtiquetasPlanoView() {
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-aion-muted">
+              Setor
+              <select
+                className="h-10 min-w-[220px] max-w-full rounded-lg border border-aion-line bg-white px-3 text-sm font-normal normal-case tracking-normal text-aion-ink"
+                value={setorFiltro}
+                onChange={(e) => setSetorFiltro(e.target.value)}
+                disabled={loading || setoresOpts.length === 0}
+              >
+                <option value="todos">Todos os setores</option>
+                {setoresOpts.map((setor) => (
+                  <option key={setor} value={setor}>
+                    {setor}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="grid min-w-[220px] flex-1 gap-1 text-xs font-semibold uppercase tracking-wide text-aion-muted">
+              Buscar
+              <input
+                type="search"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Tag, equipamento ou setor…"
+                className="h-10 w-full rounded-lg border border-aion-line bg-white px-3 text-sm font-normal normal-case tracking-normal text-aion-ink placeholder:text-aion-muted"
+              />
+            </label>
+            {(setorFiltro !== "todos" || busca.trim()) && (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => {
+                  setSetorFiltro("todos");
+                  setBusca("");
+                }}
+              >
+                Limpar filtros
+              </Button>
+            )}
+          </div>
+
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-aion-muted">
               Meses ({year})
@@ -601,7 +686,11 @@ export function EtiquetasPlanoView() {
         <Card>
           <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
             <CardTitle>
-              Equipamentos ({loading ? "…" : rows.length})
+              Equipamentos ({loading ? "…" : rows.length}
+              {!loading && rows.length !== rowsEnriched.length
+                ? ` de ${rowsEnriched.length}`
+                : ""}
+              )
               {checkedCount > 0 ? (
                 <span className="ml-2 text-sm font-normal text-aion-muted">
                   · {checkedCount} selecionada{checkedCount === 1 ? "" : "s"}
