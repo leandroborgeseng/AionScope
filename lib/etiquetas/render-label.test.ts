@@ -18,9 +18,9 @@ describe("hardenRgbaTo1Bit / downsampleRgbaThreshold", () => {
       40, 40, 40, 255, // quase preto → preto
       0, 0, 0, 255, // preto
     ]);
-    hardenRgbaTo1Bit(data, 168);
+    hardenRgbaTo1Bit(data, 190);
     assert.equal(data[0], 255);
-    assert.equal(data[4], 255);
+    assert.equal(data[4], 0); // 180 < 190 → preto (limiar agressivo)
     assert.equal(data[8], 0);
     assert.equal(data[12], 0);
   });
@@ -29,17 +29,17 @@ describe("hardenRgbaTo1Bit / downsampleRgbaThreshold", () => {
     // 4×2 → 2×1; cada bloco 2×2
     const src = new Uint8ClampedArray(4 * 2 * 4);
     src.fill(255);
-    // bloco TL: 1 preto / 4 → ratio 0.25 < 0.28 → branco
+    // bloco TL: 1 preto / 4 → ratio 0.25 ≥ 0.18 → preto
     src[0] = src[1] = src[2] = 0;
-    // bloco TR: 2 pretos na linha de cima → 0.5 → preto
+    // bloco TR: 2 pretos → preto
     src[8] = src[9] = src[10] = 0;
     src[12] = src[13] = src[14] = 0;
 
     const out = downsampleRgbaThreshold(src, 4, 2, 2, 1, {
-      threshold: 168,
-      darkRatio: 0.28,
+      threshold: 190,
+      darkRatio: 0.18,
     });
-    assert.equal(out[0], 255);
+    assert.equal(out[0], 0);
     assert.equal(out[4], 0);
   });
 });
