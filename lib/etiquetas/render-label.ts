@@ -676,8 +676,8 @@ export function downsampleThreshold(
   dctx.putImageData(out, 0, 0);
 }
 
-/** Fator de supersampling do PNG de impressão (3× kit → downsample 1-bit). */
-export const LABEL_PRINT_SUPERSAMPLE = 3;
+/** Fator de supersampling do PNG de impressão (2× kit → downsample 1-bit fino). */
+export const LABEL_PRINT_SUPERSAMPLE = 2;
 
 function roundRect(
   ctx: CanvasRenderingContext2D,
@@ -699,8 +699,8 @@ function roundRect(
 
 /**
  * PNG 1-bit para B1 / download.
- * Pipeline: kit em 3× → downsample com limiar agressivo → cabeçote (ex. 384×240).
- * Stroke+fill no desenho + voto de escuridão engrossam letras pequenas no térmico.
+ * Pipeline: kit em 2× → downsample com limiar suave → cabeçote (ex. 384×240).
+ * Preferir traço fino (sem stroke, limiar 128) — contraste alto entope o térmico.
  */
 export async function labelToPngDataUrl(
   input: LabelRenderInput,
