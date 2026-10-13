@@ -141,7 +141,7 @@ export function NavMenu({ pathname, onNavigate }: { pathname: string; onNavigate
                 onClick={onNavigate}
                 aria-current={parentExact ? "page" : undefined}
                 className={cn(
-                  "flex min-w-0 flex-1 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  "flex min-h-11 min-w-0 flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                   parentExact
                     ? "bg-aion-blue text-white"
                     : parentActive
@@ -159,7 +159,7 @@ export function NavMenu({ pathname, onNavigate }: { pathname: string; onNavigate
                 aria-label={isOpen ? `Recolher ${item.label}` : `Expandir ${item.label}`}
                 onClick={() => setOpen((open) => !open)}
                 className={cn(
-                  "rounded-lg p-2 text-aion-ink/60 transition-colors hover:bg-aion-mist hover:text-aion-blue",
+                  "flex h-11 w-11 items-center justify-center rounded-lg text-aion-ink/60 transition-colors hover:bg-aion-mist hover:text-aion-blue",
                   parentActive && "text-aion-blue",
                 )}
               >
@@ -189,7 +189,7 @@ export function NavMenu({ pathname, onNavigate }: { pathname: string; onNavigate
                       onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] leading-snug font-medium transition-colors",
+                        "flex min-h-11 items-center gap-2 rounded-lg px-3 py-2.5 text-[13px] leading-snug font-medium transition-colors",
                         active
                           ? "bg-aion-blue text-white"
                           : "text-aion-ink/70 hover:bg-aion-mist hover:text-aion-blue",

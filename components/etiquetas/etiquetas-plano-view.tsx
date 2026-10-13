@@ -62,6 +62,29 @@ function chipTone(plano: PlanoEtiqueta): "info" | "ok" | "warn" {
   return "warn";
 }
 
+const PAGE_SIZE = 12;
+
+type SortKey = "tag" | "equipamento" | "setor" | "realizacao" | "proxima";
+
+function compareRows(a: EtiquetaEquipamento, b: EtiquetaEquipamento, key: SortKey): number {
+  switch (key) {
+    case "tag":
+      return a.tag.localeCompare(b.tag, "pt-BR");
+    case "equipamento":
+      return a.equipamento.localeCompare(b.equipamento, "pt-BR");
+    case "setor": {
+      const setor = a.setor.localeCompare(b.setor, "pt-BR");
+      return setor !== 0 ? setor : a.tag.localeCompare(b.tag, "pt-BR");
+    }
+    case "realizacao":
+      return (a.realizacao?.getTime() ?? 0) - (b.realizacao?.getTime() ?? 0);
+    case "proxima":
+      return (a.proxima?.getTime() ?? 0) - (b.proxima?.getTime() ?? 0);
+    default:
+      return 0;
+  }
+}
+
 export function EtiquetasPlanoView() {
   const today = useMemo(() => nowInSaoPaulo(), []);
   const year = today.getFullYear();
@@ -121,6 +144,9 @@ export function EtiquetasPlanoView() {
   const [setorFiltro, setSetorFiltro] = useState("todos");
   /** Busca rápida por tag, equipamento ou setor. */
   const [busca, setBusca] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("setor");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [page, setPage] = useState(0);
   /** Linha em foco no mockup (clique na tabela). */
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   /** Tags marcadas para impressão em lote. */
@@ -244,21 +270,64 @@ export function EtiquetasPlanoView() {
     });
   }, [rowsEnriched, setorFiltro, busca]);
 
-  const selected = rows.find((r) => r.tag === selectedTag) ?? rows[0] ?? null;
-  const visibleTags = useMemo(() => rows.map((r) => r.tag), [rows]);
+  const sortedRows = useMemo(() => {
+    const list = [...rows];
+    const dir = sortDir === "asc" ? 1 : -1;
+    list.sort((a, b) => compareRows(a, b, sortKey) * dir);
+    return list;
+  }, [rows, sortKey, sortDir]);
+
+  const pageCount = Math.max(1, Math.ceil(sortedRows.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = useMemo(
+    () => sortedRows.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE),
+    [sortedRows, safePage],
+  );
+
+  useEffect(() => {
+    setPage(0);
+  }, [setorFiltro, busca, months, planosAtivos, sortKey, sortDir]);
+
+  useEffect(() => {
+    if (page > pageCount - 1) setPage(Math.max(0, pageCount - 1));
+  }, [page, pageCount]);
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+
+  function sortMark(key: SortKey) {
+    if (sortKey !== key) return "";
+    return sortDir === "asc" ? " ↑" : " ↓";
+  }
+
+  const selected = sortedRows.find((r) => r.tag === selectedTag) ?? sortedRows[0] ?? null;
+  const visibleTags = useMemo(() => sortedRows.map((r) => r.tag), [sortedRows]);
+  const pageTags = useMemo(() => pageRows.map((r) => r.tag), [pageRows]);
   const checkedCount = useMemo(
     () => visibleTags.reduce((n, tag) => n + (checkedTags.has(tag) ? 1 : 0), 0),
     [visibleTags, checkedTags],
   );
   const allVisibleChecked =
     visibleTags.length > 0 && visibleTags.every((tag) => checkedTags.has(tag));
+  const allPageChecked =
+    pageTags.length > 0 && pageTags.every((tag) => checkedTags.has(tag));
+  const pageCheckedCount = useMemo(
+    () => pageTags.reduce((n, tag) => n + (checkedTags.has(tag) ? 1 : 0), 0),
+    [pageTags, checkedTags],
+  );
 
   useEffect(() => {
     if (!selected) return;
-    if (!selectedTag || !rows.some((r) => r.tag === selectedTag)) {
+    if (!selectedTag || !sortedRows.some((r) => r.tag === selectedTag)) {
       setSelectedTag(selected.tag);
     }
-  }, [selected, selectedTag, rows]);
+  }, [selected, selectedTag, sortedRows]);
 
   /** Remove da seleção em lote tags que saíram do filtro. */
   useEffect(() => {
@@ -291,9 +360,16 @@ export function EtiquetasPlanoView() {
     setCheckedTags(new Set());
   }
 
-  function toggleAllVisible() {
-    if (allVisibleChecked) clearChecked();
-    else selectAllVisible();
+  function togglePageChecked() {
+    setCheckedTags((prev) => {
+      const next = new Set(prev);
+      if (allPageChecked) {
+        for (const tag of pageTags) next.delete(tag);
+      } else {
+        for (const tag of pageTags) next.add(tag);
+      }
+      return next;
+    });
   }
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -428,7 +504,7 @@ export function EtiquetasPlanoView() {
   }
 
   async function onPrintChecked() {
-    const selectedRows = rows.filter((r) => checkedTags.has(r.tag));
+    const selectedRows = sortedRows.filter((r) => checkedTags.has(r.tag));
     if (!selectedRows.length) return;
 
     cancelBatchRef.current = false;
@@ -520,17 +596,18 @@ export function EtiquetasPlanoView() {
     }
   }
 
-  async function onDownloadAll() {
+  async function onDownloadRows(list: EtiquetaEquipamento[], label: string) {
+    if (!list.length) return;
     setPending(true);
     try {
-      setStatus(`Baixando ${rows.length} PNG…`);
-      for (const row of rows) {
+      setStatus(`Baixando ${list.length} PNG (${label})…`);
+      for (const row of list) {
         await withLabel(row, async (dataUrl) => {
           downloadDataUrl(dataUrl, `etiqueta-${row.tag}-${size.id}.png`);
         });
         await new Promise((r) => setTimeout(r, 120));
       }
-      setStatus(`${rows.length} PNG baixados`);
+      setStatus(`${list.length} PNG baixados`);
     } catch (err) {
       setStatus(err instanceof Error ? err.message : String(err));
     } finally {
@@ -538,23 +615,34 @@ export function EtiquetasPlanoView() {
     }
   }
 
+  async function onDownloadSelected() {
+    const list = sortedRows.filter((r) => checkedTags.has(r.tag));
+    await onDownloadRows(list, "selecionadas");
+  }
+
+  async function onDownloadAllFiltered() {
+    await onDownloadRows(sortedRows, "filtradas");
+  }
+
+  const showMobileBar = checkedCount > 0 || batchRunning;
+
   return (
-    <div className="space-y-5">
+    <div className={cn("space-y-4 sm:space-y-5", showMobileBar && "pb-24 lg:pb-0")}>
       <PageHeader
         title="Etiquetas · plano Preventiva / Cal / TSE"
-        description="Etiqueta 50×30 mm (WYSIWYG): coluna preta AION + caixas Manut. Preventiva / Calibração / Teste Seg. Elétrica, datas e QR Effort. Filtre por setor, selecione na tabela e imprima em fila na Niimbot B1 (Web Bluetooth)."
+        description="Filtre por setor, marque equipamentos e imprima na Niimbot B1 (Chrome/Edge com Bluetooth) ou baixe PNG. No celular, use a barra inferior para a fila de impressão."
       />
 
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-2">
           <CardTitle>Filtros</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-wrap items-end gap-3">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_auto] lg:items-end">
             <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-aion-muted">
               Setor
               <select
-                className="h-10 min-w-[220px] max-w-full rounded-lg border border-aion-line bg-white px-3 text-sm font-normal normal-case tracking-normal text-aion-ink"
+                className="h-11 w-full rounded-lg border border-aion-line bg-white px-3 text-sm font-normal normal-case tracking-normal text-aion-ink"
                 value={setorFiltro}
                 onChange={(e) => setSetorFiltro(e.target.value)}
                 disabled={loading || setoresOpts.length === 0}
@@ -567,14 +655,14 @@ export function EtiquetasPlanoView() {
                 ))}
               </select>
             </label>
-            <label className="grid min-w-[220px] flex-1 gap-1 text-xs font-semibold uppercase tracking-wide text-aion-muted">
+            <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-aion-muted">
               Buscar
               <input
                 type="search"
                 value={busca}
                 onChange={(e) => setBusca(e.target.value)}
                 placeholder="Tag, equipamento ou setor…"
-                className="h-10 w-full rounded-lg border border-aion-line bg-white px-3 text-sm font-normal normal-case tracking-normal text-aion-ink placeholder:text-aion-muted"
+                className="h-11 w-full rounded-lg border border-aion-line bg-white px-3 text-sm font-normal normal-case tracking-normal text-aion-ink placeholder:text-aion-muted"
               />
             </label>
             {(setorFiltro !== "todos" || busca.trim()) && (
@@ -582,6 +670,7 @@ export function EtiquetasPlanoView() {
                 type="button"
                 size="sm"
                 variant="secondary"
+                className="h-11 sm:self-end"
                 onClick={() => {
                   setSetorFiltro("todos");
                   setBusca("");
@@ -605,7 +694,7 @@ export function EtiquetasPlanoView() {
                     type="button"
                     onClick={() => toggleMonth(m.key)}
                     className={cn(
-                      "rounded-md border px-2.5 py-1 text-xs font-medium capitalize transition-colors",
+                      "min-h-9 rounded-md border px-2.5 py-1.5 text-xs font-medium capitalize transition-colors",
                       on
                         ? "border-aion-blue bg-aion-blue text-white"
                         : "border-aion-line bg-white text-aion-ink hover:bg-aion-mist",
@@ -634,10 +723,11 @@ export function EtiquetasPlanoView() {
               {PLANOS_ETIQUETA.map((p) => (
                 <label
                   key={p.id}
-                  className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-aion-line bg-white px-3 py-1.5 text-sm"
+                  className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-aion-line bg-white px-3 py-2 text-sm"
                 >
                   <input
                     type="checkbox"
+                    className="h-4 w-4"
                     checked={planosOn[p.id]}
                     onChange={(e) =>
                       setPlanosOn((prev) => ({ ...prev, [p.id]: e.target.checked }))
@@ -652,7 +742,7 @@ export function EtiquetasPlanoView() {
 
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-aion-muted">
-              Tamanho da etiqueta (B1) — padrão 50×30 mm
+              Tamanho da etiqueta (B1)
             </p>
             <div className="flex flex-wrap gap-2">
               {LABEL_SIZES_B1.map((s) => (
@@ -661,7 +751,7 @@ export function EtiquetasPlanoView() {
                   type="button"
                   onClick={() => setSizeId(s.id)}
                   className={cn(
-                    "rounded-md border px-3 py-1.5 text-sm",
+                    "min-h-11 rounded-md border px-3 py-2 text-sm",
                     sizeId === s.id
                       ? "border-aion-blue bg-aion-blue text-white"
                       : "border-aion-line bg-white text-aion-ink hover:bg-aion-mist",
@@ -682,27 +772,27 @@ export function EtiquetasPlanoView() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_minmax(280px,360px)]">
-        <Card>
-          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-            <CardTitle>
-              Equipamentos ({loading ? "…" : rows.length}
-              {!loading && rows.length !== rowsEnriched.length
+      <div className="grid gap-4 lg:grid-cols-[1fr_minmax(280px,360px)] lg:gap-5">
+        <Card className="order-2 min-w-0 lg:order-1">
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <CardTitle className="text-base sm:text-lg">
+              Equipamentos ({loading ? "…" : sortedRows.length}
+              {!loading && sortedRows.length !== rowsEnriched.length
                 ? ` de ${rowsEnriched.length}`
                 : ""}
               )
               {checkedCount > 0 ? (
                 <span className="ml-2 text-sm font-normal text-aion-muted">
-                  · {checkedCount} selecionada{checkedCount === 1 ? "" : "s"}
+                  · {checkedCount} sel.
                 </span>
               ) : null}
             </CardTitle>
-            <div className="flex flex-wrap gap-2">
+            <div className="hidden flex-wrap gap-2 lg:flex">
               <Button
                 type="button"
                 size="sm"
                 variant="outline"
-                disabled={pending || !rows.length}
+                disabled={pending || !sortedRows.length}
                 onClick={selectAllVisible}
               >
                 Selecionar todas
@@ -721,161 +811,327 @@ export function EtiquetasPlanoView() {
                 size="sm"
                 disabled={pending || checkedCount === 0 || !bleOk}
                 onClick={() => void onPrintChecked()}
-                title={
-                  !bleOk
-                    ? "Web Bluetooth indisponível"
-                    : checkedCount === 0
-                      ? "Marque etiquetas na tabela"
-                      : `Imprimir ${checkedCount} na B1`
-                }
               >
-                Imprimir selecionadas{checkedCount > 0 ? ` (${checkedCount})` : ""}
+                Imprimir sel.{checkedCount > 0 ? ` (${checkedCount})` : ""}
               </Button>
-              <Button type="button" size="sm" variant="outline" disabled={pending || !rows.length} onClick={onDownloadAll}>
-                Baixar PNG (todos)
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={pending || checkedCount === 0}
+                onClick={() => void onDownloadSelected()}
+              >
+                PNG sel.
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={pending || !sortedRows.length}
+                onClick={() => void onDownloadAllFiltered()}
+              >
+                PNG filtradas
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2 lg:hidden">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={pending || !sortedRows.length}
+                onClick={selectAllVisible}
+              >
+                Sel. todas
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={pending || checkedCount === 0}
+                onClick={clearChecked}
+              >
+                Limpar
               </Button>
             </div>
           </CardHeader>
           <CardContent>
-            {error ? (
-              <p className="text-sm text-rose-700">{error}</p>
-            ) : null}
+            {error ? <p className="text-sm text-rose-700">{error}</p> : null}
             {loading ? (
-              <TableSkeleton rows={8} />
-            ) : rows.length === 0 ? (
+              <TableSkeleton rows={6} />
+            ) : sortedRows.length === 0 ? (
               <p className="text-sm text-aion-muted">
-                Nenhuma OS aberta de plano nos meses/tipos selecionados.
+                Nenhuma OS aberta de plano nos filtros selecionados.
               </p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="text-xs uppercase text-aion-muted">
-                    <tr>
-                      <th className="w-10 py-2 pr-2">
-                        <input
-                          type="checkbox"
-                          checked={allVisibleChecked}
-                          ref={(el) => {
-                            if (el) {
-                              el.indeterminate =
-                                checkedCount > 0 && !allVisibleChecked;
+              <>
+                {/* Lista em cards — mobile */}
+                <ul className="space-y-2 md:hidden">
+                  {pageRows.map((row) => {
+                    const active = selected?.tag === row.tag;
+                    const checked = checkedTags.has(row.tag);
+                    return (
+                      <li key={row.tag}>
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setSelectedTag(row.tag)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSelectedTag(row.tag);
                             }
                           }}
-                          disabled={pending || !rows.length}
-                          onChange={toggleAllVisible}
-                          aria-label="Selecionar todas as etiquetas visíveis"
-                          className="align-middle"
-                        />
-                      </th>
-                      <th className="py-2 pr-2">Tag</th>
-                      <th className="py-2 pr-2">Equipamento</th>
-                      <th className="py-2 pr-2">Setor</th>
-                      <th className="py-2 pr-2">Planos</th>
-                      <th className="py-2 pr-2">Realiz.</th>
-                      <th className="py-2 pr-2">Próxima</th>
-                      <th className="py-2">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map((row) => (
-                      <tr
-                        key={row.tag}
-                        className={cn(
-                          "border-t border-aion-line/70 cursor-pointer",
-                          selected?.tag === row.tag ? "bg-aion-mist/70" : "hover:bg-aion-mist/40",
-                          checkedTags.has(row.tag) && selected?.tag !== row.tag
-                            ? "bg-sky-50/80"
-                            : "",
-                        )}
-                        onClick={() => setSelectedTag(row.tag)}
-                      >
-                        <td className="py-2 pr-2">
+                          className={cn(
+                            "rounded-xl border px-3 py-3 text-left transition-colors",
+                            active
+                              ? "border-aion-blue bg-aion-mist/80"
+                              : "border-aion-line bg-white",
+                            checked && !active ? "bg-sky-50/90" : "",
+                          )}
+                        >
+                          <div className="flex items-start gap-3">
+                            <input
+                              type="checkbox"
+                              className="mt-1 h-5 w-5"
+                              checked={checked}
+                              disabled={pending}
+                              onChange={() => toggleChecked(row.tag)}
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label={`Selecionar ${row.tag}`}
+                            />
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <Link
+                                  href={row.fichaVidaPath}
+                                  className="font-mono text-sm font-semibold text-aion-blue"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {row.tag}
+                                </Link>
+                                <span className="text-xs text-aion-muted">
+                                  {row.setor || "Sem setor"}
+                                </span>
+                              </div>
+                              <p className="truncate text-sm text-aion-ink">
+                                {row.equipamento || "—"}
+                              </p>
+                              <div className="flex flex-wrap gap-1">
+                                {row.planos.map((p) => {
+                                  const cfg = PLANOS_ETIQUETA.find((x) => x.id === p);
+                                  return (
+                                    <Badge key={p} tone={chipTone(p)}>
+                                      {cfg?.chip}
+                                    </Badge>
+                                  );
+                                })}
+                              </div>
+                              <p className="text-xs text-aion-muted">
+                                Realiz. {formatMesAno(row.realizacao)} · Próx.{" "}
+                                {formatProximaLabel(row.proxima)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                {/* Tabela — desktop */}
+                <div className="hidden overflow-x-auto md:block">
+                  <table className="w-full text-left text-sm">
+                    <thead className="text-xs uppercase text-aion-muted">
+                      <tr>
+                        <th className="w-10 py-2 pr-2">
                           <input
                             type="checkbox"
-                            checked={checkedTags.has(row.tag)}
-                            disabled={pending}
-                            onChange={() => toggleChecked(row.tag)}
-                            onClick={(e) => e.stopPropagation()}
-                            aria-label={`Selecionar ${row.tag}`}
+                            checked={allPageChecked}
+                            ref={(el) => {
+                              if (el) {
+                                el.indeterminate =
+                                  pageCheckedCount > 0 && !allPageChecked;
+                              }
+                            }}
+                            disabled={pending || !pageRows.length}
+                            onChange={togglePageChecked}
+                            aria-label="Selecionar página atual"
                             className="align-middle"
                           />
-                        </td>
-                        <td className="py-2 pr-2 font-mono text-xs">
-                          <Link
-                            href={row.fichaVidaPath}
-                            className="text-aion-blue hover:underline"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {row.tag}
-                          </Link>
-                        </td>
-                        <td className="py-2 pr-2 max-w-[12rem] truncate" title={row.equipamento}>
-                          {row.equipamento || "—"}
-                        </td>
-                        <td className="py-2 pr-2">{row.setor || "—"}</td>
-                        <td className="py-2 pr-2">
-                          <span className="inline-flex flex-wrap gap-1">
-                            {row.planos.map((p) => {
-                              const cfg = PLANOS_ETIQUETA.find((x) => x.id === p);
-                              return (
-                                <Badge key={p} tone={chipTone(p)}>
-                                  {cfg?.chip}
-                                </Badge>
-                              );
-                            })}
-                          </span>
-                        </td>
-                        <td className="py-2 pr-2 whitespace-nowrap">{formatMesAno(row.realizacao)}</td>
-                        <td className="py-2 pr-2 whitespace-nowrap">{formatProximaLabel(row.proxima)}</td>
-                        <td className="py-2">
-                          <div className="flex flex-wrap gap-1">
-                            <Button
+                        </th>
+                        {(
+                          [
+                            ["tag", "Tag"],
+                            ["equipamento", "Equipamento"],
+                            ["setor", "Setor"],
+                          ] as const
+                        ).map(([key, label]) => (
+                          <th key={key} className="py-2 pr-2">
+                            <button
                               type="button"
-                              size="sm"
-                              variant="secondary"
-                              disabled={pending}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDownload(row);
-                              }}
+                              className="font-semibold uppercase tracking-wide hover:text-aion-blue"
+                              onClick={() => toggleSort(key)}
                             >
-                              PNG
-                            </Button>
-                            <Button
+                              {label}
+                              {sortMark(key)}
+                            </button>
+                          </th>
+                        ))}
+                        <th className="py-2 pr-2">Planos</th>
+                        {(
+                          [
+                            ["realizacao", "Realiz."],
+                            ["proxima", "Próxima"],
+                          ] as const
+                        ).map(([key, label]) => (
+                          <th key={key} className="py-2 pr-2">
+                            <button
                               type="button"
-                              size="sm"
-                              disabled={pending || !bleOk}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onPrintOne(row);
-                              }}
-                              title={bleOk ? "Imprimir na B1" : "Web Bluetooth indisponível"}
+                              className="font-semibold uppercase tracking-wide hover:text-aion-blue"
+                              onClick={() => toggleSort(key)}
                             >
-                              B1
-                            </Button>
-                          </div>
-                        </td>
+                              {label}
+                              {sortMark(key)}
+                            </button>
+                          </th>
+                        ))}
+                        <th className="py-2">Ações</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {pageRows.map((row) => (
+                        <tr
+                          key={row.tag}
+                          className={cn(
+                            "cursor-pointer border-t border-aion-line/70",
+                            selected?.tag === row.tag
+                              ? "bg-aion-mist/70"
+                              : "hover:bg-aion-mist/40",
+                            checkedTags.has(row.tag) && selected?.tag !== row.tag
+                              ? "bg-sky-50/80"
+                              : "",
+                          )}
+                          onClick={() => setSelectedTag(row.tag)}
+                        >
+                          <td className="py-2 pr-2">
+                            <input
+                              type="checkbox"
+                              checked={checkedTags.has(row.tag)}
+                              disabled={pending}
+                              onChange={() => toggleChecked(row.tag)}
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label={`Selecionar ${row.tag}`}
+                              className="align-middle"
+                            />
+                          </td>
+                          <td className="py-2 pr-2 font-mono text-xs">
+                            <Link
+                              href={row.fichaVidaPath}
+                              className="text-aion-blue hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {row.tag}
+                            </Link>
+                          </td>
+                          <td
+                            className="max-w-[12rem] truncate py-2 pr-2"
+                            title={row.equipamento}
+                          >
+                            {row.equipamento || "—"}
+                          </td>
+                          <td className="py-2 pr-2">{row.setor || "—"}</td>
+                          <td className="py-2 pr-2">
+                            <span className="inline-flex flex-wrap gap-1">
+                              {row.planos.map((p) => {
+                                const cfg = PLANOS_ETIQUETA.find((x) => x.id === p);
+                                return (
+                                  <Badge key={p} tone={chipTone(p)}>
+                                    {cfg?.chip}
+                                  </Badge>
+                                );
+                              })}
+                            </span>
+                          </td>
+                          <td className="whitespace-nowrap py-2 pr-2">
+                            {formatMesAno(row.realizacao)}
+                          </td>
+                          <td className="whitespace-nowrap py-2 pr-2">
+                            {formatProximaLabel(row.proxima)}
+                          </td>
+                          <td className="py-2">
+                            <div className="flex flex-wrap gap-1">
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                disabled={pending}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void onDownload(row);
+                                }}
+                              >
+                                PNG
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={pending || !bleOk}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void onPrintOne(row);
+                                }}
+                                title={bleOk ? "Imprimir na B1" : "Web Bluetooth indisponível"}
+                              >
+                                B1
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-aion-muted">
+                  <span>
+                    {sortedRows.length} registro(s) · página {safePage + 1} de {pageCount}
+                    {allVisibleChecked ? " · todas filtradas selecionadas" : ""}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={safePage <= 0}
+                      onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={safePage >= pageCount - 1}
+                      onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                    >
+                      Próxima
+                    </Button>
+                  </div>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Mockup WYSIWYG · {size.label}</CardTitle>
+        <Card className="order-1 min-w-0 lg:sticky lg:top-4 lg:order-2 lg:self-start">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base sm:text-lg">Mockup · {size.label}</CardTitle>
             <p className="text-xs text-aion-muted">
-              Layout idêntico à B1 — impressão {size.wPx}×{size.hPx} px @ 203 dpi ({size.wMm}:
-              {size.hMm} mm). Prévia em tela usa hi-DPI (CSS × devicePixelRatio); PNG/Bluetooth
-              seguem o bitmap 1:1. Coluna AION · EQUIP. Nº + TAG · REALIZADO/PRÓXIMO · M.P/CAL./T.S.E
-              · QR + VOID.
+              Prévia hi-DPI; impressão B1 {size.wPx}×{size.hPx} @ 203 dpi. Caixas: Manut.
+              Preventiva / Calibração / Teste Seg. Elétrica.
             </p>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="rounded-xl border border-aion-line bg-[linear-gradient(165deg,#e8f2f8_0%,#f4f8fb_45%,#eef5fa_100%)] p-4">
+            <div className="rounded-xl border border-aion-line bg-[linear-gradient(165deg,#e8f2f8_0%,#f4f8fb_45%,#eef5fa_100%)] p-3 sm:p-4">
               <div className="mb-2 flex items-center justify-between text-[10px] font-semibold uppercase tracking-wider text-aion-muted">
                 <span>Etiqueta</span>
                 <span>
@@ -905,7 +1161,7 @@ export function EtiquetasPlanoView() {
             </div>
 
             {selected && selectedQr ? (
-              <div className="space-y-1 text-xs text-aion-muted break-all">
+              <div className="space-y-1 break-all text-xs text-aion-muted">
                 <p>
                   QR →{" "}
                   {selectedQr.source === "effort-template" ? (
@@ -928,29 +1184,25 @@ export function EtiquetasPlanoView() {
                 </p>
                 {selectedQr.source === "effort-template" ? (
                   <p>
-                    Ficha AionScope (secundária):{" "}
+                    Ficha AionScope:{" "}
                     <Link href={selected.fichaVidaPath} className="text-aion-blue hover:underline">
                       {selectedQr.fichaVidaUrl}
                     </Link>
                   </p>
                 ) : (
-                  <p>
-                    Sem Id do equipamento na API — QR cai na ficha vida AionScope. Com Id, o
-                    padrão é Effort{" "}
-                    <code className="text-[11px]">
-                      …/Mobile/MEquipamentoPropriedade.aspx?eqp=&#123;Id&#125;
-                    </code>
-                    . Ver <code className="text-[11px]">docs/ops/etiquetas-niimbot.md</code>.
+                  <p className="hidden sm:block">
+                    Sem Id na API — QR usa ficha vida. Ver{" "}
+                    <code className="text-[11px]">docs/ops/etiquetas-niimbot.md</code>.
                   </p>
                 )}
               </div>
             ) : (
               <p className="text-xs text-aion-muted">
-                Mockup de demonstração — selecione um equipamento na tabela para dados reais.
+                Toque em um equipamento na lista para ver a etiqueta real.
               </p>
             )}
 
-            <div className="flex flex-wrap gap-2">
+            <div className="hidden flex-wrap gap-2 lg:flex">
               <Button type="button" variant="outline" disabled={pending || !bleOk} onClick={onConnect}>
                 Conectar B1
               </Button>
@@ -958,7 +1210,6 @@ export function EtiquetasPlanoView() {
                 type="button"
                 disabled={pending || !selected || !bleOk}
                 onClick={onPrintFocused}
-                title="Imprime a etiqueta do mockup (linha em foco)"
               >
                 Imprimir esta
               </Button>
@@ -966,15 +1217,8 @@ export function EtiquetasPlanoView() {
                 type="button"
                 disabled={pending || checkedCount === 0 || !bleOk}
                 onClick={() => void onPrintChecked()}
-                title={
-                  !bleOk
-                    ? "Web Bluetooth indisponível"
-                    : checkedCount === 0
-                      ? "Marque etiquetas na tabela"
-                      : `Fila B1: ${checkedCount} etiqueta(s)`
-                }
               >
-                Imprimir selecionadas{checkedCount > 0 ? ` (${checkedCount})` : ""}
+                Imprimir sel.{checkedCount > 0 ? ` (${checkedCount})` : ""}
               </Button>
               {batchRunning ? (
                 <Button type="button" variant="outline" onClick={onCancelBatch}>
@@ -987,20 +1231,48 @@ export function EtiquetasPlanoView() {
                 disabled={pending || !selected}
                 onClick={() => selected && void onDownload(selected)}
               >
-                Baixar PNG
+                PNG desta
+              </Button>
+            </div>
+
+            <div className="flex flex-wrap gap-2 lg:hidden">
+              <Button
+                type="button"
+                className="min-h-11 flex-1"
+                variant="outline"
+                disabled={pending || !bleOk}
+                onClick={onConnect}
+              >
+                Conectar B1
+              </Button>
+              <Button
+                type="button"
+                className="min-h-11 flex-1"
+                disabled={pending || !selected || !bleOk}
+                onClick={onPrintFocused}
+              >
+                Imprimir esta
+              </Button>
+              <Button
+                type="button"
+                className="min-h-11 flex-1"
+                variant="secondary"
+                disabled={pending || !selected}
+                onClick={() => selected && void onDownload(selected)}
+              >
+                PNG desta
               </Button>
             </div>
 
             {!bleOk ? (
               <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                Web Bluetooth não disponível neste navegador. Use <strong>Chrome</strong> ou{" "}
-                <strong>Edge</strong> em <strong>HTTPS</strong> (Railway/Coolify) ou localhost.
-                Enquanto isso, baixe o PNG e imprima pelo app Niimbot.
+                Web Bluetooth indisponível aqui. No <strong>Android</strong>, use Chrome/Edge em
+                HTTPS. No <strong>iPhone</strong>, baixe PNG e imprima pelo app Niimbot (Safari não
+                tem Bluetooth web).
               </p>
             ) : (
               <p className="text-xs text-aion-muted">
-                Bluetooth OK. A impressão exige gesto do usuário (clique). Ver{" "}
-                <code className="text-[11px]">docs/ops/etiquetas-niimbot.md</code>.
+                Bluetooth OK — a impressão exige toque/clique do usuário.
               </p>
             )}
 
@@ -1012,6 +1284,46 @@ export function EtiquetasPlanoView() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Barra fixa de ações — mobile */}
+      {showMobileBar ? (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-aion-line bg-white/95 px-3 pt-3 shadow-[0_-8px_24px_rgba(1,104,176,0.12)] backdrop-blur lg:hidden pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="mx-auto flex max-w-lg flex-wrap gap-2">
+            <Button
+              type="button"
+              className="min-h-11 flex-[1.4]"
+              disabled={pending || checkedCount === 0 || !bleOk}
+              onClick={() => void onPrintChecked()}
+            >
+              Imprimir {checkedCount > 0 ? `(${checkedCount})` : ""}
+            </Button>
+            <Button
+              type="button"
+              className="min-h-11 flex-1"
+              variant="secondary"
+              disabled={pending || checkedCount === 0}
+              onClick={() => void onDownloadSelected()}
+            >
+              PNG sel.
+            </Button>
+            {batchRunning ? (
+              <Button type="button" className="min-h-11" variant="outline" onClick={onCancelBatch}>
+                Cancelar
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                className="min-h-11"
+                variant="outline"
+                disabled={pending || checkedCount === 0}
+                onClick={clearChecked}
+              >
+                Limpar
+              </Button>
+            )}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -52,12 +52,32 @@ body {
   color: var(--foreground);
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   font-family: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  overflow-x: clip;
+  overscroll-behavior-y: contain;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Alvos de toque mais confortáveis em mobile (sem alterar desktop). */
+@media (max-width: 1023px) {
+  button,
+  [role="button"],
+  a,
+  summary,
+  input[type="checkbox"],
+  input[type="radio"],
+  select {
+    touch-action: manipulation;
+  }
 }
 
 .aion-bar {

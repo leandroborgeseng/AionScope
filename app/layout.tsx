@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Montserrat, Outfit } from "next/font/google";
 import { Suspense, type ReactNode } from "react";
 import { Providers } from "@/components/providers";
@@ -33,6 +33,21 @@ export const metadata: Metadata = {
     icon: [{ url: "/aion-mark.png", type: "image/png" }],
     apple: "/aion-mark.png",
   },
+  appleWebApp: {
+    capable: true,
+    title: "AionScope",
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0168b0",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

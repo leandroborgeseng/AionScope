@@ -12,22 +12,22 @@ export const PLANOS_ETIQUETA: readonly {
 }[] = [
   {
     id: "preventiva",
-    chip: "PREV",
-    chipLabel: "Preventiva",
+    chip: "Manut. Prev.",
+    chipLabel: "Manut. Preventiva",
     oficinaEquals: "PREVENTIVA EQUIPAMENTOS",
     oficinaLabel: "PREVENTIVA EQUIPAMENTOS",
   },
   {
     id: "calibracao",
-    chip: "CAL",
+    chip: "Cal",
     chipLabel: "Calibração",
     oficinaEquals: "CALIBRACAO DE EQUIPAMENTOS",
     oficinaLabel: "CALIBRAÇÃO DE EQUIPAMENTOS",
   },
   {
     id: "tse",
-    chip: "TSE",
-    chipLabel: "Segurança elétrica",
+    chip: "Teste Seg.",
+    chipLabel: "Teste Seg. Elétrica",
     oficinaEquals: "SEGURANCA ELETRICA",
     oficinaLabel: "SEGURANÇA ELÉTRICA",
   },

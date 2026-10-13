@@ -122,11 +122,19 @@ Alterar `NEXT_PUBLIC_*` exige **rebuild/redeploy** (valores são embutidos no bu
 ## Como usar
 
 1. Abra `/etiquetas` no Chrome ou Edge.
-2. Filtre por **setor** (e/ou busque tag/equipamento), escolha o(s) mês(es) e os tipos PREV / CAL / TSE.
-3. Confira o **mockup WYSIWYG** (50×30 por padrão) e a URL Effort do QR.
-4. **Baixar PNG** — funciona em qualquer navegador (fallback).
-5. **Uma etiqueta** — clique na linha (mockup) → **Imprimir esta**, ou o botão **B1** na linha.
-6. **Várias etiquetas** — marque os checkboxes (ou **Selecionar todas**), depois **Imprimir selecionadas (N)**. A app conecta uma vez à B1, imprime em sequência com progresso `N de M` e erros por item; **Cancelar fila** interrompe entre etiquetas.
+2. Filtre por **setor** (e/ou busque tag/equipamento), escolha o(s) mês(es) e os tipos de plano.
+3. Confira o **mockup** (50×30 por padrão) e a URL Effort do QR.
+4. **PNG selecionadas** — baixe só o que marcou (também há PNG filtradas / PNG desta).
+5. **Uma etiqueta** — toque/clique na linha → **Imprimir esta**, ou **B1** na tabela (desktop).
+6. **Várias etiquetas** — marque os checkboxes (ou **Selecionar todas**), depois **Imprimir**. No celular a barra inferior fixa concentra a fila; **Cancelar** interrompe entre etiquetas.
+7. Lista paginada (12/página); no desktop as colunas Tag / Equipamento / Setor / datas são ordenáveis.
+
+### Celular
+
+- Layout em **cards** + mockup no topo + **barra de ações fixa** na base.
+- **Android Chrome/Edge** + HTTPS: Web Bluetooth pode imprimir direto na B1.
+- **iPhone (Safari):** sem Web Bluetooth — use **PNG sel.** e o app Niimbot.
+- Adicione à tela inicial (PWA leve via `apple-mobile-web-app`) para uso mais próximo de app.
 
 ## Impressão Niimbot B1 (Web Bluetooth)
 
@@ -134,7 +142,7 @@ Requisitos:
 
 1. **Chrome** ou **Edge** (Chromium). Firefox e Safari **não** têm Web Bluetooth.
 2. Página em **HTTPS** ou `localhost`. No Railway/Coolify o site já deve ser HTTPS.
-3. Bluetooth ligado no PC; impressora B1 ligada e com etiquetas **50×30 mm**.
+3. Bluetooth ligado no celular/PC; impressora B1 ligada e com etiquetas **50×30 mm**.
 4. Clique do usuário (o navegador só abre o seletor BLE em gesto humano).
 
 Driver: `niimbot-web-bluetooth` (vendorizado em `public/vendor/niimbot.js`). Modelo B1 (`task: "b1"`, 203 dpi).
