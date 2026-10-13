@@ -196,15 +196,15 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   ctx.fillStyle = "#000000";
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
-  ctx.font = `800 12px ${font}`;
+  ctx.font = `600 12px ${font}`;
   fillTextSpaced(ctx, "EQUIP. Nº", CONTENT_X, 8, 0);
 
-  ctx.font = `800 30px ${font}`;
+  ctx.font = `700 28px ${font}`;
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
   fillThermalText(ctx, tag, CONTENT_RIGHT, 22, 220);
 
-  ctx.font = `800 15px ${font}`;
+  ctx.font = `600 14px ${font}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   const nomeFit = fitTextWidth(ctx, nomeEq.toLocaleUpperCase("pt-BR"), contentW);
@@ -220,9 +220,9 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   ctx.fillStyle = "#000000";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.font = `800 12px ${font}`;
+  ctx.font = `600 12px ${font}`;
   fillTextSpaced(ctx, "REALIZADO", CONTENT_X, 82, 0);
-  ctx.font = `800 22px ${font}`;
+  ctx.font = `700 20px ${font}`;
   ctx.textAlign = "right";
   fillThermalText(ctx, realizacao, colRight, 82, 90);
   ctx.fillRect(CONTENT_X, 93, colW, 1);
@@ -234,9 +234,9 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.font = `800 12px ${font}`;
+  ctx.font = `600 12px ${font}`;
   fillTextSpaced(ctx, "PRÓXIMO", CONTENT_X + 10, 112, 0);
-  ctx.font = `800 26px ${font}`;
+  ctx.font = `700 24px ${font}`;
   ctx.textAlign = "right";
   fillThermalText(ctx, proxima, colRight - 8, 112, 80);
 
@@ -270,7 +270,7 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   const site = formatSite(input.site);
   const contato = `${tel}  ·  ${site}`;
   ctx.fillStyle = "#000000";
-  ctx.font = `800 15px ${font}`;
+  ctx.font = `600 14px ${font}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   fillThermalText(ctx, fitTextWidth(ctx, contato, contentW), CONTENT_X + contentW / 2, 226, contentW);
@@ -360,7 +360,7 @@ function drawStatusChip(
     ctx.stroke();
 
     ctx.fillStyle = "#000000";
-    ctx.font = `800 12px ${font}`;
+    ctx.font = `600 12px ${font}`;
   } else {
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 2]);
@@ -374,7 +374,7 @@ function drawStatusChip(
     ctx.stroke();
 
     ctx.fillStyle = "#000000";
-    ctx.font = `700 12px ${font}`;
+    ctx.font = `600 12px ${font}`;
   }
 
   ctx.textAlign = "left";
@@ -519,8 +519,8 @@ function formatSite(site: string): string {
 }
 
 /**
- * Texto para térmico: stroke leve + fill engrossa hastes (antialias vira bloco preto no limiar).
- * `maxWidth` opcional — mesmo contrato do fillText.
+ * Texto para térmico: só fill (sem stroke).
+ * Na B1, engrossar contraste entope hastes finas — traço fino lê melhor.
  */
 function fillThermalText(
   ctx: CanvasRenderingContext2D,
@@ -531,19 +531,8 @@ function fillThermalText(
 ) {
   const xPt = Math.round(x);
   const yPt = Math.round(y);
-  ctx.save();
-  ctx.lineJoin = "round";
-  ctx.miterLimit = 2;
-  ctx.lineWidth = 0.9;
-  ctx.strokeStyle = ctx.fillStyle;
-  if (maxWidth != null) {
-    ctx.strokeText(text, xPt, yPt, maxWidth);
-    ctx.fillText(text, xPt, yPt, maxWidth);
-  } else {
-    ctx.strokeText(text, xPt, yPt);
-    ctx.fillText(text, xPt, yPt);
-  }
-  ctx.restore();
+  if (maxWidth != null) ctx.fillText(text, xPt, yPt, maxWidth);
+  else ctx.fillText(text, xPt, yPt);
 }
 
 /** Letter-spacing aproximado (pt). Preferir tracking 0 em rótulos pequenos. */
@@ -570,22 +559,23 @@ function fillTextSpaced(
   else if (align === "right" || align === "end") cursor = x - total;
 
   const prevAlign = ctx.textAlign;
-  const prevFill = ctx.fillStyle;
   ctx.textAlign = "left";
   ctx.textBaseline = baseline;
   const yPt = Math.round(y);
   for (let i = 0; i < text.length; i++) {
-    ctx.fillStyle = prevFill;
-    fillThermalText(ctx, text[i]!, Math.round(cursor), yPt);
+    ctx.fillText(text[i]!, Math.round(cursor), yPt);
     cursor += (widths[i] ?? 0) + tracking;
   }
   ctx.textAlign = prevAlign;
-  ctx.fillStyle = prevFill;
 }
 
-/** Limiar / voto padrão do PNG de impressão (mais agressivo = hastes mais grossas). */
-export const LABEL_PRINT_THRESHOLD = 190;
-export const LABEL_PRINT_DARK_RATIO = 0.18;
+/**
+ * Limiar / voto do PNG 1-bit — valores mais “suaves” = hastes mais finas.
+ * Limiar baixo: só pixels bem escuros viram preto (cinza do antialias → branco).
+ * darkRatio alto: bloco precisa de mais preto para imprimir (menos mancha).
+ */
+export const LABEL_PRINT_THRESHOLD = 128;
+export const LABEL_PRINT_DARK_RATIO = 0.42;
 
 /** Aplica limiar 1-bit in-place em buffer RGBA. */
 export function hardenRgbaTo1Bit(
