@@ -697,6 +697,11 @@ function roundRect(
   ctx.closePath();
 }
 
+export type LabelPngOptions = {
+  threshold?: number;
+  darkRatio?: number;
+};
+
 /**
  * PNG 1-bit para B1 / download.
  * Pipeline: kit em 2× → downsample com limiar suave → cabeçote (ex. 384×240).
@@ -705,13 +710,14 @@ function roundRect(
 export async function labelToPngDataUrl(
   input: LabelRenderInput,
   canvas?: HTMLCanvasElement,
+  opts?: LabelPngOptions,
 ): Promise<string> {
   const size = input.size;
   const ss = LABEL_PRINT_SUPERSAMPLE;
   const kitW = LABEL_KIT_DESIGN_PX.w;
   const kitH = LABEL_KIT_DESIGN_PX.h;
-  const thr = LABEL_PRINT_THRESHOLD;
-  const ratio = LABEL_PRINT_DARK_RATIO;
+  const thr = opts?.threshold ?? LABEL_PRINT_THRESHOLD;
+  const ratio = opts?.darkRatio ?? LABEL_PRINT_DARK_RATIO;
 
   const hi = document.createElement("canvas");
   hi.width = kitW * ss;

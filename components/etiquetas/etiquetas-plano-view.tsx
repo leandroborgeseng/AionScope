@@ -14,13 +14,36 @@ import {
   formatMesAno,
   formatProximaLabel,
 } from "@/lib/etiquetas/agregar-plano";
+import { etiquetaBranding } from "@/lib/etiquetas/branding";
+import { adviseBlePath, type BlePathAdvice } from "@/lib/etiquetas/device-ble";
+import {
+  deleteOfflinePack,
+  listOfflinePacks,
+  makeOfflinePackId,
+  saveOfflinePack,
+  type OfflinePack,
+} from "@/lib/etiquetas/offline-pack";
+import {
+  clearPrintHistory,
+  historyMapFromEntries,
+  isPrintedInAnyMonth,
+  loadPrintHistory,
+  markPrinted,
+  unmarkPrinted,
+  type PrintHistoryEntry,
+} from "@/lib/etiquetas/print-history";
+import {
+  loadPrintTone,
+  savePrintTone,
+  toneToPrintOpts,
+  type PrintTone,
+} from "@/lib/etiquetas/print-settings";
 import {
   loadNiimbot,
   printPngBatchOnNiimbotB1,
   printPngOnNiimbotB1,
   webBluetoothSupported,
 } from "@/lib/etiquetas/niimbot-client";
-import { etiquetaBranding } from "@/lib/etiquetas/branding";
 import { resolveEtiquetaQrUrl } from "@/lib/etiquetas/qr-url";
 import {
   downloadDataUrl,
@@ -153,9 +176,16 @@ export function EtiquetasPlanoView() {
   const [checkedTags, setCheckedTags] = useState<Set<string>>(() => new Set());
   const [status, setStatus] = useState<string | null>(null);
   const [bleOk, setBleOk] = useState(false);
+  const [bleAdvice, setBleAdvice] = useState<BlePathAdvice | null>(null);
+  const [printTone, setPrintTone] = useState<PrintTone>(2);
+  const [hidePrinted, setHidePrinted] = useState(false);
+  const [printHistory, setPrintHistory] = useState<PrintHistoryEntry[]>([]);
+  const [offlinePacks, setOfflinePacks] = useState<OfflinePack[]>([]);
   const [pending, setPending] = useState(false);
   const [batchRunning, setBatchRunning] = useState(false);
   const cancelBatchRef = useRef(false);
+  const printToneOpts = useMemo(() => toneToPrintOpts(printTone), [printTone]);
+  const historyMap = useMemo(() => historyMapFromEntries(printHistory), [printHistory]);
   const previewRef = useRef<HTMLCanvasElement>(null);
   /** Garante redraw quando o <canvas> monta (ref sozinho não re-dispara effect). */
   const [previewCanvas, setPreviewCanvas] = useState<HTMLCanvasElement | null>(null);
@@ -167,8 +197,33 @@ export function EtiquetasPlanoView() {
   }, []);
 
   useEffect(() => {
-    setBleOk(webBluetoothSupported());
+    const ble = webBluetoothSupported();
+    setBleOk(ble);
+    setBleAdvice(adviseBlePath({ bleAvailable: ble }));
+    setPrintTone(loadPrintTone());
+    setPrintHistory(loadPrintHistory());
+    void listOfflinePacks()
+      .then(setOfflinePacks)
+      .catch(() => setOfflinePacks([]));
   }, []);
+
+  function updatePrintTone(next: PrintTone) {
+    setPrintTone(next);
+    savePrintTone(next);
+  }
+
+  function refreshHistory(entries: PrintHistoryEntry[]) {
+    setPrintHistory(entries);
+  }
+
+  function recordPrinted(tags: string[]) {
+    if (!tags.length || !months.length) return;
+    refreshHistory(
+      markPrinted(tags, months, {
+        setor: setorFiltro !== "todos" ? setorFiltro : undefined,
+      }),
+    );
+  }
 
   useEffect(() => {
     const canvas = previewCanvas;
@@ -261,6 +316,7 @@ export function EtiquetasPlanoView() {
     const q = busca.trim().toLocaleLowerCase("pt-BR");
     return rowsEnriched.filter((row) => {
       if (setorFiltro !== "todos" && row.setor !== setorFiltro) return false;
+      if (hidePrinted && isPrintedInAnyMonth(historyMap, row.tag, months)) return false;
       if (!q) return true;
       return (
         row.tag.toLocaleLowerCase("pt-BR").includes(q) ||
@@ -268,7 +324,7 @@ export function EtiquetasPlanoView() {
         row.setor.toLocaleLowerCase("pt-BR").includes(q)
       );
     });
-  }, [rowsEnriched, setorFiltro, busca]);
+  }, [rowsEnriched, setorFiltro, busca, hidePrinted, historyMap, months]);
 
   const sortedRows = useMemo(() => {
     const list = [...rows];
@@ -286,7 +342,15 @@ export function EtiquetasPlanoView() {
 
   useEffect(() => {
     setPage(0);
-  }, [setorFiltro, busca, months, planosAtivos, sortKey, sortDir]);
+  }, [setorFiltro, busca, months, planosAtivos, sortKey, sortDir, hidePrinted]);
+
+  const printedInViewCount = useMemo(
+    () => rowsEnriched.filter((r) => {
+      if (setorFiltro !== "todos" && r.setor !== setorFiltro) return false;
+      return isPrintedInAnyMonth(historyMap, r.tag, months);
+    }).length,
+    [rowsEnriched, setorFiltro, historyMap, months],
+  );
 
   useEffect(() => {
     if (page > pageCount - 1) setPage(Math.max(0, pageCount - 1));
@@ -462,7 +526,10 @@ export function EtiquetasPlanoView() {
       origin: window.location.origin,
     });
     input.qrUrl = qr.url;
-    const dataUrl = await labelToPngDataUrl(input);
+    const dataUrl = await labelToPngDataUrl(input, undefined, {
+      threshold: printToneOpts.threshold,
+      darkRatio: printToneOpts.darkRatio,
+    });
     await action(dataUrl);
   }
 
@@ -482,14 +549,20 @@ export function EtiquetasPlanoView() {
   }
 
   async function onPrintOne(row: EtiquetaEquipamento) {
+    if (bleAdvice?.recommend === "png" && !bleOk) {
+      setStatus(bleAdvice.message);
+      return;
+    }
     setPending(true);
     try {
       setStatus(`Imprimindo ${row.tag} na B1…`);
       await withLabel(row, async (dataUrl) => {
         await printPngOnNiimbotB1(dataUrl, size, {
+          density: printToneOpts.density,
           onProgress: (s) => setStatus(`${row.tag}: ${s}`),
         });
       });
+      recordPrinted([row.tag]);
       setStatus(`Impresso · ${row.tag}`);
     } catch (err) {
       setStatus(err instanceof Error ? err.message : String(err));
@@ -503,9 +576,14 @@ export function EtiquetasPlanoView() {
     void onPrintOne(selected);
   }
 
-  async function onPrintChecked() {
-    const selectedRows = sortedRows.filter((r) => checkedTags.has(r.tag));
+  async function onPrintChecked(rowsOverride?: EtiquetaEquipamento[]) {
+    const selectedRows =
+      rowsOverride ?? sortedRows.filter((r) => checkedTags.has(r.tag));
     if (!selectedRows.length) return;
+    if (!bleOk || bleAdvice?.recommend === "png") {
+      setStatus(bleAdvice?.message ?? "Web Bluetooth indisponível — use PNG.");
+      return;
+    }
 
     cancelBatchRef.current = false;
     setBatchRunning(true);
@@ -526,10 +604,17 @@ export function EtiquetasPlanoView() {
         const input = buildRenderInput(row);
         const qr = qrForRow(row, row.tag);
         input.qrUrl = qr.url;
-        items.push({ tag: row.tag, dataUrl: await labelToPngDataUrl(input) });
+        items.push({
+          tag: row.tag,
+          dataUrl: await labelToPngDataUrl(input, undefined, {
+            threshold: printToneOpts.threshold,
+            darkRatio: printToneOpts.darkRatio,
+          }),
+        });
       }
 
       const results = await printPngBatchOnNiimbotB1(items, size, {
+        density: printToneOpts.density,
         shouldCancel: () => cancelBatchRef.current,
         onProgress: (info) => setStatus(info.detail),
       });
@@ -537,6 +622,8 @@ export function EtiquetasPlanoView() {
       const ok = results.filter((r) => r.ok).length;
       const failed = results.filter((r) => !r.ok && !r.skipped);
       const skipped = results.filter((r) => r.skipped).length;
+      const okTags = results.filter((r) => r.ok).map((r) => r.tag);
+      if (okTags.length) recordPrinted(okTags);
       for (const r of failed) {
         errors.push(`${r.tag}: ${r.error ?? "erro"}`);
       }
@@ -624,6 +711,106 @@ export function EtiquetasPlanoView() {
     await onDownloadRows(sortedRows, "filtradas");
   }
 
+  async function onPrintSetor() {
+    if (setorFiltro === "todos") {
+      setStatus("Escolha um setor no filtro antes de usar “Imprimir setor”.");
+      return;
+    }
+    if (!sortedRows.length) {
+      setStatus("Nenhum equipamento neste setor com os filtros atuais.");
+      return;
+    }
+    const setorRows = [...sortedRows];
+    setCheckedTags(new Set(setorRows.map((r) => r.tag)));
+    if (!bleOk || bleAdvice?.recommend === "png") {
+      setStatus(
+        `${setorRows.length} selecionada(s) · ${bleAdvice?.message ?? "Baixe PNG e use o app Niimbot."}`,
+      );
+      await onDownloadRows(setorRows, `setor ${setorFiltro}`);
+      recordPrinted(setorRows.map((r) => r.tag));
+      return;
+    }
+    await onPrintChecked(setorRows);
+  }
+
+  async function onSaveSetorOffline() {
+    if (setorFiltro === "todos") {
+      setStatus("Escolha um setor para guardar o pacote offline.");
+      return;
+    }
+    if (!sortedRows.length) {
+      setStatus("Nada para guardar neste setor.");
+      return;
+    }
+    setPending(true);
+    try {
+      const items = [];
+      for (let i = 0; i < sortedRows.length; i++) {
+        const row = sortedRows[i]!;
+        setStatus(`Pacote offline ${i + 1}/${sortedRows.length} · ${row.tag}…`);
+        const input = buildRenderInput(row);
+        const qr = qrForRow(row, row.tag);
+        input.qrUrl = qr.url;
+        const dataUrl = await labelToPngDataUrl(input, undefined, {
+          threshold: printToneOpts.threshold,
+          darkRatio: printToneOpts.darkRatio,
+        });
+        items.push({
+          tag: row.tag,
+          equipamento: row.equipamento,
+          setor: row.setor,
+          dataUrl,
+          filename: `etiqueta-${row.tag}-${size.id}.png`,
+        });
+      }
+      const pack: OfflinePack = {
+        id: makeOfflinePackId(setorFiltro, months),
+        setor: setorFiltro,
+        monthKeys: [...months],
+        sizeId: size.id,
+        createdAt: new Date().toISOString(),
+        items,
+      };
+      await saveOfflinePack(pack);
+      setOfflinePacks(await listOfflinePacks());
+      setStatus(`Pacote offline salvo · ${setorFiltro} · ${items.length} PNG (sem rede depois).`);
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function onDownloadOfflinePack(pack: OfflinePack) {
+    setPending(true);
+    try {
+      setStatus(`Baixando pacote ${pack.setor} (${pack.items.length})…`);
+      for (const item of pack.items) {
+        downloadDataUrl(item.dataUrl, item.filename);
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      setStatus(`${pack.items.length} PNG baixados do pacote offline · ${pack.setor}`);
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : String(err));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function onDeleteOfflinePack(id: string) {
+    await deleteOfflinePack(id);
+    setOfflinePacks(await listOfflinePacks());
+    setStatus("Pacote offline removido.");
+  }
+
+  function onOpenQrTest() {
+    if (!selectedQr?.url) {
+      setStatus("Selecione um equipamento com QR para testar.");
+      return;
+    }
+    window.open(selectedQr.url, "_blank", "noopener,noreferrer");
+  }
+
   const showMobileBar = checkedCount > 0 || batchRunning;
 
   return (
@@ -680,6 +867,131 @@ export function EtiquetasPlanoView() {
               </Button>
             )}
           </div>
+
+          {bleAdvice ? (
+            <p
+              className={cn(
+                "rounded-lg border px-3 py-2 text-xs",
+                bleAdvice.recommend === "b1"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+                  : "border-amber-200 bg-amber-50 text-amber-950",
+              )}
+            >
+              <strong>{bleAdvice.title}.</strong> {bleAdvice.message}
+            </p>
+          ) : null}
+
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="grid min-w-[220px] flex-1 gap-1 text-xs font-semibold uppercase tracking-wide text-aion-muted">
+              Traço térmico · {printToneOpts.label}
+              <input
+                type="range"
+                min={0}
+                max={4}
+                step={1}
+                value={printTone}
+                onChange={(e) => updatePrintTone(Number(e.target.value) as PrintTone)}
+                className="h-11 w-full accent-aion-blue"
+              />
+              <span className="normal-case tracking-normal text-[11px] font-normal text-aion-muted">
+                Mais fino ← → mais forte · limiar {printToneOpts.threshold} · dens. B1{" "}
+                {printToneOpts.density}
+              </span>
+            </label>
+            <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-aion-line bg-white px-3 py-2 text-sm text-aion-ink">
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={hidePrinted}
+                onChange={(e) => setHidePrinted(e.target.checked)}
+              />
+              Ocultar já impressas
+              {printedInViewCount > 0 ? (
+                <span className="text-xs text-aion-muted">({printedInViewCount})</span>
+              ) : null}
+            </label>
+            {printHistory.length > 0 ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-11"
+                onClick={() => {
+                  refreshHistory(clearPrintHistory());
+                  setStatus("Histórico de impressão limpo neste aparelho.");
+                }}
+              >
+                Limpar histórico
+              </Button>
+            ) : null}
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              disabled={pending || setorFiltro === "todos" || !sortedRows.length}
+              onClick={() => void onPrintSetor()}
+              title="Seleciona o setor filtrado e imprime (ou baixa PNG no iPhone)"
+            >
+              Imprimir setor
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={pending || setorFiltro === "todos" || !sortedRows.length}
+              onClick={() => void onSaveSetorOffline()}
+            >
+              Guardar setor offline
+            </Button>
+          </div>
+
+          {offlinePacks.length > 0 ? (
+            <div className="space-y-2 rounded-lg border border-aion-line bg-aion-mist/40 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-aion-muted">
+                Pacotes offline neste aparelho
+              </p>
+              <ul className="space-y-2">
+                {offlinePacks.slice(0, 6).map((pack) => (
+                  <li
+                    key={pack.id}
+                    className="flex flex-wrap items-center justify-between gap-2 text-sm"
+                  >
+                    <span className="min-w-0 truncate">
+                      <strong>{pack.setor}</strong> · {pack.items.length} PNG ·{" "}
+                      {new Date(pack.createdAt).toLocaleString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    <span className="flex gap-1">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        disabled={pending}
+                        onClick={() => void onDownloadOfflinePack(pack)}
+                      >
+                        Baixar
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={pending}
+                        onClick={() => void onDeleteOfflinePack(pack.id)}
+                      >
+                        Apagar
+                      </Button>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-aion-muted">
@@ -911,6 +1223,9 @@ export function EtiquetasPlanoView() {
                                 <span className="text-xs text-aion-muted">
                                   {row.setor || "Sem setor"}
                                 </span>
+                                {isPrintedInAnyMonth(historyMap, row.tag, months) ? (
+                                  <Badge tone="ok">Impressa</Badge>
+                                ) : null}
                               </div>
                               <p className="truncate text-sm text-aion-ink">
                                 {row.equipamento || "—"}
@@ -1024,13 +1339,18 @@ export function EtiquetasPlanoView() {
                             />
                           </td>
                           <td className="py-2 pr-2 font-mono text-xs">
-                            <Link
-                              href={row.fichaVidaPath}
-                              className="text-aion-blue hover:underline"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              {row.tag}
-                            </Link>
+                            <div className="flex flex-wrap items-center gap-1">
+                              <Link
+                                href={row.fichaVidaPath}
+                                className="text-aion-blue hover:underline"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {row.tag}
+                              </Link>
+                              {isPrintedInAnyMonth(historyMap, row.tag, months) ? (
+                                <Badge tone="ok">OK</Badge>
+                              ) : null}
+                            </div>
                           </td>
                           <td
                             className="max-w-[12rem] truncate py-2 pr-2"
@@ -1083,6 +1403,20 @@ export function EtiquetasPlanoView() {
                               >
                                 B1
                               </Button>
+                              {isPrintedInAnyMonth(historyMap, row.tag, months) ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    refreshHistory(unmarkPrinted(row.tag, months));
+                                  }}
+                                  title="Remover marca de impressa"
+                                >
+                                  Desfazer
+                                </Button>
+                              ) : null}
                             </div>
                           </td>
                         </tr>
@@ -1233,6 +1567,15 @@ export function EtiquetasPlanoView() {
               >
                 PNG desta
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!selectedQr?.url}
+                onClick={onOpenQrTest}
+                title="Abre o link do QR no navegador para validar antes de imprimir"
+              >
+                Abrir QR
+              </Button>
             </div>
 
             <div className="flex flex-wrap gap-2 lg:hidden">
@@ -1262,17 +1605,38 @@ export function EtiquetasPlanoView() {
               >
                 PNG desta
               </Button>
+              <Button
+                type="button"
+                className="min-h-11 flex-1"
+                variant="outline"
+                disabled={!selectedQr?.url}
+                onClick={onOpenQrTest}
+              >
+                Abrir QR
+              </Button>
             </div>
 
-            {!bleOk ? (
+            {selected && isPrintedInAnyMonth(historyMap, selected.tag, months) ? (
+              <div className="flex flex-wrap items-center gap-2 text-xs text-aion-muted">
+                <Badge tone="ok">Já impressa neste mês filtrado</Badge>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => refreshHistory(unmarkPrinted(selected.tag, months))}
+                >
+                  Desfazer marca
+                </Button>
+              </div>
+            ) : null}
+
+            {bleAdvice && bleAdvice.recommend === "png" ? (
               <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                Web Bluetooth indisponível aqui. No <strong>Android</strong>, use Chrome/Edge em
-                HTTPS. No <strong>iPhone</strong>, baixe PNG e imprima pelo app Niimbot (Safari não
-                tem Bluetooth web).
+                {bleAdvice.message}
               </p>
             ) : (
               <p className="text-xs text-aion-muted">
-                Bluetooth OK — a impressão exige toque/clique do usuário.
+                Bluetooth OK — a impressão exige toque/clique do usuário. Tom: {printToneOpts.label}.
               </p>
             )}
 
