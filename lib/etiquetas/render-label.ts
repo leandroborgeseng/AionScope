@@ -1,5 +1,11 @@
 import QRCode from "qrcode";
-import { LABEL_SIZES_B1, type LabelRenderInput, type LabelSizePx, type PlanoEtiqueta } from "./tipos";
+import {
+  LABEL_KIT_DESIGN_PX,
+  LABEL_SIZES_B1,
+  type LabelRenderInput,
+  type LabelSizePx,
+  type PlanoEtiqueta,
+} from "./tipos";
 
 /** Fallbacks se next/font ainda não injetou as variáveis CSS. */
 const LABEL_FONT_FALLBACK = '"Barlow Condensed", "Arial Narrow", Arial, sans-serif';
@@ -30,7 +36,7 @@ const STATUS_BOXES: { id: PlanoEtiqueta; label: string }[] = [
 ];
 
 /**
- * Layout 50×30 (400×240 pt @ 203 dpi) — kit oficial AION (LEIA-ME / etiqueta-aion.html):
+ * Layout 50×30 — kit oficial AION (coordenadas de desenho 400×240):
  *
  *  ┌──────┬────────────────────────────────────┐
  *  │AION  │ EQUIP. Nº              HSJ-00001   │
@@ -43,9 +49,9 @@ const STATUS_BOXES: { id: PlanoEtiqueta; label: string }[] = [
  *  │      │ tel · site              VOID…  │   │
  *  └──────┴────────────────────────────────────┘
  *
- * Coordenadas em pontos (origem canto superior esquerdo).
- * - mode "print" (default): bitmap 1:1 B1 @ 203 dpi (ex. 400×240) — PNG / Niimbot.
- * - mode "preview": backing store = caixa CSS × devicePixelRatio (tela nítida).
+ * Coordenadas do kit em 400×240; bitmap B1 = 384×240 (cabeçote) com escala X.
+ * - mode "print": 203 dpi 1:1 no wPx/hPx da geometria (384×240 na 50×30).
+ * - mode "preview": backing store = caixa CSS × devicePixelRatio.
  */
 export type DrawLabelMode = "print" | "preview";
 
@@ -138,17 +144,22 @@ export async function drawLabelToCanvas(
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, size.wPx, size.hPx);
 
-  if (size.id === "50x30" && size.wPx === 400 && size.hPx === 240) {
+  const kitW = LABEL_KIT_DESIGN_PX.w;
+  const kitH = LABEL_KIT_DESIGN_PX.h;
+  if (size.wPx === kitW && size.hPx === kitH) {
     await drawKit50x30(ctx, input);
     return;
   }
 
-  // 40×30 (e outros): escala proporcional do kit 400×240
-  const scaleX = size.wPx / 400;
-  const scaleY = size.hPx / 240;
+  // B1 50×30 (384×240), 40×30, etc.: escala proporcional do kit 400×240
+  const scaleX = size.wPx / kitW;
+  const scaleY = size.hPx / kitH;
   ctx.save();
   ctx.scale(scaleX, scaleY);
-  await drawKit50x30(ctx, { ...input, size: { ...size, wPx: 400, hPx: 240, id: "50x30" } });
+  await drawKit50x30(ctx, {
+    ...input,
+    size: { ...size, wPx: kitW, hPx: kitH, id: "50x30" },
+  });
   ctx.restore();
 }
 
@@ -178,14 +189,15 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   fillTextSpaced(ctx, "EQUIP.", 97, 14, 1.5);
   fillTextSpaced(ctx, "Nº", 97, 26, 1.5);
 
+  // TAG ancorada em x=378 (antes 390) — folga à direita no cabeçote 384 pt
   ctx.font = `800 47px ${font}`;
   ctx.textAlign = "right";
   ctx.textBaseline = "middle";
-  ctx.fillText(tag, 390, 34, 280);
+  ctx.fillText(tag, 378, 34, 268);
 
   // Linha 3 pt sob o header
   ctx.fillStyle = "#000000";
-  ctx.fillRect(97, 57, 293, 3);
+  ctx.fillRect(97, 57, 281, 3);
 
   // ——— REALIZADO (x 97–235, y 70–94) ———
   const realizacao = shortDate(input.realizacaoLabel);
@@ -243,15 +255,15 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   ctx.textBaseline = "middle";
   ctx.fillText(`${tel} · ${site}`, 97, 225, 138);
 
-  // ——— QR (x 245–390, y 70–215) 145×145, módulo inteiro ———
-  await drawCrispQr(ctx, input.qrUrl, 245, 70, 145);
+  // ——— QR (x 242–378, y 70–206) 136×136 — cabe no cabeçote 384 com folga ———
+  await drawCrispQr(ctx, input.qrUrl, 242, 70, 136);
 
-  // ——— Lacre (x 245–390, y 220–230) ———
+  // ——— Lacre sob o QR ———
   ctx.fillStyle = "#000000";
   ctx.font = `700 8px ${font}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  fillTextSpaced(ctx, "VOID IF SEAL IS BROKEN", 245 + 145 / 2, 225, 1.5);
+  fillTextSpaced(ctx, "VOID IF SEAL IS BROKEN", 242 + 136 / 2, 225, 1.2);
 }
 
 /** Logo AION + ENGENHARIA na faixa preta, −90° (lê de baixo para cima), 210 pt. */

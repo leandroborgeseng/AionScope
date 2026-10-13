@@ -861,15 +861,17 @@
   }
 
   // ── Bitmap: image → rows packed MSB-first (1 = black) ───────────────────────
-  async function imageToPacked(url, w, h, offsetY) {
+  async function imageToPacked(url, w, h, offsetY, offsetX) {
     const dy = offsetY | 0;   // print-position calibration (paper registration, not scale — w/h stay put); dy > 0 shifts down, dy < 0 shifts up
+    const dx = offsetX | 0;   // dx < 0 pulls content left (cuts left white margin / frees the right edge on B1 50×30)
     const bmp = await fetch(url).then((r) => r.blob()).then((b) => createImageBitmap(b));
     const canvas = document.createElement("canvas");
     canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext("2d");
     ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h);
-    ctx.drawImage(bmp, 0, dy, w, h);   // dy > 0 (e.g. T50x30_b1: +4): top dy rows stay white, bottom dy rows fall off the page.
+    ctx.drawImage(bmp, dx, dy, w, h);   // dy > 0 (e.g. T50x30_b1: +4): top dy rows stay white, bottom dy rows fall off the page.
                                        // dy < 0 (e.g. T15x50: -2): top |dy| rows of the SOURCE image are cut off, bottom |dy| rows of the page stay white.
+                                       // dx < 0: left |dx| cols of the SOURCE are cut off; content shifts left on the page (B1 left gap / right clip).
                                        // Both directions are real hardware, not hypothetical: the B1 needed the print pushed down, the D110 needed it pulled up.
     const px = ctx.getImageData(0, 0, w, h).data;
     const stride = (w + 7) >> 3;
@@ -1144,7 +1146,8 @@
     await connect(model);
     assertSelection(model, size);
     const offsetY = opts.offsetY != null ? opts.offsetY : (size.offset_y_px || 0);
-    const { buf, stride } = await imageToPacked(url, size.w_px, size.h_px, offsetY);
+    const offsetX = opts.offsetX != null ? opts.offsetX : (size.offset_x_px || 0);
+    const { buf, stride } = await imageToPacked(url, size.w_px, size.h_px, offsetY, offsetX);
     _t0 = Date.now(); _lastPage = -1;                                        // timing trace (DEBUG)
 
     // pagesPerJob: 1 — this printer acks a multi-page/multi-copy job but only actually
@@ -1204,6 +1207,7 @@
     assertSelection(model, size);
     const N = urls.length;
     const offsetY = opts.offsetY != null ? opts.offsetY : (size.offset_y_px || 0);
+    const offsetX = opts.offsetX != null ? opts.offsetX : (size.offset_x_px || 0);
     _t0 = Date.now(); _lastPage = -1;                                       // reset timing trace
 
     // pagesPerJob: 1 — see printImage for the same guard. A multi-page batch job on
@@ -1216,7 +1220,7 @@
       for (let i = 0; i < N; i++) {
         const tag = `label ${i + 1}/${N}`;
         onProgress && onProgress(`${tag}: sending…`);
-        const { buf, stride } = await imageToPacked(urls[i], size.w_px, size.h_px, offsetY);
+        const { buf, stride } = await imageToPacked(urls[i], size.w_px, size.h_px, offsetY, offsetX);
         tlog(`${tag}: start sending`);
         _lastPage = -1; _pageSeen = null;   // the printer's page counter resets at the start of EACH job (measured) — don't carry a stale value into the next one
         await beginJob(model, 1, (s) => onProgress && onProgress(`${tag}: ${s}`), density);
@@ -1248,7 +1252,7 @@
       for (let i = 0; i < N && !problem; i++) {
         const tag = `label ${i + 1}/${N}`;
         onProgress && onProgress(`${tag}: sending…`);
-        const { buf, stride } = await imageToPacked(urls[i], size.w_px, size.h_px, offsetY);
+        const { buf, stride } = await imageToPacked(urls[i], size.w_px, size.h_px, offsetY, offsetX);
         tlog(`page ${i}: start sending`);
         const { ackPromise } = await sendPagePacked(model, size, buf, stride, 1,
           (s) => onProgress && onProgress(`${tag}: ${s}`), tag, true);
@@ -1299,7 +1303,7 @@
     for (let i = 0; i < N && !problem; i++) {
       const tag = `label ${i + 1}/${N}`;
       onProgress && onProgress(`${tag}: sending…`);
-      const { buf, stride } = await imageToPacked(urls[i], size.w_px, size.h_px, offsetY);
+      const { buf, stride } = await imageToPacked(urls[i], size.w_px, size.h_px, offsetY, offsetX);
       tlog(`page ${i}: start sending`);
       const acked = await sendPagePacked(model, size, buf, stride, 1,
         (s) => onProgress && onProgress(`${tag}: ${s}`), tag);
