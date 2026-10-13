@@ -356,7 +356,7 @@ function drawStatusChip(
     ctx.stroke();
 
     ctx.fillStyle = "#000000";
-    ctx.font = `800 15px ${font}`;
+    ctx.font = `800 12px ${font}`;
   } else {
     ctx.lineWidth = 1;
     ctx.setLineDash([3, 2]);
@@ -370,12 +370,14 @@ function drawStatusChip(
     ctx.stroke();
 
     ctx.fillStyle = "#000000";
-    ctx.font = `600 15px ${font}`;
+    ctx.font = `700 12px ${font}`;
   }
 
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  fillThermalText(ctx, label, checkX + check + 8, y + h / 2);
+  const labelX = checkX + check + 6;
+  const labelMax = Math.max(40, x + w - labelX - 6);
+  fillThermalText(ctx, fitTextWidth(ctx, label, labelMax), labelX, y + h / 2, labelMax);
   ctx.restore();
 }
 
