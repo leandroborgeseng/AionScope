@@ -2,9 +2,9 @@
 
 Gera e imprime etiquetas para equipamentos com OS **abertas** nas oficinas de plano:
 
-- `PREVENTIVA EQUIPAMENTOS` → caixa **M.P**
-- `CALIBRAÇÃO DE EQUIPAMENTOS` → caixa **CAL.**
-- `SEGURANÇA ELÉTRICA` → caixa **T.S.E**
+- `PREVENTIVA EQUIPAMENTOS` → caixa **M. Preventiva**
+- `CALIBRAÇÃO DE EQUIPAMENTOS` → caixa **Calibração**
+- `SEGURANÇA ELÉTRICA` → caixa **T. Seg. Elétrica**
 
 Um equipamento pode ter só Preventiva, Prev+TSE, ou os três. A etiqueta mostra as três caixas; as aplicáveis saem sólidas com ✓.
 
@@ -75,7 +75,7 @@ Proporção **50:30**. Kit de desenho **400×240 pt**; bitmap B1 = **384×240 pt
 1. **Faixa preta (x 0–85):** logo AION + ENGENHARIA em branco, −90° (baixo→cima), 210 pt — sem “HSJ · Eng. Clínica”
 2. **Header (y 8–60):** `EQUIP. Nº` + **TAG** 47 pt; linha 3 pt
 3. **REALIZADO / PRÓXIMO:** data MM/AA; pill preta no próximo
-4. **Caixas:** **M.P** / **CAL.** / **T.S.E** — feitas = borda sólida + ✓; não feitas = tracejado + vazio
+4. **Caixas:** **M. Preventiva** / **Calibração** / **T. Seg. Elétrica** — feitas = borda sólida + ✓; não feitas = tracejado + vazio
 5. **QR:** 145×145, ECC **M**, módulo inteiro (ideal 5 pt); Effort `…?eqp={Id}`
 6. **Rodapé:** `(16) 3030-0445 · aion.eng.br` + `VOID IF SEAL IS BROKEN`
 
