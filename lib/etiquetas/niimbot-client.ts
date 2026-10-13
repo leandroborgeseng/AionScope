@@ -61,7 +61,8 @@ export const NIIMBOT_B1_MODEL: NiimbotModel = {
   id: 4096,
   dpi: 203,
   task: "b1",
-  density: 3,
+  /** Densidade 4 (de 1–5): texto pequeno fica mais negro no térmico. */
+  density: 4,
   label_type: 1,
   speed: 1,
   name_prefixes: ["B1"],

@@ -459,7 +459,7 @@ export function EtiquetasPlanoView() {
         id: 4096,
         dpi: 203,
         task: "b1",
-        density: 3,
+        density: 4,
         label_type: 1,
         speed: 1,
         name_prefixes: ["B1"],
