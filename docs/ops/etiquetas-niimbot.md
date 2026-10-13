@@ -65,9 +65,9 @@ Proporção **50:30**. Kit de desenho **400×240 pt**; bitmap B1 = **384×240 pt
 │ENG.  │ ────────────────────────────────── │
 │  ○A  │ REALIZADO      07/26    ┌──────┐   │
 │      │ [PRÓXIMO       07/27]   │  QR  │   │
-│      │ [✓ M.P]                 │      │   │
-│      │ [✓ CAL.]                │      │   │
-│      │ [  T.S.E]               │      │   │
+│      │ [✓ M. Preventiva]       │      │   │
+│      │ [✓ Calibração]          │      │   │
+│      │ [  T. Seg. Elétrica]    │      │   │
 │      │ tel · aion.eng.br       VOID…  │   │
 └──────┴────────────────────────────────────┘
 ```
