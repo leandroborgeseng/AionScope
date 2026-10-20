@@ -86,7 +86,7 @@ export function validarContrato(input: ContratoInput): { ok: true; data: Contrat
 
   const valor = numero(input.valorMensal);
   if (valor === null) erros.valorMensal = "Informe o valor mensal.";
-  else if (!Number.isFinite(valor) || valor <= 0) erros.valorMensal = "O valor mensal deve ser maior que zero.";
+  else if (!Number.isFinite(valor) || valor <= 0) erros.valorMensal = "Informe um valor maior que zero.";
 
   const inicio = texto(input.inicio);
   const fim = texto(input.fim);
