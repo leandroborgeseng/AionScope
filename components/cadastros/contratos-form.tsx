@@ -15,6 +15,7 @@ import {
   situacaoVigencia,
   totaisPorTipo,
   type ErrosCampo,
+  validarContrato,
 } from "@/lib/cadastros/contratos-proprios";
 import type { Contrato } from "@/lib/cadastros/types";
 import { formatBRL } from "@/lib/pbi/indicators";
@@ -148,15 +149,13 @@ function FormContrato({
   function submit(e: FormEvent) {
     e.preventDefault();
     setMsg(null);
-    // Validação imediata no cliente (a API valida de novo).
-    const local: ErrosCampo = {};
-    if (!f.fornecedor.trim()) local.fornecedor = "Informe o fornecedor.";
-    if (f.tipo !== "MANUTENCAO" && f.tipo !== "LOCACAO") local.tipo = "Escolha o tipo: Manutenção ou Locação.";
-    if (!f.valorMensal.trim()) local.valorMensal = "Informe o valor mensal.";
-    if (!f.inicio) local.inicio = "Informe a data de início.";
-    if (f.inicio && f.fim && f.fim < f.inicio) local.fim = "A data final deve ser igual ou posterior à inicial";
-    setErros(local);
-    if (Object.keys(local).length) return;
+    // Mesma regra da API (validarContrato): fornecedor, tipo, valor > 0 (0, negativo e vazio rejeitados),
+    // início obrigatório e fim >= início.
+    const { id: _id, ...dados } = f;
+    void _id;
+    const v = validarContrato({ ...dados, nome: "", valorMensal: dados.valorMensal as unknown as number });
+    setErros(v.ok ? {} : v.erros);
+    if (!v.ok) return;
     salvar.mutate(f);
   }
 
@@ -435,9 +434,11 @@ export function ContratosCadastroForm() {
           {listaQ.isSuccess && todos.length === 0 ? (
             <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed border-aion-line p-4">
               <p className="text-sm text-aion-ink">Nenhum contrato cadastrado</p>
-              <Button onClick={novo} disabled={!logado} title={logado ? undefined : "Entre com a senha para cadastrar"}>
-                Novo contrato
-              </Button>
+              {!form ? (
+                <Button onClick={novo} disabled={!logado} title={logado ? undefined : "Entre com a senha para cadastrar"}>
+                  Novo contrato
+                </Button>
+              ) : null}
               {!logado ? <p className="text-xs text-aion-muted">Entre com a senha de administrador para cadastrar.</p> : null}
             </div>
           ) : null}

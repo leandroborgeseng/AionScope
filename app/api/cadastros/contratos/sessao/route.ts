@@ -1,6 +1,7 @@
 import {
   authContratosConfigurada,
   cookieSessao,
+  ipDe,
   criarTokenSessao,
   limparFalhas,
   loginBloqueado,
@@ -12,9 +13,7 @@ import {
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function ipDe(request: Request) {
-  return request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
-}
+
 
 /** Status da sessão de escrita (não revela nada da configuração além de "habilitado"). */
 export async function GET(request: Request) {

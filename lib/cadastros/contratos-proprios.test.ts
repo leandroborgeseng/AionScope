@@ -80,3 +80,11 @@ test("sem tipo aparece como 'Sem tipo' e totais separam Locação", () => {
   assert.equal(t.SEM_TIPO.qtde, 1);
   assert.equal(t.TOTAL.valor, 31.3);
 });
+
+test("A2: valor 0, -1 e vazio (string do formulário) rejeitados como na API", () => {
+  for (const valorMensal of ["0", "-1", "", "  ", "0,00", "-1,50"]) {
+    const v = validarContrato({ ...base, valorMensal: valorMensal as unknown as number });
+    assert.ok(!v.ok && v.erros.valorMensal, JSON.stringify(valorMensal));
+  }
+  assert.ok(validarContrato({ ...base, valorMensal: "0,01" as unknown as number }).ok);
+});
