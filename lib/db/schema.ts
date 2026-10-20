@@ -250,3 +250,4 @@ export const MIGRATION_ORDENS_COMPRA_ENTREGA = "005_ordens_compra_entrega";
 export const MIGRATION_ORDENS_COMPRA_FORA_ESCOPO = "006_ordens_compra_fora_escopo";
 export const MIGRATION_ORDENS_COMPRA_DUPLICADA = "007_ordens_compra_duplicada";
 export const MIGRATION_ORDEM_ANEXOS = "008_ordem_anexos";
+export const MIGRATION_CONTRATOS_PROPRIOS = "009_contratos_proprios";

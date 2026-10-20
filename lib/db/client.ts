@@ -4,6 +4,7 @@ import path from "path";
 import { resolveDatabasePath } from "./path";
 import {
   MIGRATION_COMPRAS_EMAIL,
+  MIGRATION_CONTRATOS_PROPRIOS,
   MIGRATION_NAME,
   MIGRATION_ORDENS_COMPRA,
   MIGRATION_ORDENS_COMPRA_DUPLICADA,
@@ -13,6 +14,7 @@ import {
   MIGRATION_SALA_MANUAL,
   SCHEMA_SQL,
 } from "./schema";
+import { aplicarMigration009ContratosProprios } from "./migrations/009_contratos_proprios";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -239,6 +241,9 @@ function migrate(db: Database.Database) {
       new Date().toISOString(),
     );
   }
+
+  // 009: aditiva e idempotente (só ADD COLUMN / CREATE INDEX IF NOT EXISTS).
+  aplicarMigration009ContratosProprios(db, MIGRATION_CONTRATOS_PROPRIOS);
 }
 
 /** Fecha o singleton — só para testes isolados. */
