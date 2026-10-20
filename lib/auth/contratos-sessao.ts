@@ -80,6 +80,21 @@ export function exigirSessaoContratos(request: Request): Response | null {
   );
 }
 
+/**
+ * IP para o limite de tentativas: só o ÚLTIMO item do X-Forwarded-For (o que o proxy de borda anexou);
+ * os itens anteriores vêm do cliente e podem ser forjados. Sem XFF: x-real-ip; senão "conexao".
+ * Não há teto global de falhas (decisão do TL): só o limite por IP.
+ */
+export function ipDe(request: Request) {
+  const ultimo = request.headers
+    .get("x-forwarded-for")
+    ?.split(",")
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .pop();
+  return ultimo || request.headers.get("x-real-ip")?.trim() || "conexao";
+}
+
 // Limite simples de tentativas (em memória, por IP): 5 falhas a cada 15 min.
 const falhas = new Map<string, { n: number; ate: number }>();
 export function loginBloqueado(ip: string, agora = Date.now()) {

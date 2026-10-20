@@ -33,7 +33,7 @@ after(() => {
 beforeEach(() => {
   process.env.CONTRATOS_ADMIN_PASSWORD = SENHA;
   process.env.SESSION_SECRET = SEGREDO;
-  limparFalhas("local");
+  for (const ip of ["conexao", "9.9.9.9", "8.8.8.8", "7.7.7.7"]) limparFalhas(ip);
 });
 
 const URL_BASE = "http://local/api/cadastros/contratos";
@@ -125,4 +125,30 @@ test("regressão: Bearer das ordens de compra segue igual (com e sem token)", as
   const { cookie } = await login();
   assert.equal((await rotaOrdens.GET(new Request(url, { headers: { cookie } }))).status, 401, "sessão de contratos não abre ordens");
   assert.equal((await rotaOrdens.GET(new Request(url, { headers: { authorization: "Bearer chave-ordens-teste" } }))).status, 200);
+});
+
+const loginXff = (senha: string, xff?: string) =>
+  rotaSessao.POST(
+    new Request(`${URL_BASE}/sessao`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(xff ? { "x-forwarded-for": xff } : {}) },
+      body: JSON.stringify({ senha }),
+    }),
+  );
+
+test("A1: trocar o 1º IP do XFF não zera o limite; 6ª tentativa = 429", async () => {
+  for (let i = 1; i <= 5; i++) assert.equal((await loginXff("errada", `10.0.0.${i}, 9.9.9.9`)).status, 401);
+  assert.equal((await loginXff(SENHA, "10.0.0.99, 9.9.9.9")).status, 429);
+});
+
+test("A1: sem header X-Forwarded-For o login funciona", async () => {
+  const r = await loginXff(SENHA);
+  assert.equal(r.status, 200);
+  assert.ok(r.headers.get("set-cookie")?.startsWith(COOKIE_SESSAO_CONTRATOS));
+});
+
+test("A1: dois IPs diferentes no fim do XFF não se bloqueiam", async () => {
+  for (let i = 0; i < 5; i++) await loginXff("errada", "1.1.1.1, 8.8.8.8");
+  assert.equal((await loginXff(SENHA, "1.1.1.1, 8.8.8.8")).status, 429);
+  assert.equal((await loginXff(SENHA, "1.1.1.1, 7.7.7.7")).status, 200);
 });
