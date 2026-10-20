@@ -1,14 +1,23 @@
-import { normalizeContratoInput } from "@/lib/cadastros/contratos";
-import { deleteContrato, readContratos, upsertContrato } from "@/lib/cadastros/store";
+import { exigirSessaoContratos } from "@/lib/auth/contratos-sessao";
+import { validarContrato } from "@/lib/cadastros/contratos-proprios";
+import { readContrato, setContratoAtivo, upsertContrato } from "@/lib/cadastros/store";
 import type { ContratoInput } from "@/lib/cadastros/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export async function PATCH(
-  request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
+type Ctx = { params: Promise<{ id: string }> };
+
+const naoEncontrado = () => Response.json({ ok: false, message: "Contrato não encontrado." }, { status: 404 });
+
+/**
+ * Edição. Body só com { ativo } = inativar/reativar (sem exigir o restante).
+ * Qualquer outra edição valida o contrato inteiro — tipo obrigatório (D3).
+ */
+export async function PATCH(request: Request, context: Ctx) {
+  const recusa = exigirSessaoContratos(request);
+  if (recusa) return recusa;
+
   const { id } = await context.params;
   let body: Partial<ContratoInput>;
   try {
@@ -17,39 +26,42 @@ export async function PATCH(
     return Response.json({ ok: false, message: "JSON inválido." }, { status: 400 });
   }
 
-  const contratos = readContratos();
-  const current = contratos.find((c) => c.id === id);
-  if (!current) {
-    return Response.json({ ok: false, message: "Contrato não encontrado." }, { status: 404 });
+  const current = readContrato(id);
+  if (!current) return naoEncontrado();
+
+  const chaves = Object.keys(body ?? {});
+  if (chaves.length === 1 && chaves[0] === "ativo" && typeof body.ativo === "boolean") {
+    return Response.json({ ok: true, data: setContratoAtivo(id, body.ativo) });
   }
 
+  const pick = <K extends keyof ContratoInput>(k: K, atual: ContratoInput[K]) =>
+    (k in body ? body[k] : atual) as ContratoInput[K];
   const merged: ContratoInput = {
-    nome: body.nome ?? current.nome,
-    fornecedor: body.fornecedor !== undefined ? body.fornecedor : current.fornecedor,
-    valorMensal: body.valorMensal ?? current.valorMensal,
-    inicio: body.inicio !== undefined ? body.inicio : current.inicio,
-    fim: body.fim !== undefined ? body.fim : current.fim,
-    ativo: body.ativo !== undefined ? body.ativo : current.ativo,
-    observacao: body.observacao !== undefined ? body.observacao : current.observacao,
+    nome: pick("nome", current.nome),
+    fornecedor: pick("fornecedor", current.fornecedor),
+    valorMensal: pick("valorMensal", current.valorMensal),
+    inicio: pick("inicio", current.inicio),
+    fim: pick("fim", current.fim),
+    ativo: pick("ativo", current.ativo),
+    observacao: pick("observacao", current.observacao),
+    tipo: pick("tipo", current.tipo),
+    equipamento: pick("equipamento", current.equipamento),
+    numero: pick("numero", current.numero),
   };
 
-  const normalized = normalizeContratoInput(merged);
-  if ("error" in normalized) {
-    return Response.json({ ok: false, message: normalized.error }, { status: 400 });
+  const v = validarContrato(merged);
+  if (!v.ok) {
+    return Response.json({ ok: false, message: "Revise os campos destacados.", erros: v.erros }, { status: 400 });
   }
-
-  const updated = { id, ...normalized };
-  upsertContrato(updated);
-  return Response.json({ ok: true, data: updated });
+  return Response.json({ ok: true, data: upsertContrato({ id, ...v.data }) });
 }
 
-export async function DELETE(
-  _request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
+/** DELETE = inativar. Não há exclusão física. */
+export async function DELETE(request: Request, context: Ctx) {
+  const recusa = exigirSessaoContratos(request);
+  if (recusa) return recusa;
   const { id } = await context.params;
-  if (!deleteContrato(id)) {
-    return Response.json({ ok: false, message: "Contrato não encontrado." }, { status: 404 });
-  }
-  return Response.json({ ok: true, data: { id } });
+  const data = setContratoAtivo(id, false);
+  if (!data) return naoEncontrado();
+  return Response.json({ ok: true, data });
 }

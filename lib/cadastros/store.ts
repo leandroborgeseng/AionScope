@@ -26,6 +26,10 @@ type ContratoRow = {
   fim: string | null;
   ativo: number;
   observacao: string | null;
+  tipo?: string | null;
+  equipamento?: string | null;
+  numero?: string | null;
+  chave_importacao?: string | null;
 };
 
 const EMPTY_PARQUE: ParqueMeta = {
@@ -67,6 +71,10 @@ function mapContrato(row: ContratoRow): Contrato {
     fim: row.fim,
     ativo: row.ativo === 1,
     observacao: row.observacao ?? undefined,
+    tipo: row.tipo === "MANUTENCAO" || row.tipo === "LOCACAO" ? row.tipo : null,
+    equipamento: row.equipamento ?? null,
+    numero: row.numero ?? null,
+    chaveImportacao: row.chave_importacao ?? null,
   };
 }
 
@@ -131,53 +139,30 @@ export function writeParqueMeta(meta: Partial<ParqueMeta> & { fonte?: ParqueFont
 export function readContratos(): Contrato[] {
   const db = getDb();
   const rows = db
-    .prepare("SELECT * FROM contratos ORDER BY nome COLLATE NOCASE ASC")
+    .prepare("SELECT * FROM contratos ORDER BY fornecedor COLLATE NOCASE ASC, nome COLLATE NOCASE ASC")
     .all() as ContratoRow[];
   return rows.map(mapContrato);
 }
 
-export function writeContratos(contratos: Contrato[]): Contrato[] {
-  const db = getDb();
-  const now = new Date().toISOString();
-  const tx = db.transaction(() => {
-    db.prepare("DELETE FROM contratos").run();
-    const insert = db.prepare(
-      `INSERT INTO contratos (
-        id, nome, fornecedor, valor_mensal, inicio, fim, ativo, observacao, created_at, updated_at
-      ) VALUES (
-        @id, @nome, @fornecedor, @valor_mensal, @inicio, @fim, @ativo, @observacao, @created_at, @updated_at
-      )`,
-    );
-    for (const c of contratos) {
-      insert.run({
-        id: c.id,
-        nome: c.nome,
-        fornecedor: c.fornecedor ?? null,
-        valor_mensal: c.valorMensal,
-        inicio: c.inicio ?? null,
-        fim: c.fim ?? null,
-        ativo: c.ativo ? 1 : 0,
-        observacao: c.observacao ?? null,
-        created_at: now,
-        updated_at: now,
-      });
-    }
-  });
-  tx();
-  return readContratos();
+export function readContrato(id: string): Contrato | null {
+  const row = getDb().prepare("SELECT * FROM contratos WHERE id = ?").get(id) as ContratoRow | undefined;
+  return row ? mapContrato(row) : null;
 }
 
+/**
+ * Cria ou atualiza um contrato. Nunca altera chave_importacao (só a importação grava).
+ * Não existe exclusão física: use setContratoAtivo.
+ */
 export function upsertContrato(contrato: Contrato): Contrato {
   const db = getDb();
   const now = new Date().toISOString();
-  const existing = db.prepare("SELECT created_at FROM contratos WHERE id = ?").get(contrato.id) as
-    | { created_at: string }
-    | undefined;
   db.prepare(
     `INSERT INTO contratos (
-      id, nome, fornecedor, valor_mensal, inicio, fim, ativo, observacao, created_at, updated_at
+      id, nome, fornecedor, valor_mensal, inicio, fim, ativo, observacao, tipo, equipamento, numero,
+      created_at, updated_at
     ) VALUES (
-      @id, @nome, @fornecedor, @valor_mensal, @inicio, @fim, @ativo, @observacao, @created_at, @updated_at
+      @id, @nome, @fornecedor, @valor_mensal, @inicio, @fim, @ativo, @observacao, @tipo, @equipamento, @numero,
+      @now, @now
     )
     ON CONFLICT(id) DO UPDATE SET
       nome = excluded.nome,
@@ -187,6 +172,9 @@ export function upsertContrato(contrato: Contrato): Contrato {
       fim = excluded.fim,
       ativo = excluded.ativo,
       observacao = excluded.observacao,
+      tipo = excluded.tipo,
+      equipamento = excluded.equipamento,
+      numero = excluded.numero,
       updated_at = excluded.updated_at`,
   ).run({
     id: contrato.id,
@@ -197,16 +185,21 @@ export function upsertContrato(contrato: Contrato): Contrato {
     fim: contrato.fim ?? null,
     ativo: contrato.ativo ? 1 : 0,
     observacao: contrato.observacao ?? null,
-    created_at: existing?.created_at ?? now,
-    updated_at: now,
+    tipo: contrato.tipo ?? null,
+    equipamento: contrato.equipamento ?? null,
+    numero: contrato.numero ?? null,
+    now,
   });
-  return contrato;
+  return readContrato(contrato.id) ?? contrato;
 }
 
-export function deleteContrato(id: string): boolean {
+/** Inativa/reativa sem apagar a linha. */
+export function setContratoAtivo(id: string, ativo: boolean): Contrato | null {
   const db = getDb();
-  const result = db.prepare("DELETE FROM contratos WHERE id = ?").run(id);
-  return result.changes > 0;
+  const r = db
+    .prepare("UPDATE contratos SET ativo = ?, updated_at = ? WHERE id = ?")
+    .run(ativo ? 1 : 0, new Date().toISOString(), id);
+  return r.changes > 0 ? readContrato(id) : null;
 }
 
 /**
