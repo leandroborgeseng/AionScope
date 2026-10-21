@@ -27,6 +27,26 @@ export const OS_RESOURCES: ReadonlySet<PbiResource> = new Set<PbiResource>([
   "monitor-atendimento",
 ]);
 
+/**
+ * Recursos das telas de indicadores que o agendador renova SEMPRE, com ou sem acesso recente
+ * (decisão do Tech Lead no PR #6). OS a cada 5 min; os demais a cada 1 h.
+ * Fora da lista: "disp-equipamento" e "oficina" (endpoints pendentes 404/401) e "contratos" (as telas usam o cadastro local).
+ */
+export const SCHEDULED_RESOURCES: readonly PbiResource[] = [
+  "os-analitico",
+  "os-resumida",
+  "monitor-reacao",
+  "monitor-atendimento",
+  "equipamentos",
+  "cronograma",
+  "tipo-manutencao",
+  "tmef",
+  "tpm",
+  "disp-equipamento-mes",
+  "anexos-equipamento",
+  "anexos-os",
+];
+
 export function cachePolicy(resource: PbiResource): CachePolicy {
   return OS_RESOURCES.has(resource) ? POLICY_OS : POLICY_CADASTROS;
 }

@@ -7,17 +7,16 @@ import Database from "better-sqlite3";
 
 const dir = mkdtempSync(path.join(os.tmpdir(), "pbi-cache-"));
 process.env.DATABASE_PATH = path.join(dir, "t.sqlite");
-process.env.PBI_TOKEN_OS_ANALITICO = "tok-test";
-process.env.PBI_TOKEN_EQUIPAMENTOS = "tok-test";
+for (const t of ["OS_ANALITICO", "OS_ANALITICO_RESUMIDO", "EQUIPAMENTOS", "MONITOR_REACAO", "MONITOR_ATENDIMENTO", "CRONOGRAMA", "TIPO_MANUTENCAO", "TMEF", "TPM", "DISP_EQUIPAMENTO_MES", "ANEXOS_EQUIPAMENTO", "ANEXOS_OS"]) process.env[`PBI_TOKEN_${t}`] = "tok-test";
 process.env.PBI_BASE_URL = "http://gt.invalid";
 
 import { closeDbForTests, getDb } from "@/lib/db/client";
 import { aplicarMigration012PbiCache } from "@/lib/db/migrations/012_pbi_cache";
 import { SCHEMA_SQL } from "@/lib/db/schema";
 import { __setClockForTests, __setFetchForTests, fetchPbi, invalidarCachePbi, isRefreshing, cacheKeyFor } from "./client";
-import { cacheAgeBand, formatCacheDateBRT, DAY_MS, HOUR_MS, MIN_MS } from "./cache-policy";
+import { cacheAgeBand, formatCacheDateBRT, DAY_MS, HOUR_MS, MIN_MS, OS_RESOURCES, SCHEDULED_RESOURCES } from "./cache-policy";
 import { resumirFreshness } from "./freshness";
-import { runSchedulerTick } from "./scheduler";
+import { defaultScheduledQueries, runSchedulerTick } from "./scheduler";
 
 let now = Date.parse("2026-10-20T12:00:00Z");
 __setClockForTests(() => now);
@@ -219,45 +218,69 @@ test("single-flight: várias aberturas simultâneas fazem uma única busca (K12)
   await flush();
 });
 
+const recursoDe = (key: string) => key.slice(0, key.indexOf(":"));
+const T0 = Date.parse("2026-10-20T12:00:00Z");
+
+test("agendador: recursos nunca abertos são renovados (lista explícita SCHEDULED_RESOURCES)", async () => {
+  const feitos = await runSchedulerTick();
+  const recursos = new Set(feitos.map(recursoDe));
+  for (const r of SCHEDULED_RESOURCES) assert.ok(recursos.has(r), `faltou ${r}`);
+  assert.equal(feitos.length, defaultScheduledQueries().length);
+  const r = await fetchPbi("equipamentos", defaultScheduledQueries().find((q) => q.resource === "equipamentos")!.params);
+  assert.equal(r.ok, true);
+  assert.equal(calls.length, feitos.length); // a abertura usou a cópia renovada, sem nova busca
+});
+
+test("agendador: consulta sem acesso há 40 dias continua sendo renovada", async () => {
+  await semearCopia("equipamentos", 0);
+  const key = cacheKeyFor("equipamentos", P).key;
+  getDb().prepare("UPDATE pbi_cache SET last_access_at = ? WHERE cache_key = ?").run(now - 40 * DAY_MS, key);
+  await runSchedulerTick(); // prepara as consultas padrão
+  now += 61 * MIN_MS;
+  const feitos = await runSchedulerTick();
+  assert.ok(feitos.includes(key));
+});
+
 test("agendador: OS não renova antes de 5 min; renova aos 5 min, sem acesso", async () => {
-  await semearCopia("os-analitico", 0);
-  now += 4 * MIN_MS + 59_000;
+  await runSchedulerTick();
+  now = T0 + 4 * MIN_MS + 59_000;
   assert.deepEqual(await runSchedulerTick(), []);
-  assert.equal(calls.length, 0);
-  now += 1000;
-  assert.equal((await runSchedulerTick()).length, 1);
-  assert.equal(calls.length, 1);
+  now = T0 + 5 * MIN_MS;
+  const feitos = await runSchedulerTick();
+  assert.ok(feitos.length > 0);
+  assert.ok(feitos.every((k) => OS_RESOURCES.has(recursoDe(k) as never)));
+  for (const r of OS_RESOURCES) assert.ok(feitos.some((k) => recursoDe(k) === r));
   assert.deepEqual(await runSchedulerTick(), []);
 });
 
 test("agendador: cadastros não renovam antes de 60 min", async () => {
-  await semearCopia("equipamentos", 0);
+  await runSchedulerTick();
   for (const m of [5, 30, 59]) {
-    now = Date.parse("2026-10-20T12:00:00Z") + m * MIN_MS;
-    assert.deepEqual(await runSchedulerTick(), []);
+    now = T0 + m * MIN_MS;
+    const feitos = await runSchedulerTick();
+    assert.ok(feitos.every((k) => OS_RESOURCES.has(recursoDe(k) as never)), `cadastro renovado aos ${m} min`);
   }
-  assert.equal(calls.length, 0);
-  now = Date.parse("2026-10-20T12:00:00Z") + 60 * MIN_MS;
-  assert.equal((await runSchedulerTick()).length, 1);
-  assert.equal(calls.length, 1);
+  now = T0 + 60 * MIN_MS;
+  const feitos = await runSchedulerTick();
+  for (const r of SCHEDULED_RESOURCES.filter((x) => !OS_RESOURCES.has(x))) assert.ok(feitos.some((k) => recursoDe(k) === r), `faltou ${r} aos 60 min`);
 });
 
 test("agendador: uma busca por vez (serial), e falha não apaga a cópia", async () => {
   await semearCopia("os-analitico", 0);
-  await semearCopia("equipamentos", 0);
   now += 2 * HOUR_MS;
   let ativas = 0;
   let max = 0;
   __setFetchForTests((async () => {
     ativas++;
     max = Math.max(max, ativas);
-    await flush();
+    await new Promise((r) => setTimeout(r, 2));
     ativas--;
     throw new TypeError("fetch failed");
   }) as typeof fetch);
   try {
     const [a, b] = await Promise.all([runSchedulerTick(), runSchedulerTick()]);
-    assert.equal(a.length + b.length, 2);
+    assert.ok(a.length + b.length >= SCHEDULED_RESOURCES.length);
+    assert.ok(a.length === 0 || b.length === 0);
     assert.equal(max, 1);
     const r = await fetchPbi("os-analitico", P);
     assert.equal(r.ok, true);
