@@ -62,3 +62,21 @@ export function recordFailure(
 export function listAllRows(): CacheRow[] {
   return getDb().prepare("SELECT * FROM pbi_cache ORDER BY resource, cache_key").all() as CacheRow[];
 }
+
+export function countRows(): number {
+  return (getDb().prepare("SELECT COUNT(*) n FROM pbi_cache").get() as { n: number }).n;
+}
+
+/** Apaga só linhas de pbi_cache (descartáveis): as de outro período acessadas há mais tempo, até `max`. Nunca as protegidas. */
+export function pruneRows(max: number, protegidas: Set<string>): string[] {
+  const db = getDb();
+  const excesso = countRows() - max;
+  if (excesso <= 0) return [];
+  const candidatas = db
+    .prepare("SELECT cache_key FROM pbi_cache ORDER BY last_access_at ASC, cache_key ASC")
+    .all() as Array<{ cache_key: string }>;
+  const apagar = candidatas.map((r) => r.cache_key).filter((k) => !protegidas.has(k)).slice(0, excesso);
+  const del = db.prepare("DELETE FROM pbi_cache WHERE cache_key = ?");
+  db.transaction(() => apagar.forEach((k) => del.run(k)))();
+  return apagar;
+}

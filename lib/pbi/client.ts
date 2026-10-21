@@ -1,6 +1,7 @@
 import { PBI_ENDPOINTS, type PbiResource } from "./catalog";
-import { RETRY_BACKOFF_MS, STALE_MAX_MS, cachePolicy, isTokenErrorStatus } from "./cache-policy";
-import { readCacheRow, recordFailure, recordSuccess, touchAccess, type CacheRow } from "./cache-store";
+import { MAX_CACHE_ROWS, RETRY_BACKOFF_MS, STALE_MAX_MS, cachePolicy, isTokenErrorStatus } from "./cache-policy";
+import { pruneRows, readCacheRow, recordFailure, recordSuccess, touchAccess, type CacheRow } from "./cache-store";
+import { defaultScheduledKeys } from "./scheduled-queries";
 import type { OsResumidaResponse, PbiCacheMeta, PbiResult } from "./types";
 
 /**
@@ -73,6 +74,17 @@ export function invalidarCachePbi(resource?: PbiResource) {
   for (const key of parsed.keys()) {
     if (key.startsWith(prefix)) parsed.delete(key);
   }
+}
+
+/**
+ * Limite de cópias: acima de MAX_CACHE_ROWS apaga a de outro período acessada há mais tempo.
+ * Padrões das telas (e `protegerTambem`) nunca saem. Só mexe em pbi_cache.
+ */
+export function pruneCache(protegerTambem: Set<string> = new Set()): string[] {
+  const protegidas = new Set([...defaultScheduledKeys(), ...protegerTambem]);
+  const apagadas = pruneRows(MAX_CACHE_ROWS, protegidas);
+  for (const k of apagadas) parsed.delete(k);
+  return apagadas;
 }
 
 export function cacheKeyFor(resource: PbiResource, searchParams: URLSearchParams) {
@@ -208,7 +220,8 @@ export async function fetchPbi<T>(
   let row: CacheRow | null = null;
   try {
     row = readCacheRow(key);
-    touchAccess(key, resource, qs, now);
+    touchAccess(key, resource, qs, now); // abertura marca a consulta como acessada de novo
+    if (!row) pruneCache(new Set([key]));
   } catch (err) {
     console.error("[pbi-cache] leitura falhou", err instanceof Error ? err.message : err);
   }
