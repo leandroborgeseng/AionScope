@@ -123,3 +123,15 @@ export function formatPctParque(value: number | null) {
 export function rotuloStatus(status: StatusMeta | null) {
   return status === "Dentro" ? "Dentro da meta" : status === "Acima" ? "Acima da meta" : "Sem dados";
 }
+
+/** Série do gráfico. Sem dados (ex.: avulsos indisponíveis), não há barras nem acumulado: só a meta proporcional. */
+export function serieGraficoParque(months: CustoParqueMes[], semDados: boolean) {
+  return months.map((m) => ({
+    name: m.label,
+    mes: m,
+    contratos: semDados || m.futuro ? null : m.contratos,
+    avulsos: semDados || m.futuro ? null : m.avulsos,
+    pct: semDados ? null : m.pctAcumulado,
+    meta: m.metaPct,
+  }));
+}

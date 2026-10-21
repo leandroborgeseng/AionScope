@@ -15,7 +15,7 @@ import {
 } from "recharts";
 import { useState } from "react";
 import type { CustoParqueMes } from "@/lib/pbi/custo-manutencao-parque";
-import { META_ANUAL_PCT, formatPctParque, rotuloStatus } from "@/lib/pbi/custo-manutencao-parque";
+import { META_ANUAL_PCT, formatPctParque, rotuloStatus, serieGraficoParque } from "@/lib/pbi/custo-manutencao-parque";
 import { formatGastoEixo } from "@/lib/pbi/gasto-reparo";
 import { formatBRL } from "@/lib/pbi/indicators";
 import { cn } from "@/lib/utils";
@@ -82,20 +82,17 @@ export function CustoParqueChart({
   months,
   className,
   onMonthClick,
+  indisponivel,
 }: {
   months: CustoParqueMes[];
   className?: string;
+  /** Mensagem de erro: quando presente, o gráfico fica vazio (só meta e teto). */
+  indisponivel?: string | null;
   onMonthClick?: (m: CustoParqueMes) => void;
 }) {
   const [ocultas, setOcultas] = useState<Set<string>>(new Set());
-  const data: CustoParqueChartRow[] = months.map((m) => ({
-    name: m.label,
-    mes: m,
-    contratos: m.futuro ? null : m.contratos,
-    avulsos: m.futuro ? null : m.avulsos,
-    pct: m.pctAcumulado,
-    meta: m.metaPct,
-  }));
+  const semDados = Boolean(indisponivel);
+  const data: CustoParqueChartRow[] = serieGraficoParque(months, semDados);
   const maxPct = Math.max(META_ANUAL_PCT, ...data.map((d) => d.pct ?? 0)) * 1.1;
   const toggle = (k: string) =>
     setOcultas((s) => {
@@ -107,7 +104,16 @@ export function CustoParqueChart({
 
   return (
     <div className="w-full overflow-x-auto">
-      <div className={cn("h-80 min-w-[640px]", className)}>
+      <div className={cn("relative h-80 min-w-[640px]", className)}>
+        {semDados ? (
+          <p
+            role="status"
+            data-testid="custo-parque-chart-vazio"
+            className="pointer-events-none absolute inset-x-0 top-1/3 z-10 mx-auto w-fit max-w-[80%] rounded-lg border border-amber-300 bg-amber-50/95 px-3 py-2 text-center text-sm text-amber-900"
+          >
+            {indisponivel}
+          </p>
+        ) : null}
         <ResponsiveContainer width="100%" height="100%" minHeight={260} debounce={1}>
           <ComposedChart
             data={data}
@@ -115,7 +121,7 @@ export function CustoParqueChart({
             onClick={(state) => {
               const i = Number(state?.activeIndex);
               const row = Number.isFinite(i) ? data[i] : undefined;
-              if (row && !row.mes.futuro) onMonthClick?.(row.mes);
+              if (row && !row.mes.futuro && !semDados) onMonthClick?.(row.mes);
             }}
           >
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -129,16 +135,16 @@ export function CustoParqueChart({
               tickFormatter={(v: number) => `${v.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`}
               width={48}
             />
-            <Tooltip content={Dica} />
+            {semDados ? null : <Tooltip content={Dica} />}
             <Legend
               onClick={(e) => toggle(String((e as { dataKey?: unknown }).dataKey))}
               wrapperStyle={{ cursor: "pointer", fontSize: 12 }}
               formatter={(value) => <span style={{ color: "#334155" }}>{value}</span>}
             />
-            <Bar yAxisId="rs" dataKey="contratos" name="Contratos" stackId="d" fill="#1e3a8a" stroke="#ffffff" strokeWidth={1} hide={ocultas.has("contratos")} cursor="pointer" />
-            <Bar yAxisId="rs" dataKey="avulsos" name="Avulsos" stackId="d" fill="#0284c7" stroke="#ffffff" strokeWidth={1} radius={[3, 3, 0, 0]} hide={ocultas.has("avulsos")} cursor="pointer" />
+            {semDados ? null : <Bar yAxisId="rs" dataKey="contratos" name="Contratos" stackId="d" fill="#1e3a8a" stroke="#ffffff" strokeWidth={1} hide={ocultas.has("contratos")} cursor="pointer" />}
+            {semDados ? null : <Bar yAxisId="rs" dataKey="avulsos" name="Avulsos" stackId="d" fill="#0284c7" stroke="#ffffff" strokeWidth={1} radius={[3, 3, 0, 0]} hide={ocultas.has("avulsos")} cursor="pointer" />}
             <Line yAxisId="pct" type="stepAfter" dataKey="meta" name="Meta proporcional" stroke="#475569" strokeDasharray="6 4" dot={false} hide={ocultas.has("meta")} />
-            <Line yAxisId="pct" type="monotone" dataKey="pct" name="Acumulado (% do parque)" stroke="#0f172a" strokeWidth={2} dot={PontoAcumulado} connectNulls={false} hide={ocultas.has("pct")} />
+            {semDados ? null : <Line yAxisId="pct" type="monotone" dataKey="pct" name="Acumulado (% do parque)" stroke="#0f172a" strokeWidth={2} dot={PontoAcumulado} connectNulls={false} hide={ocultas.has("pct")} />}
             <ReferenceLine yAxisId="pct" y={META_ANUAL_PCT} stroke="#b45309" strokeDasharray="2 3" label={{ value: "Teto anual 4%", position: "insideTopLeft", fontSize: 11, fill: "#92400e" }} />
           </ComposedChart>
         </ResponsiveContainer>
