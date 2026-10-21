@@ -45,5 +45,5 @@ export function useOsAnaliticoRollingYear(mode: OsAnaliticoRangeMode = "rolling"
   const bruta = osQ.data?.ok ? (osQ.data.total ?? raw.length) : raw.length;
   const error = queryErrorMessage(osQ.data, osQ.error, "OS da GlobalThings indisponíveis");
 
-  return { range, raw, bruta, loading: osQ.isLoading, error };
+  return { range, raw, bruta, loading: osQ.isLoading, error, result: osQ.data };
 }
