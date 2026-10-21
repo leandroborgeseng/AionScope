@@ -16,6 +16,7 @@ import {
 } from "./schema";
 import { aplicarMigration009ContratosProprios } from "./migrations/009_contratos_proprios";
 import { aplicarMigration010ContratosInativadoEm } from "./migrations/010_contratos_inativado_em";
+import { aplicarMigration012PbiCache } from "./migrations/012_pbi_cache";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -247,6 +248,8 @@ function migrate(db: Database.Database) {
   aplicarMigration009ContratosProprios(db, MIGRATION_CONTRATOS_PROPRIOS);
   // 010: aditiva e idempotente (só ADD COLUMN inativado_em).
   aplicarMigration010ContratosInativadoEm(db);
+  // 012: aditiva e idempotente (só CREATE TABLE pbi_cache). 011 reservada (locação).
+  aplicarMigration012PbiCache(db);
 }
 
 /** Fecha o singleton — só para testes isolados. */

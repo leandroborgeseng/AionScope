@@ -9,6 +9,7 @@ import {
   ChartFullscreenDialog,
   useChartFullscreen,
 } from "@/components/indicadores/chart-fullscreen";
+import { GlobalThingsFreshness } from "@/components/indicadores/globalthings-freshness";
 import { IndicadorPageLayout } from "@/components/indicadores/indicador-page-layout";
 import { PageHeader } from "@/components/shell/page-header";
 import { DataTable } from "@/components/tables/data-table";
@@ -59,7 +60,7 @@ function StatusChip({ status }: { status: StatusMeta | null }) {
 }
 
 export function CustoManutencaoParqueCard() {
-  const { range, raw, bruta, loading: osLoading, error: osError } = useOsAnaliticoRollingYear("calendarYear");
+  const { range, raw, bruta, loading: osLoading, error: osError, result: osResult } = useOsAnaliticoRollingYear("calendarYear");
   const medical = useMedicalIndex();
   const parqueQ = useParqueMeta();
   const contratosQ = useContratos();
@@ -149,6 +150,7 @@ export function CustoManutencaoParqueCard() {
                 Meta até {MESES_LONGOS[mesAtual]}: {formatPctParque(atual?.metaPct ?? null)} · Teto anual:{" "}
                 {formatPctParque(META_ANUAL_PCT)} · Parque: {formatMi(ind.valorParque)}
               </p>
+              <GlobalThingsFreshness results={[osResult, medical.result, eqQ.data]} />
               {semDados ? (
                 <p role="alert" className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
                   Não foi possível calcular: {faltando.join("; ")}.{" "}

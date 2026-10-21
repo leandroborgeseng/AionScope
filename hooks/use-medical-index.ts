@@ -40,6 +40,7 @@ export function useMedicalIndex() {
     equipamentoIndex,
     loading: query.isLoading,
     ready: Boolean(query.data?.ok),
+    result: query.data,
     error: queryErrorMessage(query.data, query.error, "cadastro de equipamentos indisponível"),
   };
 }
