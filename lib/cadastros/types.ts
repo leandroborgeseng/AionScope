@@ -32,6 +32,8 @@ export type Contrato = {
   numero?: string | null;
   /** Chave natural da importação (ex.: csv-20-10:3). Não editável pela tela. */
   chaveImportacao?: string | null;
+  /** Data/hora BRT (ISO com offset) em que foi inativado (010). Null se ativo ou inativado antes da 010. */
+  inativadoEm?: string | null;
 };
 
 export type TipoContrato = "MANUTENCAO" | "LOCACAO";

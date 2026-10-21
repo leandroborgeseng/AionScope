@@ -215,14 +215,14 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     ...BASE,
     cargo: "Engenharia Clínica",
     finalidadeDoIndicador:
-      "Monitorar a despesa mensal de manutenção (contratos + custos avulsos de OS de reparo) em relação ao valor de substituição do parque tecnológico.",
-    meta: "≤ 4% do valor de substituição do parque (acumulado anual)",
+      "Monitorar a despesa de manutenção acumulada no ano (contratos de Manutenção + custos avulsos de OS de reparo) em relação ao valor de substituição do parque tecnológico.",
+    meta: "≤ 4% do valor de substituição do parque no ano (meta do mês proporcional: 4% × mês/12)",
     referenciaDaMeta:
       "Benchmark internacional (Joint Commission / ECRI) entre 4 e 6% do valor de substituição do parque.",
     formula:
-      "(Soma dos contratos ativos no mês + Soma do Custo das OS de reparo de eq. médicos fechadas no mês) / Valor de substituição do parque × 100",
+      "(Σ jan..mês [contratos de Manutenção vigentes ≥ 1 dia no mês + custo das OS de reparo de eq. médicos fechadas no mês]) / Valor de substituição do parque × 100. Acumulado zera em janeiro.",
     coletaDeDados:
-      "Numerador: contratos da API GlobalThings (GET /api/pbi/v1/contratos via /api/pbi/contratos) — no mês, soma Parcelas.ValorMoeda com DataVencimento no mês; sem parcelas, rateia ValorTotal (ou CustoPrevisto) pela vigência DataInicio→DataFimVigencia/DataFim quando Periodicidade não é mensal. + OS analítica no recorte de gasto-reparo médico. Denominador: valorApi = soma ValorDeSubstituicao de TODOS os equipamentos (incluirCustoSubstituicao=true), persistido — sem override manual nem env. ValorDeAquisicao não entra (outliers). Intervalo rolante de 12 meses.",
+      "Numerador: cadastro próprio de contratos do AionScope (/api/cadastros/contratos), só tipo Manutenção (Locação fora); valor mensal cheio se vigente em ≥ 1 dia do mês (BRT, fim inclusivo); inativado conta até o mês de inativado_em; inativado sem data não conta. + OS analítica no recorte de gasto-reparo médico (mês do fechamento). Denominador: soma ValorDeSubstituicao de TODOS os equipamentos (incluirCustoSubstituicao=true), persistido. Sem parque/avulsos: sem resultado. Ano civil.",
     periodicidade: "Mensal",
   },
   "corretivas-por-prioridade": {

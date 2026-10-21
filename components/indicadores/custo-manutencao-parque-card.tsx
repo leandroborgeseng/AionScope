@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
+import { AlertTriangle, CheckCircle2, MinusCircle } from "lucide-react";
 import {
   ChartCard,
   ChartFullscreenDialog,
@@ -10,79 +11,67 @@ import {
 } from "@/components/indicadores/chart-fullscreen";
 import { IndicadorPageLayout } from "@/components/indicadores/indicador-page-layout";
 import { PageHeader } from "@/components/shell/page-header";
-import { KpiCard } from "@/components/kpi/kpi-card";
 import { DataTable } from "@/components/tables/data-table";
-import { Badge } from "@/components/ui/badge";
-import { DespesaParqueBarChart, type DespesaParqueChartRow } from "@/components/charts/charts";
-import { useParqueMeta } from "@/hooks/use-cadastros";
+import { CustoParqueChart, textoTooltipMes } from "@/components/charts/custo-parque-chart";
+import { useContratos, useParqueMeta } from "@/hooks/use-cadastros";
 import { useMedicalIndex } from "@/hooks/use-medical-index";
 import { useOsAnaliticoRollingYear } from "@/hooks/use-os-analitico-rolling-year";
-import { dataOf, errorOf, usePbiQuery } from "@/hooks/use-pbi";
+import { dataOf, usePbiQuery } from "@/hooks/use-pbi";
 import {
-  buildDespesaParque,
-  contratosLinhaDoMes,
+  META_ANUAL_PCT,
+  buildCustoParqueAno,
   formatPctParque,
-  type ListaDespesaMes,
+  rotuloStatus,
+  type CustoParqueMes,
+  type StatusMeta,
 } from "@/lib/pbi/custo-manutencao-parque";
 import { FICHAS } from "@/lib/pbi/fichas";
 import { buildGastoReparo, gastoReparoDoMes, type GastoReparoRow } from "@/lib/pbi/gasto-reparo";
 import { formatBRL } from "@/lib/pbi/indicators";
 import { EMPTY_FILTERS } from "@/lib/pbi/filters";
-import { startOfMonthISO, todayISO } from "@/lib/pbi/dates";
-import {
-  PARQUE_META_REFERENCIA,
-  resumirValorParqueApi,
-  valorParqueEfetivo,
-} from "@/lib/pbi/parque-valor";
-import type { ContratoPbiItem, EquipamentoItem } from "@/lib/pbi/types";
+import { nowInSaoPaulo, startOfMonthISO, todayISO } from "@/lib/pbi/dates";
+import { resumirValorParqueApi, valorParqueEfetivo } from "@/lib/pbi/parque-valor";
+import type { EquipamentoItem } from "@/lib/pbi/types";
+import { cn } from "@/lib/utils";
 
 const FICHA = FICHAS["custo-manutencao-parque"];
+const MESES_LONGOS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
 
-type Drill = {
-  title: string;
-  year: number;
-  month: number;
-  contratos: ListaDespesaMes["contratos"];
-  os: GastoReparoRow[];
-} | null;
+function formatMi(v: number | null) {
+  if (v == null) return "—";
+  return `R$ ${(v / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mi`;
+}
+
+function StatusChip({ status }: { status: StatusMeta | null }) {
+  const cls =
+    status === "Dentro"
+      ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+      : status === "Acima"
+        ? "border-rose-300 bg-rose-50 text-rose-900"
+        : "border-slate-300 bg-slate-100 text-slate-800";
+  const Icon = status === "Dentro" ? CheckCircle2 : status === "Acima" ? AlertTriangle : MinusCircle;
+  return (
+    <span className={cn("inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold", cls)}>
+      <Icon className="size-3.5" aria-hidden />
+      {rotuloStatus(status)}
+    </span>
+  );
+}
 
 export function CustoManutencaoParqueCard() {
-  const { range, raw, bruta, loading: osLoading, error: osError } = useOsAnaliticoRollingYear();
+  const { range, raw, bruta, loading: osLoading, error: osError } = useOsAnaliticoRollingYear("calendarYear");
   const medical = useMedicalIndex();
   const parqueQ = useParqueMeta();
+  const contratosQ = useContratos();
   const { open, ready, openFullscreen, closeFullscreen } = useChartFullscreen();
-  const [drill, setDrill] = useState<Drill>(null);
-
-  const contratosQ = usePbiQuery<ContratoPbiItem[]>(
-    "contratos",
-    {
-      ...EMPTY_FILTERS,
-      from: range.fromISO,
-      to: range.toISO,
-      tipoManutencao: "Todos",
-      somenteMedicos: false,
-    },
-    { pagina: "0", qtdPorPagina: "100000", omitDates: "true" },
-  );
+  const [drill, setDrill] = useState<CustoParqueMes | null>(null);
+  const hoje = useMemo(() => nowInSaoPaulo(), []);
 
   const eqQ = usePbiQuery<EquipamentoItem[]>(
     "equipamentos",
-    {
-      ...EMPTY_FILTERS,
-      from: startOfMonthISO(),
-      to: todayISO(),
-      tipoManutencao: "Todos",
-      somenteMedicos: false,
-    },
-    {
-      apenasAtivos: "true",
-      incluirComponentes: "false",
-      incluirCustoSubstituicao: "true",
-    },
+    { ...EMPTY_FILTERS, from: startOfMonthISO(), to: todayISO(), tipoManutencao: "Todos", somenteMedicos: false },
+    { apenasAtivos: "true", incluirComponentes: "false", incluirCustoSubstituicao: "true" },
   );
-
-  const contratos = dataOf(contratosQ.data) ?? [];
-  const contratosErr = errorOf(contratosQ.data);
 
   const apiResumo = useMemo(() => {
     const items = dataOf(eqQ.data) ?? [];
@@ -94,310 +83,211 @@ export function CustoManutencaoParqueCard() {
     [raw, range, medical.tags, medical.ids],
   );
 
-  const apiPersistida = parqueQ.data?.valorApi ?? null;
-  const apiLiveTodos = apiResumo?.substituicao.todos.total ?? null;
-
   const efetivo = valorParqueEfetivo({
-    apiTodosSubstituicao: apiPersistida ?? apiLiveTodos,
+    apiTodosSubstituicao: parqueQ.data?.valorApi ?? apiResumo?.substituicao.todos.total ?? null,
   });
 
-  const despesa = useMemo(
+  const contratos = useMemo(() => contratosQ.data ?? [], [contratosQ.data]);
+  const avulsosDisponiveis = !osError && !medical.error;
+  const year = range.months[0]?.year ?? hoje.getFullYear();
+  const mesAtual = year === hoje.getFullYear() ? hoje.getMonth() : 11;
+
+  const ind = useMemo(
     () =>
-      buildDespesaParque({
-        range,
+      buildCustoParqueAno({
+        year,
+        months: range.months,
         contratos,
         gastoMonths: gasto.months,
         valorParque: efetivo.valor,
-        fonteParque: efetivo.fonte,
+        avulsosDisponiveis,
+        mesAtual,
       }),
-    [range, contratos, gasto.months, efetivo.valor, efetivo.fonte],
+    [year, range.months, contratos, gasto.months, efetivo.valor, avulsosDisponiveis, mesAtual],
   );
+  const faltando = [...ind.faltando];
+  if (contratosQ.error) faltando.push("cadastro de contratos indisponível");
+  const semDados = faltando.length > 0;
+  const atual = ind.atual;
+  const pctAtual = semDados ? null : (atual?.pctAcumulado ?? null);
+  const statusAtual = semDados ? null : (atual?.status ?? null);
 
-  const chartData: DespesaParqueChartRow[] = useMemo(
-    () =>
-      despesa.months.map((m) => ({
-        name: m.label,
-        key: m.key,
-        year: m.year,
-        month: m.month,
-        contratos: m.contratos,
-        avulsos: m.avulsos,
-        despesa: m.despesa,
-        pctParque: m.pctParque,
-      })),
-    [despesa.months],
-  );
+  const loading = osLoading || medical.loading || contratosQ.isLoading || parqueQ.isLoading || eqQ.isLoading;
 
-  const loading =
-    osLoading || medical.loading || contratosQ.isLoading || parqueQ.isLoading || eqQ.isLoading;
-
-  const contratosTokenAusente =
-    Boolean(contratosErr) &&
-    (contratosErr!.message.includes("PBI_TOKEN_CONTRATOS") ||
-      contratosErr!.message.includes("Token ausente"));
-  const contratosMsg = contratosErr
-    ? contratosTokenAusente
-      ? "Configure PBI_TOKEN_CONTRATOS no .env.local"
-      : contratosErr.message
-    : null;
-  /** Contratos são informativos; o KPI oficial é só OS ÷ parque. */
-  const contratosIndisponiveis = Boolean(contratosMsg);
-
-  const error =
-    osError ?? medical.error ?? (parqueQ.error instanceof Error ? parqueQ.error.message : null);
-
-  function openMes(row: DespesaParqueChartRow) {
-    const year = Number(row.year);
-    const month = Number(row.month);
-    setDrill({
-      title: `Despesa de ${row.name}`,
-      year,
-      month,
-      contratos: contratosLinhaDoMes(contratos, year, month),
-      os: gastoReparoDoMes(gasto.noIntervalo, year, month),
-    });
-  }
-
+  const osDrill: GastoReparoRow[] = drill ? gastoReparoDoMes(gasto.noIntervalo, drill.year, drill.month) : [];
   const osColumns: ColumnDef<GastoReparoRow>[] = [
     { accessorKey: "OS", header: "OS" },
     { accessorKey: "Equipamento", header: "Equipamento" },
     { accessorKey: "TipoDeManutencao", header: "Tipo" },
-    {
-      id: "custo",
-      header: "Custo",
-      cell: ({ row }) => <span className="tabular-nums">{formatBRL(row.original.custoNum)}</span>,
-    },
+    { id: "custo", header: "Custo", cell: ({ row }) => <span className="tabular-nums">{formatBRL(row.original.custoNum)}</span> },
   ];
+  const realizados = ind.months.filter((m) => !m.futuro);
 
   return (
     <>
       <IndicadorPageLayout
         loading={loading}
-        error={error}
+        error={null}
         heading={
           <PageHeader
-            title={FICHA.nomeDoIndicador}
-            description="Despesa mensal de OS de reparo ÷ valor de substituição do parque. Contratos ficam fora do KPI (plano da Sala)."
+            title={`Custo de manutenção do parque – ${year}`}
+            description="Contratos de Manutenção + OS avulsas de equipamentos médicos, acumulado no ano ÷ valor de substituição do parque."
           />
         }
         kpis={
           <>
-            {contratosIndisponiveis ? (
-              <div className="sm:col-span-2 xl:col-span-4 rounded-xl border border-aion-line bg-aion-mist px-4 py-3 text-sm text-aion-ink">
-                Contratos na API indisponíveis ({contratosMsg}). O KPI oficial já usa só custo de OS ÷ parque.{" "}
-                <Link href="/cadastros/contratos" className="underline">
-                  Cadastro de contratos
-                </Link>{" "}
-                continua fora do plano da Sala TV.
+            <div className="sm:col-span-2 xl:col-span-4 rounded-xl border border-aion-line bg-white p-4" data-testid="kpi-custo-parque">
+              <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+                <div>
+                  <p className="text-sm text-aion-muted">Acumulado até {MESES_LONGOS[mesAtual]} (% do parque)</p>
+                  <p className="text-4xl font-bold tabular-nums text-aion-ink">{formatPctParque(pctAtual)}</p>
+                  <p className="text-sm tabular-nums text-aion-ink/80">{semDados ? "—" : formatBRL(atual?.acumulado ?? 0)}</p>
+                </div>
+                <StatusChip status={statusAtual} />
               </div>
-            ) : (
-              <div className="sm:col-span-2 xl:col-span-4 rounded-xl border border-aion-line bg-aion-mist px-4 py-3 text-sm text-aion-ink">
-                KPI = custo das OS de reparo ÷ valor de substituição. Contratos, se houver, ficam só como informação.
-              </div>
-            )}
-            <KpiCard
-              label="Despesa do período (OS)"
-              value={formatBRL(despesa.avulsosTotal)}
-              hint={
-                despesa.contratosTotal > 0
-                  ? `Contratos (info): ${formatBRL(despesa.contratosTotal)} — fora do KPI`
-                  : "Somente avulsos de OS de reparo"
-              }
-            />
-            <KpiCard
-              label="% do parque (período)"
-              value={formatPctParque(despesa.pctParquePeriodo)}
-              hint={
-                efetivo.fonte === "api"
-                  ? `API (todos) ${formatBRL(efetivo.valor)}`
-                  : "Atualize o valor do parque pela API"
-              }
-              tone={
-                despesa.pctParquePeriodo == null
-                  ? "neutral"
-                  : despesa.pctParquePeriodo <= 4
-                    ? "ok"
-                    : despesa.pctParquePeriodo <= 6
-                      ? "warn"
-                      : "danger"
-              }
-            />
-            <KpiCard
-              label="Média mensal (OS)"
-              value={formatBRL(despesa.mediaMensal)}
-              hint={`Média % do parque: ${formatPctParque(despesa.mediaPctParque)}`}
-            />
+              <p className="mt-2 text-sm text-aion-ink/80">
+                Meta até {MESES_LONGOS[mesAtual]}: {formatPctParque(atual?.metaPct ?? null)} · Teto anual:{" "}
+                {formatPctParque(META_ANUAL_PCT)} · Parque: {formatMi(ind.valorParque)}
+              </p>
+              {semDados ? (
+                <p role="alert" className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                  Não foi possível calcular: {faltando.join("; ")}.{" "}
+                  {ind.valorParque == null ? (
+                    <Link href="/cadastros/parque" className="underline">Atualizar o valor do parque</Link>
+                  ) : null}
+                </p>
+              ) : null}
+              {!semDados && ind.semContratos ? (
+                <p className="mt-3 rounded-lg border border-aion-line bg-aion-mist px-3 py-2 text-sm text-aion-ink">
+                  Nenhum contrato de Manutenção cadastrado: o cálculo usa só as OS avulsas.{" "}
+                  <Link href="/cadastros/contratos" className="underline">Cadastrar contratos</Link>
+                </p>
+              ) : null}
+            </div>
           </>
         }
         chart={
           <ChartCard
-            title={`Despesa mensal (OS) · ${range.label}`}
+            title={`Despesa mensal e acumulado · ${year}`}
             onExpand={openFullscreen}
-            hint={
-              efetivo.fonte === "api" ? (
-                <span>
-                  KPI = custo de OS ÷ valor de substituição. Contratos não entram no numerador.{" "}
-                  <Link href="/cadastros/parque" className="underline">
-                    Ver parque
-                  </Link>
-                  .
-                </span>
-              ) : efetivo.fonte == null ? (
-                <span className="text-amber-800">
-                  Sem valor do parque — % fica vazio.{" "}
-                  <Link href="/cadastros/parque" className="underline">
-                    Atualizar da API
-                  </Link>
-                </span>
-              ) : (
-                "Barras: custo de OS de reparo médicos. Meta ficha ≤ 4% a.a. do parque."
-              )
-            }
+            hint="Barras: Contratos + Avulsos (R$). Linha: acumulado (% do parque). Tracejado: meta proporcional; pontilhado: teto anual 4%."
           >
-            <DespesaParqueBarChart
-              data={chartData}
-              xKey="name"
-              stacked={false}
-              onRowClick={openMes}
-            />
+            <CustoParqueChart months={semDados ? ind.months.map((m) => ({ ...m, pctAcumulado: null, status: null })) : ind.months} onMonthClick={setDrill} />
           </ChartCard>
         }
         selectionList={
-          drill ? (
-            <div className="space-y-4 rounded-xl border border-aion-line bg-white p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h3 className="font-semibold text-aion-ink">{drill.title}</h3>
-                  <p className="text-xs text-aion-muted">
-                    {drill.contratos.length} contrato(s) · {drill.os.length} OS de reparo
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="text-xs font-medium text-aion-blue hover:underline"
-                  onClick={() => setDrill(null)}
-                >
-                  Fechar
-                </button>
-              </div>
-              {drill.contratos.length ? (
-                <ul className="space-y-1 text-sm">
-                  {drill.contratos.map((c) => (
-                    <li key={c.id} className="flex justify-between gap-3">
-                      <span>{c.nome}</span>
-                      <span className="tabular-nums">{formatBRL(c.valorMensal)}</span>
-                    </li>
+          <div className="space-y-4">
+            <div className="overflow-x-auto rounded-xl border border-aion-line bg-white">
+              <table className="hidden w-full text-sm md:table" aria-label="Tabela mensal do indicador">
+                <thead className="bg-aion-mist text-left text-xs text-aion-ink">
+                  <tr>
+                    {["Mês", "Contratos", "Avulsos", "Total do mês", "Acumulado R$", "Acumulado %", "Meta %", "Status"].map((h, i) => (
+                      <th key={h} className={cn("px-3 py-2 font-semibold", i > 0 && i < 7 && "text-right")}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {ind.months.map((m) => (
+                    <tr
+                      key={m.key}
+                      className={cn("border-t border-aion-mist", m.month === mesAtual && "bg-sky-50 font-medium", !m.futuro && "cursor-pointer hover:bg-slate-50")}
+                      onClick={() => !m.futuro && setDrill(m)}
+                      title={m.futuro ? undefined : textoTooltipMes(m)}
+                    >
+                      <td className="px-3 py-2">{m.label}</td>
+                      {m.futuro ? (
+                        <>
+                          <td colSpan={5} className="px-3 py-2 text-right text-aion-muted">a realizar</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{formatPctParque(m.metaPct)}</td>
+                          <td className="px-3 py-2" />
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-3 py-2 text-right tabular-nums">{formatBRL(m.contratos)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{semDados ? "—" : formatBRL(m.avulsos)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{semDados ? "—" : formatBRL(m.despesa)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{semDados ? "—" : formatBRL(m.acumulado)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{formatPctParque(semDados ? null : m.pctAcumulado)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{formatPctParque(m.metaPct)}</td>
+                          <td className="px-3 py-2"><StatusChip status={semDados ? null : m.status} /></td>
+                        </>
+                      )}
+                    </tr>
                   ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-aion-muted">Nenhum contrato ativo neste mês.</p>
-              )}
-              {drill.os.length ? (
-                <DataTable data={drill.os} columns={osColumns} />
-              ) : (
-                <p className="text-sm text-aion-muted">Nenhuma OS de reparo médico neste mês.</p>
-              )}
+                </tbody>
+              </table>
+              <ul className="divide-y divide-aion-mist md:hidden" aria-label="Meses do indicador">
+                {realizados.map((m) => (
+                  <li key={m.key}>
+                    <button type="button" className={cn("flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm", m.month === mesAtual && "bg-sky-50")} onClick={() => setDrill(m)}>
+                      <span>
+                        <span className="font-medium">{m.label}</span>
+                        <span className="block tabular-nums text-aion-ink/80">{semDados ? "—" : formatBRL(m.despesa)} · {formatPctParque(semDados ? null : m.pctAcumulado)}</span>
+                      </span>
+                      <StatusChip status={semDados ? null : m.status} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </div>
-          ) : (
-            <p className="text-sm text-aion-muted">
-              Clique em um mês no gráfico para ver contratos e OS.
-            </p>
-          )
+
+            {drill ? (
+              <div className="space-y-4 rounded-xl border border-aion-line bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h3 className="font-semibold text-aion-ink">Despesa de {drill.label}: {formatBRL(drill.despesa)}</h3>
+                    <p className="text-xs text-aion-muted">
+                      {drill.contratosNoMes.length} contrato(s) {formatBRL(drill.contratos)} · {osDrill.length} OS {formatBRL(drill.avulsos)}
+                    </p>
+                  </div>
+                  <button type="button" className="text-xs font-medium text-aion-blue hover:underline" onClick={() => setDrill(null)}>Fechar</button>
+                </div>
+                {drill.contratosNoMes.length ? (
+                  <ul className="space-y-1 text-sm">
+                    {drill.contratosNoMes.map((c) => (
+                      <li key={c.id} className="flex justify-between gap-3">
+                        <span>{[c.fornecedor, c.equipamento].filter(Boolean).join(" – ") || c.nome}</span>
+                        <span className="tabular-nums">{formatBRL(c.valorMensal)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-aion-muted">Nenhum contrato de Manutenção neste mês.</p>
+                )}
+                {osDrill.length ? <DataTable data={osDrill} columns={osColumns} /> : <p className="text-sm text-aion-muted">Nenhuma OS de reparo médico neste mês.</p>}
+              </div>
+            ) : (
+              <p className="text-sm text-aion-muted">Clique em um mês no gráfico ou na tabela para ver contratos e OS.</p>
+            )}
+          </div>
         }
         ficha={FICHA}
         detalhesItems={[
           {
-            id: "denominador",
-            title: "Valor do parque (denominador)",
+            id: "como-calculado",
+            title: "Como é calculado",
             children: (
               <div className="space-y-2 text-sm text-aion-ink/85">
                 <p>
-                  Fonte efetiva:{" "}
-                  <Badge tone={efetivo.fonte === "api" ? "ok" : "warn"}>
-                    {efetivo.fonte ?? "nenhuma"}
-                  </Badge>{" "}
-                  · {formatBRL(efetivo.valor)}
+                  Soma das mensalidades dos contratos de Manutenção vigentes em pelo menos um dia do mês e das OS avulsas de
+                  equipamentos médicos fechadas no mês. O acumulado recomeça em janeiro. Contratos de Locação não entram neste indicador.
                 </p>
                 <p>
-                  Valor puxado do cadastro de equipamentos (substituição, todos os cadastrados).
-                  Persistido: {formatBRL(apiPersistida)}. Ref. antiga 57 mi:{" "}
-                  {formatBRL(PARQUE_META_REFERENCIA)} (não usada no cálculo).
+                  Contrato inativado conta até o mês da inativação (inclusive). Status do mês: acumulado ≤ 4% × mês/12.
+                  Contratos:{" "}
+                  <Link href="/cadastros/contratos" className="text-aion-blue underline">/cadastros/contratos</Link>.
+                  Parque (todos os equipamentos, valor de substituição):{" "}
+                  <Link href="/cadastros/parque" className="text-aion-blue underline">/cadastros/parque</Link>.
                 </p>
-                {apiResumo ? (
-                  <>
-                    <p>
-                      API live (todos — denominador):{" "}
-                      <strong className="tabular-nums">
-                        {formatBRL(apiResumo.substituicao.todos.total)}
-                      </strong>{" "}
-                      ({apiResumo.substituicao.todos.pctPreenchidos.toFixed(1)}% preenchidos)
-                    </p>
-                    <p>
-                      API live (médicos — auditoria):{" "}
-                      <strong className="tabular-nums">
-                        {formatBRL(apiResumo.substituicao.medicos.total)}
-                      </strong>
-                    </p>
-                    <p className="text-xs text-aion-muted">
-                      Sem <code>incluirCustoSubstituicao=true</code>, ValorDeSubstituicao vem 0.
-                    </p>
-                  </>
-                ) : null}
-                <p>
-                  Cadastro:{" "}
-                  <Link href="/cadastros/parque" className="text-aion-blue underline">
-                    /cadastros/parque
-                  </Link>
-                </p>
-              </div>
-            ),
-          },
-          {
-            id: "numerador",
-            title: "Despesa mensal (numerador)",
-            children: (
-              <div className="space-y-2 text-sm text-aion-ink/85">
-                <p>
-                  Contratos da API GlobalThings (vigência + parcelas no mês) + custo das OS de reparo
-                  de equipamentos médicos fechadas no mês (mesmo recorte de gasto-reparo).
-                </p>
-                <p>
-                  No mês: soma <code className="text-xs">Parcelas.ValorMoeda</code> com{" "}
-                  <code className="text-xs">DataVencimento</code> no mês; sem parcelas, rateia{" "}
-                  <code className="text-xs">ValorTotal</code> / vigência (
-                  <code className="text-xs">DataInicio</code> →{" "}
-                  <code className="text-xs">DataFimVigencia</code> ou{" "}
-                  <code className="text-xs">DataFim</code>).
-                </p>
-                <p>
-                  OS brutas no intervalo: {bruta}. Contratos na API: {contratos.length}.
-                </p>
-                <p>
-                  Lista de contratos:{" "}
-                  <Link href="/cadastros/contratos" className="text-aion-blue underline">
-                    /cadastros/contratos
-                  </Link>{" "}
-                  (fonte: API GlobalThings).
-                </p>
+                <p className="text-xs text-aion-muted">OS brutas no ano: {bruta}. Contratos no cadastro: {contratos.length}.</p>
               </div>
             ),
           },
         ]}
       />
 
-      <ChartFullscreenDialog
-        open={open}
-        ready={ready}
-        title={`Despesa mensal · ${range.label}`}
-        onClose={closeFullscreen}
-      >
-        <DespesaParqueBarChart
-          data={chartData}
-          xKey="name"
-          stacked={false}
-          className="h-[70vh]"
-          onRowClick={openMes}
-        />
+      <ChartFullscreenDialog open={open} ready={ready} title={`Custo de manutenção do parque · ${year}`} onClose={closeFullscreen}>
+        <CustoParqueChart months={semDados ? ind.months.map((m) => ({ ...m, pctAcumulado: null, status: null })) : ind.months} className="h-[70vh]" onMonthClick={setDrill} />
       </ChartFullscreenDialog>
     </>
   );

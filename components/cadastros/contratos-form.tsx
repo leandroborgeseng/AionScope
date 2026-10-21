@@ -18,6 +18,7 @@ import {
   validarContrato,
 } from "@/lib/cadastros/contratos-proprios";
 import type { Contrato } from "@/lib/cadastros/types";
+import { rotuloInativado, textoConfirmarInativar, textoConfirmarReativar } from "@/lib/cadastros/contratos-proprios";
 import { formatBRL } from "@/lib/pbi/indicators";
 
 const API = "/api/cadastros/contratos";
@@ -457,7 +458,7 @@ export function ContratosCadastroForm() {
                       <p className="font-medium text-aion-ink">{c.fornecedor ?? c.nome}</p>
                       <Badge tone={c.tipo ? "info" : "warn"}>{labelTipo(c.tipo)}</Badge>
                       <Badge tone={sit === "Vigente" ? "ok" : sit === "Vencido" ? "danger" : "default"}>{sit}</Badge>
-                      {!c.ativo ? <Badge tone="default">Inativo</Badge> : null}
+                      {!c.ativo ? <span className="rounded-full bg-aion-mist px-2 py-0.5 text-xs font-medium text-aion-ink">{rotuloInativado(c)}</span> : null}
                     </div>
                     <p className="text-sm text-aion-ink/80">
                       {[c.equipamento ?? (c.fornecedor ? c.nome : null), c.numero ? `nº ${c.numero}` : null]
@@ -479,7 +480,7 @@ export function ContratosCadastroForm() {
                         size="sm"
                         disabled={alternar.isPending}
                         onClick={() => {
-                          if (!c.ativo || window.confirm(`Inativar ${c.nome}? Ele continua no histórico (filtro Inativos).`)) {
+                          if (window.confirm(c.ativo ? textoConfirmarInativar(c) : textoConfirmarReativar(c))) {
                             alternar.mutate(c);
                           }
                         }}

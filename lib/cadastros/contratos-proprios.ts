@@ -137,3 +137,89 @@ export function totaisPorTipo(contratos: Contrato[]) {
   for (const k of Object.keys(t) as Array<keyof typeof t>) t[k].valor = Math.round(t[k].valor * 100) / 100;
   return t;
 }
+
+// ---------------------------------------------------------------------------
+// Inativação com data (migração 010 — coluna inativado_em)
+
+const MESES_PT = [
+  "janeiro", "fevereiro", "março", "abril", "maio", "junho",
+  "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
+];
+
+/** Data/hora atual em America/Sao_Paulo no formato ISO com offset (ex.: 2026-10-20T21:50:00-03:00). */
+export function agoraBRTIso(agora: Date = new Date()) {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(agora)
+      .map((x) => [x.type, x.value]),
+  );
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}-03:00`;
+}
+
+/** Mês (0–11) e ano da inativação, lidos da parte de data (já em BRT). */
+export function mesDaInativacao(inativadoEm: string | null | undefined): { year: number; month: number } | null {
+  const m = /^(\d{4})-(\d{2})-\d{2}/.exec(inativadoEm ?? "");
+  return m ? { year: Number(m[1]), month: Number(m[2]) - 1 } : null;
+}
+
+function isoMes(year: number, month: number, dia: number) {
+  return `${year}-${String(month + 1).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+}
+
+/**
+ * Regra do indicador de custo do parque (aceite C1–C5):
+ * - só tipo MANUTENCAO (Locação / sem tipo nunca);
+ * - mês inteiro se a vigência cobre ≥ 1 dia do mês (fim inclusivo, datas BRT);
+ * - inativo conta nos meses ≤ mês de inativado_em; inativo sem data não conta.
+ * `month` é 0–11.
+ */
+export function contratoContaNoIndicador(
+  c: Pick<Contrato, "tipo" | "valorMensal" | "inicio" | "fim" | "ativo" | "inativadoEm">,
+  year: number,
+  month: number,
+) {
+  if (c.tipo !== "MANUTENCAO") return false;
+  if (!(c.valorMensal > 0)) return false;
+  const primeiro = isoMes(year, month, 1);
+  const ultimo = isoMes(year, month, new Date(Date.UTC(year, month + 1, 0)).getUTCDate());
+  if (c.inicio && c.inicio > ultimo) return false;
+  if (c.fim && c.fim < primeiro) return false;
+  if (!c.ativo) {
+    const ina = mesDaInativacao(c.inativadoEm);
+    if (!ina) return false;
+    if (year * 12 + month > ina.year * 12 + ina.month) return false;
+  }
+  return true;
+}
+
+function nomeContrato(c: Pick<Contrato, "fornecedor" | "equipamento" | "nome">) {
+  return [c.fornecedor, c.equipamento].filter(Boolean).join(" – ") || c.nome;
+}
+
+export function textoConfirmarInativar(
+  c: Pick<Contrato, "fornecedor" | "equipamento" | "nome">,
+  agora: Date = new Date(),
+) {
+  const ina = mesDaInativacao(agoraBRTIso(agora))!;
+  return `Inativar ${nomeContrato(c)}? Ele deixa de contar no indicador a partir do mês seguinte. Os meses até ${MESES_PT[ina.month]}/${ina.year} continuam no acumulado.`;
+}
+
+export function textoConfirmarReativar(c: Pick<Contrato, "fornecedor" | "equipamento" | "nome">) {
+  return `Reativar ${nomeContrato(c)}? Ele volta a contar em toda a vigência.`;
+}
+
+/** Rótulo da lista de inativos. */
+export function rotuloInativado(c: Pick<Contrato, "ativo" | "inativadoEm">) {
+  if (c.ativo) return null;
+  const d = /^(\d{4})-(\d{2})-(\d{2})/.exec(c.inativadoEm ?? "");
+  return d ? `Inativado em ${d[3]}/${d[2]}/${d[1]}` : "Inativado (sem data)";
+}
