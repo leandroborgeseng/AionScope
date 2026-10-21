@@ -63,3 +63,4 @@ ordens-compra-anexos/
 # Evidências de treinamentos (PDFs com PII — 2026 tem CPF/e-mail). Repo público: fora do git.
 /data/treinamentos-evidencias/
 treinamentos-evidencias/
+/dist-scripts

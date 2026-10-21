@@ -26,7 +26,15 @@ export type Contrato = {
   fim?: string | null;
   ativo: boolean;
   observacao?: string;
+  /** MANUTENCAO | LOCACAO. Null só em contratos antigos (antes da 009). */
+  tipo?: TipoContrato | null;
+  equipamento?: string | null;
+  numero?: string | null;
+  /** Chave natural da importação (ex.: csv-20-10:3). Não editável pela tela. */
+  chaveImportacao?: string | null;
 };
+
+export type TipoContrato = "MANUTENCAO" | "LOCACAO";
 
 export type ContratosFile = {
   contratos: Contrato[];
@@ -40,4 +48,7 @@ export type ContratoInput = {
   fim?: string | null;
   ativo?: boolean;
   observacao?: string;
+  tipo?: string | null;
+  equipamento?: string | null;
+  numero?: string | null;
 };
