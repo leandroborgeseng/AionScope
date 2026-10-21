@@ -55,6 +55,11 @@ export function cachePolicy(resource: PbiResource): CachePolicy {
 export const FRESH_MAX_MS = DAY_MS; // até 24 h: tela normal
 export const STALE_MAX_MS = 7 * DAY_MS; // até 7 dias: aviso âmbar; acima: indisponível se a atualização falhar
 
+/** Outros períodos (não padrão) só são renovados pelo agendador se acessados nos últimos 7 dias. */
+export const OTHER_PERIOD_ACCESS_MS = 7 * DAY_MS;
+/** Máximo de cópias em pbi_cache; acima disso sai a de outro período acessada há mais tempo (nunca as padrão). */
+export const MAX_CACHE_ROWS = 50;
+
 /** Intervalo mínimo entre tentativas disparadas por abertura após uma falha (evita martelar a API). */
 export const RETRY_BACKOFF_MS = MIN_MS;
 

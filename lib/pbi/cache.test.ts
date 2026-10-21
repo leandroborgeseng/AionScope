@@ -231,14 +231,80 @@ test("agendador: recursos nunca abertos são renovados (lista explícita SCHEDUL
   assert.equal(calls.length, feitos.length); // a abertura usou a cópia renovada, sem nova busca
 });
 
-test("agendador: consulta sem acesso há 40 dias continua sendo renovada", async () => {
-  await semearCopia("equipamentos", 0);
-  const key = cacheKeyFor("equipamentos", P).key;
-  getDb().prepare("UPDATE pbi_cache SET last_access_at = ? WHERE cache_key = ?").run(now - 40 * DAY_MS, key);
-  await runSchedulerTick(); // prepara as consultas padrão
-  now += 61 * MIN_MS;
+function idadeAcesso(key: string, ms: number) {
+  getDb().prepare("UPDATE pbi_cache SET last_access_at = ? WHERE cache_key = ?").run(now - ms, key);
+}
+
+test("retenção: período padrão é renovado mesmo após 30 dias sem acesso", async () => {
+  await runSchedulerTick();
+  const padrao = defaultScheduledQueries().find((q) => q.resource === "equipamentos")!;
+  const key = cacheKeyFor("equipamentos", padrao.params).key;
+  now += 30 * DAY_MS;
+  idadeAcesso(key, 30 * DAY_MS);
   const feitos = await runSchedulerTick();
   assert.ok(feitos.includes(key));
+});
+
+test("retenção: outro período acessado há 6 dias é renovado; há 8 dias não", async () => {
+  const P6 = new URLSearchParams({ periodo: "AnoAnterior" });
+  const P8 = new URLSearchParams({ periodo: "DoisAnosAtuais", x: "8" });
+  await fetchPbi("os-analitico", P6);
+  await fetchPbi("os-analitico", P8);
+  await runSchedulerTick();
+  now += 10 * MIN_MS;
+  const k6 = cacheKeyFor("os-analitico", P6).key;
+  const k8 = cacheKeyFor("os-analitico", P8).key;
+  idadeAcesso(k6, 6 * DAY_MS);
+  idadeAcesso(k8, 8 * DAY_MS);
+  const feitos = await runSchedulerTick();
+  assert.ok(feitos.includes(k6));
+  assert.ok(!feitos.includes(k8));
+  assert.ok(getDb().prepare("SELECT payload FROM pbi_cache WHERE cache_key = ?").get(k8)); // fica guardada
+});
+
+test("retenção: reabrir período não renovado mostra a cópia, atualiza em segundo plano e volta a contar acesso", async () => {
+  const P8 = new URLSearchParams({ periodo: "AnoAnterior", x: "reabre" });
+  await fetchPbi("os-analitico", P8);
+  const k8 = cacheKeyFor("os-analitico", P8).key;
+  now += 9 * DAY_MS;
+  idadeAcesso(k8, 9 * DAY_MS);
+  calls = [];
+  let release!: () => void;
+  gate = new Promise((r) => (release = r));
+  const r = await fetchPbi("os-analitico", P8);
+  assert.equal(r.ok, true);
+  assert.equal(r.cache?.refreshing, true);
+  const row = getDb().prepare("SELECT last_access_at FROM pbi_cache WHERE cache_key = ?").get(k8) as { last_access_at: number };
+  assert.equal(row.last_access_at, now);
+  release();
+  await flush();
+  assert.equal(calls.length, 1);
+  now += 2 * HOUR_MS;
+  assert.ok((await runSchedulerTick()).includes(k8)); // voltou à renovação (acesso < 7 dias)
+});
+
+test("retenção: com 51 cópias sai a de outro período acessada há mais tempo; padrões ficam", async () => {
+  await runSchedulerTick(); // cria as padrão
+  const padroes = defaultScheduledQueries().map((q) => cacheKeyFor(q.resource, q.params).key);
+  for (const k of padroes) idadeAcesso(k, 365 * DAY_MS); // padrões mais "antigas" de todas: mesmo assim não saem
+  const total = getDb().prepare("SELECT COUNT(*) n FROM pbi_cache").get() as { n: number };
+  const faltam = 50 - total.n;
+  const outras: string[] = [];
+  for (let i = 0; i < faltam; i++) {
+    const p = new URLSearchParams({ periodo: "AnoAnterior", i: String(i) });
+    await fetchPbi("os-analitico", p);
+    outras.push(cacheKeyFor("os-analitico", p).key);
+    now += 1000;
+  }
+  assert.equal((getDb().prepare("SELECT COUNT(*) n FROM pbi_cache").get() as { n: number }).n, 50);
+  const p51 = new URLSearchParams({ periodo: "AnoAnterior", i: "51" });
+  await fetchPbi("os-analitico", p51);
+  const keys = new Set((getDb().prepare("SELECT cache_key FROM pbi_cache").all() as Array<{ cache_key: string }>).map((r) => r.cache_key));
+  assert.equal(keys.size, 50);
+  assert.ok(!keys.has(outras[0]));
+  assert.ok(keys.has(outras[1]));
+  assert.ok(keys.has(cacheKeyFor("os-analitico", p51).key));
+  for (const k of padroes) assert.ok(keys.has(k), `padrão apagada: ${k}`);
 });
 
 test("agendador: OS não renova antes de 5 min; renova aos 5 min, sem acesso", async () => {
