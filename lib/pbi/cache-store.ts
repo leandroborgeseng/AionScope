@@ -58,9 +58,7 @@ export function recordFailure(
     .run(key, resource, query, at, status, message.slice(0, 280), at, at);
 }
 
-/** Consultas acessadas nos últimos `sinceMs` (as que o agendador mantém renovadas). */
-export function listScheduledRows(accessedSince: number): CacheRow[] {
-  return getDb()
-    .prepare("SELECT * FROM pbi_cache WHERE last_access_at >= ? ORDER BY resource, cache_key")
-    .all(accessedSince) as CacheRow[];
+/** Todas as consultas guardadas (sem filtro de acesso recente). */
+export function listAllRows(): CacheRow[] {
+  return getDb().prepare("SELECT * FROM pbi_cache ORDER BY resource, cache_key").all() as CacheRow[];
 }
