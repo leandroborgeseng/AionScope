@@ -156,3 +156,19 @@ test("textos do cadastro (esboço UX §5)", () => {
   assert.equal(rotuloInativado({ ativo: false, inativadoEm: null }), "Inativado (sem data)");
   assert.equal(rotuloInativado({ ativo: true, inativadoEm: null }), null);
 });
+
+test("serieGraficoParque: sem dados não desenha barras nem acumulado, mantém a meta", async () => {
+  const { serieGraficoParque, metaProporcionalPct } = await import("@/lib/pbi/custo-manutencao-parque");
+  const months = Array.from({ length: 12 }, (_, i) => ({
+    label: String(i), month: i, contratos: 1000, avulsos: 500, despesa: 1500, acumulado: 1500 * (i + 1),
+    pctAcumulado: 0.1 * (i + 1), metaPct: metaProporcionalPct(i), status: "Dentro", futuro: i > 9,
+  })) as unknown as Parameters<typeof serieGraficoParque>[0];
+  const erro = serieGraficoParque(months, true);
+  assert.ok(erro.every((r) => r.contratos === null && r.avulsos === null && r.pct === null));
+  assert.deepEqual(erro.map((r) => r.meta), months.map((m) => m.metaPct));
+  const ok = serieGraficoParque(months, false);
+  assert.equal(ok[0].contratos, 1000);
+  assert.equal(ok[9].avulsos, 500);
+  assert.equal(ok[10].contratos, null);
+  assert.equal(ok[0].pct, 0.1);
+});
