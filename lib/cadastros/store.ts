@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/db/client";
+import { agoraBRTIso } from "@/lib/cadastros/contratos-proprios";
 import type {
   Contrato,
   ParqueEscopo,
@@ -30,6 +31,7 @@ type ContratoRow = {
   equipamento?: string | null;
   numero?: string | null;
   chave_importacao?: string | null;
+  inativado_em?: string | null;
 };
 
 const EMPTY_PARQUE: ParqueMeta = {
@@ -75,6 +77,7 @@ function mapContrato(row: ContratoRow): Contrato {
     equipamento: row.equipamento ?? null,
     numero: row.numero ?? null,
     chaveImportacao: row.chave_importacao ?? null,
+    inativadoEm: row.inativado_em ?? null,
   };
 }
 
@@ -158,10 +161,11 @@ export function upsertContrato(contrato: Contrato): Contrato {
   const now = new Date().toISOString();
   db.prepare(
     `INSERT INTO contratos (
-      id, nome, fornecedor, valor_mensal, inicio, fim, ativo, observacao, tipo, equipamento, numero,
+      id, nome, fornecedor, valor_mensal, inicio, fim, ativo, observacao, tipo, equipamento, numero, inativado_em,
       created_at, updated_at
     ) VALUES (
       @id, @nome, @fornecedor, @valor_mensal, @inicio, @fim, @ativo, @observacao, @tipo, @equipamento, @numero,
+      CASE WHEN @ativo = 1 THEN NULL ELSE @agora_brt END,
       @now, @now
     )
     ON CONFLICT(id) DO UPDATE SET
@@ -175,6 +179,7 @@ export function upsertContrato(contrato: Contrato): Contrato {
       tipo = excluded.tipo,
       equipamento = excluded.equipamento,
       numero = excluded.numero,
+      inativado_em = ${SQL_INATIVADO_EM},
       updated_at = excluded.updated_at`,
   ).run({
     id: contrato.id,
@@ -188,17 +193,30 @@ export function upsertContrato(contrato: Contrato): Contrato {
     tipo: contrato.tipo ?? null,
     equipamento: contrato.equipamento ?? null,
     numero: contrato.numero ?? null,
+    agora_brt: agoraBRTIso(),
     now,
   });
   return readContrato(contrato.id) ?? contrato;
 }
 
-/** Inativa/reativa sem apagar a linha. */
+/**
+ * Transição de inativado_em (010): reativar limpa; ativo→inativo grava agora (BRT);
+ * inativo→inativo mantém (inclusive nulo dos inativados antes da 010).
+ */
+const SQL_INATIVADO_EM =
+  "CASE WHEN excluded.ativo = 1 THEN NULL WHEN contratos.ativo = 1 THEN excluded.inativado_em ELSE contratos.inativado_em END";
+
+/** Inativa/reativa sem apagar a linha; grava/limpa inativado_em. */
 export function setContratoAtivo(id: string, ativo: boolean): Contrato | null {
   const db = getDb();
   const r = db
-    .prepare("UPDATE contratos SET ativo = ?, updated_at = ? WHERE id = ?")
-    .run(ativo ? 1 : 0, new Date().toISOString(), id);
+    .prepare(
+      `UPDATE contratos SET
+         inativado_em = CASE WHEN @ativo = 1 THEN NULL WHEN ativo = 1 THEN @agora_brt ELSE inativado_em END,
+         ativo = @ativo, updated_at = @now
+       WHERE id = @id`,
+    )
+    .run({ ativo: ativo ? 1 : 0, agora_brt: agoraBRTIso(), now: new Date().toISOString(), id });
   return r.changes > 0 ? readContrato(id) : null;
 }
 
