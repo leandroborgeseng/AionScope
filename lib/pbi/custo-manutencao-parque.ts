@@ -1,87 +1,117 @@
-import {
-  somaContratosNoMesPbi,
-  contratosDoMesPbi,
-  contratoMesLinha,
-  type ContratoMesLinha,
-} from "@/lib/pbi/contratos";
-import type { ContratoPbiItem } from "@/lib/pbi/types";
-import type { GastoReparoMonth, GastoReparoRow } from "@/lib/pbi/gasto-reparo";
-import { formatBRL } from "@/lib/pbi/indicators";
-import type { RollingYearRange } from "@/lib/pbi/volume-ec";
+/**
+ * Indicador "Custo de manutenção / valor do parque" (aceite 20/10/2026).
+ * Puro: sem banco/React. Ano civil jan–dez; acumulado zera em janeiro.
+ * Numerador do mês = contratos de MANUTENCAO do cadastro próprio (C1–C5) + avulsos (OS de reparo médico, C7).
+ * Denominador = valor de substituição do parque (todos os equipamentos), inalterado.
+ */
+import { contratoContaNoIndicador } from "@/lib/cadastros/contratos-proprios";
+import type { Contrato } from "@/lib/cadastros/types";
+import type { GastoReparoMonth } from "@/lib/pbi/gasto-reparo";
 
-export type DespesaParqueMonth = {
+export const META_ANUAL_PCT = 4;
+
+export type StatusMeta = "Dentro" | "Acima";
+
+export type CustoParqueMes = {
   year: number;
+  /** 0–11 */
   month: number;
   key: string;
   label: string;
+  /** mês ainda não chegou (só meta) */
+  futuro: boolean;
   contratos: number;
   avulsos: number;
   despesa: number;
-  /** (despesa / valorParque) × 100 */
-  pctParque: number | null;
+  acumulado: number;
+  /** acumulado / parque × 100; null = sem dados */
+  pctAcumulado: number | null;
+  /** 4 × m/12 */
+  metaPct: number;
+  status: StatusMeta | null;
+  contratosNoMes: Contrato[];
   osCount: number;
-  contratosAtivos: number;
 };
 
-export type DespesaParqueBuild = {
-  months: DespesaParqueMonth[];
-  despesaTotal: number;
-  contratosTotal: number;
-  avulsosTotal: number;
-  mediaMensal: number;
-  mediaPctParque: number | null;
-  pctParquePeriodo: number | null;
+export type CustoParqueAno = {
+  year: number;
+  months: CustoParqueMes[];
+  /** mês de referência (atual) */
+  atual: CustoParqueMes | null;
   valorParque: number | null;
-  fonteParque: "api" | null;
+  /** mensagens do que faltou; vazio = calculável */
+  faltando: string[];
+  semContratos: boolean;
 };
 
-export function buildDespesaParque(opts: {
-  range: RollingYearRange;
-  contratos: ContratoPbiItem[];
+export function metaProporcionalPct(month0: number) {
+  return (META_ANUAL_PCT * (month0 + 1)) / 12;
+}
+
+export function contratosNoMes(contratos: Contrato[], year: number, month: number) {
+  return contratos.filter((c) => contratoContaNoIndicador(c, year, month));
+}
+
+const round2 = (v: number) => Math.round(v * 100) / 100;
+
+export function buildCustoParqueAno(opts: {
+  year: number;
+  months: Array<{ year: number; month: number; key: string; label: string }>;
+  contratos: Contrato[];
   gastoMonths: GastoReparoMonth[];
+  /** null/0 = parque ausente */
   valorParque: number | null;
-  fonteParque: "api" | null;
-}): DespesaParqueBuild {
+  /** false = API GlobalThings fora / avulsos indisponíveis */
+  avulsosDisponiveis: boolean;
+  parqueErro?: string | null;
+  /** último mês realizado (0–11) no ano; padrão 11 */
+  mesAtual?: number;
+}): CustoParqueAno {
+  const faltando: string[] = [];
+  const parqueOk = opts.valorParque != null && Number.isFinite(opts.valorParque) && opts.valorParque > 0;
+  if (!parqueOk) faltando.push(opts.parqueErro ?? "valor do parque indisponível");
+  if (!opts.avulsosDisponiveis) faltando.push("custos avulsos indisponíveis");
+  const calculavel = faltando.length === 0;
+  const mesAtual = opts.mesAtual ?? 11;
+
   const gastoByKey = new Map(opts.gastoMonths.map((m) => [m.key, m]));
+  let acumulado = 0;
+  const months: CustoParqueMes[] = opts.months
+    .filter((s) => s.year === opts.year)
+    .map((slot) => {
+      const futuro = slot.month > mesAtual;
+      const lista = futuro ? [] : contratosNoMes(opts.contratos, slot.year, slot.month);
+      const contratos = round2(lista.reduce((s, c) => s + c.valorMensal, 0));
+      const g = futuro ? undefined : gastoByKey.get(slot.key);
+      const avulsos = round2(g?.gasto ?? 0);
+      const despesa = round2(contratos + avulsos);
+      acumulado = round2(acumulado + despesa);
+      const metaPct = metaProporcionalPct(slot.month);
+      const pctAcumulado = calculavel && !futuro ? (acumulado / opts.valorParque!) * 100 : null;
+      const status: StatusMeta | null = pctAcumulado == null ? null : pctAcumulado <= metaPct ? "Dentro" : "Acima";
+      return {
+        ...slot,
+        futuro,
+        contratos,
+        avulsos,
+        despesa,
+        acumulado,
+        pctAcumulado,
+        metaPct,
+        status,
+        contratosNoMes: lista,
+        osCount: g?.osCount ?? 0,
+      };
+    });
 
-  const months: DespesaParqueMonth[] = opts.range.months.map((slot) => {
-    const contratos = somaContratosNoMesPbi(opts.contratos, slot.year, slot.month);
-    const gasto = gastoByKey.get(slot.key);
-    const avulsos = gasto?.gasto ?? 0;
-    // KPI oficial da Sala: só custo de OS. Contratos ficam informativos (fora do plano da TV).
-    const despesa = avulsos;
-    const pctParque =
-      opts.valorParque != null && opts.valorParque > 0 ? (despesa / opts.valorParque) * 100 : null;
-    return {
-      ...slot,
-      contratos,
-      avulsos,
-      despesa,
-      pctParque,
-      osCount: gasto?.osCount ?? 0,
-      contratosAtivos: contratosDoMesPbi(opts.contratos, slot.year, slot.month).length,
-    };
-  });
-
-  const despesaTotal = months.reduce((s, m) => s + m.despesa, 0);
-  const contratosTotal = months.reduce((s, m) => s + m.contratos, 0);
-  const avulsosTotal = months.reduce((s, m) => s + m.avulsos, 0);
-  const n = months.length || 1;
-  const pcts = months.map((m) => m.pctParque).filter((v): v is number => v != null);
-  const mediaPctParque = pcts.length ? pcts.reduce((a, b) => a + b, 0) / pcts.length : null;
-  const pctParquePeriodo =
-    opts.valorParque != null && opts.valorParque > 0 ? (despesaTotal / opts.valorParque) * 100 : null;
-
+  const atual = months.find((m) => m.month === mesAtual) ?? null;
   return {
+    year: opts.year,
     months,
-    despesaTotal,
-    contratosTotal,
-    avulsosTotal,
-    mediaMensal: despesaTotal / n,
-    mediaPctParque,
-    pctParquePeriodo,
-    valorParque: opts.valorParque,
-    fonteParque: opts.fonteParque,
+    atual,
+    valorParque: parqueOk ? opts.valorParque : null,
+    faltando,
+    semContratos: !opts.contratos.some((c) => c.tipo === "MANUTENCAO"),
   };
 }
 
@@ -90,19 +120,18 @@ export function formatPctParque(value: number | null) {
   return `${value.toLocaleString("pt-BR", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}%`;
 }
 
-export function rotuloDespesaMes(month: DespesaParqueMonth) {
-  return `${formatBRL(month.despesa)} em OS · contratos (info) ${formatBRL(month.contratos)}`;
+export function rotuloStatus(status: StatusMeta | null) {
+  return status === "Dentro" ? "Dentro da meta" : status === "Acima" ? "Acima da meta" : "Sem dados";
 }
 
-export type ListaDespesaMes = {
-  contratos: ContratoMesLinha[];
-  os: GastoReparoRow[];
-};
-
-export function contratosLinhaDoMes(
-  contratos: ContratoPbiItem[],
-  year: number,
-  month: number,
-): ContratoMesLinha[] {
-  return contratosDoMesPbi(contratos, year, month).map((c) => contratoMesLinha(c, year, month));
+/** Série do gráfico. Sem dados (ex.: avulsos indisponíveis), não há barras nem acumulado: só a meta proporcional. */
+export function serieGraficoParque(months: CustoParqueMes[], semDados: boolean) {
+  return months.map((m) => ({
+    name: m.label,
+    mes: m,
+    contratos: semDados || m.futuro ? null : m.contratos,
+    avulsos: semDados || m.futuro ? null : m.avulsos,
+    pct: semDados ? null : m.pctAcumulado,
+    meta: m.metaPct,
+  }));
 }

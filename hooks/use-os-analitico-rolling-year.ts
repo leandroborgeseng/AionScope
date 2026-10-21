@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { dataOf, errorOf, usePbiQuery } from "@/hooks/use-pbi";
+import { dataOf, usePbiQuery } from "@/hooks/use-pbi";
+import { queryErrorMessage } from "@/lib/pbi/query-error";
 import { EMPTY_FILTERS, type DashboardFilters } from "@/lib/pbi/filters";
 import { nowInSaoPaulo } from "@/lib/pbi/dates";
 import type { OsAnaliticoItem } from "@/lib/pbi/types";
@@ -42,7 +43,7 @@ export function useOsAnaliticoRollingYear(mode: OsAnaliticoRangeMode = "rolling"
 
   const raw = dataOf(osQ.data) ?? [];
   const bruta = osQ.data?.ok ? (osQ.data.total ?? raw.length) : raw.length;
-  const error = errorOf(osQ.data)?.message ?? null;
+  const error = queryErrorMessage(osQ.data, osQ.error, "OS da GlobalThings indisponíveis");
 
   return { range, raw, bruta, loading: osQ.isLoading, error };
 }

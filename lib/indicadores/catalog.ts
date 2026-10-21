@@ -27,7 +27,7 @@ export const INDICADORES = [
   {
     href: "/indicadores/custo-manutencao-parque",
     label: "Custo manutenção / valor do parque",
-    blurb: "Custo de OS de reparo ÷ valor de substituição do parque (sem contratos — fora do plano da Sala).",
+    blurb: "Contratos de Manutenção + OS de reparo, acumulado no ano ÷ valor de substituição do parque (meta 4% a.a., proporcional ao mês).",
   },
   {
     href: "/indicadores/corretivas-por-prioridade",
