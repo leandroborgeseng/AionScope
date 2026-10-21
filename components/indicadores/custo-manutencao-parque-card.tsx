@@ -174,7 +174,7 @@ export function CustoManutencaoParqueCard() {
             onExpand={openFullscreen}
             hint="Barras: Contratos + Avulsos (R$). Linha: acumulado (% do parque). Tracejado: meta proporcional; pontilhado: teto anual 4%."
           >
-            <CustoParqueChart months={semDados ? ind.months.map((m) => ({ ...m, pctAcumulado: null, status: null })) : ind.months} onMonthClick={setDrill} />
+            <CustoParqueChart months={ind.months} indisponivel={semDados ? `Não foi possível calcular: ${faltando.join("; ")}.` : null} onMonthClick={setDrill} />
           </ChartCard>
         }
         selectionList={
@@ -289,7 +289,7 @@ export function CustoManutencaoParqueCard() {
       />
 
       <ChartFullscreenDialog open={open} ready={ready} title={`Custo de manutenção do parque · ${year}`} onClose={closeFullscreen}>
-        <CustoParqueChart months={semDados ? ind.months.map((m) => ({ ...m, pctAcumulado: null, status: null })) : ind.months} className="h-[70vh]" onMonthClick={setDrill} />
+        <CustoParqueChart months={ind.months} indisponivel={semDados ? `Não foi possível calcular: ${faltando.join("; ")}.` : null} className="h-[70vh]" onMonthClick={setDrill} />
       </ChartFullscreenDialog>
     </>
   );
