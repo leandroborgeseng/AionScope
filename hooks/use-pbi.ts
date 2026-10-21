@@ -5,6 +5,9 @@ import type { PbiResource } from "@/lib/pbi/catalog";
 import { toUpstreamParams, type DashboardFilters } from "@/lib/pbi/filters";
 import type { Lookups, PbiResult } from "@/lib/pbi/types";
 
+/** Intervalo de consulta enquanto a GlobalThings está sendo atualizada em segundo plano. */
+export const REFRESH_POLL_MS = 3000;
+
 async function getJson<T>(url: string): Promise<PbiResult<T>> {
   const response = await fetch(url);
   return (await response.json()) as PbiResult<T>;
@@ -25,7 +28,10 @@ export function usePbiQuery<T>(
     enabled,
     staleTime: 5 * 60_000,
     retry: 1,
-    refetchInterval: options?.refetchInterval,
+    // Cópia servida na hora; enquanto o servidor atualiza em segundo plano, consulta de novo
+    // e troca dados + data sem recarregar a página.
+    refetchInterval: (q) =>
+      (q.state.data as PbiResult<T> | undefined)?.cache?.refreshing ? REFRESH_POLL_MS : (options?.refetchInterval ?? false),
   });
 }
 
