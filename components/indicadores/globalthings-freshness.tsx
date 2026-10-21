@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AlertTriangle, KeyRound, RefreshCw } from "lucide-react";
-import { cacheAgeBand, formatCacheDateBRT } from "@/lib/pbi/cache-policy";
+import { cacheAgeBand, formatCacheDateBRT, textoDadosDesatualizados } from "@/lib/pbi/cache-policy";
 import { resumirFreshness } from "@/lib/pbi/freshness";
 import type { PbiResult } from "@/lib/pbi/types";
 
@@ -38,7 +38,7 @@ export function GlobalThingsFreshness({ results }: { results: Array<PbiResult<un
         <p role="status" className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-amber-900">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>
-            <strong>Dados desatualizados.</strong> A última cópia da GlobalThings é de {formatCacheDateBRT(f.fetchedAtMs!)} (BRT)
+            <strong>{textoDadosDesatualizados(f.fetchedAtMs!)}.</strong> A última cópia da GlobalThings é de {formatCacheDateBRT(f.fetchedAtMs!)} (BRT)
             {f.refreshing ? "; tentando atualizar." : "; a API não respondeu na última tentativa."}
           </span>
         </p>

@@ -28,6 +28,9 @@ export function IndicadorPageLayout({
 
       {loading ? (
         <div className="space-y-4">
+          <p role="status" aria-live="polite" className="text-sm text-aion-muted" data-testid="buscando-dados">
+            Buscando dados…
+          </p>
           <div className="grid gap-3 sm:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="h-24 animate-pulse rounded-xl bg-slate-100" />
