@@ -1,17 +1,21 @@
 import { randomUUID } from "crypto";
-import { normalizeContratoInput } from "@/lib/cadastros/contratos";
+import { exigirSessaoContratos } from "@/lib/auth/contratos-sessao";
+import { validarContrato } from "@/lib/cadastros/contratos-proprios";
 import { readContratos, upsertContrato } from "@/lib/cadastros/store";
 import type { ContratoInput } from "@/lib/cadastros/types";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+/** Leitura segue aberta como as demais telas (login global fica para o backlog). */
 export async function GET() {
-  const contratos = readContratos();
-  return Response.json({ ok: true, data: contratos });
+  return Response.json({ ok: true, data: readContratos() });
 }
 
 export async function POST(request: Request) {
+  const recusa = exigirSessaoContratos(request);
+  if (recusa) return recusa;
+
   let body: ContratoInput;
   try {
     body = (await request.json()) as ContratoInput;
@@ -19,12 +23,10 @@ export async function POST(request: Request) {
     return Response.json({ ok: false, message: "JSON inválido." }, { status: 400 });
   }
 
-  const normalized = normalizeContratoInput(body);
-  if ("error" in normalized) {
-    return Response.json({ ok: false, message: normalized.error }, { status: 400 });
+  const v = validarContrato({ ...body, ativo: true });
+  if (!v.ok) {
+    return Response.json({ ok: false, message: "Revise os campos destacados.", erros: v.erros }, { status: 400 });
   }
-
-  const created = { id: randomUUID(), ...normalized };
-  upsertContrato(created);
+  const created = upsertContrato({ id: randomUUID(), ...v.data });
   return Response.json({ ok: true, data: created }, { status: 201 });
 }

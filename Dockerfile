@@ -17,6 +17,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build \
+  && npm run build:scripts \
   && mkdir -p .next/standalone/node_modules \
   && cp -R node_modules/better-sqlite3 .next/standalone/node_modules/
 
@@ -41,6 +42,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # JSON legado para seed na 1ª abertura (tabelas vazias)
 COPY --from=builder --chown=nextjs:nodejs /app/data ./data
+# Script de importação de contratos (JS compilado; roda só manualmente, nunca na subida)
+COPY --from=builder --chown=nextjs:nodejs /app/dist-scripts/importar-contratos.js ./scripts/importar-contratos.js
 COPY --chmod=755 scripts/docker-entrypoint.sh /app/docker-entrypoint.sh
 
 # Entra como root só para chown do volume; o entrypoint faz exec como nextjs
