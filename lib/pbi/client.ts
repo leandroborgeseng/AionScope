@@ -1,5 +1,5 @@
 import { PBI_ENDPOINTS, type PbiResource } from "./catalog";
-import { MAX_CACHE_ROWS, RETRY_BACKOFF_MS, STALE_MAX_MS, cachePolicy, isTokenErrorStatus } from "./cache-policy";
+import { GT_TIMEOUT_MS, MAX_CACHE_ROWS, RETRY_BACKOFF_MS, STALE_MAX_MS, cachePolicy, isTokenErrorStatus } from "./cache-policy";
 import { pruneRows, readCacheRow, recordFailure, recordSuccess, touchAccess, type CacheRow } from "./cache-store";
 import { defaultScheduledKeys } from "./scheduled-queries";
 import type { OsResumidaResponse, PbiCacheMeta, PbiResult } from "./types";
@@ -105,7 +105,7 @@ async function fetchNetwork(resource: PbiResource, url: string): Promise<NetResu
     return { ok: false, status: 500, message: `Token ausente (${endpoint.tokenEnv}). Configure o .env.local.` };
   }
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 60_000);
+  const timeout = setTimeout(() => controller.abort(), GT_TIMEOUT_MS);
   try {
     const response = await fetchImpl(url, {
       method: "GET",
@@ -131,7 +131,7 @@ async function fetchNetwork(resource: PbiResource, url: string): Promise<NetResu
     return {
       ok: false,
       status: null,
-      message: aborted ? "Timeout ao consultar a API da GlobalThings (60s)." : "Falha de rede ao consultar a GlobalThings.",
+      message: aborted ? `Timeout ao consultar a API da GlobalThings (${GT_TIMEOUT_MS / 1000}s).` : "Falha de rede ao consultar a GlobalThings.",
     };
   } finally {
     clearTimeout(timeout);
@@ -228,6 +228,22 @@ export async function fetchPbi<T>(
   const copy = row ? payloadOf(row) : null;
 
   if (!row || !copy || row.fetched_at == null) {
+    // Sem cópia e falha há menos de 60 s: devolve a falha registrada, sem chamar a API.
+    if (
+      row &&
+      !inflight.has(key) &&
+      row.last_error_at != null &&
+      row.last_attempt_at != null &&
+      now - row.last_attempt_at < RETRY_BACKOFF_MS
+    ) {
+      return {
+        ok: false,
+        status: row.last_error_status,
+        message: row.last_error_message || "Falha ao consultar a GlobalThings.",
+        disabled: endpoint.pending && (row.last_error_status === 401 || row.last_error_status === 404),
+        pendingReason: endpoint.pendingReason,
+      };
+    }
     // Sem cópia: espera a busca (única por consulta).
     const result = await refreshPbi(resource, qs, key);
     return result as PbiResult<T>;

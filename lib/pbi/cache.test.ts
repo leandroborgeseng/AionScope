@@ -14,7 +14,7 @@ import { closeDbForTests, getDb } from "@/lib/db/client";
 import { aplicarMigration012PbiCache } from "@/lib/db/migrations/012_pbi_cache";
 import { SCHEMA_SQL } from "@/lib/db/schema";
 import { __setClockForTests, __setFetchForTests, fetchPbi, invalidarCachePbi, isRefreshing, cacheKeyFor } from "./client";
-import { cacheAgeBand, formatCacheDateBRT, DAY_MS, HOUR_MS, MIN_MS, OS_RESOURCES, SCHEDULED_RESOURCES } from "./cache-policy";
+import { GT_TIMEOUT_MS, RETRY_BACKOFF_MS, textoDadosDesatualizados, cacheAgeBand, formatCacheDateBRT, DAY_MS, HOUR_MS, MIN_MS, OS_RESOURCES, SCHEDULED_RESOURCES } from "./cache-policy";
 import { resumirFreshness } from "./freshness";
 import { defaultScheduledQueries, runSchedulerTick } from "./scheduler";
 
@@ -371,4 +371,67 @@ test("cópia corrompida é ignorada e sobrescrita na próxima busca (K7)", async
 
 test("data no formato dd/mm HH:MM (BRT)", () => {
   assert.equal(formatCacheDateBRT("2026-10-20T12:05:00Z"), "20/10 09:05");
+});
+
+test("QA M1: sem cópia e falha recente: 3 aberturas em 20 s = 1 chamada; após 60 s tenta de novo", async () => {
+  mode = { kind: "network" };
+  for (let i = 0; i < 3; i++) {
+    const r = await fetchPbi("os-analitico", P);
+    assert.equal(r.ok, false);
+    now += 10_000;
+  }
+  assert.equal(calls.length, 1);
+  now = Date.parse("2026-10-20T12:00:00Z") + RETRY_BACKOFF_MS;
+  mode = { kind: "ok", data: [{ OS: "1" }] };
+  const r = await fetchPbi("os-analitico", P);
+  assert.equal(r.ok, true);
+  assert.equal(calls.length, 2);
+});
+
+test("QA M2: cópia > 7 dias atualizando mantém dados + aviso âmbar 'Dados desatualizados (dd/mm)'; falha → indisponível; sucesso → dado novo", async () => {
+  await semearCopia("os-analitico", 8 * DAY_MS, [{ OS: "velha" }]);
+  let release!: () => void;
+  gate = new Promise((r) => (release = r));
+  mode = { kind: "network" };
+  const r = await fetchPbi<Array<{ OS: string }>>("os-analitico", P);
+  assert.equal(r.ok && r.data[0].OS, "velha");
+  assert.equal(r.cache?.refreshing, true);
+  assert.notEqual(cacheAgeBand(Date.parse(r.cache!.fetchedAt), now), "normal"); // aviso âmbar na tela
+  assert.equal(textoDadosDesatualizados(r.cache!.fetchedAt), "Dados desatualizados (12/10)");
+  release();
+  await flush();
+  assert.equal((await fetchPbi("os-analitico", P)).ok, false); // "—" + custos avulsos indisponíveis
+  now += RETRY_BACKOFF_MS;
+  mode = { kind: "ok", data: [{ OS: "nova" }] };
+  gate = null;
+  await fetchPbi("os-analitico", P);
+  await flush();
+  const r3 = await fetchPbi<Array<{ OS: string }>>("os-analitico", P);
+  assert.equal(r3.ok && r3.data[0].OS, "nova");
+});
+
+test("QA BAIXO: timeout da GlobalThings é 15 s (aborta e registra falha)", async () => {
+  assert.equal(GT_TIMEOUT_MS, 15_000);
+  let abortedAt = -1;
+  const t0 = Date.now();
+  __setFetchForTests(((_u: unknown, init?: RequestInit) =>
+    new Promise((_r, rej) => init?.signal?.addEventListener("abort", () => { abortedAt = Date.now() - t0; const e = new Error("aborted"); e.name = "AbortError"; rej(e); }))) as typeof fetch);
+  const orig = globalThis.setTimeout;
+  let pedido = -1;
+  globalThis.setTimeout = ((fn: () => void, ms?: number) => { if (ms === GT_TIMEOUT_MS) { pedido = ms; return orig(fn, 1); } return orig(fn, ms); }) as typeof setTimeout;
+  try {
+    const r = await fetchPbi("os-analitico", P);
+    assert.equal(pedido, 15_000);
+    assert.ok(abortedAt >= 0);
+    assert.equal(r.ok, false);
+    assert.match(r.ok ? "" : r.message, /15s/);
+  } finally {
+    globalThis.setTimeout = orig;
+    __setFetchForTests((async (url: string | URL | Request) => {
+      calls.push(String(url));
+      if (mode.kind === "network") throw new TypeError("fetch failed");
+      if (mode.kind === "status") return new Response("{}", { status: mode.status });
+      return new Response(JSON.stringify(mode.data), { status: 200 });
+    }) as typeof fetch);
+  }
 });

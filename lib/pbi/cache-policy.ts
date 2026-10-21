@@ -87,6 +87,14 @@ export function formatCacheDateBRT(iso: string | number): string {
   return `${get("day")}/${get("month")} ${get("hour")}:${get("minute")}`;
 }
 
+/** Aviso âmbar (24 h – 7 dias, e cópia > 7 dias enquanto atualiza): "Dados desatualizados (dd/mm)". */
+export function textoDadosDesatualizados(fetchedAt: string | number): string {
+  return `Dados desatualizados (${formatCacheDateBRT(fetchedAt).slice(0, 5)})`;
+}
+
+/** Timeout de cada chamada à GlobalThings (decisão do Tech Lead: 15 s). */
+export const GT_TIMEOUT_MS = 15_000;
+
 export function isTokenErrorStatus(status: number | null | undefined): boolean {
   return status === 401 || status === 403;
 }
