@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { errorOf, usePbiQuery } from "@/hooks/use-pbi";
+import { usePbiQuery } from "@/hooks/use-pbi";
+import { queryErrorMessage } from "@/lib/pbi/query-error";
 import { startOfMonthISO, todayISO } from "@/lib/pbi/dates";
 import { buildEquipamentoIndex } from "@/lib/pbi/indicadores-os";
 import { buildMedicalIndex } from "@/lib/pbi/medical";
@@ -39,6 +40,6 @@ export function useMedicalIndex() {
     equipamentoIndex,
     loading: query.isLoading,
     ready: Boolean(query.data?.ok),
-    error: errorOf(query.data)?.message ?? null,
+    error: queryErrorMessage(query.data, query.error, "cadastro de equipamentos indisponível"),
   };
 }
