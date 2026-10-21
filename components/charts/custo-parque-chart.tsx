@@ -135,8 +135,8 @@ export function CustoParqueChart({
               wrapperStyle={{ cursor: "pointer", fontSize: 12 }}
               formatter={(value) => <span style={{ color: "#334155" }}>{value}</span>}
             />
-            <Bar yAxisId="rs" dataKey="contratos" name="Contratos" stackId="d" fill="#1e3a8a" hide={ocultas.has("contratos")} cursor="pointer" />
-            <Bar yAxisId="rs" dataKey="avulsos" name="Avulsos" stackId="d" fill="#0284c7" radius={[3, 3, 0, 0]} hide={ocultas.has("avulsos")} cursor="pointer" />
+            <Bar yAxisId="rs" dataKey="contratos" name="Contratos" stackId="d" fill="#1e3a8a" stroke="#ffffff" strokeWidth={1} hide={ocultas.has("contratos")} cursor="pointer" />
+            <Bar yAxisId="rs" dataKey="avulsos" name="Avulsos" stackId="d" fill="#0284c7" stroke="#ffffff" strokeWidth={1} radius={[3, 3, 0, 0]} hide={ocultas.has("avulsos")} cursor="pointer" />
             <Line yAxisId="pct" type="stepAfter" dataKey="meta" name="Meta proporcional" stroke="#475569" strokeDasharray="6 4" dot={false} hide={ocultas.has("meta")} />
             <Line yAxisId="pct" type="monotone" dataKey="pct" name="Acumulado (% do parque)" stroke="#0f172a" strokeWidth={2} dot={PontoAcumulado} connectNulls={false} hide={ocultas.has("pct")} />
             <ReferenceLine yAxisId="pct" y={META_ANUAL_PCT} stroke="#b45309" strokeDasharray="2 3" label={{ value: "Teto anual 4%", position: "insideTopLeft", fontSize: 11, fill: "#92400e" }} />
