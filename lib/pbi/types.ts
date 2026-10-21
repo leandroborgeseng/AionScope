@@ -347,12 +347,26 @@ export type Lookups = {
   oficinaEndpointLiberado: boolean;
 };
 
+/** Metadados da cópia guardada (SQLite /data) devolvidos pela rota /api/pbi. */
+export type PbiCacheMeta = {
+  /** Quando a cópia servida foi obtida da GlobalThings (ISO). */
+  fetchedAt: string;
+  /** Há uma busca em segundo plano em andamento para esta consulta. */
+  refreshing: boolean;
+  /** Última tentativa de atualização falhou depois desta cópia. */
+  lastErrorStatus?: number | null;
+  lastErrorAt?: string;
+  /** 401/403 na última tentativa: token quebrado, mostrar aviso vermelho. */
+  tokenError?: boolean;
+};
+
 export type PbiSuccess<T> = {
   ok: true;
   data: T;
   total?: number;
   cachedAt: string;
   disabled?: false;
+  cache?: PbiCacheMeta;
 };
 
 export type PbiFailure = {
@@ -362,6 +376,7 @@ export type PbiFailure = {
   disabled?: boolean;
   pendingReason?: string;
   cachedAt?: string;
+  cache?: PbiCacheMeta;
 };
 
 export type PbiResult<T> = PbiSuccess<T> | PbiFailure;
