@@ -106,7 +106,7 @@ export function CustoManutencaoParqueCard() {
     [year, range.months, contratos, gasto.months, efetivo.valor, avulsosDisponiveis, mesAtual],
   );
   const faltando = [...ind.faltando];
-  if (contratosQ.error) faltando.push("cadastro de contratos indisponível");
+  if (contratosQ.error || contratosQ.isError) faltando.push("cadastro de contratos indisponível");
   const semDados = faltando.length > 0;
   const atual = ind.atual;
   const pctAtual = semDados ? null : (atual?.pctAcumulado ?? null);
@@ -203,7 +203,7 @@ export function CustoManutencaoParqueCard() {
                         </>
                       ) : (
                         <>
-                          <td className="px-3 py-2 text-right tabular-nums">{formatBRL(m.contratos)}</td>
+                          <td className="px-3 py-2 text-right tabular-nums">{semDados ? "—" : formatBRL(m.contratos)}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{semDados ? "—" : formatBRL(m.avulsos)}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{semDados ? "—" : formatBRL(m.despesa)}</td>
                           <td className="px-3 py-2 text-right tabular-nums">{semDados ? "—" : formatBRL(m.acumulado)}</td>
