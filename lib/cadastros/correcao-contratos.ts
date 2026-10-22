@@ -30,12 +30,20 @@ export function ehPlaceholder(v: unknown) {
   return typeof v === "string" && PLACEHOLDER_RE.test(v);
 }
 
+const norm = (s: string | null | undefined) => (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
+
+/** Fornecedor confere se for igual ou prefixo por palavra inteira ("GE" casa "GE HEALTHCARE", não "ENGENHARIA"). */
+function fornecedorConfere(real: string | null | undefined, esperado: string): boolean {
+  const a = norm(real);
+  const b = norm(esperado);
+  return b.length > 0 && (a === b || a.startsWith(b + " "));
+}
+
 function conferir(c: Contrato, k: Conferir | undefined): string | null {
   if (!k) return null;
   if (k.valorMensal !== undefined && Math.abs(c.valorMensal - k.valorMensal) > 0.004)
     return `valorMensal ${c.valorMensal} ≠ ${k.valorMensal}`;
-  const norm = (s: string | null | undefined) => (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
-  if (k.fornecedor !== undefined && !norm(c.fornecedor).includes(norm(k.fornecedor))) return `fornecedor "${c.fornecedor}" ≠ "${k.fornecedor}"`;
+  if (k.fornecedor !== undefined && !fornecedorConfere(c.fornecedor, k.fornecedor)) return `fornecedor "${c.fornecedor}" ≠ "${k.fornecedor}"`;
   if (k.equipamento !== undefined && !norm(c.equipamento).includes(norm(k.equipamento))) return `equipamento "${c.equipamento}" ≠ "${k.equipamento}"`;
   return null;
 }
@@ -92,6 +100,10 @@ export function planejar(contratos: Contrato[], entrada: Entrada): { ok: true; p
     if (o.op === "criar") {
       const v = validarContrato(o.contrato);
       if (!v.ok) return void erros.push(`operacoes[${i}]: contrato inválido.`);
+      const dup = [...mapa.values()].find(
+        (c) => norm(c.fornecedor) === norm(v.data.fornecedor) && Math.abs(c.valorMensal - v.data.valorMensal) <= 0.004 && (c.inicio ?? null) === (v.data.inicio ?? null),
+      );
+      if (dup) return void erros.push(`operacoes[${i}] (criar): já existe contrato ${dup.id} com mesmo fornecedor, valor e início — não cria duplicado (reexecução?).`);
       const novo: Contrato = { id: `(novo-${i})`, ...v.data, inativadoEm: null, suspensoDe: null, suspensoAte: null };
       mapa.set(novo.id, novo);
       passos.push({ indice: i, op: o.op, id: novo.id, antes: null, depois: novo, chamada: { metodo: "POST", caminho: "/api/cadastros/contratos", body: { ...o.contrato } } });

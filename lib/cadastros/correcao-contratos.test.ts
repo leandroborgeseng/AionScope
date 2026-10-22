@@ -149,3 +149,23 @@ test("A9: --apply recusa API sem os campos da 013", () => {
   assert.equal(apiSuportaCorrecao([]), false);
   assert.equal(apiSuportaCorrecao(base()), true);
 });
+
+test("planejar: criar recusa duplicado (reexecução após apply)", () => {
+  const criar = { op: "criar" as const, contrato: { nome: "", fornecedor: "Fornecedor Novo", equipamento: "EQN", tipo: "MANUTENCAO" as const, valorMensal: 50, inicio: "2026-01-01" } };
+  const jaAplicado = [c("a", 100), c("n", 50, { fornecedor: "FORNECEDOR  NOVO" })];
+  const r = planejar(jaAplicado, { meses, operacoes: [criar] });
+  assert.equal(r.ok, false);
+  if (!r.ok) assert.match(r.erros[0], /já existe contrato n/);
+  // valor ou início diferentes não são duplicado
+  assert.equal(planejar([c("n", 51, { fornecedor: "Fornecedor Novo" })], { meses, operacoes: [criar] }).ok, true);
+  assert.equal(planejar([c("n", 50, { fornecedor: "Fornecedor Novo", inicio: "2026-02-01" })], { meses, operacoes: [criar] }).ok, true);
+  // duas criações iguais na mesma entrada também são recusadas
+  assert.equal(planejar([], { meses, operacoes: [criar, criar] }).ok, false);
+});
+
+test("conferir fornecedor: igualdade ou prefixo por palavra, não substring", () => {
+  const op = (f: string) => ({ meses, operacoes: [{ op: "descricao" as const, id: "x", equipamento: "Z", conferir: { fornecedor: f } }] });
+  assert.equal(planejar([c("x", 1, { fornecedor: "ENGENHARIA XYZ" })], op("GE")).ok, false);
+  assert.equal(planejar([c("x", 1, { fornecedor: "GE HEALTHCARE" })], op("GE")).ok, true);
+  assert.equal(planejar([c("x", 1, { fornecedor: "Gê" })], op("GE")).ok, true);
+});

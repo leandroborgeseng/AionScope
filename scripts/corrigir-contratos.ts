@@ -5,7 +5,9 @@
  *   tsx scripts/corrigir-contratos.ts --entrada ... --apply
  *
  * Padrão = dry-run: mostra antes/depois de cada operação e os totais mensais atuais × resultantes.
- * --apply (alias --confirmar) só com a flag explícita, após OK do Leandro e backup do volume; exige sessão de escrita:
+ * Regras: suspensão conta por mês inteiro — um mês sai do custo só se estiver todo dentro de [suspensoDe, suspensoAte]
+ * (suspensão no meio do mês não tira o mês). "criar" recusa se já houver contrato com mesmo fornecedor, valor e início.
+ * --confirmar (alias --apply) só com a flag explícita, após OK do Leandro e backup do volume; exige sessão de escrita:
  *   AIONSCOPE_URL               (ex.: https://<host>; obrigatório, sem padrão)
  *   AIONSCOPE_SESSAO_COOKIE     (valor do cookie aion_contratos_sessao) OU
  *   CONTRATOS_ADMIN_PASSWORD    (faz login em /api/cadastros/contratos/sessao; nunca é impresso)
@@ -84,16 +86,18 @@ async function main() {
     process.exit(3);
   }
 
-  console.log(`${apply ? "APPLY" : "DRY-RUN"} — ${plano.passos.length} operação(ões) sobre ${atuais.length} contrato(s)\n`);
+  // A API publicada precisa suportar suspensão/data efetiva (013); senão o PATCH ignoraria os campos.
+  if (apply) {
+    if (!apiSuportaCorrecao(atuais)) throw new Error("A API não expõe suspensoDe: publique a versão com a migração 013 antes do --confirmar.");
+  }
+  console.log(`${apply ? "CONFIRMAR (grava)" : "DRY-RUN"} — ${plano.passos.length} operação(ões) sobre ${atuais.length} contrato(s)\n`);
   for (const p of plano.passos) imprimirPasso(p);
   imprimirTotais(atuais, plano.final, v.entrada.meses.de, v.entrada.meses.ate);
 
   if (!apply) {
-    console.log("\nNada foi alterado (dry-run). Para aplicar: --apply.");
+    console.log("\nNada foi alterado (dry-run). Para aplicar: --confirmar.");
     return;
   }
-  // A API publicada precisa suportar suspensão/data efetiva (013); senão o PATCH ignoraria os campos.
-  if (!apiSuportaCorrecao(atuais)) throw new Error("A API não expõe suspensoDe: publique a versão com a migração 013 antes do --apply.");
   const cookie = await cookieSessao(base!);
   for (const p of plano.passos) {
     const r = await fetch(`${base}${p.chamada.caminho}`, {
