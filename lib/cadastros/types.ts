@@ -34,6 +34,10 @@ export type Contrato = {
   chaveImportacao?: string | null;
   /** Data/hora BRT (ISO com offset) em que foi inativado (010). Null se ativo ou inativado antes da 010. */
   inativadoEm?: string | null;
+  /** YYYY-MM-DD — primeiro dia da suspensão (013). Null = sem suspensão. */
+  suspensoDe?: string | null;
+  /** YYYY-MM-DD — último dia da suspensão, inclusivo (013). */
+  suspensoAte?: string | null;
 };
 
 export type TipoContrato = "MANUTENCAO" | "LOCACAO";

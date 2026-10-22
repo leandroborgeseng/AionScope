@@ -1,6 +1,12 @@
 import { exigirSessaoContratos } from "@/lib/auth/contratos-sessao";
-import { validarContrato } from "@/lib/cadastros/contratos-proprios";
-import { readContrato, setContratoAtivo, upsertContrato } from "@/lib/cadastros/store";
+import { isoDiaValido, validarContrato, validarSuspensao } from "@/lib/cadastros/contratos-proprios";
+import {
+  readContrato,
+  setContratoAtivo,
+  setContratoInativacao,
+  setContratoSuspensao,
+  upsertContrato,
+} from "@/lib/cadastros/store";
 import type { ContratoInput } from "@/lib/cadastros/types";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +18,9 @@ const naoEncontrado = () => Response.json({ ok: false, message: "Contrato não e
 
 /**
  * Edição. Body só com { ativo } = inativar/reativar (sem exigir o restante).
+ * Body { ativo: false, contaAte } = inativar com data efetiva: conta até o mês de contaAte (YYYY-MM-DD);
+ *   contaAte null = não conta em nenhum mês (ex.: fora do escopo desde o início).
+ * Body { suspensoDe, suspensoAte } = suspender por período (013); ambos null = remover a suspensão.
  * Qualquer outra edição valida o contrato inteiro — tipo obrigatório (D3).
  */
 export async function PATCH(request: Request, context: Ctx) {
@@ -32,6 +41,21 @@ export async function PATCH(request: Request, context: Ctx) {
   const chaves = Object.keys(body ?? {});
   if (chaves.length === 1 && chaves[0] === "ativo" && typeof body.ativo === "boolean") {
     return Response.json({ ok: true, data: setContratoAtivo(id, body.ativo) });
+  }
+
+  const extra = body as Record<string, unknown>;
+  if (chaves.length === 2 && chaves.includes("ativo") && chaves.includes("contaAte") && extra.ativo === false) {
+    const contaAte = extra.contaAte;
+    if (contaAte !== null && (typeof contaAte !== "string" || !isoDiaValido(contaAte))) {
+      return Response.json({ ok: false, message: "Data efetiva de inativação inválida." }, { status: 400 });
+    }
+    return Response.json({ ok: true, data: setContratoInativacao(id, contaAte as string | null) });
+  }
+
+  if (chaves.length === 2 && chaves.includes("suspensoDe") && chaves.includes("suspensoAte")) {
+    const s = validarSuspensao(extra.suspensoDe, extra.suspensoAte);
+    if (!s.ok) return Response.json({ ok: false, message: s.erro }, { status: 400 });
+    return Response.json({ ok: true, data: setContratoSuspensao(id, s.de, s.ate) });
   }
 
   const pick = <K extends keyof ContratoInput>(k: K, atual: ContratoInput[K]) =>
