@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { contratoContaNoIndicador, diaAnterior, rotuloSuspensao, validarSuspensao } from "./contratos-proprios";
-import { listarMeses, planejar, totaisMensais, validarEntrada, type Entrada } from "./correcao-contratos";
+import {
+  contratoContaNoIndicador,
+  contratoSuspensoNoMes,
+  diaAnterior,
+  diaSeguinte,
+  MSG_RETORNO_ANTES,
+  rotuloSuspensao,
+  validarSuspensao,
+} from "./contratos-proprios";
+import { buildCustoParqueAno } from "@/lib/pbi/custo-manutencao-parque";
+import { apiSuportaCorrecao, listarMeses, planejar, totaisMensais, validarEntrada, type Entrada } from "./correcao-contratos";
 import type { Contrato } from "./types";
 
 // Valores e nomes fictícios (repo público).
@@ -43,7 +52,7 @@ test("validarSuspensao e utilitários", () => {
   assert.equal(validarSuspensao("2026-02-30", "2026-03-01").ok, false);
   assert.equal(diaAnterior("2026-01-01"), "2025-12-31");
   assert.equal(diaAnterior("2026-03-01"), "2026-02-28");
-  assert.equal(rotuloSuspensao({ suspensoDe: "2026-07-01", suspensoAte: "2027-06-30" }, "2026-10-22"), "Suspenso até 30/06/2027");
+  assert.equal(rotuloSuspensao({ suspensoDe: "2026-07-01", suspensoAte: "2027-06-30" }, "2026-10-22"), "Suspenso até jul/27");
   assert.equal(rotuloSuspensao({ suspensoDe: "2026-07-01", suspensoAte: "2027-06-30" }, "2027-07-01"), null);
   assert.equal(listarMeses("2026-11", "2027-02").map((m) => m.chave).join(","), "2026-11,2026-12,2027-01,2027-02");
 });
@@ -104,4 +113,39 @@ test("planejar recusa id inexistente e conferência divergente (nada é aplicado
   const p = planejar(base(), { meses, operacoes: [{ op: "inativar", id: "zz", desde: "inicio" }, { op: "descricao", id: "a", equipamento: "X", conferir: { valorMensal: 101 } }] });
   assert.equal(p.ok, false);
   if (!p.ok) assert.equal(p.erros.length, 2);
+});
+
+test("A7/A2: suspenso no mês, validação de datas e retorno", () => {
+  const g = c("g", 10, { suspensoDe: "2026-07-01", suspensoAte: "2027-06-30" });
+  assert.equal(contratoSuspensoNoMes(g, 2026, 6), true);
+  assert.equal(contratoSuspensoNoMes(g, 2026, 5), false);
+  assert.equal(contratoSuspensoNoMes(g, 2027, 6), false);
+  assert.equal(contratoSuspensoNoMes(c("l", 1, { tipo: "LOCACAO", suspensoDe: "2026-07-01", suspensoAte: "2027-06-30" }), 2026, 6), false);
+  assert.equal(validarSuspensao("2026-07-01", "2026-06-30").ok, false);
+  const r = validarSuspensao("2026-07-01", "2026-06-30");
+  assert.equal(r.ok ? "" : r.erro, MSG_RETORNO_ANTES);
+  assert.equal(diaSeguinte("2027-06-30"), "2027-07-01");
+});
+
+test("S1/A2/A3: indicador separa suspensos (fora do custo) e volta no retorno", () => {
+  const contratos = [c("a", 100), c("g", 40, { suspensoDe: "2026-07-01", suspensoAte: "2027-06-30" })];
+  const meses26 = Array.from({ length: 12 }, (_, m) => ({ year: 2026, month: m, key: `2026-${m}`, label: `m${m}` }));
+  const ano = buildCustoParqueAno({ year: 2026, months: meses26, contratos, gastoMonths: [], valorParque: 1000, avulsosDisponiveis: true });
+  assert.equal(ano.months[5].contratos, 140);
+  assert.equal(ano.months[5].suspensosNoMes.length, 0);
+  assert.equal(ano.months[6].contratos, 100);
+  assert.equal(ano.months[6].suspensosNoMes.length, 1);
+  assert.equal(ano.months[6].suspensosValor, 40);
+  const meses27 = Array.from({ length: 12 }, (_, m) => ({ year: 2027, month: m, key: `2027-${m}`, label: `m${m}` }));
+  const a27 = buildCustoParqueAno({ year: 2027, months: meses27, contratos, gastoMonths: [], valorParque: 1000, avulsosDisponiveis: true });
+  assert.equal(a27.months[5].contratos, 100);
+  assert.equal(a27.months[6].contratos, 140);
+  assert.equal(a27.months[6].suspensosNoMes.length, 0);
+});
+
+test("A9: --apply recusa API sem os campos da 013", () => {
+  const antigos = base().map(({ suspensoDe: _a, suspensoAte: _b, ...r }) => (void _a, void _b, r as Contrato));
+  assert.equal(apiSuportaCorrecao(antigos), false);
+  assert.equal(apiSuportaCorrecao([]), false);
+  assert.equal(apiSuportaCorrecao(base()), true);
 });
