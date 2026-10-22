@@ -183,7 +183,7 @@ function isoMes(year: number, month: number, dia: number) {
  * `month` é 0–11.
  */
 export function contratoContaNoIndicador(
-  c: Pick<Contrato, "tipo" | "valorMensal" | "inicio" | "fim" | "ativo" | "inativadoEm">,
+  c: Pick<Contrato, "tipo" | "valorMensal" | "inicio" | "fim" | "ativo" | "inativadoEm" | "suspensoDe" | "suspensoAte">,
   year: number,
   month: number,
 ) {
@@ -198,7 +198,34 @@ export function contratoContaNoIndicador(
     if (!ina) return false;
     if (year * 12 + month > ina.year * 12 + ina.month) return false;
   }
+  // Suspensão (013): o mês sai só se a suspensão cobre todos os dias do mês dentro da vigência.
+  if (c.suspensoDe && c.suspensoAte) {
+    const a = c.inicio && c.inicio > primeiro ? c.inicio : primeiro;
+    const b = c.fim && c.fim < ultimo ? c.fim : ultimo;
+    if (c.suspensoDe <= a && c.suspensoAte >= b) return false;
+  }
   return true;
+}
+
+/** Valida suspensão: ambas nulas (limpar) ou ambas datas válidas com fim ≥ início. */
+export function validarSuspensao(de: unknown, ate: unknown): { ok: true; de: string | null; ate: string | null } | { ok: false; erro: string } {
+  if ((de === null || de === undefined) && (ate === null || ate === undefined)) return { ok: true, de: null, ate: null };
+  if (typeof de !== "string" || !isoDiaValido(de)) return { ok: false, erro: "Data de início da suspensão inválida." };
+  if (typeof ate !== "string" || !isoDiaValido(ate)) return { ok: false, erro: "Data de retorno da suspensão inválida." };
+  if (ate < de) return { ok: false, erro: "O fim da suspensão deve ser igual ou posterior ao início." };
+  return { ok: true, de, ate };
+}
+
+/** Dia anterior (YYYY-MM-DD). */
+export function diaAnterior(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
+}
+
+/** Rótulo do selo de suspensão (ex.: "Suspenso até 30/06/2027"); null se não suspenso em `hoje`. */
+export function rotuloSuspensao(c: Pick<Contrato, "suspensoDe" | "suspensoAte">, hoje: string = hojeBRT()) {
+  if (!c.suspensoDe || !c.suspensoAte || hoje < c.suspensoDe || hoje > c.suspensoAte) return null;
+  return `Suspenso até ${formatDataBR(c.suspensoAte)}`;
 }
 
 function nomeContrato(c: Pick<Contrato, "fornecedor" | "equipamento" | "nome">) {

@@ -1,0 +1,107 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { contratoContaNoIndicador, diaAnterior, rotuloSuspensao, validarSuspensao } from "./contratos-proprios";
+import { listarMeses, planejar, totaisMensais, validarEntrada, type Entrada } from "./correcao-contratos";
+import type { Contrato } from "./types";
+
+// Valores e nomes fictícios (repo público).
+const c = (id: string, valorMensal: number, extra: Partial<Contrato> = {}): Contrato => ({
+  id, nome: `EQ${id} – F${id}`, fornecedor: `F${id}`, equipamento: `EQ${id}`, valorMensal,
+  inicio: "2026-01-01", fim: null, ativo: true, tipo: "MANUTENCAO", inativadoEm: null, suspensoDe: null, suspensoAte: null, ...extra,
+});
+const base = () => [c("a", 100), c("b", 200), c("c", 300), c("d", 400), c("l", 999, { tipo: "LOCACAO" })];
+const meses = { de: "2026-01", ate: "2027-12" };
+
+test("suspensão: mês inteiro coberto sai; parcial conta; volta depois do fim", () => {
+  const s = c("s", 10, { suspensoDe: "2026-07-01", suspensoAte: "2027-06-30" });
+  assert.equal(contratoContaNoIndicador(s, 2026, 5), true); // jun/26
+  assert.equal(contratoContaNoIndicador(s, 2026, 6), false); // jul/26
+  assert.equal(contratoContaNoIndicador(s, 2027, 5), false); // jun/27
+  assert.equal(contratoContaNoIndicador(s, 2027, 6), true); // jul/27
+  const parcial = c("p", 10, { suspensoDe: "2026-07-15", suspensoAte: "2026-08-10" });
+  assert.equal(contratoContaNoIndicador(parcial, 2026, 6), true);
+  assert.equal(contratoContaNoIndicador(parcial, 2026, 7), true);
+  const ago = c("q", 10, { suspensoDe: "2026-08-01", suspensoAte: "2026-08-31" });
+  assert.equal(contratoContaNoIndicador(ago, 2026, 7), false);
+});
+
+test("suspensão considera vigência: mês com fim no meio e suspensão cobrindo o resto sai", () => {
+  const x = c("x", 10, { fim: "2026-09-10", suspensoDe: "2026-09-01", suspensoAte: "2026-12-31" });
+  assert.equal(contratoContaNoIndicador(x, 2026, 8), false);
+});
+
+test("sem suspensão a regra antiga não muda (inativado conta até o mês de inativado_em; sem data nunca)", () => {
+  assert.equal(contratoContaNoIndicador(c("i", 10, { ativo: false, inativadoEm: "2026-03-31T23:59:59-03:00" }), 2026, 2), true);
+  assert.equal(contratoContaNoIndicador(c("i", 10, { ativo: false, inativadoEm: "2026-03-31T23:59:59-03:00" }), 2026, 3), false);
+  assert.equal(contratoContaNoIndicador(c("i", 10, { ativo: false, inativadoEm: null }), 2026, 0), false);
+});
+
+test("validarSuspensao e utilitários", () => {
+  assert.deepEqual(validarSuspensao(null, null), { ok: true, de: null, ate: null });
+  assert.equal(validarSuspensao("2026-07-01", "2026-06-30").ok, false);
+  assert.equal(validarSuspensao("2026-07-01", null).ok, false);
+  assert.equal(validarSuspensao("2026-02-30", "2026-03-01").ok, false);
+  assert.equal(diaAnterior("2026-01-01"), "2025-12-31");
+  assert.equal(diaAnterior("2026-03-01"), "2026-02-28");
+  assert.equal(rotuloSuspensao({ suspensoDe: "2026-07-01", suspensoAte: "2027-06-30" }, "2026-10-22"), "Suspenso até 30/06/2027");
+  assert.equal(rotuloSuspensao({ suspensoDe: "2026-07-01", suspensoAte: "2027-06-30" }, "2027-07-01"), null);
+  assert.equal(listarMeses("2026-11", "2027-02").map((m) => m.chave).join(","), "2026-11,2026-12,2027-01,2027-02");
+});
+
+test("validarEntrada recusa placeholders, op desconhecida e meses inválidos", () => {
+  const r = validarEntrada({
+    meses: { de: "2026-13", ate: "2026-01" },
+    operacoes: [
+      { op: "inativar", id: "<ID_X>", desde: "<PENDENTE>" },
+      { op: "criar", contrato: { fornecedor: "F", tipo: "MANUTENCAO", valorMensal: 1, inicio: "PENDENTE" } },
+      { op: "apagar", id: "a" },
+    ],
+  });
+  assert.equal(r.ok, false);
+  if (!r.ok) {
+    assert.equal(r.erros.length, 4);
+    assert.ok(r.erros.some((e) => e.includes("id, desde")));
+    assert.ok(r.erros.some((e) => e.includes("contrato.inicio")));
+    assert.ok(r.erros.some((e) => e.includes("desconhecida")));
+  }
+});
+
+test("planejar: descrição, troca, inativar desde início / desde mês, suspender, criar → totais", () => {
+  const entrada: Entrada = {
+    meses,
+    operacoes: [
+      { op: "descricao", id: "a", equipamento: "NOVO", conferir: { valorMensal: 100 } },
+      { op: "descricao", id: "b", equipamento: "EQc" },
+      { op: "descricao", id: "c", equipamento: "EQb" },
+      { op: "inativar", id: "d", desde: "inicio" },
+      { op: "inativar", id: "c", desde: "2026-04-01" },
+      { op: "suspender", id: "b", de: "2026-07-01", ate: "2027-06-30" },
+      { op: "criar", contrato: { nome: "", fornecedor: "FN", equipamento: "EQN", tipo: "MANUTENCAO", valorMensal: 50, inicio: "2026-05-01" } },
+    ],
+  };
+  const v = validarEntrada(entrada);
+  assert.ok(v.ok);
+  const p = planejar(base(), entrada);
+  assert.ok(p.ok);
+  if (!p.ok) return;
+  assert.equal(p.passos.length, 7);
+  assert.equal(p.passos[0].depois.nome, "NOVO – Fa");
+  assert.deepEqual(p.passos[3].chamada.body, { ativo: false, contaAte: null });
+  assert.deepEqual(p.passos[4].chamada.body, { ativo: false, contaAte: "2026-03-31" });
+  assert.deepEqual(p.passos[5].chamada.body, { suspensoDe: "2026-07-01", suspensoAte: "2027-06-30" });
+  assert.equal(p.passos[6].chamada.metodo, "POST");
+  const t = Object.fromEntries(totaisMensais(p.final, meses.de, meses.ate).map((x) => [x.mes, x.valor]));
+  assert.equal(t["2026-01"], 600); // a+b+c (d fora desde o início; locação nunca)
+  assert.equal(t["2026-04"], 300); // c saiu em abril
+  assert.equal(t["2026-05"], 350); // + novo
+  assert.equal(t["2026-07"], 150); // b suspenso
+  assert.equal(t["2027-07"], 350); // b volta
+  const antes = Object.fromEntries(totaisMensais(base(), meses.de, meses.ate).map((x) => [x.mes, x.valor]));
+  assert.equal(antes["2026-05"], 1000);
+});
+
+test("planejar recusa id inexistente e conferência divergente (nada é aplicado)", () => {
+  const p = planejar(base(), { meses, operacoes: [{ op: "inativar", id: "zz", desde: "inicio" }, { op: "descricao", id: "a", equipamento: "X", conferir: { valorMensal: 101 } }] });
+  assert.equal(p.ok, false);
+  if (!p.ok) assert.equal(p.erros.length, 2);
+});

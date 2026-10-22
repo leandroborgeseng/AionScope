@@ -32,6 +32,8 @@ type ContratoRow = {
   numero?: string | null;
   chave_importacao?: string | null;
   inativado_em?: string | null;
+  suspenso_de?: string | null;
+  suspenso_ate?: string | null;
 };
 
 const EMPTY_PARQUE: ParqueMeta = {
@@ -78,6 +80,8 @@ function mapContrato(row: ContratoRow): Contrato {
     numero: row.numero ?? null,
     chaveImportacao: row.chave_importacao ?? null,
     inativadoEm: row.inativado_em ?? null,
+    suspensoDe: row.suspenso_de ?? null,
+    suspensoAte: row.suspenso_ate ?? null,
   };
 }
 
@@ -217,6 +221,25 @@ export function setContratoAtivo(id: string, ativo: boolean): Contrato | null {
        WHERE id = @id`,
     )
     .run({ ativo: ativo ? 1 : 0, agora_brt: agoraBRTIso(), now: new Date().toISOString(), id });
+  return r.changes > 0 ? readContrato(id) : null;
+}
+
+/**
+ * Correção da data efetiva de inativação (inativa se ainda ativo).
+ * ultimoDiaQueConta = YYYY-MM-DD: conta até o mês dessa data. null = não conta em nenhum mês.
+ */
+export function setContratoInativacao(id: string, ultimoDiaQueConta: string | null): Contrato | null {
+  const r = getDb()
+    .prepare("UPDATE contratos SET ativo = 0, inativado_em = @ina, updated_at = @now WHERE id = @id")
+    .run({ id, ina: ultimoDiaQueConta ? `${ultimoDiaQueConta}T23:59:59-03:00` : null, now: new Date().toISOString() });
+  return r.changes > 0 ? readContrato(id) : null;
+}
+
+/** Grava/limpa a suspensão (013). Ambos null = sem suspensão. */
+export function setContratoSuspensao(id: string, de: string | null, ate: string | null): Contrato | null {
+  const r = getDb()
+    .prepare("UPDATE contratos SET suspenso_de = @de, suspenso_ate = @ate, updated_at = @now WHERE id = @id")
+    .run({ id, de, ate, now: new Date().toISOString() });
   return r.changes > 0 ? readContrato(id) : null;
 }
 
