@@ -32,11 +32,11 @@ export function ehPlaceholder(v: unknown) {
 
 const norm = (s: string | null | undefined) => (s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
 
-/** Fornecedor confere se for igual ou prefixo por palavra inteira ("GE" casa "GE HEALTHCARE", não "ENGENHARIA"). */
+/** Fornecedor confere só se for igual (sem diferenciar maiúsculas, acentos e espaços repetidos). */
 function fornecedorConfere(real: string | null | undefined, esperado: string): boolean {
   const a = norm(real);
   const b = norm(esperado);
-  return b.length > 0 && (a === b || a.startsWith(b + " "));
+  return b.length > 0 && a === b;
 }
 
 function conferir(c: Contrato, k: Conferir | undefined): string | null {
@@ -92,7 +92,8 @@ export function validarEntrada(e: unknown): { ok: true; entrada: Entrada } | { o
 }
 
 /** Simula as operações sobre a lista atual. Não muda nada fora da memória. */
-export function planejar(contratos: Contrato[], entrada: Entrada): { ok: true; passos: Passo[]; final: Contrato[] } | { ok: false; erros: string[] } {
+export function planejar(contratos: Contrato[], entrada: Entrada): { ok: true; passos: Passo[]; final: Contrato[]; avisos: string[] } | { ok: false; erros: string[] } {
+  const avisos: string[] = [];
   const mapa = new Map(contratos.map((c) => [c.id, { ...c }]));
   const passos: Passo[] = [];
   const erros: string[] = [];
@@ -103,7 +104,7 @@ export function planejar(contratos: Contrato[], entrada: Entrada): { ok: true; p
       const dup = [...mapa.values()].find(
         (c) => norm(c.fornecedor) === norm(v.data.fornecedor) && Math.abs(c.valorMensal - v.data.valorMensal) <= 0.004 && (c.inicio ?? null) === (v.data.inicio ?? null),
       );
-      if (dup) return void erros.push(`operacoes[${i}] (criar): já existe contrato ${dup.id} com mesmo fornecedor, valor e início — não cria duplicado (reexecução?).`);
+      if (dup) return void avisos.push(`operacoes[${i}] (criar): já existe contrato ${dup.id} com mesmo fornecedor, valor e início — ignorado, não cria outro.`);
       const novo: Contrato = { id: `(novo-${i})`, ...v.data, inativadoEm: null, suspensoDe: null, suspensoAte: null };
       mapa.set(novo.id, novo);
       passos.push({ indice: i, op: o.op, id: novo.id, antes: null, depois: novo, chamada: { metodo: "POST", caminho: "/api/cadastros/contratos", body: { ...o.contrato } } });
@@ -140,7 +141,7 @@ export function planejar(contratos: Contrato[], entrada: Entrada): { ok: true; p
     mapa.set(o.id, depois);
     passos.push({ indice: i, op: o.op, id: o.id, antes, depois, chamada });
   });
-  return erros.length ? { ok: false, erros } : { ok: true, passos, final: [...mapa.values()] };
+  return erros.length ? { ok: false, erros } : { ok: true, passos, final: [...mapa.values()], avisos };
 }
 
 export function listarMeses(de: string, ate: string) {

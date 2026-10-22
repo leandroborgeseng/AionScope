@@ -231,7 +231,10 @@ export function validarSuspensao(de: unknown, ate: unknown): { ok: true; de: str
   if (typeof de !== "string" || !isoDiaValido(de)) return { ok: false, erro: "Data de início da suspensão inválida." };
   if (typeof ate !== "string" || !isoDiaValido(ate)) return { ok: false, erro: "Data de retorno da suspensão inválida." };
   if (ate < de) return { ok: false, erro: MSG_RETORNO_ANTES };
-  return { ok: true, de, ate };
+  // Suspensão vale por mês inteiro: de → dia 1 do mês; ate → último dia do mês.
+  const [ya, ma] = ate.split("-").map(Number);
+  const fimMes = new Date(Date.UTC(ya, ma, 0)).toISOString().slice(0, 10);
+  return { ok: true, de: `${de.slice(0, 7)}-01`, ate: fimMes };
 }
 
 /** Dia anterior (YYYY-MM-DD). */
