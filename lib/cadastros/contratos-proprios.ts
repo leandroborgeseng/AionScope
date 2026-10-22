@@ -207,12 +207,30 @@ export function contratoContaNoIndicador(
   return true;
 }
 
+/** Estaria no indicador neste mês se não fosse a suspensão. */
+export function contratoSuspensoNoMes(
+  c: Pick<Contrato, "tipo" | "valorMensal" | "inicio" | "fim" | "ativo" | "inativadoEm" | "suspensoDe" | "suspensoAte">,
+  year: number,
+  month: number,
+) {
+  if (!c.suspensoDe || !c.suspensoAte) return false;
+  return !contratoContaNoIndicador(c, year, month) && contratoContaNoIndicador({ ...c, suspensoDe: null, suspensoAte: null }, year, month);
+}
+
+const MESES_CURTOS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+/** "Retorna em" (1º dia que volta a contar) = dia seguinte ao fim da suspensão. */
+export function diaSeguinte(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+}
+
 /** Valida suspensão: ambas nulas (limpar) ou ambas datas válidas com fim ≥ início. */
 export function validarSuspensao(de: unknown, ate: unknown): { ok: true; de: string | null; ate: string | null } | { ok: false; erro: string } {
   if ((de === null || de === undefined) && (ate === null || ate === undefined)) return { ok: true, de: null, ate: null };
   if (typeof de !== "string" || !isoDiaValido(de)) return { ok: false, erro: "Data de início da suspensão inválida." };
   if (typeof ate !== "string" || !isoDiaValido(ate)) return { ok: false, erro: "Data de retorno da suspensão inválida." };
-  if (ate < de) return { ok: false, erro: "O fim da suspensão deve ser igual ou posterior ao início." };
+  if (ate < de) return { ok: false, erro: MSG_RETORNO_ANTES };
   return { ok: true, de, ate };
 }
 
@@ -222,11 +240,14 @@ export function diaAnterior(iso: string) {
   return new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
 }
 
-/** Rótulo do selo de suspensão (ex.: "Suspenso até 30/06/2027"); null se não suspenso em `hoje`. */
+/** Selo (UX): "Suspenso até jul/27" = mês em que volta a contar; null se não suspenso em `hoje`. */
 export function rotuloSuspensao(c: Pick<Contrato, "suspensoDe" | "suspensoAte">, hoje: string = hojeBRT()) {
   if (!c.suspensoDe || !c.suspensoAte || hoje < c.suspensoDe || hoje > c.suspensoAte) return null;
-  return `Suspenso até ${formatDataBR(c.suspensoAte)}`;
+  const r = diaSeguinte(c.suspensoAte);
+  return `Suspenso até ${MESES_CURTOS[Number(r.slice(5, 7)) - 1]}/${r.slice(2, 4)}`;
 }
+
+export const MSG_RETORNO_ANTES = "A data de retorno deve ser depois do início da suspensão.";
 
 function nomeContrato(c: Pick<Contrato, "fornecedor" | "equipamento" | "nome">) {
   return [c.fornecedor, c.equipamento].filter(Boolean).join(" – ") || c.nome;

@@ -4,7 +4,7 @@
  * Numerador do mês = contratos de MANUTENCAO do cadastro próprio (C1–C5) + avulsos (OS de reparo médico, C7).
  * Denominador = valor de substituição do parque (todos os equipamentos), inalterado.
  */
-import { contratoContaNoIndicador } from "@/lib/cadastros/contratos-proprios";
+import { contratoContaNoIndicador, contratoSuspensoNoMes } from "@/lib/cadastros/contratos-proprios";
 import type { Contrato } from "@/lib/cadastros/types";
 import type { GastoReparoMonth } from "@/lib/pbi/gasto-reparo";
 
@@ -30,6 +30,9 @@ export type CustoParqueMes = {
   metaPct: number;
   status: StatusMeta | null;
   contratosNoMes: Contrato[];
+  /** Contratos que contariam no mês, mas estão suspensos (fora do custo; linha à parte). */
+  suspensosNoMes: Contrato[];
+  suspensosValor: number;
   osCount: number;
 };
 
@@ -81,6 +84,7 @@ export function buildCustoParqueAno(opts: {
     .map((slot) => {
       const futuro = slot.month > mesAtual;
       const lista = futuro ? [] : contratosNoMes(opts.contratos, slot.year, slot.month);
+      const susp = futuro ? [] : opts.contratos.filter((c) => contratoSuspensoNoMes(c, slot.year, slot.month));
       const contratos = round2(lista.reduce((s, c) => s + c.valorMensal, 0));
       const g = futuro ? undefined : gastoByKey.get(slot.key);
       const avulsos = round2(g?.gasto ?? 0);
@@ -100,6 +104,8 @@ export function buildCustoParqueAno(opts: {
         metaPct,
         status,
         contratosNoMes: lista,
+        suspensosNoMes: susp,
+        suspensosValor: round2(susp.reduce((s, c) => s + c.valorMensal, 0)),
         osCount: g?.osCount ?? 0,
       };
     });

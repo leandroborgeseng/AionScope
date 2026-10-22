@@ -5,14 +5,14 @@
  *   tsx scripts/corrigir-contratos.ts --entrada ... --apply
  *
  * Padrão = dry-run: mostra antes/depois de cada operação e os totais mensais atuais × resultantes.
- * --apply só com a flag explícita; exige sessão de escrita:
+ * --apply (alias --confirmar) só com a flag explícita, após OK do Leandro e backup do volume; exige sessão de escrita:
  *   AIONSCOPE_URL               (ex.: https://<host>; obrigatório, sem padrão)
  *   AIONSCOPE_SESSAO_COOKIE     (valor do cookie aion_contratos_sessao) OU
  *   CONTRATOS_ADMIN_PASSWORD    (faz login em /api/cadastros/contratos/sessao; nunca é impresso)
  * --contratos <arquivo.json> usa uma lista local em vez do GET (só dry-run; útil para teste).
  */
 import { readFileSync } from "node:fs";
-import { planejar, totaisMensais, validarEntrada, type Passo } from "../lib/cadastros/correcao-contratos";
+import { apiSuportaCorrecao, planejar, totaisMensais, validarEntrada, type Passo } from "../lib/cadastros/correcao-contratos";
 import type { Contrato } from "../lib/cadastros/types";
 
 const COOKIE = "aion_contratos_sessao";
@@ -65,7 +65,7 @@ function imprimirTotais(antes: Contrato[], depois: Contrato[], de: string, ate: 
 }
 
 async function main() {
-  const apply = process.argv.includes("--apply");
+  const apply = process.argv.includes("--apply") || process.argv.includes("--confirmar");
   const caminho = arg("--entrada");
   if (!caminho) throw new Error("Informe --entrada <arquivo.json> (fora do repositório).");
   const base = process.env.AIONSCOPE_URL?.replace(/\/+$/, "");
@@ -93,7 +93,7 @@ async function main() {
     return;
   }
   // A API publicada precisa suportar suspensão/data efetiva (013); senão o PATCH ignoraria os campos.
-  if (!atuais.every((c) => "suspensoDe" in c)) throw new Error("A API não expõe suspensoDe: publique a versão com a migração 013 antes do --apply.");
+  if (!apiSuportaCorrecao(atuais)) throw new Error("A API não expõe suspensoDe: publique a versão com a migração 013 antes do --apply.");
   const cookie = await cookieSessao(base!);
   for (const p of plano.passos) {
     const r = await fetch(`${base}${p.chamada.caminho}`, {

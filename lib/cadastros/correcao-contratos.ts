@@ -152,3 +152,8 @@ export function totaisMensais(contratos: Contrato[], de: string, ate: string): T
     return { mes: chave, qtde: conta.length, valor: Math.round(conta.reduce((s, c) => s + c.valorMensal, 0) * 100) / 100 };
   });
 }
+
+/** A9: a API publicada precisa expor os campos da 013; senão o PATCH ignoraria suspensão/data efetiva. */
+export function apiSuportaCorrecao(contratos: Contrato[]) {
+  return contratos.length > 0 && contratos.every((c) => "suspensoDe" in c && "suspensoAte" in c);
+}
