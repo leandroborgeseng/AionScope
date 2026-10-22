@@ -150,22 +150,41 @@ test("A9: --apply recusa API sem os campos da 013", () => {
   assert.equal(apiSuportaCorrecao(base()), true);
 });
 
-test("planejar: criar recusa duplicado (reexecução após apply)", () => {
+test("planejar: criar ignora duplicado com aviso (reexecução após apply)", () => {
   const criar = { op: "criar" as const, contrato: { nome: "", fornecedor: "Fornecedor Novo", equipamento: "EQN", tipo: "MANUTENCAO" as const, valorMensal: 50, inicio: "2026-01-01" } };
   const jaAplicado = [c("a", 100), c("n", 50, { fornecedor: "FORNECEDOR  NOVO" })];
   const r = planejar(jaAplicado, { meses, operacoes: [criar] });
-  assert.equal(r.ok, false);
-  if (!r.ok) assert.match(r.erros[0], /já existe contrato n/);
-  // valor ou início diferentes não são duplicado
-  assert.equal(planejar([c("n", 51, { fornecedor: "Fornecedor Novo" })], { meses, operacoes: [criar] }).ok, true);
-  assert.equal(planejar([c("n", 50, { fornecedor: "Fornecedor Novo", inicio: "2026-02-01" })], { meses, operacoes: [criar] }).ok, true);
-  // duas criações iguais na mesma entrada também são recusadas
-  assert.equal(planejar([], { meses, operacoes: [criar, criar] }).ok, false);
+  assert.ok(r.ok);
+  if (r.ok) {
+    assert.equal(r.passos.length, 0);
+    assert.equal(r.final.length, 2);
+    assert.match(r.avisos[0], /já existe contrato n/);
+  }
+  const v = planejar([c("n", 51, { fornecedor: "Fornecedor Novo" })], { meses, operacoes: [criar] });
+  assert.ok(v.ok && v.passos.length === 1);
+  const d = planejar([c("n", 50, { fornecedor: "Fornecedor Novo", inicio: "2026-02-01" })], { meses, operacoes: [criar] });
+  assert.ok(d.ok && d.passos.length === 1);
+  const dois = planejar([], { meses, operacoes: [criar, criar] });
+  assert.ok(dois.ok && dois.passos.length === 1 && dois.avisos.length === 1);
 });
 
-test("conferir fornecedor: igualdade ou prefixo por palavra, não substring", () => {
+test("conferir fornecedor: igualdade sem caixa/acento, nunca substring nem prefixo", () => {
   const op = (f: string) => ({ meses, operacoes: [{ op: "descricao" as const, id: "x", equipamento: "Z", conferir: { fornecedor: f } }] });
   assert.equal(planejar([c("x", 1, { fornecedor: "ENGENHARIA XYZ" })], op("GE")).ok, false);
-  assert.equal(planejar([c("x", 1, { fornecedor: "GE HEALTHCARE" })], op("GE")).ok, true);
-  assert.equal(planejar([c("x", 1, { fornecedor: "Gê" })], op("GE")).ok, true);
+  assert.equal(planejar([c("x", 1, { fornecedor: "GE HEALTHCARE" })], op("GE")).ok, false);
+  assert.equal(planejar([c("x", 1, { fornecedor: "Gê Healthcare" })], op("ge healthcare")).ok, true);
+});
+
+test("validarSuspensao normaliza para mês inteiro", () => {
+  assert.deepEqual(validarSuspensao("2026-07-15", "2027-06-10"), { ok: true, de: "2026-07-01", ate: "2027-06-30" });
+  assert.deepEqual(validarSuspensao("2026-02-10", "2026-02-20"), { ok: true, de: "2026-02-01", ate: "2026-02-28" });
+  assert.deepEqual(validarSuspensao("2028-02-03", "2028-02-04"), { ok: true, de: "2028-02-01", ate: "2028-02-29" });
+  const s = validarSuspensao("2026-07-15", "2026-07-20");
+  assert.ok(s.ok);
+  if (s.ok) {
+    const k = c("k", 10, { suspensoDe: s.de, suspensoAte: s.ate });
+    assert.equal(contratoContaNoIndicador(k, 2026, 6), false); // jul/26
+    assert.equal(contratoSuspensoNoMes(k, 2026, 6), true);
+    assert.equal(contratoContaNoIndicador(k, 2026, 7), true); // ago/26
+  }
 });

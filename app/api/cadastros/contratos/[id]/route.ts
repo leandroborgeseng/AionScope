@@ -44,6 +44,12 @@ export async function PATCH(request: Request, context: Ctx) {
   }
 
   const extra = body as Record<string, unknown>;
+  if (chaves.includes("contaAte") && extra.ativo !== false) {
+    return Response.json(
+      { ok: false, message: "contaAte só vale para inativar ({ ativo: false, contaAte }). Para reativar envie apenas { ativo: true }." },
+      { status: 400 },
+    );
+  }
   if (chaves.length === 2 && chaves.includes("ativo") && chaves.includes("contaAte") && extra.ativo === false) {
     const contaAte = extra.contaAte;
     if (contaAte !== null && (typeof contaAte !== "string" || !isoDiaValido(contaAte))) {
