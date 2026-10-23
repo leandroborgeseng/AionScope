@@ -2266,3 +2266,9 @@
 .sala-recorte-mobile .sala-os-detalhe-corpo { overflow: auto; padding: 12px; font-size: 15px; }
 .sala-recorte-mobile .sala-os-grade { grid-template-columns: 1fr 1fr; }
 .sala-recorte-mobile .sala-recorte-aviso { font-size: 15px; }
+
+/* /sala/indicadores (I13 / UX §4 I9): no celular, uma coluna sem encolher fonte */
+.sala-ind-card:focus-visible { outline: 3px solid var(--aion-azul); outline-offset: 3px; }
+@media (max-width: 600px) {
+  .sala-ind-grade { grid-template-columns: 1fr !important; grid-template-rows: none !important; }
+}

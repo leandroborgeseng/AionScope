@@ -21,7 +21,7 @@ export const TELAS_SALA: Array<{ id: TelaSala; label: string; rotulo: string; ti
   { id: "programadas", label: "Programadas", rotulo: "P02 · PLANO DO MÊS", titulo: "Programadas" },
   { id: "ciclo-de-vida", label: "Ciclo de vida", rotulo: "P03 · PARQUE", titulo: "Ciclo de vida" },
   { id: "evolucao", label: "Evolução", rotulo: "PARQUE E CHAMADOS", titulo: "Evolução histórica" },
-  { id: "indicadores", label: "Indicadores", rotulo: "MÊS E SEIS MESES", titulo: "Indicadores" },
+  { id: "indicadores", label: "Indicadores", rotulo: "Indicadores do ano", titulo: "Indicadores" },
   { id: "treinamentos", label: "Treinamentos", rotulo: "BOMBAS B. BRAUN", titulo: "Treinamentos" },
 ];
 

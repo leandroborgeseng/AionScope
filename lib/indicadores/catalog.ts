@@ -73,3 +73,30 @@ export const CADASTROS = [
 ] as const;
 
 export type IndicadorNavItem = (typeof INDICADORES)[number];
+
+/**
+ * Registro dos indicadores da Sala TV (/sala/indicadores) — I5/I11/D-SI2.
+ * Acrescentar ou ocultar um indicador é só editar esta lista (ou a chave `sala`);
+ * a tela da Sala não muda. `id` liga ao resumo em components/sala-tv/indicadores-resumos.ts.
+ * Com `sala: false` o card some da Sala, e a página do indicador continua acessível.
+ */
+export type IndicadorSalaDef = {
+  id: string;
+  titulo: string;
+  href: string;
+  /** exibir na Sala TV */
+  sala: boolean;
+};
+
+export const INDICADORES_SALA: readonly IndicadorSalaDef[] = [
+  {
+    id: "custo-manutencao-parque",
+    titulo: "Custo de manutenção do parque",
+    href: "/indicadores/custo-manutencao-parque",
+    sala: true,
+  },
+];
+
+export function indicadoresNaSala(lista: readonly IndicadorSalaDef[] = INDICADORES_SALA) {
+  return lista.filter((d) => d.sala);
+}
