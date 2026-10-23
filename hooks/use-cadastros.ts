@@ -24,6 +24,12 @@ type ParqueResponse = ParqueMeta & {
   };
 };
 
+/** Sem sessão de admin (401) não adianta repetir: a tela mostra "Entre para ver…" na hora. */
+function semRetrySemSessao(falhas: number, erro: unknown) {
+  if (erro instanceof Error && /administrador/i.test(erro.message)) return false;
+  return falhas < 3;
+}
+
 async function getJson<T>(url: string): Promise<{ ok: boolean; data?: T; message?: string }> {
   const res = await fetch(url);
   return (await res.json()) as { ok: boolean; data?: T; message?: string };
@@ -38,6 +44,7 @@ export function useParqueMeta() {
       return json.data;
     },
     staleTime: 30_000,
+    retry: semRetrySemSessao,
   });
 }
 
@@ -63,6 +70,7 @@ export function useRefreshParqueApi() {
 export function useContratos() {
   return useQuery({
     queryKey: ["cadastros", "contratos"],
+    retry: semRetrySemSessao,
     queryFn: async () => {
       const json = await getJson<Contrato[]>("/api/cadastros/contratos");
       if (!json.ok || !json.data) throw new Error(json.message ?? "Falha ao carregar contratos.");

@@ -15,7 +15,7 @@ import {
   horaLeitura,
   ordenarCards,
   paginar,
-  resumoCustoParque,
+  resumoCustoParquePublico,
   rotuloStatusCard,
   type EstadoCard,
   type ResumoIndicador,
@@ -195,7 +195,7 @@ function lerDemo(search: string): Demo | null {
 }
 
 function cardsDemo(d: Demo): Array<{ def: IndicadorSalaDef; estado: EstadoCard; status: StatusCard }> {
-  const base = resumoCustoParque(custoParqueDemo({ valorParque: d.estado === "vazio" ? null : 50_000_000 }));
+  const base = resumoCustoParquePublico(custoParqueDemo({ valorParque: d.estado === "vazio" ? null : 50_000_000 }));
   return clonesDemo(base, d.n).map((r, i) => {
     const def: IndicadorSalaDef = { id: r.id, titulo: r.titulo, href: r.href, sala: true };
     const estado: EstadoCard =

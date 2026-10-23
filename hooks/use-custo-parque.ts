@@ -9,12 +9,10 @@ import { useContratos, useParqueMeta } from "@/hooks/use-cadastros";
 import { useMedicalIndex } from "@/hooks/use-medical-index";
 import { useOsAnaliticoRollingYear } from "@/hooks/use-os-analitico-rolling-year";
 import { dataOf, usePbiQuery } from "@/hooks/use-pbi";
-import { buildCustoParqueAno } from "@/lib/pbi/custo-manutencao-parque";
-import { buildGastoReparo } from "@/lib/pbi/gasto-reparo";
 import { EMPTY_FILTERS } from "@/lib/pbi/filters";
 import { nowInSaoPaulo, startOfMonthISO, todayISO } from "@/lib/pbi/dates";
-import { resumirValorParqueApi, valorParqueEfetivo } from "@/lib/pbi/parque-valor";
-import { equipamentosSemValor, escolherValorParque, frescorParque, valorParqueDoMes } from "@/lib/pbi/parque-frescor";
+import { equipamentosSemValor, frescorParque } from "@/lib/pbi/parque-frescor";
+import { montarCustoParque } from "@/lib/indicadores/custo-parque-montar";
 import type { EquipamentoItem } from "@/lib/pbi/types";
 import { estadoCustoParque } from "@/lib/indicadores/resumo";
 
@@ -31,56 +29,40 @@ export function useCustoParque() {
     { apenasAtivos: "true", incluirComponentes: "false", incluirCustoSubstituicao: "true" },
   );
 
-  const apiResumo = useMemo(() => {
-    const items = dataOf(eqQ.data) ?? [];
-    return items.length ? resumirValorParqueApi(items) : null;
-  }, [eqQ.data]);
-
-  const gasto = useMemo(
-    () => buildGastoReparo(raw, range, medical.tags, medical.ids),
-    [raw, range, medical.tags, medical.ids],
+  const contratos = useMemo(() => contratosQ.data ?? [], [contratosQ.data]);
+  const contratosErro = Boolean(contratosQ.error || contratosQ.isError);
+  const eqItems = useMemo(() => dataOf(eqQ.data) ?? [], [eqQ.data]);
+  // Mesma montagem do servidor (lib/indicadores/custo-parque-montar.ts, I3).
+  const { ind, faltandoExtra, gasto, apiResumo, escolha, year, mesAtual } = useMemo(
+    () =>
+      montarCustoParque({
+        range,
+        hoje,
+        os: raw,
+        osErro: osError,
+        medicalTags: medical.tags,
+        medicalIds: medical.ids,
+        medicalErro: medical.error,
+        equipamentosAtivos: eqItems,
+        parqueGravado: parqueQ.data?.valorApi ?? null,
+        regra: parqueQ.data?.regra,
+        mensal: parqueQ.data?.mensal,
+        contratos,
+        contratosErro,
+      }),
+    [range, hoje, raw, osError, medical.tags, medical.ids, medical.error, eqItems, parqueQ.data?.valorApi, parqueQ.data?.regra, parqueQ.data?.mensal, contratos, contratosErro],
   );
-
-  // P2: soma ao vivo primeiro; valor gravado (parque_meta) só como reserva se a API/cache falhar.
-  const escolha = escolherValorParque({
-    aoVivo: apiResumo?.substituicao.todos.total ?? null,
-    gravado: parqueQ.data?.valorApi ?? null,
-  });
-  const efetivo = valorParqueEfetivo({ apiTodosSubstituicao: escolha.valor });
   const frescor = useMemo(() => {
     const iso = escolha.fonte === "ao-vivo" ? (eqQ.data?.cache?.fetchedAt ?? eqQ.data?.cachedAt ?? null) : (parqueQ.data?.atualizadoEm ?? null);
     return frescorParque(iso, Date.now());
   }, [escolha.fonte, eqQ.data, parqueQ.data?.atualizadoEm]);
-  const semValor = useMemo(() => equipamentosSemValor(dataOf(eqQ.data) ?? []), [eqQ.data]);
-
-  const contratos = useMemo(() => contratosQ.data ?? [], [contratosQ.data]);
-  const avulsosDisponiveis = !osError && !medical.error;
-  const year = range.months[0]?.year ?? hoje.getFullYear();
-  const mesAtual = year === hoje.getFullYear() ? hoje.getMonth() : 11;
-
-  const ind = useMemo(
-    () =>
-      buildCustoParqueAno({
-        year,
-        months: range.months,
-        contratos,
-        gastoMonths: gasto.months,
-        valorParque: efetivo.valor,
-        valorParqueDoMes:
-          parqueQ.data?.regra === "mensal"
-            ? (c: string) => valorParqueDoMes("mensal", efetivo.valor, parqueQ.data?.mensal ?? [], c)
-            : undefined,
-        avulsosDisponiveis,
-        mesAtual,
-      }),
-    [year, range.months, contratos, gasto.months, efetivo.valor, avulsosDisponiveis, mesAtual, parqueQ.data?.regra, parqueQ.data?.mensal],
-  );
-  const contratosErro = Boolean(contratosQ.error || contratosQ.isError);
-  const faltandoExtra = useMemo(() => (contratosErro ? ["cadastro de contratos indisponível"] : []), [contratosErro]);
+  const semValor = useMemo(() => equipamentosSemValor(eqItems), [eqItems]);
+  /** 401 em parque/contratos: sem sessão de admin (UX D1: "Entre para ver os valores do indicador"). */
+  const precisaLogin = [parqueQ.error, contratosQ.error].some((e) => e instanceof Error && /senha de administrador|401/i.test(e.message));
   const estado = estadoCustoParque(ind, faltandoExtra);
   const loading = osLoading || medical.loading || contratosQ.isLoading || parqueQ.isLoading || eqQ.isLoading;
   /** falha de leitura (API/cadastro) — distinto de "sem dados" (ex.: parque não cadastrado) */
   const erroLeitura = osError || medical.error || contratosQ.isError || eqQ.isError ? "Não foi possível atualizar" : null;
 
-  return { range, bruta, apiResumo, escolha, frescor, semValor, osResult, medical, eqQ, gasto, contratos, year, mesAtual, ind, faltandoExtra, ...estado, loading, erroLeitura };
+  return { precisaLogin, range, bruta, apiResumo, escolha, frescor, semValor, osResult, medical, eqQ, gasto, contratos, year, mesAtual, ind, faltandoExtra, ...estado, loading, erroLeitura };
 }

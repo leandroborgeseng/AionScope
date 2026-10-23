@@ -134,3 +134,24 @@ export function estadoCard(opts: {
   if (opts.carregando || !opts.resumo) return opts.ultimo ? { tipo: "ok", resumo: opts.ultimo.resumo } : { tipo: "carregando" };
   return { tipo: "ok", resumo: opts.resumo };
 }
+
+/**
+ * Versão PÚBLICA do resumo (rota sem login, Sala/TV): só %, status e meta — nenhum valor em R$ (regra do TL, D1).
+ * O "valor do mês" vira o acréscimo do mês em % do parque.
+ */
+export function resumoCustoParquePublico(ind: CustoParqueAno, faltandoExtra: string[] = []): ResumoIndicador {
+  const r = resumoCustoParque(ind, faltandoExtra);
+  const e = estadoCustoParque(ind, faltandoExtra);
+  const mes = e.atual?.month ?? 11;
+  let valorMes: string | null = null;
+  if (!e.semDados && e.atual?.pctAcumulado != null) {
+    const anterior = mes > 0 ? (ind.months.find((m) => m.month === mes - 1)?.pctAcumulado ?? 0) : 0;
+    valorMes = `${MESES_CURTOS[mes]}: +${formatPctParque(e.atual.pctAcumulado - anterior)} no mês`;
+  }
+  return { ...r, valorSecundario: null, valorMes };
+}
+
+/** Garantia usada nos testes e na rota: nenhum texto com R$ ou número monetário. */
+export function contemValorMonetario(obj: unknown) {
+  return /R\$/.test(JSON.stringify(obj));
+}

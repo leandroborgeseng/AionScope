@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import { AlertTriangle, CheckCircle2, MinusCircle } from "lucide-react";
@@ -52,14 +52,38 @@ function StatusChip({ status }: { status: StatusMeta | null }) {
   );
 }
 
+/** Sem sessão (401 em parque/contratos): em vez de "Buscando dados…" para sempre (UX D1). */
+function EntrarParaVerIndicador() {
+  const [voltar, setVoltar] = useState("/indicadores/custo-manutencao-parque");
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setVoltar(`${window.location.pathname}${window.location.search}`), []);
+  return (
+    <div className="space-y-4">
+      <PageHeader title="Custo de manutenção do parque" description="Contratos de Manutenção + OS avulsas ÷ valor de substituição do parque." />
+      <div role="status" data-testid="entrar-para-ver" className="rounded-xl border border-aion-line bg-white p-6">
+        <p className="text-lg font-semibold text-aion-ink">Entre para ver os valores do indicador</p>
+        <p className="mt-1 text-sm text-aion-muted">Os valores em R$ ficam restritos a administradores. O % e o status aparecem na Sala.</p>
+        <Link
+          href={`/cadastros/contratos?voltar=${encodeURIComponent(voltar)}`}
+          className="mt-4 inline-flex rounded-lg bg-aion-blue px-4 py-2 text-sm font-semibold text-white"
+        >
+          Entrar
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export function CustoManutencaoParqueCard() {
   const { open, ready, openFullscreen, closeFullscreen } = useChartFullscreen();
   const [drill, setDrill] = useState<CustoParqueMes | null>(null);
   // Fonte única com o card da Sala TV (hooks/use-custo-parque.ts, I3).
   const {
     bruta, osResult, medical, eqQ, gasto, contratos, year, mesAtual, ind, faltando, semDados, atual, pctAtual, statusAtual, loading,
-    apiResumo, escolha, frescor, semValor,
+    apiResumo, escolha, frescor, semValor, precisaLogin,
   } = useCustoParque();
+
+  if (precisaLogin) return <EntrarParaVerIndicador />;
 
   const osDrill: GastoReparoRow[] = drill ? gastoReparoDoMes(gasto.noIntervalo, drill.year, drill.month) : [];
   const osColumns: ColumnDef<GastoReparoRow>[] = [

@@ -122,3 +122,21 @@ test("I9: fixture só com dados DEMO", () => {
   for (const m of ind.months) for (const c of m.contratosNoMes) assert.match(c.nome, /^Contrato DEMO /);
   assert.equal(ind.valorParque, 50_000_000);
 });
+
+import { contemValorMonetario, resumoCustoParquePublico } from "@/lib/indicadores/resumo";
+
+test("D1: resumo público (Sala/TV sem login) = mesmos %/status da página, sem nenhum R$", () => {
+  const ind = custoParqueDemo();
+  const pagina = resumoCustoParque(ind);
+  const pub = resumoCustoParquePublico(ind);
+  assert.equal(pub.valorPrincipal, pagina.valorPrincipal);
+  assert.equal(pub.status, pagina.status);
+  assert.deepEqual(pub.serieMensal, pagina.serieMensal);
+  assert.equal(pub.meta, pagina.meta);
+  assert.equal(pub.valorSecundario, null);
+  assert.equal(contemValorMonetario(pub), false);
+  assert.equal(contemValorMonetario(pagina), true, "a página logada mostra R$");
+  // out/26 fictício: 100 mil + 25 mil no mês / 50 mi = 0,25%
+  assert.equal(pub.valorMes, "out: +0,25% no mês");
+  assert.equal(contemValorMonetario(resumoCustoParquePublico(custoParqueDemo({ valorParque: null }))), false);
+});
