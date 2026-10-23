@@ -52,6 +52,27 @@ function percentual(parte: number, total: number) {
 }
 
 /**
+ * OS de plano (Calibração / Preventiva / TSE) da EC fechadas no mês civil de `agora`,
+ * sem canceladas. É a lista por trás de "executados" (drill Programadas · tipo).
+ */
+export function osExecutadasPlanoMes(os: OsAnaliticoItem[], agora: Date): Map<TipoPlanoTv, OsAnaliticoItem[]> {
+  const year = agora.getFullYear();
+  const month = agora.getMonth();
+  const mapa = new Map<TipoPlanoTv, OsAnaliticoItem[]>(TIPOS.map((tipo) => [tipo, []]));
+  for (const item of os) {
+    if (!isOficinaEngenhariaClinica(item.Oficina)) continue;
+    if (isOsCancelada(item)) continue;
+    const tipo = classifyPlanoEc(item.TipoDeManutencao) as TipoPlanoTv | null;
+    if (!tipo || !TIPOS.includes(tipo)) continue;
+    const fechamento = osFechamentoDate(item);
+    if (!fechamento) continue;
+    if (fechamento.getFullYear() !== year || fechamento.getMonth() !== month) continue;
+    mapa.get(tipo)?.push(item);
+  }
+  return mapa;
+}
+
+/**
  * Cumprimento do plano no mês civil atual.
  * Previsto = ocorrências do cronograma (ProximaRealizacao/DataDaUltima + periodicidade)
  * ancoradas no mês. Executado = OS de plano fechadas no mês (independente, como no indicador).
@@ -90,17 +111,10 @@ export function resumoProgramadasMes(
     });
   }
 
-  const executadosPorTipo = new Map<TipoPlanoTv, number>(TIPOS.map((tipo) => [tipo, 0]));
-  for (const item of os) {
-    if (!isOficinaEngenhariaClinica(item.Oficina)) continue;
-    if (isOsCancelada(item)) continue;
-    const tipo = classifyPlanoEc(item.TipoDeManutencao) as TipoPlanoTv | null;
-    if (!tipo || !TIPOS.includes(tipo)) continue;
-    const fechamento = osFechamentoDate(item);
-    if (!fechamento) continue;
-    if (fechamento.getFullYear() !== year || fechamento.getMonth() !== month) continue;
-    executadosPorTipo.set(tipo, (executadosPorTipo.get(tipo) ?? 0) + 1);
-  }
+  const executadasPorTipo = osExecutadasPlanoMes(os, agora);
+  const executadosPorTipo = new Map<TipoPlanoTv, number>(
+    TIPOS.map((tipo) => [tipo, executadasPorTipo.get(tipo)?.length ?? 0]),
+  );
 
   const porTipo: ResumoTipoPlano[] = TIPOS.map((tipo) => {
     const previstos = previstosPorTipo.get(tipo) ?? 0;
