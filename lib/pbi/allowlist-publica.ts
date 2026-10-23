@@ -2,14 +2,15 @@
  * M1 ciclo 3: ALLOWLIST por resource para quem chama SEM sessão de admin.
  * Montada a partir dos campos que as telas públicas usam (app/, components/, hooks/, lib/ fora de lib/ec e lib/db),
  * sem R$, sem nomes de pessoas e sem links. Qualquer outro campo sai (inclusive campo novo do PBI).
- * contratos, anexos-equipamento e anexos-os não têm allowlist: sem sessão respondem 401.
+ * Ciclo 4: CentroDeCusto/CentrosDeCusto entram (exceção exata em EXCECOES_RE_SUSPEITO_RS).
+ * contratos, anexos-equipamento, anexos-os e oficina não têm allowlist: sem sessão respondem 401.
  */
 import type { PbiResource } from "./catalog";
 
 export const ALLOWLIST_PUBLICA: Partial<Record<PbiResource, readonly string[]>> = {
   "cronograma": [
     "Empresa", "Setor", "Equipamento", "Fabricante", "Modelo", "Tag",
-    "PlanoDeManutencao", "TipoDeManutencao", "DataDaUltima", "ProximaRealizacao", "Perioridicade", "Observacao",
+    "PlanoDeManutencao", "TipoDeManutencao", "CentroDeCusto", "DataDaUltima", "ProximaRealizacao", "Perioridicade", "Observacao",
   ],
   "tipo-manutencao": [
     "Id", "Descricao",
@@ -20,7 +21,7 @@ export const ALLOWLIST_PUBLICA: Partial<Record<PbiResource, readonly string[]>> 
     "Modelo", "Fabricante", "Setor", "Abertura", "Fechamento", "Ocorrencia",
     "Causa", "Pendencia", "PendenciaAberta", "PrazoDeEncerramentoOs", "Servico", "Deslocamento",
     "ObservacaoDaOS", "Status", "DataLimiteDoAtendimento", "DataDoAtendimento", "DataLimiteDaSolucao", "DataDaSolucao",
-    "ObservacaoDaRequisicao", "Avaliacao", "ObservacaoDaAvaliacao", "MotivoDaAvaliacao", "LiberadoParaUso", "JustificativaEncerramento",
+    "CentroDeCusto", "ObservacaoDaRequisicao", "Avaliacao", "ObservacaoDaAvaliacao", "MotivoDaAvaliacao", "LiberadoParaUso", "JustificativaEncerramento",
   ],
   "os-resumida": [
     "CodigoSerialOS", "Empresa", "OS", "Oficina", "Tipo", "Prioridade",
@@ -34,7 +35,7 @@ export const ALLOWLIST_PUBLICA: Partial<Record<PbiResource, readonly string[]>> 
     "Setor", "GrupoDeSetores", "DataDeAquisicao", "NotaFiscal", "RegistroAnvisa", "ValidadeDoRegistroAnvisa",
     "Situacao", "Status", "EndOfLife", "EndOfService", "Fornecedor", "Observacao",
     "DataDeCadastro", "Tipo", "TipoEquipamento", "TipoDeEquipamento", "GrupoFamilia", "Familia",
-    "Classificacao", "Categoria",
+    "Classificacao", "Categoria", "CentroDeCusto",
   ],
   "tmef": [
     "Empresa", "Tag", "Equipamento", "Setor", "Modelo", "Fabricante",
@@ -47,13 +48,13 @@ export const ALLOWLIST_PUBLICA: Partial<Record<PbiResource, readonly string[]>> 
   "disp-equipamento": [
     "EquipamentoId", "Tag", "EquipamentoDescricaoCompleta", "ModeloDescricao", "Fabricante", "Criticidade",
     "SetorDescricao", "CaminhoSetor", "Patrimonio", "PossuiOSParadaSemFuncionamento", "DisponibilidadePercentualPeriodo", "TMEF",
-    "TMPR", "DiasParado", "DiasFuncionando", "DisponibilidadeMensal", "Ano", "Mes",
+    "TMPR", "DiasParado", "DiasFuncionando", "CentrosDeCusto", "DisponibilidadeMensal", "Ano", "Mes",
     "DisponibilidadePercentual",
   ],
   "disp-equipamento-mes": [
     "EquipamentoId", "Tag", "EquipamentoDescricaoCompleta", "ModeloDescricao", "Fabricante", "Criticidade",
     "SetorDescricao", "CaminhoSetor", "Patrimonio", "PossuiOSParadaSemFuncionamento", "DisponibilidadePercentualPeriodo", "TMEF",
-    "TMPR", "DiasParado", "DiasFuncionando", "DisponibilidadeMensal", "Ano", "Mes",
+    "TMPR", "DiasParado", "DiasFuncionando", "CentrosDeCusto", "DisponibilidadeMensal", "Ano", "Mes",
     "DisponibilidadePercentual",
   ],
   "monitor-reacao": [
@@ -63,7 +64,5 @@ export const ALLOWLIST_PUBLICA: Partial<Record<PbiResource, readonly string[]>> 
   "monitor-atendimento": [
     "Empresa", "Cliente", "Setor", "ObservacaoDaRequisicao", "Tag", "Equipamento",
     "TipoManutencao", "Prioridade", "TempoDecorrido", "PrazoParaAtendimento",
-  ],
-  "oficina": [
   ],
 };

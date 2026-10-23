@@ -17,7 +17,7 @@ for (const e of Object.values(PBI_ENDPOINTS)) process.env[e.tokenEnv] = "tok-tes
 import { closeDbForTests } from "@/lib/db/client";
 import { __setFetchForTests, invalidarCachePbi } from "./client";
 import { COOKIE_SESSAO_CONTRATOS, criarTokenSessao } from "@/lib/auth/contratos-sessao";
-import { RE_CAMPO_LINK, RE_CAMPO_PESSOA, RE_SUSPEITO_RS, RESOURCES_SO_COM_SESSAO, _avisosAllowlist, somenteAllowlist } from "./proxy-publico";
+import { EXCECOES_RE_SUSPEITO_RS, campoSuspeito, RE_CAMPO_LINK, RE_CAMPO_PESSOA, RE_SUSPEITO_RS, RESOURCES_SO_COM_SESSAO, _avisosAllowlist, somenteAllowlist } from "./proxy-publico";
 import { ALLOWLIST_PUBLICA } from "./allowlist-publica";
 import * as proxy from "../../app/api/pbi/[resource]/route";
 
@@ -25,7 +25,7 @@ const MARCA = "R$ 4.321,09"; // valor fictício que nunca pode sair sem sessão
 const PESSOA = "Pessoa Demo Sensivel";
 function item(i: number) {
   return {
-    Id: i, Tag: `HSJ-9000${i}`, Setor: "SETOR DEMO", Equipamento: "EQUIPAMENTO DEMO", CentroDeCusto: "CC DEMO",
+    Id: i, Tag: `HSJ-9000${i}`, Setor: "SETOR DEMO", Equipamento: "EQUIPAMENTO DEMO", CentroDeCusto: "CC DEMO", CentrosDeCusto: "CC DEMO", CustoX: MARCA, ValorCusto: MARCA, CentroDeCustoValor: MARCA, centrodecusto: MARCA, CENTRODECUSTO: MARCA, CentrosDeCustoIds: "NAO-DEVE-SAIR",
     Custo: MARCA, custo: MARCA, CUSTO_TOTAL: MARCA, Valor: MARCA, valor: MARCA, ValorTotal: MARCA, ValorMoeda: 4321.09,
     ValorPgto: 4321.09, CustoPrevisto: 4321.09, CustoRealizado: 4321.09, ValorDeSubstituicao: MARCA, ValorDeAquisicao: MARCA,
     ValorQualquerNovo: MARCA, PrecoUnitario: MARCA, preço: MARCA,
@@ -94,7 +94,7 @@ test("sem sessão: nenhum resource (em qualquer grafia) devolve campo em R$, nom
       assert.equal(txt.includes("bytoken"), false, ctx);
       const j = JSON.parse(txt) as { data?: unknown };
       const ks = chaves(j.data);
-      assert.equal(ks.some((k) => RE_SUSPEITO_RS.test(k)), false, `${ctx}: ${ks.filter((k) => RE_SUSPEITO_RS.test(k))}`);
+      assert.equal(ks.some((k) => campoSuspeito(k)), false, `${ctx}: ${ks.filter((k) => campoSuspeito(k))}`);
       assert.equal(ks.some((k) => RE_CAMPO_PESSOA.test(k) || RE_CAMPO_LINK.test(k)), false, ctx);
       assert.equal(txt.includes("NAO-DEVE-SAIR"), false, `${ctx}: campo novo fora da lista`);
       if (j.data) {
@@ -144,7 +144,7 @@ test("com sessão: resposta idêntica ao upstream em todos os resources (inclusi
 test("allowlists do código não contêm campo suspeito (R$/pessoa/link)", () => {
   for (const [res, lista] of Object.entries(ALLOWLIST_PUBLICA)) {
     for (const c of lista ?? []) {
-      assert.equal(RE_SUSPEITO_RS.test(c) || RE_CAMPO_PESSOA.test(c) || RE_CAMPO_LINK.test(c), false, `${res}.${c}`);
+      assert.equal((RE_SUSPEITO_RS.test(c) && !EXCECOES_RE_SUSPEITO_RS.has(c)) || RE_CAMPO_PESSOA.test(c) || RE_CAMPO_LINK.test(c), false, `${res}.${c}`);
     }
   }
 });
@@ -171,4 +171,27 @@ test("rota é dinâmica e sem fetch/route cache do Next", () => {
   assert.equal(proxy.dynamic, "force-dynamic");
   assert.equal(proxy.revalidate, 0);
   assert.equal(proxy.fetchCache, "force-no-store");
+});
+
+test("exceção exata: CentroDeCusto/CentrosDeCusto passam sem sessão; variações continuam cortadas", async () => {
+  assert.deepEqual([...EXCECOES_RE_SUSPEITO_RS].sort(), ["CentroDeCusto", "CentrosDeCusto"]);
+  for (const v of ["CustoX", "ValorCusto", "CentroDeCustoValor", "centrodecusto", "CENTRODECUSTO", "CentroDeCusto ", "CentrosDeCustoIds", "CentroDeCustos"]) {
+    assert.equal(campoSuspeito(v), true, v);
+  }
+  assert.equal(campoSuspeito("CentroDeCusto"), false);
+  for (const [res, campo] of [["equipamentos", "CentroDeCusto"], ["os-analitico", "CentroDeCusto"], ["cronograma", "CentroDeCusto"], ["disp-equipamento", "CentrosDeCusto"], ["disp-equipamento-mes", "CentrosDeCusto"]] as const) {
+    const { txt } = await chamar(res);
+    const j = JSON.parse(txt);
+    const itens = (j as { data: Array<Record<string, unknown>> }).data;
+    assert.equal(itens[0][campo], "CC DEMO", `${res}.${campo}`);
+    for (const v of ["CustoX", "ValorCusto", "CentroDeCustoValor", "centrodecusto", "CENTRODECUSTO", "CentrosDeCustoIds"]) assert.equal(v in itens[0], false, `${res}.${v}`);
+    assert.equal(txt.includes("4.321,09"), false, res);
+  }
+});
+
+test("oficina sem sessão: 401 com a mensagem do card Entrar", async () => {
+  const { r, txt } = await chamar("oficina");
+  const j = JSON.parse(txt);
+  assert.equal(r.status, 401);
+  assert.match(String((j as { message?: string }).message), /senha de administrador/i);
 });

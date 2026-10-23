@@ -10,15 +10,24 @@
 import { PBI_ENDPOINTS, type PbiResource } from "./catalog";
 import { ALLOWLIST_PUBLICA } from "./allowlist-publica";
 
-export const RESOURCES_SO_COM_SESSAO: readonly PbiResource[] = ["contratos", "anexos-equipamento", "anexos-os"];
+export const RESOURCES_SO_COM_SESSAO: readonly PbiResource[] = ["contratos", "anexos-equipamento", "anexos-os", "oficina"];
 
 /** Rede de segurança (não é a regra principal): qualquer cara de dinheiro. */
 export const RE_SUSPEITO_RS = /(valor|vlr|custo|pre[cç]o|parcela|total|moeda|pgto|pagamento|r\$|brl|reais)/i;
 export const RE_CAMPO_PESSOA = /^(responsavel|requisitante|tecnico|abertapor|solicitante|matricula|usuario|nome(pessoa|usuario)?$)/i;
 export const RE_CAMPO_LINK = /(link|url|token|href)/i;
 
+/**
+ * Exceção explícita da rede de segurança (decisão TL+Designer, M1 ciclo 4): só estes nomes EXATOS
+ * (sensível a maiúsculas) passam pela RE_SUSPEITO_RS. "Centro de custo" é nome de unidade/setor, não R$.
+ * CentroDeCusto: cronograma, equipamentos, os-analitico (etiquetas e ficha do equipamento).
+ * CentrosDeCusto: disp-equipamento(-mes) (filtro de empresa da disponibilidade).
+ * Qualquer variação (CustoX, ValorCusto, CentroDeCustoValor, centrodecusto, CentrosDeCustoIds…) continua cortada.
+ */
+export const EXCECOES_RE_SUSPEITO_RS: ReadonlySet<string> = new Set(["CentroDeCusto", "CentrosDeCusto"]);
+
 export function campoSuspeito(nome: string) {
-  return RE_SUSPEITO_RS.test(nome) || RE_CAMPO_PESSOA.test(nome) || RE_CAMPO_LINK.test(nome);
+  return (RE_SUSPEITO_RS.test(nome) && !EXCECOES_RE_SUSPEITO_RS.has(nome)) || RE_CAMPO_PESSOA.test(nome) || RE_CAMPO_LINK.test(nome);
 }
 
 /** Nome do resource normalizado (decode + trim + minúsculas); null se não estiver na lista. */
