@@ -8,12 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EntrarParaVer } from "@/components/auth/entrar-para-ver";
+import { useSessaoAdmin } from "@/hooks/use-sessao-admin";
 import { useParqueMeta, useRefreshParqueApi } from "@/hooks/use-cadastros";
 import { dataOf, errorOf, usePbiQuery } from "@/hooks/use-pbi";
 import { startOfMonthISO, todayISO } from "@/lib/pbi/dates";
 import { formatBRL } from "@/lib/pbi/indicators";
 import { EMPTY_FILTERS } from "@/lib/pbi/filters";
-import { PARQUE_META_REFERENCIA, resumirValorParqueApi } from "@/lib/pbi/parque-valor";
+import { resumirValorParqueApi } from "@/lib/pbi/parque-valor";
 import type { EquipamentoItem } from "@/lib/pbi/types";
 
 export function ParqueCadastroForm() {
@@ -38,8 +39,12 @@ export function ParqueCadastroForm() {
     },
   );
 
-  // M1 ciclo 5: sem sessão o proxy devolve só a allowlist (sem R$) → auditoria vira o card Entrar.
-  const auditoriaSemSessao = Boolean((eqQ.data as { parcialSemSessao?: boolean } | undefined)?.parcialSemSessao);
+  // M1: a página começa "sem sessão" (SSR e 1º render) e só mostra a auditoria depois que
+  // GET /sessao confirma login. Sem sessão o proxy também devolve só a allowlist (sem R$).
+  const sessao = useSessaoAdmin();
+  const sessaoConfirmada = !sessao.carregando && sessao.logado;
+  const auditoriaSemSessao =
+    !sessaoConfirmada || Boolean((eqQ.data as { parcialSemSessao?: boolean } | undefined)?.parcialSemSessao);
 
   const apiResumo = useMemo(() => {
     const items = dataOf(eqQ.data) ?? [];
@@ -132,8 +137,7 @@ export function ParqueCadastroForm() {
           {auditoriaSemSessao ? null : (
             <CardDescription>
               GET equipamentos com <code className="text-xs">incluirCustoSubstituicao=true</code>. O
-              cálculo usa a soma de <strong>todos</strong>; médicos só para comparação. Referência
-              antiga (não usada): {formatBRL(PARQUE_META_REFERENCIA)}.
+              cálculo usa a soma de <strong>todos</strong>; médicos só para comparação.
             </CardDescription>
           )}
         </CardHeader>
@@ -159,12 +163,6 @@ export function ParqueCadastroForm() {
                         {formatBRL(apiResumo.substituicao.todos.total)}
                       </strong>{" "}
                       · preenchidos {apiResumo.substituicao.todos.pctPreenchidos.toFixed(1)}%
-                      {apiResumo.vsMetaTodosSubstituicao != null ? (
-                        <span className="text-aion-muted">
-                          {" "}
-                          ({apiResumo.vsMetaTodosSubstituicao.toFixed(1)}% da ref. 57 mi)
-                        </span>
-                      ) : null}
                     </li>
                     <li>
                       Substituição (médicos — auditoria):{" "}

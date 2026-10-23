@@ -8,7 +8,7 @@
  *   fonte TEXT DEFAULT 'api'       -- 'api' | 'manual'
  *   atualizado_em TEXT
  *   atualizado_por TEXT
- *   valor_manual_referencia REAL   -- nota ~57 mi
+ *   valor_manual_referencia REAL   -- legado (referência antiga, sem valor padrão)
  *   notas TEXT
  *
  * contratos

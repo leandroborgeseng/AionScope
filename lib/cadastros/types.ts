@@ -10,7 +10,7 @@ export type ParqueMeta = {
   escopo: ParqueEscopo;
   atualizadoEm: string | null;
   atualizadoPor?: string | null;
-  /** Meta antiga ~57 mi — só referência, não entra no cálculo. */
+  /** Meta antiga (legado, sem valor padrão) — só referência, não entra no cálculo. */
   valorManualReferencia: number | null;
   notas?: string | null;
 };
