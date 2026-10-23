@@ -1,7 +1,11 @@
+import { sessaoContratosValida } from "@/lib/auth/contratos-sessao";
 import { timingSafeEqual } from "crypto";
 import { existsSync, mkdirSync, writeFileSync } from "fs";
 import path from "path";
 import { NextResponse } from "next/server";
+
+/** A1: tamanho máximo do PDF de evidências (20 MB). Acima disso o upload responde 413. */
+export const LIMITE_EVIDENCIA_BYTES = 20 * 1024 * 1024;
 
 export const TREINAMENTOS_EVIDENCIAS_TOKEN_ENV = "TREINAMENTOS_EVIDENCIAS_TOKEN";
 
@@ -123,14 +127,14 @@ export function evidenciasTokenConfigurado() {
 export function statusEvidencias(request?: Request) {
   const anos = anosEvidenciaDisponiveis();
   const tokenObrigatorio = evidenciasTokenConfigurado();
-  const liberado = tokenObrigatorio
-    ? Boolean(request && tokenEvidenciaValido(request))
-    : true;
+  // A4: abrir o PDF exige a sessão de admin (e o token, se configurado). Sem caminho do servidor (A3).
+  const sessao = Boolean(request && sessaoContratosValida(request));
+  const liberado = sessao && (tokenObrigatorio ? Boolean(request && tokenEvidenciaValido(request)) : true);
   return {
     tokenObrigatorio,
     anos,
     liberado,
-    diretorio: diretorioEvidencias(),
+    sessao,
   };
 }
 
@@ -139,7 +143,7 @@ export function recusarEvidencia() {
     return NextResponse.json(
       {
         erro: "evidências não encontradas",
-        detalhe: `Envie os PDFs pelo painel ou coloque em ${diretorioEvidencias()}.`,
+        detalhe: "Envie os PDFs pelo painel de treinamentos.",
       },
       { status: 503 },
     );

@@ -379,6 +379,8 @@ export function PainelTreinamentosView({
                     key={ano}
                     type="button"
                     variant={previewAno === ano ? "default" : "outline"}
+                    disabled={!logado}
+                    title={logado ? undefined : DICA_REQUER_LOGIN}
                     onClick={() => {
                       setPreviewAno(ano);
                       abrirLista(ano);
@@ -388,7 +390,7 @@ export function PainelTreinamentosView({
                   </Button>
                 ))}
                 {anosDisponiveis.map((ano) => (
-                  <Button key={`prev-${ano}`} type="button" variant="ghost" onClick={() => setPreviewAno(ano)}>
+                  <Button key={`prev-${ano}`} type="button" variant="ghost" disabled={!logado} title={logado ? undefined : DICA_REQUER_LOGIN} onClick={() => setPreviewAno(ano)}>
                     Pré-visualizar {ano}
                   </Button>
                 ))}
@@ -434,7 +436,7 @@ export function PainelTreinamentosView({
               ))}
             </div>
 
-            {desbloqueado && previewAno && anosDisponiveis.includes(previewAno) ? (
+            {logado && desbloqueado && previewAno && anosDisponiveis.includes(previewAno) ? (
               <div className="overflow-hidden rounded-xl border border-aion-line bg-white">
                 <div className="flex items-center justify-between gap-2 border-b border-aion-line px-3 py-2 text-sm">
                   <span className="font-semibold text-aion-ink">Lista {previewAno}</span>
