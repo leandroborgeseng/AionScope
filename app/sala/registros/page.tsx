@@ -148,7 +148,7 @@ export default function SalaRegistrosPage() {
           <CardContent>
             <form className="grid gap-3" data-escrita onSubmit={(evento) => void enviar(evento, "impedimento")}>
               <fieldset disabled={!logado} title={logado ? undefined : DICA_REQUER_LOGIN} className="contents">
-              <Campo label="Tag" name="tag" required placeholder="HSJ-00042" />
+              <Campo label="Tag" name="tag" required placeholder="HSJ-90042" />
               <Campo label="Equipamento" name="equipamento" />
               <Campo label="Motivo" name="motivo" required />
               <Campo label="Nova data" name="nova_data" type="date" />
@@ -221,7 +221,7 @@ export default function SalaRegistrosPage() {
             <form className="grid gap-3" data-escrita onSubmit={(evento) => void enviar(evento, "alerta")}>
               <fieldset disabled={!logado} title={logado ? undefined : DICA_REQUER_LOGIN} className="contents">
               <Campo label="Título" name="titulo" required />
-              <Campo label="Equipamentos afetados" name="equipamentos" placeholder="HSJ-00001, HSJ-00002" />
+              <Campo label="Equipamentos afetados" name="equipamentos" placeholder="HSJ-90001, HSJ-90002" />
               <label className="flex items-center gap-2 text-sm">
                 <input name="segregados" type="checkbox" /> Segregados
               </label>

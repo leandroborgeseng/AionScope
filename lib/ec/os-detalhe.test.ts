@@ -7,7 +7,7 @@ function osBase(parcial: Partial<OsAnaliticoItem> = {}): OsAnaliticoItem {
   return {
     CodigoSerialOS: 1,
     Empresa: "HSJ",
-    OS: "202609698",
+    OS: "209909698",
     Oficina: "ENGENHARIA CLÍNICA",
     Responsavel: "TECNICO",
     Tipo: "OS",
@@ -16,7 +16,7 @@ function osBase(parcial: Partial<OsAnaliticoItem> = {}): OsAnaliticoItem {
     SituacaoDaOS: "ABERTA",
     ComplexidadeDaOS: "",
     PlanoDeManutencao: "",
-    Tag: "HSJ-01079",
+    Tag: "HSJ-91079",
     Equipamento: "BISTURI",
     Modelo: "",
     Fabricante: "",
@@ -60,7 +60,7 @@ describe("montarOsDetalhe", () => {
         TipoDeManutencao: "A - CORRETIVA",
       }),
     );
-    assert.equal(detalhe.os, "202609698");
+    assert.equal(detalhe.os, "209909698");
     assert.equal(detalhe.solicitacao, "Urgente para cirurgia");
     assert.equal(detalhe.pendenciaCompra, true);
     assert.equal(detalhe.manutencaoExterna, true);
@@ -77,9 +77,9 @@ describe("montarOsDetalhe", () => {
 describe("filtrarOsPorQuery", () => {
   it("prioriza match exato do número da OS", () => {
     const base = montarOsDetalhe(osBase());
-    const outra = montarOsDetalhe(osBase({ OS: "202609699", Tag: "HSJ-00001" }));
+    const outra = montarOsDetalhe(osBase({ OS: "209909699", Tag: "HSJ-90001" }));
     const itens = [paraSugestao(outra), paraSugestao(base)];
-    const hit = filtrarOsPorQuery(itens, "202609698", 5);
-    assert.equal(hit[0]?.os, "202609698");
+    const hit = filtrarOsPorQuery(itens, "209909698", 5);
+    assert.equal(hit[0]?.os, "209909698");
   });
 });

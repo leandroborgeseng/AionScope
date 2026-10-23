@@ -31,7 +31,7 @@ Fonte da verdade do layout:
 
 ### O que o QR abre
 
-A API PBI `GET /api/pbi/v1/equipamentos` **não** devolve campo de URL/link do portal Effort. Campos úteis: `Id` (número interno), `Tag` (ex. `HSJ-00001`), `CodigoCliente` (no dump SJH vem 100% vazio).
+A API PBI `GET /api/pbi/v1/equipamentos` **não** devolve campo de URL/link do portal Effort. Campos úteis: `Id` (número interno), `Tag` (ex. `HSJ-90001`), `CodigoCliente` (no dump SJH vem 100% vazio).
 
 **Deep link Effort confirmado** (Mobile → propriedade do equipamento):
 
@@ -39,7 +39,7 @@ A API PBI `GET /api/pbi/v1/equipamentos` **não** devolve campo de URL/link do p
 https://sjh.globalthings.net/Mobile/MEquipamentoPropriedade.aspx?eqp={Id}
 ```
 
-Exemplo: **HSJ-00001** → `Id=59` →
+Exemplo: **HSJ-90001** → `Id=59` →
 
 `https://sjh.globalthings.net/Mobile/MEquipamentoPropriedade.aspx?eqp=59`
 
@@ -61,7 +61,7 @@ Proporção **50:30**. Kit **400×240 pt**; bitmap B1 **384×240**. Faixa AION e
 
 ```
 ┌──────┬────────────────────────────────────┐
-│AION  │ EQUIP. Nº              HSJ-00001   │
+│AION  │ EQUIP. Nº              HSJ-90001   │
 │ENG.  │ ────────────────────────────────── │
 │  ○A  │ REALIZADO      07/26    ┌──────┐   │
 │      │ [PRÓXIMO       07/27]   │  QR  │   │

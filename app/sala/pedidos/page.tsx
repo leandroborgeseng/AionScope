@@ -466,7 +466,7 @@ export default function SalaPedidosPage() {
             <CardContent>
               <form className="grid gap-3 sm:grid-cols-2" onSubmit={(evento) => void salvar(evento)}>
                 <Campo label="OS" name="os" value={form.os} onChange={atualizarCampo} placeholder="123456789" />
-                <Campo label="Tag" name="tag" value={form.tag} onChange={atualizarCampo} placeholder="HSJ-00042" />
+                <Campo label="Tag" name="tag" value={form.tag} onChange={atualizarCampo} placeholder="HSJ-90042" />
                 <div className="sm:col-span-2">
                   <Campo
                     label="Equipamento"

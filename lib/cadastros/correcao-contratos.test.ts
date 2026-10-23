@@ -170,9 +170,9 @@ test("planejar: criar ignora duplicado com aviso (reexecução após apply)", ()
 
 test("conferir fornecedor: igualdade sem caixa/acento, nunca substring nem prefixo", () => {
   const op = (f: string) => ({ meses, operacoes: [{ op: "descricao" as const, id: "x", equipamento: "Z", conferir: { fornecedor: f } }] });
-  assert.equal(planejar([c("x", 1, { fornecedor: "ENGENHARIA XYZ" })], op("GE")).ok, false);
-  assert.equal(planejar([c("x", 1, { fornecedor: "GE HEALTHCARE" })], op("GE")).ok, false);
-  assert.equal(planejar([c("x", 1, { fornecedor: "Gê Healthcare" })], op("ge healthcare")).ok, true);
+  assert.equal(planejar([c("x", 1, { fornecedor: "ENGENHARIA XYZ" })], op("FORNECEDOR")).ok, false);
+  assert.equal(planejar([c("x", 1, { fornecedor: "FORNECEDOR GENERICO" })], op("FORNECEDOR")).ok, false);
+  assert.equal(planejar([c("x", 1, { fornecedor: "Fornecedor Ácme" })], op("fornecedor acme")).ok, true);
 });
 
 test("validarSuspensao normaliza para mês inteiro", () => {

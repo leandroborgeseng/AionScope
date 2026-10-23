@@ -34,14 +34,7 @@ Esperado:
 - `persistencia.databasePath` começa com `/data/`
 - `persistencia.ordensCompra` > 0 depois de enviar a API
 
-Stamp (opcional):
-
-```bash
-curl -s 'https://SEU-HOST/api/v1/health?persistencia=1&stamp=1'
-# redeploy…
-curl -s 'https://SEU-HOST/api/v1/health?persistencia=1'
-# stamp.em deve continuar o mesmo de antes do redeploy
-```
+Sobrevivência ao redeploy: anote `persistencia.ordensCompra` e `persistencia.databaseBytes` antes do redeploy e confira que se mantêm depois. (O antigo `?stamp=1`, que gravava um arquivo no volume por um GET público, foi removido.)
 
 ## Depois de corrigir o volume
 

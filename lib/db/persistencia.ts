@@ -1,4 +1,4 @@
-import { accessSync, constants, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "fs";
+import { accessSync, constants, existsSync, mkdirSync, statSync, writeFileSync } from "fs";
 import path from "path";
 import { resolveAnexosRoot } from "@/lib/ordens-compra/anexos";
 import { diretorioEvidencias, anosEvidenciaDisponiveis } from "@/lib/treinamentos/evidencias";
@@ -103,25 +103,4 @@ export function diagnosticoPersistencia() {
     databasePathEnv: process.env.DATABASE_PATH?.trim() || null,
     avisos,
   };
-}
-
-/** Stamp leve no volume para validar sobrevivência após redeploy. */
-export function gravarStampVolume() {
-  const dir = path.dirname(resolveDatabasePath());
-  if (isEphemeralPath(path.join(dir, "x"))) return null;
-  const stamp = path.join(dir, ".aionscope-volume-stamp");
-  const payload = { em: new Date().toISOString(), pid: process.pid };
-  writeFileSync(stamp, JSON.stringify(payload));
-  return payload;
-}
-
-export function lerStampVolume() {
-  const dir = path.dirname(resolveDatabasePath());
-  const stamp = path.join(dir, ".aionscope-volume-stamp");
-  if (!existsSync(stamp)) return null;
-  try {
-    return JSON.parse(readFileSync(stamp, "utf8")) as { em: string; pid: number };
-  } catch {
-    return null;
-  }
 }

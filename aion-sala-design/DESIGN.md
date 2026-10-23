@@ -4,7 +4,7 @@ TV de 50" (1920×1080), tema claro, cores da AION. A TV gira entre 8 telas com u
 Objetivo: **olhar a tela e saber o que precisa ser feito** e acompanhar todo o ciclo de vida dos equipamentos,
 seguindo o *Mapeamento dos processos da Engenharia Clínica* (HSJ, v1.1, 24/09/2026).
 
-> Os números nas imagens são **exemplos**. Só as OS 202609616, 202609709, 202609707, 202609708, e 202608831 vieram do sistema real. Tudo deve ser trocado pelos dados das APIs.
+> Todos os números de OS, patrimônios (tags) e valores nas telas são **fictícios** (OS 2099…, tags HSJ-9xxxx). Tudo deve ser trocado pelos dados das APIs.
 
 ## Conteúdo do pacote
 

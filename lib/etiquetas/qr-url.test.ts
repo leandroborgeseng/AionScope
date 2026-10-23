@@ -46,7 +46,7 @@ describe("applyEffortUrlTemplate", () => {
     assert.equal(
       applyEffortUrlTemplate(
         "{base}/Mobile/MEquipamentoPropriedade.aspx?eqp={Id}",
-        { tag: "HSJ-00001", id: 59 },
+        { tag: "HSJ-90001", id: 59 },
         "https://sjh.globalthings.net",
       ),
       "https://sjh.globalthings.net/Mobile/MEquipamentoPropriedade.aspx?eqp=59",
@@ -73,14 +73,14 @@ describe("applyEffortUrlTemplate", () => {
 });
 
 describe("resolveEtiquetaQrUrl", () => {
-  it("padrão Effort Mobile com Id (HSJ-00001 → eqp=59)", () => {
+  it("padrão Effort Mobile com Id (HSJ-90001 → eqp=59)", () => {
     clearEnv();
     process.env.NEXT_PUBLIC_APP_URL = "https://aionscope.example";
     assert.equal(effortEquipamentoUrlTemplate(), DEFAULT_EFFORT_EQUIPAMENTO_URL_TEMPLATE);
     const r = resolveEtiquetaQrUrl({
-      tag: "HSJ-00001",
+      tag: "HSJ-90001",
       id: 59,
-      fichaVidaPath: "/equipamentos/HSJ-00001",
+      fichaVidaPath: "/equipamentos/HSJ-90001",
       origin: "https://aionscope.example",
     });
     assert.equal(r.source, "effort-template");
@@ -88,7 +88,7 @@ describe("resolveEtiquetaQrUrl", () => {
       r.url,
       "https://sjh.globalthings.net/Mobile/MEquipamentoPropriedade.aspx?eqp=59",
     );
-    assert.equal(r.fichaVidaUrl, "https://aionscope.example/equipamentos/HSJ-00001");
+    assert.equal(r.fichaVidaUrl, "https://aionscope.example/equipamentos/HSJ-90001");
   });
 
   it("fallback ficha vida quando Id ausente (template padrão exige {Id})", () => {
@@ -110,14 +110,14 @@ describe("resolveEtiquetaQrUrl", () => {
       "{base}/equipamento/{Id}";
     process.env.NEXT_PUBLIC_ETIQUETA_QR_BASE = "https://sjh.globalthings.net";
     const r = resolveEtiquetaQrUrl({
-      tag: "HSJ-03001",
+      tag: "HSJ-93001",
       id: 7685,
-      fichaVidaPath: "/equipamentos/HSJ-03001",
+      fichaVidaPath: "/equipamentos/HSJ-93001",
       origin: "https://aionscope.example",
     });
     assert.equal(r.source, "effort-template");
     assert.equal(r.url, "https://sjh.globalthings.net/equipamento/7685");
-    assert.equal(r.fichaVidaUrl, "https://aionscope.example/equipamentos/HSJ-03001");
+    assert.equal(r.fichaVidaUrl, "https://aionscope.example/equipamentos/HSJ-93001");
   });
 
   it("ETIQUETA_QR_BASE altera só o {base} do template padrão", () => {

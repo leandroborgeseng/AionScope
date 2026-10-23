@@ -77,8 +77,8 @@ export function parsePbiDate(value: string | null | undefined): Date | null {
     return isValid(date) ? date : null;
   }
 
-  // Cronograma: às vezes YYYYMMDD + dígito (ex: 202607275 → 27/07/2026);
-  // às vezes YYYYMM + id de 3 dígitos (ex: 202608678 → ago/2026; "dia" 67 inválido).
+  // Cronograma: às vezes YYYYMMDD + dígito (ex: 209907275 → 27/07/2099);
+  // às vezes YYYYMM + id de 3 dígitos (ex: 209908678 → ago/2099; "dia" 67 inválido).
   if (/^20\d{7}$/.test(raw)) {
     const y = Number(raw.slice(0, 4));
     const mo = Number(raw.slice(4, 6));

@@ -9,13 +9,13 @@ import {
   validarContrato,
 } from "./contratos-proprios";
 
-const base = { nome: "", fornecedor: "SIEMENS", equipamento: "TOMOGRAFO", tipo: "MANUTENCAO", valorMensal: 100, inicio: "2026-01-01", fim: "2027-01-01" };
+const base = { nome: "", fornecedor: "FORNECEDOR DEMO", equipamento: "TOMOGRAFO", tipo: "MANUTENCAO", valorMensal: 100, inicio: "2026-01-01", fim: "2027-01-01" };
 
 test("válido gera nome equipamento – fornecedor", () => {
   const v = validarContrato(base);
   assert.ok(v.ok);
   if (v.ok) {
-    assert.equal(v.data.nome, "TOMOGRAFO – SIEMENS");
+    assert.equal(v.data.nome, "TOMOGRAFO – FORNECEDOR DEMO");
     assert.equal(v.data.tipo, "MANUTENCAO");
   }
 });
