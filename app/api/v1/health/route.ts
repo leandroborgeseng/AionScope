@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   const querPersistencia = url.searchParams.has("persistencia") || url.searchParams.has("verbose");
 
   const persistencia = diagnosticoPersistencia();
-  // Só contagem e origem (volume|ausente): sem nomes nem caminhos.
+  // Só contagem e origem (volume|semeado|ausente): sem nomes nem caminhos.
   const treinamentos = estadoTreinamentos();
 
   if (!querPersistencia) {

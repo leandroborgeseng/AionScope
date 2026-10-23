@@ -8,6 +8,8 @@ type EvidenciasStatus = {
   tokenObrigatorio: boolean;
   anos: string[];
   liberado: boolean;
+  /** A4: sessão de admin no navegador da TV (sem ela, os PDFs não abrem). */
+  sessao?: boolean;
 };
 
 /** Tela TV: maturidade da equipe + evidências PDF (sem nomes — LGPD). */
@@ -89,7 +91,7 @@ export function TvTreinamentos({
   const aAtual = painel.anos.find((a) => a.ano === painel.ano_atual);
   const topSetores = painel.setores.slice(0, 12);
   const anosLista = evidencias?.anos ?? [];
-  const podeAbrir = evidencias ? !evidencias.tokenObrigatorio || evidencias.liberado : false;
+  const podeAbrir = evidencias ? evidencias.liberado : false;
   const maxSetor = Math.max(
     1,
     ...topSetores.map((s) => Math.max(s.treinados_anterior, s.reciclados_atual + s.novos_atual)),
@@ -230,7 +232,9 @@ export function TvTreinamentos({
                       {!tem
                         ? "envie no painel Indicadores"
                         : !podeAbrir
-                          ? "desbloqueie com token"
+                          ? evidencias && !evidencias.sessao
+                            ? "requer login de admin"
+                            : "desbloqueie com token"
                           : ano === "2025"
                             ? "manuscritas · evidência"
                             : "Google Forms · evidência"}
