@@ -70,7 +70,7 @@ function seedFromJsonFiles(db: Database.Database) {
       valor_manual_referencia:
         parque?.valorManualReferencia != null && Number.isFinite(parque.valorManualReferencia)
           ? parque.valorManualReferencia
-          : 57_000_000,
+          : null,
       notas: typeof parque?.notas === "string" ? parque.notas : null,
     });
   }

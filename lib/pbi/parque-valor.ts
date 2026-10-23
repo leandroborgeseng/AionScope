@@ -2,9 +2,6 @@ import { parseBrNumber } from "./dates";
 import { isEquipamentoMedico } from "./medical";
 import type { EquipamentoItem } from "./types";
 
-/** Meta de referência da planilha / gestão (~R$ 57 milhões) — só auditoria. */
-export const PARQUE_META_REFERENCIA = 57_000_000;
-
 export type ParqueValorCampo = "substituicao" | "aquisicao";
 
 export type ParqueValorStats = {
@@ -30,10 +27,6 @@ export type ParqueValorResumo = {
     todos: ParqueValorStats;
     medicos: ParqueValorStats;
   };
-  /** % da meta ~57 mi usando substituição de TODOS. */
-  vsMetaTodosSubstituicao: number | null;
-  /** % da meta ~57 mi usando substituição só médicos (auditoria). */
-  vsMetaMedicosSubstituicao: number | null;
   notas: string[];
 };
 
@@ -69,11 +62,6 @@ export function resumirValorParqueApi(items: EquipamentoItem[]): ParqueValorResu
   const aqTodos = statsCampo(items, "aquisicao");
   const aqMedicos = statsCampo(medicos, "aquisicao");
 
-  const vsMetaTodos =
-    PARQUE_META_REFERENCIA > 0 ? (subTodos.total / PARQUE_META_REFERENCIA) * 100 : null;
-  const vsMetaMedicos =
-    PARQUE_META_REFERENCIA > 0 ? (subMedicos.total / PARQUE_META_REFERENCIA) * 100 : null;
-
   const notas: string[] = [
     "Denominador oficial: soma ValorDeSubstituicao de TODOS os equipamentos cadastrados.",
     "ValorDeSubstituicao só vem preenchido com incluirCustoSubstituicao=true na API.",
@@ -86,8 +74,6 @@ export function resumirValorParqueApi(items: EquipamentoItem[]): ParqueValorResu
     nMedicos: medicos.length,
     substituicao: { todos: subTodos, medicos: subMedicos },
     aquisicao: { todos: aqTodos, medicos: aqMedicos },
-    vsMetaTodosSubstituicao: vsMetaTodos,
-    vsMetaMedicosSubstituicao: vsMetaMedicos,
     notas,
   };
 }
