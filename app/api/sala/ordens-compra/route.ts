@@ -1,3 +1,4 @@
+import { exigirSessaoEscritaSala } from "@/lib/auth/sala-escrita";
 import { invalidarCacheSnapshot } from "@/lib/ec/montar-snapshot";
 import { jsonErro, jsonErroValidacao, jsonInvalido, jsonOk, lerJson } from "@/lib/ordens-compra/http";
 import { editarOrdemSala, listarOrdensCompra, obterOrdemCompra } from "@/lib/ordens-compra/store";
@@ -18,6 +19,8 @@ export async function GET(request: Request) {
  * e marca-os em editado_manualmente para o robô não sobrescrever.
  */
 export async function PATCH(request: Request) {
+  const recusa = exigirSessaoEscritaSala(request);
+  if (recusa) return recusa;
   const body = await lerJson(request);
   if (body && typeof body === "object" && "_invalido" in body) return jsonInvalido();
   const numero =

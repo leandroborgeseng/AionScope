@@ -1,4 +1,7 @@
 "use client";
+import { AvisoLoginAdmin } from "@/components/auth/aviso-login-admin";
+import { useSessaoAdmin } from "@/hooks/use-sessao-admin";
+import { DICA_REQUER_LOGIN, mensagemErroEscrita } from "@/lib/auth/sessao-ui";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
@@ -41,10 +44,12 @@ function Lista({
   titulo,
   linhas,
   onEncerrar,
+  bloqueado,
 }: {
   titulo: string;
   linhas: Array<{ id: string; texto: string }>;
   onEncerrar?: (id: string) => void;
+  bloqueado?: boolean;
 }) {
   return (
     <Card>
@@ -61,6 +66,8 @@ function Lista({
                 type="button"
                 className="text-xs font-semibold text-aion-blue"
                 onClick={() => onEncerrar(linha.id)}
+                disabled={bloqueado}
+                title={bloqueado ? DICA_REQUER_LOGIN : undefined}
               >
                 encerrar
               </button>
@@ -73,6 +80,7 @@ function Lista({
 }
 
 export default function SalaRegistrosPage() {
+  const { logado } = useSessaoAdmin();
   const [dados, setDados] = useState<Pacote | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
@@ -104,7 +112,7 @@ export default function SalaRegistrosPage() {
     });
     const json = (await resposta.json()) as { ok: boolean; message?: string };
     if (!json.ok) {
-      setErro(json.message ?? "Falha ao gravar.");
+      setErro(mensagemErroEscrita(resposta.status, json.message, "Falha ao gravar."));
       return;
     }
     evento.currentTarget.reset();
@@ -115,7 +123,7 @@ export default function SalaRegistrosPage() {
   async function encerrar(tipo: string, id: string) {
     const resposta = await fetch(`/api/sala/registros/${tipo}/${id}`, { method: "DELETE" });
     if (!resposta.ok) {
-      setErro("Não foi possível encerrar.");
+      setErro(mensagemErroEscrita(resposta.status, null, "Não foi possível encerrar."));
       return;
     }
     await carregar();
@@ -123,9 +131,10 @@ export default function SalaRegistrosPage() {
 
   return (
     <div className="space-y-6">
+      {!logado ? <AvisoLoginAdmin className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" /> : null}
       <PageHeader
         title="Registros da Sala"
-        description="Impedimentos, P04–P07, feriados e melhorias do item 15. Ainda sem login — use só na rede interna."
+        description="Impedimentos, P04–P07, feriados e melhorias do item 15."
       />
       <p className="text-sm text-aion-muted">
         Estes dados entram no snapshot da TV em <Link className="text-aion-blue underline" href="/sala">/sala</Link>.
@@ -137,7 +146,8 @@ export default function SalaRegistrosPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">Impedimento operacional</CardTitle></CardHeader>
           <CardContent>
-            <form className="grid gap-3" onSubmit={(evento) => void enviar(evento, "impedimento")}>
+            <form className="grid gap-3" data-escrita onSubmit={(evento) => void enviar(evento, "impedimento")}>
+              <fieldset disabled={!logado} title={logado ? undefined : DICA_REQUER_LOGIN} className="contents">
               <Campo label="Tag" name="tag" required placeholder="HSJ-90042" />
               <Campo label="Equipamento" name="equipamento" />
               <Campo label="Motivo" name="motivo" required />
@@ -146,6 +156,7 @@ export default function SalaRegistrosPage() {
               <button className="rounded-lg bg-aion-blue px-4 py-2 text-sm font-semibold text-white" type="submit">
                 Salvar impedimento
               </button>
+              </fieldset>
             </form>
           </CardContent>
         </Card>
@@ -153,7 +164,8 @@ export default function SalaRegistrosPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">P04 · Aquisição</CardTitle></CardHeader>
           <CardContent>
-            <form className="grid gap-3" onSubmit={(evento) => void enviar(evento, "aquisicao")}>
+            <form className="grid gap-3" data-escrita onSubmit={(evento) => void enviar(evento, "aquisicao")}>
+              <fieldset disabled={!logado} title={logado ? undefined : DICA_REQUER_LOGIN} className="contents">
               <Campo label="Descrição" name="descricao" required />
               <Campo label="Status" name="status" placeholder="em andamento" />
               <Campo label="Previsão" name="previsao" type="date" />
@@ -161,6 +173,7 @@ export default function SalaRegistrosPage() {
               <button className="rounded-lg bg-aion-blue px-4 py-2 text-sm font-semibold text-white" type="submit">
                 Salvar aquisição
               </button>
+              </fieldset>
             </form>
           </CardContent>
         </Card>
@@ -168,7 +181,8 @@ export default function SalaRegistrosPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">P05 · Obra / implantação</CardTitle></CardHeader>
           <CardContent>
-            <form className="grid gap-3" onSubmit={(evento) => void enviar(evento, "obra")}>
+            <form className="grid gap-3" data-escrita onSubmit={(evento) => void enviar(evento, "obra")}>
+              <fieldset disabled={!logado} title={logado ? undefined : DICA_REQUER_LOGIN} className="contents">
               <Campo label="Descrição" name="descricao" required />
               <Campo label="Status" name="status" placeholder="em andamento" />
               <Campo label="Previsão" name="previsao" type="date" />
@@ -176,6 +190,7 @@ export default function SalaRegistrosPage() {
               <button className="rounded-lg bg-aion-blue px-4 py-2 text-sm font-semibold text-white" type="submit">
                 Salvar obra
               </button>
+              </fieldset>
             </form>
           </CardContent>
         </Card>
@@ -183,7 +198,8 @@ export default function SalaRegistrosPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">P06 · Treinamento</CardTitle></CardHeader>
           <CardContent>
-            <form className="grid gap-3" onSubmit={(evento) => void enviar(evento, "treinamento")}>
+            <form className="grid gap-3" data-escrita onSubmit={(evento) => void enviar(evento, "treinamento")}>
+              <fieldset disabled={!logado} title={logado ? undefined : DICA_REQUER_LOGIN} className="contents">
               <Campo label="Data" name="data" type="date" required />
               <Campo label="Tema" name="tema" required />
               <Campo label="Participantes" name="participantes" type="number" />
@@ -194,6 +210,7 @@ export default function SalaRegistrosPage() {
               <button className="rounded-lg bg-aion-blue px-4 py-2 text-sm font-semibold text-white" type="submit">
                 Salvar treinamento
               </button>
+              </fieldset>
             </form>
           </CardContent>
         </Card>
@@ -201,7 +218,8 @@ export default function SalaRegistrosPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">P07 · Alerta / recall</CardTitle></CardHeader>
           <CardContent>
-            <form className="grid gap-3" onSubmit={(evento) => void enviar(evento, "alerta")}>
+            <form className="grid gap-3" data-escrita onSubmit={(evento) => void enviar(evento, "alerta")}>
+              <fieldset disabled={!logado} title={logado ? undefined : DICA_REQUER_LOGIN} className="contents">
               <Campo label="Título" name="titulo" required />
               <Campo label="Equipamentos afetados" name="equipamentos" placeholder="HSJ-90001, HSJ-90002" />
               <label className="flex items-center gap-2 text-sm">
@@ -212,6 +230,7 @@ export default function SalaRegistrosPage() {
               <button className="rounded-lg bg-aion-blue px-4 py-2 text-sm font-semibold text-white" type="submit">
                 Salvar alerta
               </button>
+              </fieldset>
             </form>
           </CardContent>
         </Card>
@@ -219,13 +238,15 @@ export default function SalaRegistrosPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">Melhoria do item 15</CardTitle></CardHeader>
           <CardContent>
-            <form className="grid gap-3" onSubmit={(evento) => void enviar(evento, "melhoria")}>
+            <form className="grid gap-3" data-escrita onSubmit={(evento) => void enviar(evento, "melhoria")}>
+              <fieldset disabled={!logado} title={logado ? undefined : DICA_REQUER_LOGIN} className="contents">
               <Campo label="Item" name="item" required />
               <Campo label="Status" name="status" placeholder="pendente / em andamento / feito" />
               <Campo label="Observação" name="observacao" />
               <button className="rounded-lg bg-aion-blue px-4 py-2 text-sm font-semibold text-white" type="submit">
                 Salvar melhoria
               </button>
+              </fieldset>
             </form>
           </CardContent>
         </Card>
@@ -233,12 +254,14 @@ export default function SalaRegistrosPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">Feriado</CardTitle></CardHeader>
           <CardContent>
-            <form className="grid gap-3" onSubmit={(evento) => void enviar(evento, "feriado")}>
+            <form className="grid gap-3" data-escrita onSubmit={(evento) => void enviar(evento, "feriado")}>
+              <fieldset disabled={!logado} title={logado ? undefined : DICA_REQUER_LOGIN} className="contents">
               <Campo label="Data" name="data" type="date" required />
               <Campo label="Nome" name="nome" required placeholder="Finados" />
               <button className="rounded-lg bg-aion-blue px-4 py-2 text-sm font-semibold text-white" type="submit">
                 Salvar feriado
               </button>
+              </fieldset>
             </form>
           </CardContent>
         </Card>
@@ -247,6 +270,7 @@ export default function SalaRegistrosPage() {
       {dados ? (
         <div className="grid gap-4 xl:grid-cols-2">
           <Lista
+            bloqueado={!logado}
             titulo="Impedimentos ativos"
             linhas={dados.impedimentos.map((item) => ({
               id: String(item.id),
@@ -255,6 +279,7 @@ export default function SalaRegistrosPage() {
             onEncerrar={(id) => void encerrar("impedimento", id)}
           />
           <Lista
+            bloqueado={!logado}
             titulo="Aquisições"
             linhas={dados.aquisicoes.map((item) => ({
               id: String(item.id),
@@ -263,6 +288,7 @@ export default function SalaRegistrosPage() {
             onEncerrar={(id) => void encerrar("aquisicao", id)}
           />
           <Lista
+            bloqueado={!logado}
             titulo="Obras"
             linhas={dados.obras.map((item) => ({
               id: String(item.id),
@@ -271,6 +297,7 @@ export default function SalaRegistrosPage() {
             onEncerrar={(id) => void encerrar("obra", id)}
           />
           <Lista
+            bloqueado={!logado}
             titulo="Treinamentos"
             linhas={dados.treinamentos.map((item) => ({
               id: String(item.id),
@@ -278,6 +305,7 @@ export default function SalaRegistrosPage() {
             }))}
           />
           <Lista
+            bloqueado={!logado}
             titulo="Alertas / recall"
             linhas={dados.alertas.map((item) => ({
               id: String(item.id),
@@ -286,6 +314,7 @@ export default function SalaRegistrosPage() {
             onEncerrar={(id) => void encerrar("alerta", id)}
           />
           <Lista
+            bloqueado={!logado}
             titulo="Melhorias"
             linhas={dados.melhorias.map((item) => ({
               id: String(item.id),
@@ -293,6 +322,7 @@ export default function SalaRegistrosPage() {
             }))}
           />
           <Lista
+            bloqueado={!logado}
             titulo="Feriados"
             linhas={dados.feriados.map((item) => ({
               id: String(item.id),

@@ -1,4 +1,7 @@
 "use client";
+import { AvisoLoginAdmin } from "@/components/auth/aviso-login-admin";
+import { useSessaoAdmin } from "@/hooks/use-sessao-admin";
+import { DICA_REQUER_LOGIN, MSG_SESSAO_EXPIRADA } from "@/lib/auth/sessao-ui";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -177,6 +180,7 @@ const ABAS: { id: AbaLista; rotulo: string }[] = [
 ];
 
 export default function SalaOrdensCompraPage() {
+  const { logado } = useSessaoAdmin();
   const [filtros, setFiltros] = useState<Filtros>(FILTROS_VAZIOS);
   const [aplicados, setAplicados] = useState<Filtros>(FILTROS_VAZIOS);
   const [page, setPage] = useState(1);
@@ -260,6 +264,7 @@ export default function SalaOrdensCompraPage() {
         body: JSON.stringify({ numero_ordem: numero, ...corpo }),
       });
       if (!resposta.ok) {
+        if (resposta.status === 401) throw new Error(MSG_SESSAO_EXPIRADA);
         const corpoErro = (await resposta.json().catch(() => ({}))) as { erro?: string };
         throw new Error(corpoErro.erro || `HTTP ${resposta.status}`);
       }
@@ -307,6 +312,7 @@ export default function SalaOrdensCompraPage() {
         { method: "POST", body: form },
       );
       if (!resposta.ok) {
+        if (resposta.status === 401) throw new Error(MSG_SESSAO_EXPIRADA);
         const corpoErro = (await resposta.json().catch(() => ({}))) as {
           erro?: string;
           detalhes?: Array<{ mensagem?: string }>;
@@ -333,6 +339,7 @@ export default function SalaOrdensCompraPage() {
         { method: "DELETE" },
       );
       if (!resposta.ok) {
+        if (resposta.status === 401) throw new Error(MSG_SESSAO_EXPIRADA);
         const corpoErro = (await resposta.json().catch(() => ({}))) as { erro?: string };
         throw new Error(corpoErro.erro || `HTTP ${resposta.status}`);
       }
@@ -358,6 +365,7 @@ export default function SalaOrdensCompraPage() {
         title="Ordens de compra"
         description="OCs do robô E-Mails Compras. Classifique, vincule OS, registre entrega ou marque duplicada / fora do escopo — a TV Compras lista só as abertas."
       />
+      {!logado ? <AvisoLoginAdmin className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" /> : null}
 
       <p className="text-sm text-aion-muted">
         Datas iguais à TV: <strong className="font-semibold text-aion-ink">Pedido (e-mail)</strong> ={" "}
@@ -535,7 +543,7 @@ export default function SalaOrdensCompraPage() {
           {dados?.itens.map((ordem) => {
             const abertaAgora = aberta === ordem.numero_ordem;
             const flags = ordem.editado_manualmente;
-            const busy = salvando === ordem.numero_ordem;
+            const busy = !logado || salvando === ordem.numero_ordem;
             const entregue = Boolean(ordem.data_entrega?.trim());
             const foraEscopo = ordem.status === "fora_escopo";
             const duplicada = ordem.status === "duplicada";
@@ -985,7 +993,8 @@ export default function SalaOrdensCompraPage() {
                                   <button
                                     type="button"
                                     className="text-[11px] font-semibold text-red-700 hover:underline disabled:opacity-40"
-                                    disabled={enviandoAnexo === ordem.numero_ordem}
+                                    disabled={!logado || enviandoAnexo === ordem.numero_ordem}
+                                    title={logado ? undefined : DICA_REQUER_LOGIN}
                                     onClick={() => void excluirAnexo(ordem.numero_ordem, anexo.id)}
                                   >
                                     Excluir

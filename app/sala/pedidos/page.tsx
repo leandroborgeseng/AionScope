@@ -1,4 +1,7 @@
 "use client";
+import { AvisoLoginAdmin } from "@/components/auth/aviso-login-admin";
+import { useSessaoAdmin } from "@/hooks/use-sessao-admin";
+import { DICA_REQUER_LOGIN, MSG_SESSAO_EXPIRADA, mensagemErroEscrita } from "@/lib/auth/sessao-ui";
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -145,6 +148,7 @@ function compraParaForm(compra: Compra): Formulario {
 }
 
 export default function SalaPedidosPage() {
+  const { logado } = useSessaoAdmin();
   const [dados, setDados] = useState<Pacote | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
@@ -158,7 +162,7 @@ export default function SalaPedidosPage() {
 
   const carregar = useCallback(async (sync = false) => {
     const resposta = await fetch(`/api/sala/compras${sync ? "?sync=1" : ""}`, { cache: "no-store" });
-    if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
+    if (!resposta.ok) throw new Error(resposta.status === 401 ? MSG_SESSAO_EXPIRADA : `HTTP ${resposta.status}`);
     setDados((await resposta.json()) as Pacote);
   }, []);
 
@@ -243,7 +247,7 @@ export default function SalaPedidosPage() {
       });
       const json = (await resposta.json()) as { ok: boolean; message?: string };
       if (!json.ok) {
-        setErro(json.message ?? "Falha ao gravar pedido.");
+        setErro(mensagemErroEscrita(resposta.status, json.message, "Falha ao gravar pedido."));
         return;
       }
       setOk(editandoId ? "Pedido atualizado." : "Pedido criado.");
@@ -268,7 +272,7 @@ export default function SalaPedidosPage() {
     });
     const json = (await resposta.json()) as { ok: boolean; message?: string };
     if (!json.ok) {
-      setErro(json.message ?? "Não foi possível apagar.");
+      setErro(mensagemErroEscrita(resposta.status, json.message, "Não foi possível apagar."));
       return;
     }
     if (editandoId === id) iniciarNovo();
@@ -291,7 +295,7 @@ export default function SalaPedidosPage() {
     });
     const json = (await resposta.json()) as { ok: boolean; message?: string };
     if (!json.ok) {
-      setErro(json.message ?? "Não foi possível marcar entregue.");
+      setErro(mensagemErroEscrita(resposta.status, json.message, "Não foi possível marcar entregue."));
       return;
     }
     setOk(`Pedido ${compra.os || compra.id.slice(0, 8)} marcado como entregue.`);
@@ -337,13 +341,14 @@ export default function SalaPedidosPage() {
         .
       </p>
 
+      {!logado ? <AvisoLoginAdmin className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" /> : null}
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
           onClick={() => void sincronizarEmail()}
-          disabled={sincronizando || !dados?.configurado}
+          disabled={!logado || sincronizando || !dados?.configurado}
           className="rounded-lg border border-aion-line bg-white px-4 py-2 text-sm font-semibold text-aion-ink disabled:opacity-60"
-          title={dados?.configurado ? "Buscar e-mails no Outlook" : "Configure M365 primeiro"}
+          title={!logado ? DICA_REQUER_LOGIN : dados?.configurado ? "Buscar e-mails no Outlook" : "Configure M365 primeiro"}
         >
           {sincronizando ? "Sincronizando…" : "Sincronizar e-mail"}
         </button>
@@ -430,16 +435,20 @@ export default function SalaPedidosPage() {
                   {compra.situacao !== "entregue" ? (
                     <button
                       type="button"
-                      className="rounded-md border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
+                      className="rounded-md border border-emerald-200 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 disabled:opacity-50"
                       onClick={() => void marcarEntregue(compra)}
+                      disabled={!logado}
+                      title={logado ? undefined : DICA_REQUER_LOGIN}
                     >
                       Entregue
                     </button>
                   ) : null}
                   <button
                     type="button"
-                    className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+                    className="rounded-md border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
                     onClick={() => void apagar(compra.id)}
+                    disabled={!logado}
+                    title={logado ? undefined : DICA_REQUER_LOGIN}
                   >
                     Apagar
                   </button>
@@ -509,7 +518,8 @@ export default function SalaPedidosPage() {
                   <button
                     className="rounded-lg bg-aion-blue px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
                     type="submit"
-                    disabled={salvando}
+                    disabled={salvando || !logado}
+                    title={logado ? undefined : DICA_REQUER_LOGIN}
                   >
                     {salvando ? "Salvando…" : editandoId ? "Salvar alterações" : "Criar pedido"}
                   </button>

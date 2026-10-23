@@ -1,3 +1,4 @@
+import { exigirSessaoEscritaSala } from "@/lib/auth/sala-escrita";
 import { NextResponse } from "next/server";
 import {
   apagarFeriado,
@@ -11,9 +12,11 @@ import { invalidarCacheSnapshot } from "@/lib/ec/montar-snapshot";
 export const dynamic = "force-dynamic";
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ tipo: string; id: string }> },
 ) {
+  const recusa = exigirSessaoEscritaSala(request);
+  if (recusa) return recusa;
   const { tipo, id } = await context.params;
   try {
     if (tipo === "impedimento") encerrarImpedimento(id);
