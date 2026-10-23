@@ -1,3 +1,4 @@
+import { exigirSessaoEscritaSala } from "@/lib/auth/sala-escrita";
 import { NextResponse } from "next/server";
 import { jsonErro, jsonOk } from "@/lib/ordens-compra/http";
 import {
@@ -53,7 +54,9 @@ export async function GET(request: Request, context: Ctx) {
 }
 
 /** Remove anexo (metadado + arquivo). */
-export async function DELETE(_request: Request, context: Ctx) {
+export async function DELETE(request: Request, context: Ctx) {
+  const recusa = exigirSessaoEscritaSala(request);
+  if (recusa) return recusa;
   const { numero, id } = await resolver(context);
   if (!Number.isInteger(id) || id <= 0) return jsonErro("não encontrado", 404);
   if (!obterOrdemCompra(numero)) return jsonErro("não encontrado", 404);

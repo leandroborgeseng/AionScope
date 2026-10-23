@@ -1,4 +1,6 @@
 "use client";
+import { useRouter } from "next/navigation";
+import { voltarSeguro } from "@/lib/auth/sessao-ui";
 
 import Link from "next/link";
 import { useMemo, useState, type FormEvent } from "react";
@@ -239,6 +241,7 @@ function FormContrato({
 
 function PainelLogin() {
   const qc = useQueryClient();
+  const router = useRouter();
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const entrar = useMutation({
@@ -247,6 +250,9 @@ function PainelLogin() {
       setSenha("");
       setErro(null);
       qc.invalidateQueries({ queryKey: QK_SESSAO });
+      // Veio de uma tela de escrita (Compras/OC/Registros): volta para ela.
+      const voltar = voltarSeguro(new URLSearchParams(window.location.search).get("voltar"));
+      if (voltar) router.push(voltar);
     },
     onError: (e: unknown) => setErro((e as Error).message),
   });

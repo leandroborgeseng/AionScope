@@ -1,3 +1,4 @@
+import { exigirSessaoEscritaSala } from "@/lib/auth/sala-escrita";
 import { jsonErro, jsonErroValidacao, jsonOk } from "@/lib/ordens-compra/http";
 import {
   gravarAnexoOrdem,
@@ -24,6 +25,8 @@ export async function GET(_request: Request, context: Ctx) {
 
 /** Upload manual (multipart: campo `arquivo` ou `file`). */
 export async function POST(request: Request, context: Ctx) {
+  const recusa = exigirSessaoEscritaSala(request);
+  if (recusa) return recusa;
   const numero = await numeroDe(context);
   if (!obterOrdemCompra(numero)) return jsonErro("não encontrado", 404);
 

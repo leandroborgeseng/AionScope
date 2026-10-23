@@ -29,6 +29,8 @@ import { idsOsAbertas, novasOsDesde } from "@/lib/ec/novas-os";
 import { parseMoeda } from "@/lib/ec/texto";
 import { desbloquearSomTv, SALA_SOM_STORAGE, tocarChimeNovaOs } from "@/components/sala-tv/som-nova-os";
 import { TvTreinamentos } from "@/components/treinamentos/tv-treinamentos";
+import { useSessaoAdmin } from "@/hooks/use-sessao-admin";
+import { DICA_REQUER_LOGIN, MSG_SESSAO_EXPIRADA } from "@/lib/auth/sessao-ui";
 import { TelaEvolucao } from "@/components/sala-tv/tela-evolucao";
 import type { PainelTreinamentos } from "@/lib/treinamentos/types";
 import { SalaOsDetalhePainel } from "@/components/sala-tv/sala-os-detalhe";
@@ -1565,7 +1567,7 @@ function CelulaOsEditavel({
       });
       if (!resposta.ok) {
         const json = (await resposta.json().catch(() => null)) as { message?: string; erro?: string } | null;
-        throw new Error(json?.message ?? json?.erro ?? `HTTP ${resposta.status}`);
+        throw new Error(resposta.status === 401 ? MSG_SESSAO_EXPIRADA : (json?.message ?? json?.erro ?? `HTTP ${resposta.status}`));
       }
       setEditando(false);
       setSugestoes([]);
@@ -1670,6 +1672,7 @@ function TelaCompras({
   onInteracaoChange?: (ativa: boolean) => void;
   onAtualizar?: () => void | Promise<void>;
 }) {
+  const { logado } = useSessaoAdmin();
   const c = dados.compras;
   const [pagina, setPagina] = useState(0);
   const [ocultas, setOcultas] = useState<string[]>([]);
@@ -1714,7 +1717,7 @@ function TelaCompras({
       });
       if (!resposta.ok) {
         const json = (await resposta.json().catch(() => null)) as { message?: string; erro?: string } | null;
-        throw new Error(json?.message ?? json?.erro ?? `HTTP ${resposta.status}`);
+        throw new Error(resposta.status === 401 ? MSG_SESSAO_EXPIRADA : (json?.message ?? json?.erro ?? `HTTP ${resposta.status}`));
       }
       setOcultas((atual) => (atual.includes(numeroOrdem) ? atual : [...atual, numeroOrdem]));
       setConfirmando(null);
@@ -1739,6 +1742,7 @@ function TelaCompras({
 
   return (
     <div className="sala-coluna" style={{ flex: 1, minHeight: 0 }}>
+      {/* B1: no modo TV não mostra o aviso de login; os botões seguem desabilitados com a dica no title. */}
       <div
         style={{
           display: "grid",
@@ -1922,7 +1926,7 @@ function TelaCompras({
                     <CelulaOsEditavel
                       numeroOrdem={pedido.numeroOrdem}
                       valor={osDaLinha(pedido)}
-                      desabilitado={Boolean(busy)}
+                      desabilitado={Boolean(busy) || !logado}
                       onInteragir={() => setEditandoOs(true)}
                       onFimEdicao={() => setEditandoOs(false)}
                       onSalvo={async (numeroOs) => {
@@ -1944,7 +1948,8 @@ function TelaCompras({
                       <button
                         type="button"
                         className={`sala-compras-btn-entrega${emConfirmacao ? " confirmar" : ""}`}
-                        disabled={Boolean(busy) || editandoOs}
+                        disabled={Boolean(busy) || editandoOs || !logado}
+                        title={logado ? undefined : DICA_REQUER_LOGIN}
                         onClick={() => cliqueEntrega(pedido.numeroOrdem)}
                       >
                         {carregando ? "…" : emConfirmacao ? "Confirmar?" : "Entregue"}
