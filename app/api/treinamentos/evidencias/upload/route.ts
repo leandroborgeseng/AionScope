@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { exigirSessaoAdmin } from "@/lib/auth/contratos-sessao";
 import {
   anosEvidenciaConhecidos,
   recusarEvidencia,
@@ -15,6 +16,9 @@ export const dynamic = "force-dynamic";
  * Form: ano=2025|2026 + arquivo (PDF).
  */
 export async function POST(request: Request) {
+  // Grava PDF no volume: exige a sessão de administrador (#13) além do token de evidências.
+  const negado = exigirSessaoAdmin(request);
+  if (negado) return negado;
   if (!tokenEvidenciaValido(request)) {
     return recusarEvidencia();
   }

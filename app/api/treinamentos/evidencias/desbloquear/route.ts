@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
+import { exigirSessaoAdmin } from "@/lib/auth/contratos-sessao";
 import {
   evidenciasTokenConfigurado,
   TREINAMENTOS_EVIDENCIAS_TOKEN_ENV,
@@ -16,6 +17,9 @@ function iguais(a: string, b: string) {
 
 /** Grava cookie HttpOnly com o token para abrir os PDFs na mesma sessão. */
 export async function POST(request: Request) {
+  // Escrita (grava cookie de acesso às listas): exige a sessão de administrador (#13). 401 sem dados.
+  const negado = exigirSessaoAdmin(request);
+  if (negado) return negado;
   if (!evidenciasTokenConfigurado()) {
     // Ambiente sem token: PDFs liberados se existirem no volume.
     return NextResponse.json({ ok: true, liberado: true, tokenObrigatorio: false });
