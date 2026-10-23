@@ -1,5 +1,6 @@
 "use client";
 
+import { EntrarParaVer } from "@/components/auth/entrar-para-ver";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { GastoBarChart, type GastoChartClickMeta } from "@/components/charts/charts";
@@ -388,6 +389,17 @@ export function GastoReparoCard({
       ),
     },
   ];
+
+  // M1: sem sessão o proxy não manda "Custo" — nada de R$ 0,00 nem total parcial: card "Entre para ver".
+  const semValores = !loading && raw.length > 0 && raw.every((o) => !("Custo" in (o as object)));
+  if (semValores) {
+    return (
+      <div className="space-y-4">
+        <Heading title="Gasto mensal com reparo de eq. médicos" description={range.label} />
+        <EntrarParaVer oque="o gasto com reparo (valores em R$)" />
+      </div>
+    );
+  }
 
   return (
     <>

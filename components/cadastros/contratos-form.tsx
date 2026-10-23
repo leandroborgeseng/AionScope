@@ -380,13 +380,14 @@ export function ContratosCadastroForm() {
           <Card key={rotulo}>
             <CardContent className="pt-4">
               <p className="text-sm text-aion-muted">{rotulo} (ativos)</p>
-              <p className="text-xl font-semibold tabular-nums text-aion-ink">{formatBRL(t.valor)}</p>
-              <p className="text-xs text-aion-muted">{t.qtde} contrato(s) · por mês</p>
+              {/* M1 ciclo 5: sem sessão a lista vem 401 (vazia) — nunca mostrar R$ 0,00; o formulário de senha está no topo. */}
+              <p className="text-xl font-semibold tabular-nums text-aion-ink">{logado ? formatBRL(t.valor) : "—"}</p>
+              <p className="text-xs text-aion-muted">{logado ? `${t.qtde} contrato(s) · por mês` : "Entre com a senha acima para ver"}</p>
             </CardContent>
           </Card>
         ))}
       </section>
-      {totais.SEM_TIPO.qtde > 0 ? (
+      {logado && totais.SEM_TIPO.qtde > 0 ? (
         <p className="text-sm text-amber-900">
           {totais.SEM_TIPO.qtde} contrato(s) ativo(s) sem tipo ({formatBRL(totais.SEM_TIPO.valor)}) entram só no total geral.
         </p>

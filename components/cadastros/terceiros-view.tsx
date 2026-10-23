@@ -1,5 +1,6 @@
 "use client";
 
+import { EntrarParaVer } from "@/components/auth/entrar-para-ver";
 import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -113,6 +114,8 @@ export function TerceirosCadastroView() {
   const rows = useMemo(() => buildTerceirosLista(apiItems), [apiItems]);
   const terceirosOpts = useMemo(() => distinctTerceiros(rows), [rows]);
   const totaisValor = useMemo(() => resumirValorSubstituicaoPorTerceiro(rows), [rows]);
+  // M1: sem sessão o proxy não manda ValorDeSubstituicao/ValorDeAquisicao — mostra "—" e "Entre para ver".
+  const semValores = Boolean((eqQ.data as { parcialSemSessao?: boolean } | undefined)?.parcialSemSessao);
 
   const filtered = useMemo(() => {
     const q = busca.trim().toLocaleLowerCase("pt-BR");
@@ -238,13 +241,15 @@ export function TerceirosCadastroView() {
           <CardHeader className="p-4 pb-2">
             <CardDescription>Total substituição</CardDescription>
             <CardTitle className="text-2xl tabular-nums">
-              {eqQ.isLoading ? "…" : formatBRL(totaisValor.somaSubstituicaoTotal)}
+              {eqQ.isLoading ? "…" : semValores ? "—" : formatBRL(totaisValor.somaSubstituicaoTotal)}
             </CardTitle>
           </CardHeader>
         </Card>
       </div>
 
-      {!eqQ.isLoading && totaisValor.porTerceiro.length > 0 ? (
+      {!eqQ.isLoading && semValores ? <EntrarParaVer oque="os valores de substituição" /> : null}
+
+      {!eqQ.isLoading && !semValores && totaisValor.porTerceiro.length > 0 ? (
         <Card>
           <CardHeader className="p-4 pb-2">
             <CardTitle>Valor de substituição por terceiro</CardTitle>
