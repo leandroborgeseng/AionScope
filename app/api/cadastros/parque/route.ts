@@ -3,7 +3,7 @@ import { lerHistoricoParque, lerParqueMensal } from "@/lib/cadastros/parque-hist
 import { atualizarParqueDaApi } from "@/lib/cadastros/parque-api";
 import { readParqueMeta, resolveValorParque } from "@/lib/cadastros/store";
 import type { ParqueMeta } from "@/lib/cadastros/types";
-import { getDatabaseFilePath } from "@/lib/db/client";
+import { exigirSessaoAdmin } from "@/lib/auth/contratos-sessao";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -20,11 +20,12 @@ function parquePayload(meta: ParqueMeta) {
     historico: lerHistoricoParque(12),
     mensal: lerParqueMensal(),
     regra: parqueRegraDe(process.env.PARQUE_REGRA),
-    databasePath: getDatabaseFilePath(),
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const recusa = exigirSessaoAdmin(request);
+  if (recusa) return recusa;
   const meta = readParqueMeta();
   return Response.json({
     ok: true,
@@ -34,6 +35,8 @@ export async function GET() {
 
 /** Atualiza valorApi a partir da soma de substituição (todos os equipamentos). */
 export async function POST(request: Request) {
+  const recusa = exigirSessaoAdmin(request);
+  if (recusa) return recusa;
   let atualizadoPor: string | null = null;
   try {
     const body = (await request.json()) as { atualizadoPor?: string };
