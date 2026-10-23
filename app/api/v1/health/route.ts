@@ -1,3 +1,4 @@
+import { persistenciaPublica } from "@/lib/db/persistencia-publica";
 import { jsonOk } from "@/lib/ordens-compra/http";
 import {
   diagnosticoPersistencia,
@@ -36,7 +37,7 @@ export async function GET(request: Request) {
 
   return jsonOk({
     status: persistencia.ok ? "ok" : "degraded",
-    persistencia,
+    persistencia: persistenciaPublica(persistencia),
     stamp,
     dica: persistencia.ok
       ? "Volume parece OK — dados devem sobreviver ao redeploy."

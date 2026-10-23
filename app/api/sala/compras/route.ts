@@ -1,3 +1,4 @@
+import { exigirSessaoEscritaSala } from "@/lib/auth/sala-escrita";
 import { NextResponse } from "next/server";
 import { m365Configurado } from "@/lib/compras/parse-email";
 import {
@@ -52,6 +53,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const recusa = exigirSessaoEscritaSala(request);
+  if (recusa) return recusa;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const acao = String(body.acao ?? "criar");
 
