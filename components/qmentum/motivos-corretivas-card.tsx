@@ -1,5 +1,6 @@
 "use client";
 
+import { EntrarParaVer, ehErroSemSessao } from "@/components/auth/entrar-para-ver";
 import { useCallback, useMemo, useState, type ReactNode } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { SimpleBarChart } from "@/components/charts/charts";
@@ -95,7 +96,10 @@ export function MotivosCorretivasCard({
   const medical = useMedicalIndex();
   const axOsQ = usePbiQuery<AnexoOsItem[]>("anexos-os", ANEXOS_FILTERS);
   const anexos = dataOf(axOsQ.data) ?? [];
-  const anexosError = errorOf(axOsQ.data)?.message ?? null;
+  const anexosError0 = errorOf(axOsQ.data)?.message ?? null;
+  // M1: 401 sem sessão vira card "Entre para ver" (não mensagem de erro).
+  const anexosSemSessao = ehErroSemSessao(anexosError0);
+  const anexosError = anexosSemSessao ? null : anexosError0;
 
   const [drill, setDrill] = useState<Drill>(null);
   const [aba, setAba] = useState<Aba>("recorrencia");
@@ -338,7 +342,9 @@ export function MotivosCorretivasCard({
               </Badge>
             ))}
           </div>
-          {anexosError ? (
+          {anexosSemSessao ? (
+            <EntrarParaVer oque="os anexos (fotos) das OS" />
+          ) : anexosError ? (
             <p className="text-amber-800">
               Anexos indisponíveis: {anexosError}. A lista de mau uso segue sem badge de foto.
             </p>

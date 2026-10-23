@@ -54,7 +54,7 @@ async function chamar(resource: string, cookie?: string, qs = QS) {
 test("sem sessão: equipamentos sem ValorDeSubstituicao/ValorDeAquisicao; resto intacto", async () => {
   const { r, txt } = await chamar("equipamentos");
   assert.equal(r.status, 200);
-  const j = JSON.parse(txt) as { ok: boolean; data: Record<string, unknown>[]; camposOcultos: string[] };
+  const j = JSON.parse(txt) as { ok: boolean; data: Record<string, unknown>[]; parcialSemSessao: boolean };
   assert.equal(j.ok, true);
   assert.equal(j.data.length, 2);
   for (const e of j.data) {
@@ -63,7 +63,7 @@ test("sem sessão: equipamentos sem ValorDeSubstituicao/ValorDeAquisicao; resto 
   }
   assert.deepEqual(j.data.map((e) => e.Tag), ["HSJ-90001", "HSJ-90002"]);
   assert.equal(j.data[0].Setor, "SETOR DEMO A");
-  assert.deepEqual(j.camposOcultos, ["ValorDeAquisicao", "ValorDeSubstituicao"]);
+  assert.equal(j.parcialSemSessao, true);
   for (const v of ["1.234,56", "999,00", "7.654,32"]) assert.equal(txt.includes(v), false, v);
   assert.equal(r.headers.get("cache-control"), "private, no-store");
   assert.equal(r.headers.get("vary"), "Cookie");
@@ -72,9 +72,10 @@ test("sem sessão: equipamentos sem ValorDeSubstituicao/ValorDeAquisicao; resto 
 test("com sessão: resposta completa, igual ao upstream", async () => {
   const { r, txt } = await chamar("equipamentos", SESSAO());
   assert.equal(r.status, 200);
-  const j = JSON.parse(txt) as { data: unknown[]; camposOcultos?: unknown };
+  const j = JSON.parse(txt) as { data: unknown[]; parcialSemSessao?: unknown };
   assert.deepEqual(j.data, EQUIP);
-  assert.equal(j.camposOcultos, undefined);
+  assert.equal(j.parcialSemSessao, undefined);
+  assert.equal(r.headers.get("cache-control"), "private, no-store");
 });
 
 test("cache resource:querystring: completo em cache não vaza sem sessão (com→sem→com, mesma chave)", async () => {
