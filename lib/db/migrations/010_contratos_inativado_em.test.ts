@@ -81,3 +81,30 @@ test("C5 store: inativar grava inativado_em BRT; reinativar mantém; reativar li
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("C6b 010 com valores quebrados fictícios: centavos intactos e soma arredondada igual", () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "m010c-"));
+  try {
+    const db = new Database(path.join(dir, "t.sqlite"));
+    db.exec(SCHEMA_SQL);
+    aplicarMigration009ContratosProprios(db);
+    const ins = db.prepare(
+      "INSERT INTO contratos (id, nome, fornecedor, valor_mensal, inicio, fim, ativo, tipo, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
+    );
+    // Fictícios: 1234,56 + 0,10 + 0,20 + 333,33×3 + 9876,54 + 0,01 = 12.111,40
+    const valores = [1234.56, 0.1, 0.2, 333.33, 333.33, 333.33, 9876.54, 0.01];
+    valores.forEach((v, i) => ins.run(`q${i}`, `Q${i}`, "FORNECEDOR DEMO", v, "2026-01-01", null, 1, "MANUTENCAO", "2026-10-20T00:00:00Z", "2026-10-20T00:00:00Z"));
+    const soma = () => (db.prepare("SELECT ROUND(SUM(valor_mensal), 2) s FROM contratos").get() as { s: number }).s;
+    const antes = checksum(db);
+    assert.equal(soma(), 12111.4);
+    aplicarMigration010ContratosInativadoEm(db);
+    aplicarMigration010ContratosInativadoEm(db);
+    assert.equal(checksum(db), antes);
+    assert.equal(soma(), 12111.4);
+    const lidos = (db.prepare("SELECT valor_mensal v FROM contratos ORDER BY id").all() as Array<{ v: number }>).map((r) => r.v);
+    assert.deepEqual(lidos, valores, "cada valor_mensal mantém os centavos exatos");
+    db.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

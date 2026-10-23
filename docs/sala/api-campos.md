@@ -10,7 +10,7 @@ Exemplos abaixo são valores de categoria. Nomes de pessoas não entram aqui.
 
 | Coluna | Tipo | Nulos | Exemplo | Significado provável |
 |---|---|---:|---|---|
-| Anexo | texto | 0% | NF 106587.pdf | Nome do arquivo. Sem tipo de anexo nem data de emissão do laudo. |
+| Anexo | texto | 0% | NF 000001.pdf | Nome do arquivo. Sem tipo de anexo nem data de emissão do laudo. |
 | DataHoraInclusao | data | 0% | 2018-06-20T16:57:06 | Quando o arquivo entrou no Effort, não a data do laudo. |
 | EquipamentoId | number | 0% | 4479 | Id interno do equipamento. Liga com equipamentos.Id. |
 | LinkAnexo | texto | 0% | https://sjh.globalthings.net/api/v1/files/1048/bytoken/HhZSAuiUabN9cu24cY2kNGDjR | Campo retornado pela API; uso na Sala ainda não fechado. |
@@ -22,7 +22,7 @@ Exemplos abaixo são valores de categoria. Nomes de pessoas não entram aqui.
 
 | Coluna | Tipo | Nulos | Exemplo | Significado provável |
 |---|---|---:|---|---|
-| Anexo | texto | 0% | Certificados_Bbraum.pdf | Nome do arquivo. Sem tipo de anexo nem data de emissão do laudo. |
+| Anexo | texto | 0% | Certificado_demo.pdf | Nome do arquivo. Sem tipo de anexo nem data de emissão do laudo. |
 | CodigoOS | numero-texto | 0% | 209907871 | Número da OS no anexo. Liga com OS. |
 | DataHoraInclusao | data | 0% | 2024-12-09T15:42:52 | Quando o arquivo entrou no Effort, não a data do laudo. |
 | LinkAnexo | texto | 0% | https://sjh.globalthings.net/api/v1/files/83/bytoken/HhZSAuiUabN9cu24cY2kNGDjRML | Campo retornado pela API; uso na Sala ainda não fechado. |
@@ -38,13 +38,13 @@ Exemplos abaixo são valores de categoria. Nomes de pessoas não entram aqui.
 | DataDaUltima | vazio | 100% | — | Última execução do plano. 100% vazio neste recorte. |
 | Empresa | texto | 0% | HOSPITAL E MATERNIDADE SÃO JOAQUIM | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Equipamento | texto | 0% | TERMOHIGRÔMETRO | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Fabricante | texto | 8.8% | MINIPA | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Modelo | texto | 0% | MT241 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Fabricante | texto | 8.8% | FABRICANTE DEMO | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Modelo | texto | 0% | MODELO DEMO | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Observacao | vazio | 100% | — | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Perioridicade | texto | 0% | 6 Mês(Es) | Campo retornado pela API; uso na Sala ainda não fechado. |
 | PlanoDeManutencao | texto | 0% | CALIBRAÇÃO LABORATÓRIO ANÁLISES CLÍNICAS | Nome do plano. Liga cronograma ↔ OS. |
 | ProximaRealizacao | numero-texto | 0% | 209909735 | Código único por linha (ex. 209909735), não uma data de calendário. |
-| Setor | texto | 0% | LABORATÓRIO ANÁLISES CLÍNICAS -15A | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Setor | texto | 0% | SETOR DEMO A | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Tag | texto | 0% | HSJ-91880 | Chave do equipamento (HSJ-#####). Liga OS, parque, cronograma e anexos. |
 | TipoDeManutencao | texto | 0% | A - CALIBRAÇÃO DE EQUIPAMENTOS MÉDICOS | Tipo do Effort (corretiva, preventiva, calibração, TSE…). |
 
@@ -62,10 +62,10 @@ Falha HTTP 400. Ocorreu um erro ao processar solicitação.
 
 | Coluna | Tipo | Nulos | Exemplo | Significado provável |
 |---|---|---:|---|---|
-| Bairro | texto | 0% | SÃO JOAQUIM | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Bairro | texto | 0% | BAIRRO DEMO | Campo retornado pela API; uso na Sala ainda não fechado. |
 | CentroDeCusto | texto | 0% | HOSPITAL SÃO JOAQUIM | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Cep | texto | 0% | 14406-355 | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Cidade | texto | 0% | FRANCA | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Cep | texto | 0% | 00000-000 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Cidade | texto | 0% | CIDADE DEMO | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Cliente | vazio | 100% | — | Campo retornado pela API; uso na Sala ainda não fechado. |
 | CodigoCliente | vazio | 100% | — | Campo retornado pela API; uso na Sala ainda não fechado. |
 | ComponenteDe | vazio | 100% | — | Campo retornado pela API; uso na Sala ainda não fechado. |
@@ -79,22 +79,22 @@ Falha HTTP 400. Ocorreu um erro ao processar solicitação.
 | DataDeInstalação | data | 25.6% | 30/05/2025 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | EndOfLife | data | 27.4% | 01/01/2050 | Data de fim de vida. Não é um campo 'anos de vida útil'. 01/01/2050 parece placeholder. |
 | EndOfService | data | 27.4% | 01/01/2050 | Fim de suporte do fabricante. Não há flag 'descontinuado'. |
-| Endereco | texto | 0% | RUA ABÍLIO COUTINHO 331, SÃO JOAQUIM, FRANCA-SP | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Endereco | texto | 0% | RUA EXEMPLO 100, BAIRRO DEMO, CIDADE-UF | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Equipamento | texto | 0% | ESFIGMOMANÔMETRO | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Fabricante | texto | 5.5% | B BRAUN S/A. | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Fabricante | texto | 5.5% | FABRICANTE DEMO | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Fornecedor | texto | 52% | FORNECEDOR A | Campo retornado pela API; uso na Sala ainda não fechado. |
-| GarantiaExterna | texto | 96.4% | DE SERVIÇO: DRAGER INDUSTRIA E COMERCIO LTDA ATÉ: 10/04/2017 NA OS: 201607994 | Campo retornado pela API; uso na Sala ainda não fechado. |
-| GrupoDeSetores | texto | 0% | DEPÓSITO PATRIMÔNIO | Campo retornado pela API; uso na Sala ainda não fechado. |
+| GarantiaExterna | texto | 96.4% | DE SERVIÇO: EMPRESA DEMO LTDA ATÉ: 01/01/2099 NA OS: 209900002 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| GrupoDeSetores | texto | 0% | GRUPO DEMO | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Id | number | 0% | 7685 | Id interno do equipamento. |
-| Modelo | texto | 0% | ANERÓIDE | Campo retornado pela API; uso na Sala ainda não fechado. |
-| NSerie | texto | 11.5% | PH4A80709/16 | Campo retornado pela API; uso na Sala ainda não fechado. |
-| NotaFiscal | texto | 53.2% | 987471 | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Observacao | texto | 96.1% | EQUIPAMENTO ADQUIRIDO PELA SODEXO | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Patrimonio | texto | 62.4% | 765 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Modelo | texto | 0% | MODELO DEMO | Campo retornado pela API; uso na Sala ainda não fechado. |
+| NSerie | texto | 11.5% | SN-DEMO-0001 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| NotaFiscal | texto | 53.2% | 000000 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Observacao | texto | 96.1% | EQUIPAMENTO DE EXEMPLO | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Patrimonio | texto | 62.4% | PAT-0000 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Prioridade | texto | 98.8% | BAIXA (MÁX. 72HS) | Na OS, prazo no texto (2h, 4h, 12h, 72h). No equipamento, quase vazio. |
 | RazaoSocial | texto | 0% | HOSPITAL E MATERNIDADE SÃO JOAQUIM | Campo retornado pela API; uso na Sala ainda não fechado. |
 | RegistroAnvisa | texto | 24.4% | ISENTO | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Setor | texto | 0% | DEPÓSITO PATRIMÔNIO | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Setor | texto | 0% | SETOR DEMO A | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Situacao | texto | 0% | PRÓPRIO | Propriedade do bem (PRÓPRIO, COMODATO, LOCADO…), não se está parado. |
 | Status | texto | 0% | ATIVO | No equipamento: ATIVO/INATIVO. Na OS: SLA preenchido em 0,2%. |
 | Tag | texto | 0% | HSJ-93001 | Chave do equipamento (HSJ-#####). Liga OS, parque, cronograma e anexos. |
@@ -112,14 +112,14 @@ Falha HTTP 400. Ocorreu um erro ao processar solicitação.
 | Cliente | vazio | 100% | — | Campo retornado pela API; uso na Sala ainda não fechado. |
 | DataHoraAbertura | data | 0% | 04/02/2026 01:11:00 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Empresa | texto | 0% | HOSPITAL E MATERNIDADE SÃO JOAQUIM | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Equipamento | texto | 0% | CENTRAL DE MATERIAIS E ESTERILIZAÇÃO - 19 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Equipamento | texto | 0% | EQUIPAMENTO DEMO | Campo retornado pela API; uso na Sala ainda não fechado. |
 | NumeroOS | numero-texto | 0% | 209909834 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | ObservacaoDaRequisicao | texto | 23.9% | SOLICITO MANUTENÇÃO DE PORTA AGULHA. | Campo retornado pela API; uso na Sala ainda não fechado. |
 | PrazoParaAtendimento | texto | 98.7% | 12:00 | Prazo mostrado no monitor. |
 | Prioridade | texto | 0% | BAIXA (MÁX. 72HS) | Na OS, prazo no texto (2h, 4h, 12h, 72h). No equipamento, quase vazio. |
 | Requisitante | texto | 23.9% | (nome de pessoa) | Quem abriu o chamado. |
-| Setor | texto | 65.7% | UTI INFANTIL - 8 | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Tag | texto | 0% | 19 | Chave do equipamento (HSJ-#####). Liga OS, parque, cronograma e anexos. |
+| Setor | texto | 65.7% | SETOR DEMO A | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Tag | texto | 0% | HSJ-9NNNN | Chave do equipamento (HSJ-#####). Liga OS, parque, cronograma e anexos. |
 | TempoDecorrido | texto | 0% | 239 dia(s) 07:48 | Tempo desde a abertura no monitor. |
 | TipoManutencao | texto | 0% | A - INSTRUMENTAL | Campo retornado pela API; uso na Sala ainda não fechado. |
 
@@ -134,11 +134,11 @@ Falha HTTP 400. Ocorreu um erro ao processar solicitação.
 | Empresa | texto | 0% | HOSPITAL E MATERNIDADE SÃO JOAQUIM | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Equipamento | vazio | 100% | — | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Numero | numero-texto | 0% | 91831 | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Observacao | texto | 0% | SOLCITO CONSERTO DE AR CONDICONADO SALA DE EXAMES | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Observacao | texto | 0% | EQUIPAMENTO DE EXEMPLO | Campo retornado pela API; uso na Sala ainda não fechado. |
 | PrazoParaAtendimento | vazio | 100% | — | Prazo mostrado no monitor. |
 | Prioridade | texto | 0% | MÉDIA (MÁX. 12 HS) | Na OS, prazo no texto (2h, 4h, 12h, 72h). No equipamento, quase vazio. |
 | Requisitante | texto | 0% | (nome de pessoa) | Quem abriu o chamado no monitor. |
-| Setor | texto | 0% | UTI ADULTO - 5A | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Setor | texto | 0% | SETOR DEMO A | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Tag | vazio | 100% | — | Chave do equipamento (HSJ-#####). Liga OS, parque, cronograma e anexos. |
 | TempoDecorrido | texto | 0% | 00:00 | Tempo desde a abertura no monitor. |
 | TipoManutencao | texto | 0% | CORRETIVA | Campo retornado pela API; uso na Sala ainda não fechado. |
@@ -155,7 +155,7 @@ Falha HTTP 404. Recurso não encontrado.
 |---|---|---:|---|---|
 | AbertaPor | texto | 0% | (nome de pessoa) | Usuário que abriu a OS. |
 | Abertura | data | 0% | 04/02/2025 17:30 | Abertura da OS. |
-| Assistencia | texto | 99.1% | ADEMIR CARLOS DE ALMEIDA FRANCA -ME | Nome da assistência técnica externa, quando houver. |
+| Assistencia | texto | 99.1% | ASSISTÊNCIA TÉCNICA DEMO LTDA | Nome da assistência técnica externa, quando houver. |
 | Avaliacao | texto | 33.7% | BOM | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Causa | texto | 46.5% | DESGASTE NATURAL | Causa no encerramento. Vazia em cerca de metade das OS. |
 | CentroDeCusto | texto | 0% | HSJ - HOSPITAL SÃO JOAQUIM | Campo retornado pela API; uso na Sala ainda não fechado. |
@@ -170,30 +170,30 @@ Falha HTTP 404. Recurso não encontrado.
 | Deslocamento | texto | 38% | 0 dias  00:00 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Empresa | texto | 0% | HOSPITAL E MATERNIDADE SÃO JOAQUIM | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Equipamento | texto | 79.4% | MONITOR MULTIPARÂMETROS | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Fabricante | texto | 81.5% | PHILIPS | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Fabricante | texto | 81.5% | FABRICANTE DEMO | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Fechamento | data | 7.7% | 31/12/2025 13:00 | Fechamento da OS. |
 | Funcionamento | data | 100% | 14/04/2025 10:30 | Volta a funcionar. Quase nunca preenchida (4 OS). |
 | GrupoEmpresa | texto | 0% | GRUPO PRINCIPAL | Campo retornado pela API; uso na Sala ainda não fechado. |
 | HorasTrabalhadas | texto | 0% | 00:00 | Duração total HH:MM. Não traz data do 1º nem do último lançamento. |
 | JustificativaEncerramento | vazio | 100% | — | Campo retornado pela API; uso na Sala ainda não fechado. |
 | LiberadoParaUso | texto | 0% | NÃO INFORMADO | Campo retornado pela API; uso na Sala ainda não fechado. |
-| MatriculaResolvedor | texto | 42.5% | 21121000 | Campo retornado pela API; uso na Sala ainda não fechado. |
-| MatriculaResponsavel | texto | 0% | 211200000 | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Modelo | texto | 79.4% | ANERÓIDE | Campo retornado pela API; uso na Sala ainda não fechado. |
+| MatriculaResolvedor | texto | 42.5% | 00000001 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| MatriculaResponsavel | texto | 0% | 00000002 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Modelo | texto | 79.4% | MODELO DEMO | Campo retornado pela API; uso na Sala ainda não fechado. |
 | MotivoCancelamentoOS | texto | 96% | CONFORME DESCRITO NA OBSERVAÇÃO | Campo retornado pela API; uso na Sala ainda não fechado. |
 | MotivoDaAvaliacao | vazio | 100% | — | Campo retornado pela API; uso na Sala ainda não fechado. |
-| NumeroDaRequisicao | numero-texto | 25.5% | 86414 | Campo retornado pela API; uso na Sala ainda não fechado. |
-| NumeroDeSerie | texto | 81.2% | 6217212WX0 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| NumeroDaRequisicao | numero-texto | 25.5% | 00001 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| NumeroDeSerie | texto | 81.2% | SN-DEMO-0002 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | OS | numero-texto | 0% | 209900001 | Número da OS no Effort (9 dígitos). |
 | ObservacaoDaAvaliacao | texto | 89.7% | OK | Campo retornado pela API; uso na Sala ainda não fechado. |
 | ObservacaoDaOS | texto | 83.8% | CONTRATO: SERVICOS ESPECIALIZADOS EM ENGENHARIA - DE: 01/01/2025 ATÉ 01/01/2026 | Campo retornado pela API; uso na Sala ainda não fechado. |
-| ObservacaoDaPendencia | texto | 98.6% | S.C. 133921 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| ObservacaoDaPendencia | texto | 98.6% | S.C. 000001 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | ObservacaoDaRequisicao | texto | 25.3% | SOLICITO MANUTENÇÃO DE PORTA AGULHA. | Campo retornado pela API; uso na Sala ainda não fechado. |
 | ObservacaoMotivoCancelamentoOS | texto | 96.6% | ABERTURA ERRADA | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Ocorrencia | texto | 14.7% | ABERTURA DE CHAMADO | Motivo da abertura. |
 | Oficina | texto | 0% | OFICINA GERAL | Oficina da OS. A API oficina em si respondeu 404. |
 | Parada | data | 100% | 14/04/2025 07:30 | Início da parada. Quase nunca preenchida (7 OS). |
-| Patrimonio | texto | 87.8% | 18007 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Patrimonio | texto | 87.8% | PAT-0000 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Pendencia | texto | 98.5% | AGUARDANDO REALIZAÇÃO DE COMPRA | Texto da pendência já lançada (compra, peça, externo). Quase sempre vazio. |
 | PendenciaAberta | texto | 99.9% | AGUARDANDO REALIZAÇÃO DE COMPRA | Pendência ainda aberta. 30 OS no recorte. |
 | PendenciaAbertaEm | data | 98.5% | 05/08/2025 | Campo retornado pela API; uso na Sala ainda não fechado. |
@@ -208,7 +208,7 @@ Falha HTTP 404. Recurso não encontrado.
 | SLAAtendimento | texto | 99.4% | 12:00 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Seguro | texto | 0% | NÃO INFORMADO | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Servico | texto | 39.3% | MANUTENÇÃO CORRETIVA REALIZADA | Serviço lançado (texto concatenado), não um diário de horas. |
-| Setor | texto | 0% | UNIDADE DE EMERGÊNCIA - 26 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Setor | texto | 0% | SETOR DEMO A | Campo retornado pela API; uso na Sala ainda não fechado. |
 | SituacaoDaOS | texto | 0% | Fechada | Situação macro: Aberta, Fechada, Cancelada, Pendente. Não é a etapa peça/externo/contrato. |
 | Status | texto | 99.8% | Dentro do prazo para atendimento (SLA) | No equipamento: ATIVO/INATIVO. Na OS: SLA preenchido em 0,2%. |
 | Tag | texto | 79.4% | HSJ-92339 | Chave do equipamento (HSJ-#####). Liga OS, parque, cronograma e anexos. |
@@ -231,19 +231,19 @@ Falha HTTP 404. Recurso não encontrado.
 | DataDaSolucao | data | 42% | 06/08/2026 09:00 | Solução. Às vezes difere do fechamento. |
 | Empresa | texto | 0% | HOSPITAL E MATERNIDADE SÃO JOAQUIM | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Equipamento | texto | 79.4% | MONITOR MULTIPARÂMETROS | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Fabricante | texto | 81.5% | PHILIPS | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Fabricante | texto | 81.5% | FABRICANTE DEMO | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Fechamento | data | 7.7% | 31/12/2025 13:00 | Fechamento da OS. |
-| MatriculaResponsavel | texto | 0% | 211200000 | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Modelo | texto | 79.4% | ANERÓIDE | Campo retornado pela API; uso na Sala ainda não fechado. |
+| MatriculaResponsavel | texto | 0% | 00000002 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Modelo | texto | 79.4% | MODELO DEMO | Campo retornado pela API; uso na Sala ainda não fechado. |
 | OS | numero-texto | 0% | 209900001 | Número da OS no Effort (9 dígitos). |
-| ObservacaoPendencia | texto | 99.9% | S.C 138568 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| ObservacaoPendencia | texto | 99.9% | S.C 000002 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Ocorrencia | texto | 14.7% | ABERTURA DE CHAMADO | Motivo da abertura. |
 | Oficina | texto | 0% | OFICINA GERAL | Oficina da OS. A API oficina em si respondeu 404. |
 | PendenciaAberta | texto | 99.9% | AGUARDANDO REALIZAÇÃO DE COMPRA | Pendência ainda aberta. 30 OS no recorte. |
 | PlanoDeManutencao | texto | 83.7% | CALIBRAÇÃO LABORATÓRIO ANÁLISES CLÍNICAS | Nome do plano. Liga cronograma ↔ OS. |
 | Prioridade | texto | 0% | MÉDIA (MÁX. 12 HS) | Na OS, prazo no texto (2h, 4h, 12h, 72h). No equipamento, quase vazio. |
 | Responsavel | texto | 0% | (nome de pessoa) | Responsável da OS. Preenchido em todas. |
-| Setor | texto | 0% | UNIDADE DE EMERGÊNCIA - 26 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Setor | texto | 0% | SETOR DEMO A | Campo retornado pela API; uso na Sala ainda não fechado. |
 | SituacaoDaOS | texto | 0% | Fechada | Situação macro: Aberta, Fechada, Cancelada, Pendente. Não é a etapa peça/externo/contrato. |
 | Status | texto | 99.8% | Dentro do prazo para atendimento (SLA) | No equipamento: ATIVO/INATIVO. Na OS: SLA preenchido em 0,2%. |
 | Tipo | texto | 0% | INT | INT (interna) ou EXT (externa). |
@@ -270,13 +270,13 @@ Falha HTTP 404. Recurso não encontrado.
 | CentroDeCusto | texto | 0% | HSJ - HOSPITAL SÃO JOAQUIM | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Empresa | texto | 0% | HOSPITAL E MATERNIDADE SÃO JOAQUIM | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Equipamento | texto | 0% | ESFIGMOMANÔMETRO | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Fabricante | texto | 8.3% | PHILIPS | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Fabricante | texto | 8.3% | FABRICANTE DEMO | Campo retornado pela API; uso na Sala ainda não fechado. |
 | MTBF | numero-texto | 0% | 357,11 | Tempo médio entre falhas já calculado pela API, em horas (texto). |
-| Modelo | texto | 0% | ANERÓIDE | Campo retornado pela API; uso na Sala ainda não fechado. |
-| NumeroDeSerie | texto | 6.8% | 0101120391 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Modelo | texto | 0% | MODELO DEMO | Campo retornado pela API; uso na Sala ainda não fechado. |
+| NumeroDeSerie | texto | 6.8% | SN-DEMO-0002 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Os | numero-texto | 0% | 1 | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Patrimonio | texto | 34.5% | 4705 | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Setor | texto | 0% | UTI ADULTO - 5A | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Patrimonio | texto | 34.5% | PAT-0000 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Setor | texto | 0% | SETOR DEMO A | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Tag | texto | 0% | HSJ-90001 | Chave do equipamento (HSJ-#####). Liga OS, parque, cronograma e anexos. |
 
 ## TPM
