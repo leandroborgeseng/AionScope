@@ -1,6 +1,12 @@
 import { exigirSessaoContratos } from "@/lib/auth/contratos-sessao";
-import { validarContrato } from "@/lib/cadastros/contratos-proprios";
-import { readContrato, setContratoAtivo, upsertContrato } from "@/lib/cadastros/store";
+import { isoDiaValido, validarContrato, validarSuspensao } from "@/lib/cadastros/contratos-proprios";
+import {
+  readContrato,
+  setContratoAtivo,
+  setContratoInativacao,
+  setContratoSuspensao,
+  upsertContrato,
+} from "@/lib/cadastros/store";
 import type { ContratoInput } from "@/lib/cadastros/types";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +18,9 @@ const naoEncontrado = () => Response.json({ ok: false, message: "Contrato não e
 
 /**
  * Edição. Body só com { ativo } = inativar/reativar (sem exigir o restante).
+ * Body { ativo: false, contaAte } = inativar com data efetiva: conta até o mês de contaAte (YYYY-MM-DD);
+ *   contaAte null = não conta em nenhum mês (ex.: fora do escopo desde o início).
+ * Body { suspensoDe, suspensoAte } = suspender por período (013); ambos null = remover a suspensão.
  * Qualquer outra edição valida o contrato inteiro — tipo obrigatório (D3).
  */
 export async function PATCH(request: Request, context: Ctx) {
@@ -34,6 +43,30 @@ export async function PATCH(request: Request, context: Ctx) {
     return Response.json({ ok: true, data: setContratoAtivo(id, body.ativo) });
   }
 
+  const extra = body as Record<string, unknown>;
+  if (chaves.includes("contaAte") && extra.ativo !== false) {
+    return Response.json(
+      { ok: false, message: "contaAte só vale para inativar ({ ativo: false, contaAte }). Para reativar envie apenas { ativo: true }." },
+      { status: 400 },
+    );
+  }
+  // { ativo:false, contaAte } — sozinho ou junto com outros campos: a data informada sempre vale.
+  let contaAteInformado: { valor: string | null } | null = null;
+  if (chaves.includes("contaAte")) {
+    const contaAte = extra.contaAte;
+    if (contaAte !== null && (typeof contaAte !== "string" || !isoDiaValido(contaAte))) {
+      return Response.json({ ok: false, message: "Data efetiva de inativação inválida." }, { status: 400 });
+    }
+    if (chaves.length === 2) return Response.json({ ok: true, data: setContratoInativacao(id, contaAte as string | null) });
+    contaAteInformado = { valor: contaAte as string | null };
+  }
+
+  if (chaves.length === 2 && chaves.includes("suspensoDe") && chaves.includes("suspensoAte")) {
+    const s = validarSuspensao(extra.suspensoDe, extra.suspensoAte);
+    if (!s.ok) return Response.json({ ok: false, message: s.erro }, { status: 400 });
+    return Response.json({ ok: true, data: setContratoSuspensao(id, s.de, s.ate) });
+  }
+
   const pick = <K extends keyof ContratoInput>(k: K, atual: ContratoInput[K]) =>
     (k in body ? body[k] : atual) as ContratoInput[K];
   const merged: ContratoInput = {
@@ -53,7 +86,9 @@ export async function PATCH(request: Request, context: Ctx) {
   if (!v.ok) {
     return Response.json({ ok: false, message: "Revise os campos destacados.", erros: v.erros }, { status: 400 });
   }
-  return Response.json({ ok: true, data: upsertContrato({ id, ...v.data }) });
+  const salvo = upsertContrato({ id, ...v.data });
+  if (contaAteInformado) return Response.json({ ok: true, data: setContratoInativacao(id, contaAteInformado.valor) });
+  return Response.json({ ok: true, data: salvo });
 }
 
 /** DELETE = inativar. Não há exclusão física. */

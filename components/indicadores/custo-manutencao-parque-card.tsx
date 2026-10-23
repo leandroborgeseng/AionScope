@@ -256,6 +256,11 @@ export function CustoManutencaoParqueCard() {
                 ) : (
                   <p className="text-sm text-aion-muted">Nenhum contrato de Manutenção neste mês.</p>
                 )}
+                {drill.suspensosNoMes?.length ? (
+                  <p className="text-sm text-aion-muted" data-testid="linha-suspensos">
+                    {drill.suspensosNoMes.length === 1 ? "1 contrato suspenso" : `${drill.suspensosNoMes.length} contratos suspensos`} – {formatBRL(drill.suspensosValor)} fora do custo
+                  </p>
+                ) : null}
                 {osDrill.length ? <DataTable data={osDrill} columns={osColumns} /> : <p className="text-sm text-aion-muted">Nenhuma OS de reparo médico neste mês.</p>}
               </div>
             ) : (
