@@ -14,6 +14,9 @@ type ParqueResponse = ParqueMeta & {
   valorEfetivoManual: number | null;
   fonteManual: null;
   databasePath?: string;
+  mensal?: Array<{ competencia: string; valor: number; itensComValor: number; itensTotal: number; atualizadoEm: string }>;
+  regra?: "unico" | "mensal";
+  historico?: Array<{ registradoEm: string; origem: string; valorAnterior: number | null; valorNovo: number; itensComValor: number; itensTotal: number }>;
   resumoApi?: {
     nTotal: number;
     nMedicos: number;

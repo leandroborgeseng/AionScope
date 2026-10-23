@@ -172,3 +172,15 @@ test("serieGraficoParque: sem dados não desenha barras nem acumulado, mantém a
   assert.equal(ok[10].contratos, null);
   assert.equal(ok[0].pct, 0.1);
 });
+
+import { valorParqueDoMes } from "@/lib/pbi/parque-frescor";
+test("parque-auto: modo único (padrão) x mensal no cálculo", () => {
+  const fotos = [{ competencia: "2026-03", valor: 2_000_000 }];
+  const unico = ano(2026).months;
+  const mensal = ano(2026, { valorParqueDoMes: (c) => valorParqueDoMes("mensal", 1_000_000, fotos, c) }).months;
+  const viaFlagUnico = ano(2026, { valorParqueDoMes: (c) => valorParqueDoMes("unico", 1_000_000, fotos, c) }).months;
+  assert.deepEqual(viaFlagUnico.map((m) => m.pctAcumulado), unico.map((m) => m.pctAcumulado));
+  assert.equal(mensal[0].pctAcumulado, unico[0].pctAcumulado); // jan: sem foto => valor único
+  assert.equal(mensal[2].pctAcumulado, unico[2].pctAcumulado! / 2); // mar: foto de 2 mi
+  assert.equal(mensal[4].pctAcumulado, unico[4].pctAcumulado! / 2); // mai: herda a foto de mar
+});

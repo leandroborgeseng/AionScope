@@ -12,6 +12,15 @@ import { MIN_MS, OTHER_PERIOD_ACCESS_MS, SCHEDULED_RESOURCES, cachePolicy } from
 import { listAllRows, readCacheRow } from "./cache-store";
 import { cacheKeyFor, nowMs, pruneCache, refreshPbi } from "./client";
 import { defaultScheduledQueries } from "./scheduled-queries";
+import { gravarValorParque } from "@/lib/cadastros/parque-historico";
+import type { EquipamentoItem } from "./types";
+
+/** Consulta de equipamentos do card custo/parque (ativos + valor de substituição): renova o valor gravado (P1). */
+export function isConsultaValorParque(resource: string, qs: string) {
+  if (resource !== "equipamentos") return false;
+  const p = new URLSearchParams(qs);
+  return p.get("apenasAtivos") === "true" && p.get("incluirCustoSubstituicao") === "true" && p.get("incluirComponentes") === "false";
+}
 
 export { defaultScheduledQueries } from "./scheduled-queries";
 
@@ -42,8 +51,15 @@ export async function runSchedulerTick(): Promise<string[]> {
       const row = readCacheRow(key);
       const last = Math.max(row?.fetched_at ?? 0, row?.last_attempt_at ?? 0);
       if (nowMs() - last < cachePolicy(resource).scheduledMs) continue;
-      await refreshPbi(resource, qs, key);
+      const res = await refreshPbi(resource, qs, key);
       refreshed.push(key);
+      if (res.ok && isConsultaValorParque(resource, qs) && Array.isArray(res.data) && res.data.length > 0) {
+        try {
+          gravarValorParque(res.data as EquipamentoItem[], { origem: "agendador" });
+        } catch (err) {
+          console.error("[pbi-cache] falha ao gravar valor do parque", err instanceof Error ? err.message : err);
+        }
+      }
     }
   } catch (err) {
     console.error("[pbi-cache] agendador falhou", err instanceof Error ? err.message : err);
