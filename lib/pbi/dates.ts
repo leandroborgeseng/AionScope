@@ -5,6 +5,11 @@ import type { PeriodoOs } from "./catalog";
 export const TIMEZONE = "America/Sao_Paulo";
 
 export function nowInSaoPaulo(): Date {
+  return paredeSaoPaulo(new Date());
+}
+
+/** Instante → Date com os campos locais iguais ao relógio de Brasília. */
+export function paredeSaoPaulo(instante: Date): Date {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: TIMEZONE,
     year: "numeric",
@@ -14,7 +19,7 @@ export function nowInSaoPaulo(): Date {
     minute: "2-digit",
     second: "2-digit",
     hourCycle: "h23",
-  }).formatToParts(new Date());
+  }).formatToParts(instante);
   const get = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? 0);
   return new Date(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"));
 }
@@ -52,8 +57,19 @@ export function parsePbiDate(value: string | null | undefined): Date | null {
   }
 
   if (/^\d{4}-\d{2}-\d{2}/.test(raw)) {
-    const date = new Date(raw);
-    return isValid(date) ? date : null;
+    // Sem fuso (ex.: 2026-10-31 ou 2026-10-31T23:30): horário de parede de Brasília.
+    const semFuso = raw.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T\s](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?)?$/);
+    if (semFuso) {
+      const date = new Date(
+        Number(semFuso[1]), Number(semFuso[2]) - 1, Number(semFuso[3]),
+        Number(semFuso[4] ?? 0), Number(semFuso[5] ?? 0), Number(semFuso[6] ?? 0),
+      );
+      return isValid(date) ? date : null;
+    }
+    // Com Z/offset: converte o instante para o horário de parede de America/Sao_Paulo,
+    // para OS perto da meia-noite não mudar de mês conforme o fuso do servidor.
+    const instante = new Date(raw);
+    return isValid(instante) ? paredeSaoPaulo(instante) : null;
   }
 
   if (/^\d{8}$/.test(raw)) {
