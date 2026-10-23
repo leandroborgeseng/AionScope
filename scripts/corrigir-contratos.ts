@@ -2,7 +2,7 @@
  * Correção em lote de contratos pela API do app (nunca acessa o banco direto).
  *
  *   tsx scripts/corrigir-contratos.ts --entrada /caminho/fora/do/repo/entrada.json [--dry-run]
- *   tsx scripts/corrigir-contratos.ts --entrada ... --apply
+ *   tsx scripts/corrigir-contratos.ts --entrada ... --confirmar
  *
  * Padrão = dry-run: mostra antes/depois de cada operação e os totais mensais atuais × resultantes.
  * Regras: suspensão conta por mês inteiro — um mês sai do custo só se estiver todo dentro de [suspensoDe, suspensoAte]
@@ -43,7 +43,7 @@ async function lerContratos(base: string | undefined, arquivo: string | undefine
 async function cookieSessao(base: string) {
   if (process.env.AIONSCOPE_SESSAO_COOKIE) return `${COOKIE}=${process.env.AIONSCOPE_SESSAO_COOKIE}`;
   const senha = process.env.CONTRATOS_ADMIN_PASSWORD;
-  if (!senha) throw new Error("Para --apply defina AIONSCOPE_SESSAO_COOKIE ou CONTRATOS_ADMIN_PASSWORD.");
+  if (!senha) throw new Error("Para --confirmar defina AIONSCOPE_SESSAO_COOKIE ou CONTRATOS_ADMIN_PASSWORD.");
   const r = await fetch(`${base}/api/cadastros/contratos/sessao`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -72,7 +72,7 @@ async function main() {
   if (!caminho) throw new Error("Informe --entrada <arquivo.json> (fora do repositório).");
   const base = process.env.AIONSCOPE_URL?.replace(/\/+$/, "");
   const arquivoContratos = arg("--contratos");
-  if (apply && arquivoContratos) throw new Error("--apply não aceita --contratos: aplica sempre sobre a lista real da API.");
+  if (apply && arquivoContratos) throw new Error("--confirmar não aceita --contratos: aplica sempre sobre a lista real da API.");
 
   const v = validarEntrada(JSON.parse(readFileSync(caminho, "utf8")));
   if (!v.ok) {
@@ -86,9 +86,12 @@ async function main() {
     process.exit(3);
   }
 
+  let cookie = "";
   // A API publicada precisa suportar suspensão/data efetiva (013); senão o PATCH ignoraria os campos.
   if (apply) {
     if (!apiSuportaCorrecao(atuais)) throw new Error("A API não expõe suspensoDe: publique a versão com a migração 013 antes do --confirmar.");
+    if (!base) throw new Error("Para --confirmar defina AIONSCOPE_URL.");
+    cookie = await cookieSessao(base);
   }
   console.log(`${apply ? "CONFIRMAR (grava)" : "DRY-RUN"} — ${plano.passos.length} operação(ões) sobre ${atuais.length} contrato(s)\n`);
   for (const a of plano.avisos) console.log(`ℹ ${a}`);
@@ -99,7 +102,6 @@ async function main() {
     console.log("\nNada foi alterado (dry-run). Para aplicar: --confirmar.");
     return;
   }
-  const cookie = await cookieSessao(base!);
   for (const p of plano.passos) {
     const r = await fetch(`${base}${p.chamada.caminho}`, {
       method: p.chamada.metodo,

@@ -50,12 +50,15 @@ export async function PATCH(request: Request, context: Ctx) {
       { status: 400 },
     );
   }
-  if (chaves.length === 2 && chaves.includes("ativo") && chaves.includes("contaAte") && extra.ativo === false) {
+  // { ativo:false, contaAte } — sozinho ou junto com outros campos: a data informada sempre vale.
+  let contaAteInformado: { valor: string | null } | null = null;
+  if (chaves.includes("contaAte")) {
     const contaAte = extra.contaAte;
     if (contaAte !== null && (typeof contaAte !== "string" || !isoDiaValido(contaAte))) {
       return Response.json({ ok: false, message: "Data efetiva de inativação inválida." }, { status: 400 });
     }
-    return Response.json({ ok: true, data: setContratoInativacao(id, contaAte as string | null) });
+    if (chaves.length === 2) return Response.json({ ok: true, data: setContratoInativacao(id, contaAte as string | null) });
+    contaAteInformado = { valor: contaAte as string | null };
   }
 
   if (chaves.length === 2 && chaves.includes("suspensoDe") && chaves.includes("suspensoAte")) {
@@ -83,7 +86,9 @@ export async function PATCH(request: Request, context: Ctx) {
   if (!v.ok) {
     return Response.json({ ok: false, message: "Revise os campos destacados.", erros: v.erros }, { status: 400 });
   }
-  return Response.json({ ok: true, data: upsertContrato({ id, ...v.data }) });
+  const salvo = upsertContrato({ id, ...v.data });
+  if (contaAteInformado) return Response.json({ ok: true, data: setContratoInativacao(id, contaAteInformado.valor) });
+  return Response.json({ ok: true, data: salvo });
 }
 
 /** DELETE = inativar. Não há exclusão física. */
