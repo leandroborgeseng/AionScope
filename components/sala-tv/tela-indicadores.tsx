@@ -73,7 +73,7 @@ function MiniGrafico({ r, altura, semLegenda }: { r: ResumoIndicador; altura: nu
       </svg>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(12, 1fr)", fontSize: 18, color: "#4E6079", textAlign: "center" }}>
         {r.serieMensal.map((p, i) => (
-          <span key={i} style={{ opacity: p.futuro ? 0.5 : 1 }}>
+          <span key={i} data-futuro={p.futuro ? "1" : undefined} style={p.futuro ? { color: COR_META_FUTURA } : undefined}>
             {p.valor != null && p.meta != null && p.valor > p.meta ? "▲" : MESES[i]}
           </span>
         ))}
