@@ -23,7 +23,7 @@ Exemplos abaixo são valores de categoria. Nomes de pessoas não entram aqui.
 | Coluna | Tipo | Nulos | Exemplo | Significado provável |
 |---|---|---:|---|---|
 | Anexo | texto | 0% | Certificados_Bbraum.pdf | Nome do arquivo. Sem tipo de anexo nem data de emissão do laudo. |
-| CodigoOS | numero-texto | 0% | 202507871 | Número da OS no anexo. Liga com OS. |
+| CodigoOS | numero-texto | 0% | 209907871 | Número da OS no anexo. Liga com OS. |
 | DataHoraInclusao | data | 0% | 2024-12-09T15:42:52 | Quando o arquivo entrou no Effort, não a data do laudo. |
 | LinkAnexo | texto | 0% | https://sjh.globalthings.net/api/v1/files/83/bytoken/HhZSAuiUabN9cu24cY2kNGDjRML | Campo retornado pela API; uso na Sala ainda não fechado. |
 | OSId | number | 0% | 15 | Id interno da OS no anexo. |
@@ -184,7 +184,7 @@ Falha HTTP 404. Recurso não encontrado.
 | MotivoDaAvaliacao | vazio | 100% | — | Campo retornado pela API; uso na Sala ainda não fechado. |
 | NumeroDaRequisicao | numero-texto | 25.5% | 86414 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | NumeroDeSerie | texto | 81.2% | 6217212WX0 | Campo retornado pela API; uso na Sala ainda não fechado. |
-| OS | numero-texto | 0% | 202500001 | Número da OS no Effort (9 dígitos). |
+| OS | numero-texto | 0% | 209900001 | Número da OS no Effort (9 dígitos). |
 | ObservacaoDaAvaliacao | texto | 89.7% | OK | Campo retornado pela API; uso na Sala ainda não fechado. |
 | ObservacaoDaOS | texto | 83.8% | CONTRATO: SERVICOS ESPECIALIZADOS EM ENGENHARIA - DE: 01/01/2025 ATÉ 01/01/2026 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | ObservacaoDaPendencia | texto | 98.6% | S.C. 133921 | Campo retornado pela API; uso na Sala ainda não fechado. |
@@ -235,7 +235,7 @@ Falha HTTP 404. Recurso não encontrado.
 | Fechamento | data | 7.7% | 31/12/2025 13:00 | Fechamento da OS. |
 | MatriculaResponsavel | texto | 0% | 211200000 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Modelo | texto | 79.4% | ANERÓIDE | Campo retornado pela API; uso na Sala ainda não fechado. |
-| OS | numero-texto | 0% | 202500001 | Número da OS no Effort (9 dígitos). |
+| OS | numero-texto | 0% | 209900001 | Número da OS no Effort (9 dígitos). |
 | ObservacaoPendencia | texto | 99.9% | S.C 138568 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Ocorrencia | texto | 14.7% | ABERTURA DE CHAMADO | Motivo da abertura. |
 | Oficina | texto | 0% | OFICINA GERAL | Oficina da OS. A API oficina em si respondeu 404. |
