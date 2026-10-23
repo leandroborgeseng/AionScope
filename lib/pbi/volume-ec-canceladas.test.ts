@@ -16,14 +16,16 @@ const TSE = "SEGURANÇA ELÉTRICA";
 
 test("canceladas saem de ABERT. e FECH., inclusive com Fechamento preenchido", () => {
   const lista = [
-    os(PREV, "Fechada", "01/09/2026 01:23", "10/09/2026 10:00"),
-    os(PREV, "Aberta", "01/09/2026 01:23"),
-    os(PREV, "Cancelada", "01/09/2026 01:23", "14/10/2026 19:11"), // aberta set, cancelada out
+    os(PREV, "Fechada", "01/09/2026 08:00", "10/09/2026 10:00"),
+    os(PREV, "Aberta", "01/09/2026 08:00"),
+    os(PREV, "Cancelada", "01/09/2026 08:00", "14/10/2026 17:00"), // aberta set, cancelada out
     os(PREV, "Cancelada", "05/10/2026 08:00"), // cancelada sem data de fechamento
     os(CAL, "Cancelada", "02/09/2026 08:00", "15/10/2026 08:00"),
     os(CAL, "Fechada", "02/09/2026 08:00", "03/09/2026 08:00"),
     os(TSE, "CANCELADA", "02/09/2026 08:00", "02/09/2026 09:00"),
   ];
+  // Fechada em set e cancelada depois (Effort grava Fechamento; SituacaoDaOS vira Cancelada): sai dos dois lados.
+  lista.push(os(PREV, "Cancelada", "03/09/2026 08:00", "20/09/2026 10:00"));
   const r = buildOficinasPlanoComparativo(lista, range);
   const set = r.months[8];
   const out = r.months[9];
