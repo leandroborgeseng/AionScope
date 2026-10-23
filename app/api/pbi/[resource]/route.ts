@@ -1,6 +1,8 @@
 import { NextRequest } from "next/server";
 import { PBI_ENDPOINTS, type PbiResource } from "@/lib/pbi/catalog";
 import { fetchPbi } from "@/lib/pbi/client";
+import { sessaoContratosValida } from "@/lib/auth/contratos-sessao";
+import { semCamposRs } from "@/lib/pbi/proxy-publico";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +28,10 @@ export async function GET(
     if (resource === "oficina" && defaults[0]) params.set("companyId", defaults[0]);
   }
 
-  const result = await fetchPbi(resource as PbiResource, params);
+  const completo = await fetchPbi(resource as PbiResource, params);
+  // M1: sem sessão de admin, campos em R$ saem (cópia; o cache guarda e devolve o completo só com sessão).
+  const result = semCamposRs(resource as PbiResource, completo, sessaoContratosValida(request));
   const httpStatus = result.ok ? 200 : result.disabled ? 200 : result.status && result.status >= 400 ? 502 : 500;
-  return Response.json(result, { status: httpStatus });
+  // A resposta depende do cookie de sessão: nunca cachear em proxy/CDN compartilhado.
+  return Response.json(result, { status: httpStatus, headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
 }
