@@ -1,7 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { SalaApp } from "@/components/sala-tv/sala-app";
-
+/** A tela Processos saiu da Sala (D-SD4). Links antigos caem na Sala. */
 export default function Page() {
-  return <SalaApp telaFixa="processos" />;
+  redirect("/sala");
 }

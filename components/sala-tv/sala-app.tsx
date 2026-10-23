@@ -31,6 +31,16 @@ import { desbloquearSomTv, SALA_SOM_STORAGE, tocarChimeNovaOs } from "@/componen
 import { TvTreinamentos } from "@/components/treinamentos/tv-treinamentos";
 import { TelaEvolucao } from "@/components/sala-tv/tela-evolucao";
 import type { PainelTreinamentos } from "@/lib/treinamentos/types";
+import { SalaOsDetalhePainel } from "@/components/sala-tv/sala-os-detalhe";
+import {
+  DRILL_IDLE_MS,
+  escreverUrlDrill,
+  isRecorteDrill,
+  lerUrlDrill,
+  SalaOsDetalheRemoto,
+  SalaRecorteOverlay,
+  type FiltrosRecorte,
+} from "@/components/sala-tv/sala-recorte";
 import "@/app/sala/sala.css";
 
 const mono = JetBrains_Mono({
@@ -115,7 +125,7 @@ function Cabecalho({
         <div className="sala-drill-chip" role="status">
           <span className="sala-drill-chip-texto">
             {drill.titulo}
-            {drillContagem != null ? ` · ${drillContagem}` : ""}
+            {drillContagem != null ? ` · ${drillContagem}${isRecorteDrill(drill.id) ? " OS" : ""}` : ""}
           </span>
           <button type="button" className="sala-drill-limpar" onClick={onLimparDrill}>
             Limpar
@@ -299,114 +309,6 @@ function LinhaEquipTv({
         </div>
       </div>
       <span className="sala-numero sala-linha-idade">{tempo ?? "—"}</span>
-    </div>
-  );
-}
-
-function CampoDetalhe({ rotulo, valor }: { rotulo: string; valor: string }) {
-  return (
-    <div className="sala-os-campo">
-      <span className="sala-os-campo-rotulo">{rotulo}</span>
-      <span className="sala-os-campo-valor">{valor || "—"}</span>
-    </div>
-  );
-}
-
-function SalaOsDetalhePainel({
-  detalhe,
-  onVoltar,
-  onFechar,
-}: {
-  detalhe: OsDetalheSnapshot;
-  onVoltar: () => void;
-  onFechar: () => void;
-}) {
-  return (
-    <div className="sala-os-detalhe-overlay" role="dialog" aria-modal="true" aria-label={`OS ${detalhe.os}`}>
-      <button type="button" className="sala-drill-backdrop" onClick={onFechar} aria-label="Fechar detalhe da OS" />
-      <div className="sala-os-detalhe-sheet">
-        <div className="sala-drill-sheet-cabecalho">
-          <div className="sala-drill-sheet-titulo">
-            <span className="sala-drill-sheet-chip">detalhe da OS</span>
-            <div className="sala-drill-sheet-heading">
-              <div>
-                <div className="sala-numero sala-os-detalhe-numero">{detalhe.os}</div>
-                <div className="sala-os-detalhe-equip">{detalhe.equipamento}</div>
-                <small className="sala-os-detalhe-meta">
-                  {detalhe.tag} · {detalhe.setor}
-                </small>
-              </div>
-            </div>
-          </div>
-          <div className="sala-os-detalhe-acoes">
-            <button type="button" className="sala-drill-limpar" onClick={onVoltar}>
-              Voltar
-            </button>
-            <button type="button" className="sala-drill-limpar sala-drill-fechar" onClick={onFechar}>
-              Fechar · Esc
-            </button>
-          </div>
-        </div>
-        <div className="sala-os-detalhe-corpo">
-          <div className="sala-os-flags">
-            {detalhe.manutencaoExterna ? (
-              <span className="sala-os-flag externa">Manutenção externa / EXT</span>
-            ) : null}
-            {detalhe.pendenciaCompra ? (
-              <span className="sala-os-flag compra">Pendência de compra</span>
-            ) : null}
-            {!detalhe.aberto ? <span className="sala-os-flag fechada">OS fechada</span> : null}
-            <span className="sala-os-flag etapa">{detalhe.etapa}</span>
-          </div>
-
-          <section className="sala-os-secao">
-            <h3 className="sala-os-secao-titulo">Solicitação</h3>
-            <p className="sala-os-texto">{detalhe.solicitacao}</p>
-            {detalhe.ocorrencia !== "—" && detalhe.ocorrencia !== detalhe.solicitacao ? (
-              <p className="sala-os-texto secundario">
-                <strong>Ocorrência:</strong> {detalhe.ocorrencia}
-              </p>
-            ) : null}
-            {detalhe.observacaoOs !== "—" && detalhe.observacaoOs !== detalhe.solicitacao ? (
-              <p className="sala-os-texto secundario">
-                <strong>Observação:</strong> {detalhe.observacaoOs}
-              </p>
-            ) : null}
-          </section>
-
-          {(detalhe.pendencia !== "—" || detalhe.observacaoPendencia !== "—") && (
-            <section className="sala-os-secao">
-              <h3 className="sala-os-secao-titulo">Pendência</h3>
-              <p className="sala-os-texto">{detalhe.pendencia}</p>
-              {detalhe.observacaoPendencia !== "—" ? (
-                <p className="sala-os-texto secundario">{detalhe.observacaoPendencia}</p>
-              ) : null}
-            </section>
-          )}
-
-          {detalhe.manutencaoExterna ? (
-            <section className="sala-os-secao">
-              <h3 className="sala-os-secao-titulo">Reparo externo / assistência</h3>
-              <p className="sala-os-texto">{detalhe.assistencia !== "—" ? detalhe.assistencia : "Indicada na OS (EXT / assistência)."}</p>
-            </section>
-          ) : null}
-
-          <div className="sala-os-grade">
-            <CampoDetalhe rotulo="Abertura" valor={detalhe.abertura} />
-            <CampoDetalhe rotulo="1º atendimento" valor={detalhe.primeiroAtendimento} />
-            <CampoDetalhe rotulo="Situação" valor={detalhe.situacaoOs} />
-            <CampoDetalhe rotulo="Criticidade" valor={detalhe.criticidade} />
-            <CampoDetalhe rotulo="Responsável" valor={detalhe.responsavel} />
-            <CampoDetalhe rotulo="Oficina" valor={detalhe.oficina} />
-            <CampoDetalhe rotulo="Tag" valor={detalhe.tag} />
-            <CampoDetalhe rotulo="Setor" valor={detalhe.setor} />
-            <CampoDetalhe rotulo="Tipo" valor={detalhe.tipoManutencao} />
-            <CampoDetalhe rotulo="Prioridade" valor={detalhe.prioridade} />
-            <CampoDetalhe rotulo="Requisitante" valor={detalhe.requisitante} />
-            <CampoDetalhe rotulo="Fechamento" valor={detalhe.fechamento} />
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -620,7 +522,7 @@ function TelaAgora({
   destaque: string | null;
   novasOs: ReadonlySet<string>;
   drill: SalaDrillSelecao | null;
-  onDrill: (id: string, titulo: string) => void;
+  onDrill: (id: string, titulo: string, contagem?: number) => void;
   onSelecionarOs?: (os: string) => void;
 }) {
   const contadores: Array<{
@@ -786,85 +688,242 @@ function TelaAgora({
   );
 }
 
-function TelaFluxo({ dados }: { dados: SalaSnapshot }) {
+type OnDrill = (id: string, titulo: string, contagem?: number) => void;
+
+function slugTv(valor: string) {
+  return valor
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Alvo clicável do drill (D10): <button> com aria-label; contagem 0 = desabilitado (D5). */
+function AlvoDrill({
+  id,
+  titulo,
+  contagem,
+  drill,
+  onDrill,
+  rotuloAria,
+  className,
+  style,
+  children,
+}: {
+  id: string;
+  titulo: string;
+  contagem: number | null | undefined;
+  drill: SalaDrillSelecao | null;
+  onDrill: OnDrill;
+  rotuloAria: string;
+  className?: string;
+  style?: CSSProperties;
+  children: React.ReactNode;
+}) {
+  const vazio = contagem === 0 || contagem == null;
+  const ativo = drill?.id === id;
+  return (
+    <button
+      type="button"
+      className={["sala-alvo", ativo ? "ativo" : "", className ?? ""].filter(Boolean).join(" ")}
+      style={style}
+      disabled={vazio}
+      aria-pressed={ativo}
+      aria-label={rotuloAria}
+      data-drill={id}
+      onClick={() => onDrill(id, titulo, contagem ?? undefined)}
+    >
+      {children}
+    </button>
+  );
+}
+
+function TelaFluxo({
+  dados,
+  drill,
+  onDrill,
+  onSelecionarOs,
+}: {
+  dados: SalaSnapshot;
+  drill: SalaDrillSelecao | null;
+  onDrill: OnDrill;
+  onSelecionarOs?: (os: string) => void;
+}) {
   return (
     <div className="sala-coluna" style={{ flex: 1 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <span className="sala-rotulo-bloco">ENTRARAM HOJE · {dados.fluxo.entraramHoje}</span>
-        <span className="sala-rotulo-bloco">ENCERRADAS HOJE · {dados.fluxo.encerradasHoje}</span>
+        <AlvoDrill
+          id="fluxo.entraram"
+          titulo="ENTRARAM HOJE"
+          contagem={dados.fluxo.entraramHoje}
+          drill={drill}
+          onDrill={onDrill}
+          rotuloAria={`Ver ${dados.fluxo.entraramHoje} OS que entraram hoje`}
+          className="sala-rotulo-bloco"
+        >
+          ENTRARAM HOJE · {dados.fluxo.entraramHoje}
+        </AlvoDrill>
+        <AlvoDrill
+          id="fluxo.encerradas"
+          titulo="ENCERRADAS HOJE"
+          contagem={dados.fluxo.encerradasHoje}
+          drill={drill}
+          onDrill={onDrill}
+          rotuloAria={`Ver ${dados.fluxo.encerradasHoje} OS encerradas hoje`}
+          className="sala-rotulo-bloco"
+        >
+          ENCERRADAS HOJE · {dados.fluxo.encerradasHoje}
+        </AlvoDrill>
       </div>
       <div className="sala-etapas">
         {dados.fluxo.etapas.map((etapa) => (
-          <div key={etapa.etapa} className="sala-etapa">
-            <div style={{ fontSize: 16, fontWeight: 700, color: COR_ETAPA[etapa.etapa] ?? "#2C66AB" }}>{etapa.etapa}</div>
-            <div className="sala-numero q">{etapa.quantidade}</div>
+          <AlvoDrill
+            key={etapa.etapa}
+            id={`fluxo.etapa.${slugTv(etapa.etapa)}`}
+            titulo={etapa.etapa.toUpperCase()}
+            contagem={etapa.quantidade}
+            drill={drill}
+            onDrill={onDrill}
+            rotuloAria={`Ver ${etapa.quantidade} OS na etapa ${etapa.etapa}`}
+            className="sala-etapa"
+          >
+            <span style={{ display: "block", fontSize: 16, fontWeight: 700, color: COR_ETAPA[etapa.etapa] ?? "#2C66AB" }}>{etapa.etapa}</span>
+            <span className="sala-numero q" style={{ display: "block" }}>{etapa.quantidade}</span>
             <small style={{ color: "#4E6079" }}>mais antiga {etapa.maisAntiga}</small>
             {etapa.exemplos.map((exemplo) => (
-              <div key={exemplo} style={{ fontSize: 16, marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{exemplo}</div>
+              <span key={exemplo} style={{ display: "block", fontSize: 16, marginTop: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{exemplo}</span>
             ))}
-          </div>
+          </AlvoDrill>
         ))}
       </div>
       <div className="sala-cartao" style={{ flex: 1 }}>
         <div className="sala-rotulo-bloco">ENTRARAM HOJE · PRECISAM DE ATENDIMENTO</div>
         {dados.fluxo.entraram.length === 0 ? <p className="sala-vazio">Nenhuma OS aberta hoje neste recorte.</p> : null}
         {dados.fluxo.entraram.map((item) => (
-          <div key={item.os} className="sala-linha" style={{ marginTop: 8 }}>
+          <button
+            key={item.os}
+            type="button"
+            className="sala-linha sala-alvo sala-alvo-linha"
+            style={{ marginTop: 8 }}
+            aria-label={`Abrir OS ${item.os}, ${item.equipamento}`}
+            onClick={() => onSelecionarOs?.(item.os)}
+          >
             <span className="sala-numero" style={{ fontSize: 24 }}>{item.hora}</span>
-            <div>
-              <strong>{item.equipamento}</strong>
+            <span style={{ display: "block", textAlign: "left" }}>
+              <strong style={{ display: "block" }}>{item.equipamento}</strong>
               <small>{item.os} · {item.setor}</small>
-            </div>
+            </span>
             <small>{item.prioridade}</small>
             <Selo situacao={item.situacao} />
-          </div>
+          </button>
         ))}
-        {dados.fluxo.entraramOcultas > 0 ? <p className="sala-vazio">+ {dados.fluxo.entraramOcultas}</p> : null}
+        {dados.fluxo.entraramOcultas > 0 ? (
+          <AlvoDrill
+            id="fluxo.entraram"
+            titulo="ENTRARAM HOJE"
+            contagem={dados.fluxo.entraramHoje}
+            drill={drill}
+            onDrill={onDrill}
+            rotuloAria={`Ver todas as ${dados.fluxo.entraramHoje} OS que entraram hoje, incluindo mais ${dados.fluxo.entraramOcultas}`}
+            className="sala-vazio"
+          >
+            + {dados.fluxo.entraramOcultas} · ver todas
+          </AlvoDrill>
+        ) : null}
       </div>
       <div className="sala-aviso">{dados.fluxo.equipeAviso}</div>
     </div>
   );
 }
 
-function TelaEnvelhecimento({ dados }: { dados: SalaSnapshot }) {
+function TelaEnvelhecimento({
+  dados,
+  drill,
+  onDrill,
+}: {
+  dados: SalaSnapshot;
+  drill: SalaDrillSelecao | null;
+  onDrill: OnDrill;
+}) {
   const maximo = Math.max(1, ...dados.envelhecimento.faixas.map((faixa) => faixa.total));
+  const env = dados.envelhecimento;
+  const kpis: Array<{ rotulo: string; valor: number | string; id?: string; contagem?: number | null }> = [
+    { rotulo: "IDADE MÉDIA", valor: env.idadeMediaDias == null ? "—" : `${env.idadeMediaDias}d` },
+    { rotulo: "AGUARDANDO TERCEIROS", valor: env.aguardandoTerceiros, id: "envelhecimento.kpi.aguardando-terceiros", contagem: env.aguardandoTerceiros },
+    {
+      rotulo: "SEM MOVIMENTO > 7 DIAS",
+      valor: env.semMovimentoMais7 == null ? "—" : env.semMovimentoMais7,
+      id: "envelhecimento.kpi.sem-movimento-7",
+      contagem: env.semMovimentoMais7,
+    },
+    { rotulo: "PENDENTES SEM MOTIVO", valor: env.pendenciaSemMotivo, id: "envelhecimento.kpi.pendentes-sem-motivo", contagem: env.pendenciaSemMotivo },
+  ];
   return (
     <div className="sala-coluna" style={{ flex: 1 }}>
-      <p style={{ margin: 0, fontSize: 16, color: "#4E6079" }}>{dados.envelhecimento.proxy}</p>
+      <p style={{ margin: 0, fontSize: 16, color: "#4E6079" }}>{env.proxy}</p>
       <div className="sala-kpis">
-        {[
-          ["IDADE MÉDIA", dados.envelhecimento.idadeMediaDias == null ? "—" : `${dados.envelhecimento.idadeMediaDias}d`],
-          ["AGUARDANDO TERCEIROS", dados.envelhecimento.aguardandoTerceiros],
-          ["SEM MOVIMENTO > 7 DIAS", dados.envelhecimento.semMovimentoMais7 == null ? "—" : dados.envelhecimento.semMovimentoMais7],
-          ["PENDENTES SEM MOTIVO", dados.envelhecimento.pendenciaSemMotivo],
-        ].map(([rotulo, valor]) => (
-          <div key={String(rotulo)} className="sala-cartao">
-            <div className="sala-rotulo-bloco">{rotulo}</div>
-            <div className="sala-numero" style={{ fontSize: 48 }}>{valor}</div>
-          </div>
-        ))}
+        {kpis.map((kpi) =>
+          kpi.id ? (
+            <AlvoDrill
+              key={kpi.rotulo}
+              id={kpi.id}
+              titulo={kpi.rotulo}
+              contagem={kpi.contagem}
+              drill={drill}
+              onDrill={onDrill}
+              rotuloAria={`Ver ${kpi.valor} OS: ${kpi.rotulo.toLowerCase()}`}
+              className="sala-cartao"
+            >
+              <span className="sala-rotulo-bloco" style={{ display: "block" }}>{kpi.rotulo}</span>
+              <span className="sala-numero" style={{ display: "block", fontSize: 48 }}>{kpi.valor}</span>
+            </AlvoDrill>
+          ) : (
+            <div key={kpi.rotulo} className="sala-cartao">
+              <div className="sala-rotulo-bloco">{kpi.rotulo}</div>
+              <div className="sala-numero" style={{ fontSize: 48 }}>{kpi.valor}</div>
+            </div>
+          ),
+        )}
       </div>
       <div className="sala-cartao">
         <div className="sala-rotulo-bloco">IDADE DAS OS ABERTAS</div>
-        {dados.envelhecimento.faixas.map((faixa) => (
-          <div key={faixa.id} style={{ display: "grid", gridTemplateColumns: "160px 1fr 70px", gap: 12, alignItems: "center", marginTop: 10 }}>
-            <span>{faixa.label}</span>
-            <div style={{ display: "flex", height: 22, background: "#E3EAF3", borderRadius: 6, overflow: "hidden" }}>
-              {faixa.partes.map((parte) => (
-                <div
-                  key={parte.etapa}
-                  title={parte.etapa}
-                  style={{ width: `${(parte.quantidade / maximo) * 100}%`, background: COR_ETAPA[parte.etapa] ?? "#2C66AB" }}
-                />
-              ))}
+        {env.faixas.map((faixa) => {
+          const idFaixa = `envelhecimento.faixa.${faixa.id}`;
+          const tituloFaixa = `IDADE ${faixa.label.toUpperCase()}`;
+          const aria = `Ver ${faixa.total} OS com idade ${faixa.label}`;
+          return (
+            <div key={faixa.id} style={{ display: "grid", gridTemplateColumns: "180px 1fr 90px", gap: 12, alignItems: "center", marginTop: 10 }}>
+              <AlvoDrill id={idFaixa} titulo={tituloFaixa} contagem={faixa.total} drill={drill} onDrill={onDrill} rotuloAria={aria} className="sala-alvo-texto">
+                {faixa.label}
+              </AlvoDrill>
+              <div style={{ display: "flex", height: 30, background: "#E3EAF3", borderRadius: 6, overflow: "hidden" }}>
+                {faixa.partes.map((parte) => (
+                  <AlvoDrill
+                    key={parte.etapa}
+                    id={`${idFaixa}.etapa.${slugTv(parte.etapa)}`}
+                    titulo={`${tituloFaixa} · ${parte.etapa.toUpperCase()}`}
+                    contagem={parte.quantidade}
+                    drill={drill}
+                    onDrill={onDrill}
+                    rotuloAria={`Ver ${parte.quantidade} OS com idade ${faixa.label} na etapa ${parte.etapa}`}
+                    className="sala-alvo-segmento"
+                    style={{ width: `${(parte.quantidade / maximo) * 100}%`, background: COR_ETAPA[parte.etapa] ?? "#2C66AB" }}
+                  >
+                    <span className="sala-sr">{parte.etapa}</span>
+                  </AlvoDrill>
+                ))}
+              </div>
+              <AlvoDrill id={idFaixa} titulo={tituloFaixa} contagem={faixa.total} drill={drill} onDrill={onDrill} rotuloAria={aria} className="sala-alvo-texto sala-numero" style={{ fontSize: 22, fontWeight: 700 }}>
+                {faixa.total}
+              </AlvoDrill>
             </div>
-            <b className="sala-numero" style={{ fontSize: 22 }}>{faixa.total}</b>
-          </div>
-        ))}
+          );
+        })}
       </div>
       <div className="sala-cartao" style={{ flex: 1 }}>
         <div className="sala-rotulo-bloco">AS MAIS ANTIGAS · PROXY DE MOVIMENTO</div>
-        {dados.envelhecimento.maisAntigas.map((item) => (
+        {env.maisAntigas.map((item) => (
           <div key={item.os} className="sala-linha" style={{ marginTop: 8 }}>
             <span className="sala-numero" style={{ fontSize: 22 }}>{item.os}</span>
             <div style={{ minWidth: 0 }}>
@@ -914,7 +973,7 @@ function TelaCiclo({
 }: {
   dados: SalaSnapshot;
   drill: SalaDrillSelecao | null;
-  onDrill: (id: string, titulo: string) => void;
+  onDrill: (id: string, titulo: string, contagem?: number) => void;
 }) {
   const ciclo = dados.ciclo;
   const previsaoEol = ciclo.previsaoEol;
@@ -1188,7 +1247,87 @@ function TelaIndicadores({ dados }: { dados: SalaSnapshot }) {
   );
 }
 
-function TelaProgramadas({ dados }: { dados: SalaSnapshot }) {
+function GraficoProgramadas({
+  comparativo,
+  drill,
+  onDrill,
+}: {
+  comparativo: NonNullable<SalaSnapshot["programadas"]["comparativo"]>;
+  drill: SalaDrillSelecao | null;
+  onDrill: OnDrill;
+}) {
+  const maximo = Math.max(1, ...comparativo.meses.flatMap((m) => m.porOficina.flatMap((c) => [c.abertas, c.fechadas])));
+  const rotuloOficina = new Map(comparativo.oficinas.map((o) => [o.chave, o.rotulo]));
+  const CORES = ["#2C66AB", "#3E7A1E", "#D9620F"];
+  return (
+    <div className="sala-cartao sala-prog-grafico" style={{ overflow: "hidden" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
+        <div className="sala-rotulo-bloco">OFICINAS · PLANO · ABERTAS × FECHADAS · {comparativo.ano}</div>
+        <div className="sala-prog-legenda">
+          {comparativo.oficinas.map((o, i) => (
+            <span key={o.chave}>
+              <i style={{ background: CORES[i % CORES.length] }} /> {o.rotulo}
+            </span>
+          ))}
+          <span>barra cheia = abertas · clara = fechadas</span>
+        </div>
+      </div>
+      <div className="sala-prog-meses">
+        {comparativo.meses.map((mes) => (
+          <div key={mes.chave} className="sala-prog-mes">
+            <div className="sala-prog-barras">
+              {mes.porOficina.map((cel, i) => {
+                const rotulo = rotuloOficina.get(cel.chave) ?? cel.chave;
+                return (["abertas", "fechadas"] as const).map((modo) => {
+                  const valor = cel[modo];
+                  return (
+                    <AlvoDrill
+                      key={`${cel.chave}-${modo}`}
+                      id={`programadas.${cel.chave}.${mes.chave}.${modo}`}
+                      titulo={`${rotulo.toUpperCase()} · ${mes.rotulo} · ${modo.toUpperCase()}`}
+                      contagem={valor}
+                      drill={drill}
+                      onDrill={onDrill}
+                      rotuloAria={`Ver ${valor} OS ${modo} de ${rotulo} em ${mes.rotulo}`}
+                      className={`sala-prog-barra ${modo}`}
+                      style={{ height: `${Math.max(4, (valor / maximo) * 100)}%`, background: CORES[i % CORES.length] }}
+                    >
+                      <span className="sala-prog-valor">{valor}</span>
+                    </AlvoDrill>
+                  );
+                });
+              })}
+            </div>
+            <AlvoDrill
+              id={`programadas.consolidado.${mes.chave}.todas`}
+              titulo={`CONSOLIDADO · ${mes.rotulo}`}
+              contagem={mes.consolidado.abertas + mes.consolidado.fechadas}
+              drill={drill}
+              onDrill={(id, titulo) => onDrill(id, titulo)}
+              rotuloAria={`Ver OS abertas e fechadas das três oficinas em ${mes.rotulo}`}
+              className="sala-alvo-texto sala-prog-mes-rotulo"
+            >
+              {mes.rotulo}
+              <small>
+                {mes.consolidado.abertas}↑ {mes.consolidado.fechadas}↓
+              </small>
+            </AlvoDrill>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TelaProgramadas({
+  dados,
+  drill,
+  onDrill,
+}: {
+  dados: SalaSnapshot;
+  drill: SalaDrillSelecao | null;
+  onDrill: OnDrill;
+}) {
   const p = dados.programadas;
   return (
     <div className="sala-coluna" style={{ flex: 1, minHeight: 0 }}>
@@ -1204,14 +1343,32 @@ function TelaProgramadas({ dados }: { dados: SalaSnapshot }) {
               {p.executados} de {p.previstos}
             </span>
           </div>
-          <span style={{ fontSize: 18, color: "#DCE8F7" }}>
+          <AlvoDrill
+            id="programadas.impedimentos"
+            titulo="IMPEDIMENTOS"
+            contagem={p.impedimentos.length}
+            drill={drill}
+            onDrill={onDrill}
+            rotuloAria={`Ver ${p.impedimentos.length} impedimento(s)`}
+            className="sala-alvo-texto sala-alvo-claro"
+            style={{ fontSize: 18 }}
+          >
             {p.impedimentos.length} impedimento(s) à parte
-          </span>
+          </AlvoDrill>
         </div>
         {p.porTipo.map((tipo) => (
-          <div key={tipo.tipo} className="sala-cartao">
-            <div className="sala-rotulo-bloco">{tipo.tipo.toUpperCase()}</div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+          <AlvoDrill
+            key={tipo.tipo}
+            id={`programadas.tipo.${slugTv(tipo.tipo)}`}
+            titulo={`${tipo.tipo.toUpperCase()} · EXECUTADAS NO MÊS`}
+            contagem={tipo.executados}
+            drill={drill}
+            onDrill={onDrill}
+            rotuloAria={`Ver ${tipo.executados} OS de ${tipo.tipo} executadas no mês`}
+            className="sala-cartao"
+          >
+            <span className="sala-rotulo-bloco" style={{ display: "block" }}>{tipo.tipo.toUpperCase()}</span>
+            <span style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
               <span className="sala-numero" style={{ fontSize: 48 }}>
                 {tipo.executados}
                 <span style={{ fontSize: 24, color: "#4E6079" }}>/{tipo.previstos}</span>
@@ -1219,49 +1376,34 @@ function TelaProgramadas({ dados }: { dados: SalaSnapshot }) {
               <span style={{ fontSize: 20, fontWeight: 600, color: tipo.faltam ? "#A8460A" : "#3E7A1E" }}>
                 {tipo.faltam ? `faltam ${tipo.faltam}` : "ok"}
               </span>
-            </div>
-            <div style={{ height: 10, borderRadius: 6, background: "#E3EAF3", overflow: "hidden", marginTop: 8 }}>
-              <div
-                style={{
-                  height: 10,
-                  borderRadius: 6,
-                  background: "#2C66AB",
-                  width: `${tipo.percentual ?? 0}%`,
-                }}
-              />
-            </div>
-          </div>
+            </span>
+            <span style={{ display: "block", height: 10, borderRadius: 6, background: "#E3EAF3", overflow: "hidden", marginTop: 8 }}>
+              <span style={{ display: "block", height: 10, borderRadius: 6, background: "#2C66AB", width: `${tipo.percentual ?? 0}%` }} />
+            </span>
+          </AlvoDrill>
         ))}
       </div>
 
-      <div className="sala-grid-2" style={{ flex: 1, minHeight: 0 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 2.2fr) minmax(0, 1fr)", gap: 16, flex: 1, minHeight: 0 }}>
+        {p.comparativo ? (
+          <GraficoProgramadas comparativo={p.comparativo} drill={drill} onDrill={onDrill} />
+        ) : (
+          <div className="sala-cartao">
+            <p className="sala-vazio">{p.aviso}</p>
+          </div>
+        )}
         <div className="sala-cartao" style={{ overflow: "hidden" }}>
-          <div className="sala-rotulo-bloco">PENDENTES NO MÊS · {p.pendentes.length}</div>
-          {p.pendentes.length === 0 ? <p className="sala-vazio">{p.aviso}</p> : null}
-          {p.pendentes.map((item) => (
-            <div
-              key={`${item.tipo}-${item.tag}-${item.equipamento}`}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "90px minmax(0, 1fr)",
-                gap: 12,
-                alignItems: "center",
-                padding: "10px 0",
-                borderBottom: "1px solid #E6ECF3",
-              }}
-            >
-              <strong style={{ color: "#2C66AB", fontSize: 16 }}>{item.tipo}</strong>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 20, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {item.equipamento}
-                </div>
-                <div style={{ fontSize: 16, color: "#4E6079" }}>{item.setor}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="sala-cartao" style={{ overflow: "hidden" }}>
-          <div className="sala-rotulo-bloco">IMPEDIMENTOS · {p.impedimentos.length}</div>
+          <AlvoDrill
+            id="programadas.impedimentos"
+            titulo="IMPEDIMENTOS"
+            contagem={p.impedimentos.length}
+            drill={drill}
+            onDrill={onDrill}
+            rotuloAria={`Ver ${p.impedimentos.length} impedimento(s)`}
+            className="sala-rotulo-bloco sala-alvo-texto"
+          >
+            IMPEDIMENTOS · {p.impedimentos.length}
+          </AlvoDrill>
           {p.impedimentos.length === 0 ? (
             <p className="sala-vazio">Nenhum impedimento ativo. Cadastre em /sala/registros.</p>
           ) : (
@@ -1295,70 +1437,6 @@ function TelaProgramadas({ dados }: { dados: SalaSnapshot }) {
   );
 }
 
-function TelaProcessos({ dados }: { dados: SalaSnapshot }) {
-  return (
-    <div className="sala-grid-2" style={{ flex: 1 }}>
-      <div className="sala-cards" style={{ gridTemplateColumns: "1fr 1fr 1fr", alignContent: "start" }}>
-        {dados.processos.itens.map((item) => (
-          <div key={item.id} className="sala-cartao">
-            <div className="sala-rotulo-bloco">{item.id} · {item.fonte.toUpperCase()}</div>
-            <div style={{ fontSize: 22, fontWeight: 600 }}>{item.nome}</div>
-            <div className="sala-numero" style={{ fontSize: 48 }}>{item.quantidade}</div>
-          </div>
-        ))}
-        <div className="sala-cartao" style={{ gridColumn: "1 / -1" }}>
-          <div className="sala-rotulo-bloco">FORA DO HORÁRIO NESTE MÊS</div>
-          <div className="sala-numero" style={{ fontSize: 56 }}>{dados.processos.foraDoHorario}</div>
-          <p className="sala-vazio">OS abertas antes das 7h, depois das 17h, no fim de semana ou em feriado.</p>
-        </div>
-      </div>
-      <div className="sala-coluna">
-        <div className="sala-cartao" style={{ flex: 1, overflow: "hidden" }}>
-          <div className="sala-rotulo-bloco">MELHORIAS DO ITEM 15</div>
-          <p style={{ fontSize: 22, margin: "8px 0 12px" }}>{dados.processos.melhorias}</p>
-          {dados.processos.melhoriasLista.length === 0 ? (
-            <p className="sala-vazio">Opcional — cadastre em /sala/registros. P04–P07 não entram na TV.</p>
-          ) : (
-            <div style={{ overflow: "auto" }}>
-              {dados.processos.melhoriasLista.map((item) => (
-                <div
-                  key={item.item}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    alignItems: "center",
-                    padding: "10px 0",
-                    borderBottom: "1px solid #E6ECF3",
-                  }}
-                >
-                  <span style={{ fontSize: 22, fontWeight: 600 }}>{item.item}</span>
-                  <span
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 700,
-                      letterSpacing: 1,
-                      padding: "3px 8px",
-                      borderRadius: 6,
-                      background: item.status === "feito" ? "#F3F8EC" : item.status === "pendente" ? "#FFF6D6" : "#E8F0FA",
-                      color: item.status === "feito" ? "#3E7A1E" : item.status === "pendente" ? "#5C4300" : "#1D4A80",
-                      whiteSpace: "nowrap",
-                      textTransform: "uppercase",
-                    }}
-                  >
-                    {item.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/** Linhas por página na TV 1920×1080 (cabeçalho + KPIs + banner). */
 const COMPRAS_POR_PAGINA = 7;
 const GRID_COMPRAS =
   "110px 120px minmax(0,1.2fr) 88px 88px 100px 132px 64px 140px 128px";
@@ -1920,7 +1998,7 @@ function Conteudo({
   destaque: string | null;
   novasOs: ReadonlySet<string>;
   drill: SalaDrillSelecao | null;
-  onDrill: (id: string, titulo: string) => void;
+  onDrill: (id: string, titulo: string, contagem?: number) => void;
   onSelecionarOs?: (os: string) => void;
   onInteracaoChange?: (ativa: boolean) => void;
   onAtualizar?: () => void | Promise<void>;
@@ -1937,14 +2015,14 @@ function Conteudo({
       />
     );
   }
-  if (tela === "fluxo") return <TelaFluxo dados={dados} />;
-  if (tela === "envelhecimento") return <TelaEnvelhecimento dados={dados} />;
+  if (tela === "fluxo") return <TelaFluxo dados={dados} drill={drill} onDrill={onDrill} onSelecionarOs={onSelecionarOs} />;
+  if (tela === "envelhecimento") return <TelaEnvelhecimento dados={dados} drill={drill} onDrill={onDrill} />;
   if (tela === "compras") {
     return (
       <TelaCompras dados={dados} onInteracaoChange={onInteracaoChange} onAtualizar={onAtualizar} />
     );
   }
-  if (tela === "programadas") return <TelaProgramadas dados={dados} />;
+  if (tela === "programadas") return <TelaProgramadas dados={dados} drill={drill} onDrill={onDrill} />;
   if (tela === "ciclo-de-vida") {
     return <TelaCiclo dados={dados} drill={drill} onDrill={onDrill} />;
   }
@@ -1955,7 +2033,7 @@ function Conteudo({
   if (tela === "evolucao") {
     return <TelaEvolucao />;
   }
-  return <TelaProcessos dados={dados} />;
+  return <TelaAgora dados={dados} destaque={destaque} novasOs={novasOs} drill={drill} onDrill={onDrill} onSelecionarOs={onSelecionarOs} />;
 }
 
 export function SalaApp({
@@ -1981,6 +2059,22 @@ export function SalaApp({
   const [drill, setDrill] = useState<SalaDrillSelecao | null>(null);
   /** Detalhe operacional de uma OS (clique na fila / linha do drill). */
   const [osSelecionada, setOsSelecionada] = useState<string | null>(null);
+  /** Filtros de visualização do drill (C5) — espelhados na URL (C9). */
+  const [filtrosDrill, setFiltrosDrill] = useState<FiltrosRecorte>({});
+  /** Resultado do recorte aberto: título/total do servidor + detalhe "do cache" (C11). */
+  const [recorteInfo, setRecorteInfo] = useState<{
+    id: string;
+    titulo: string;
+    total: number;
+    detalhes: Record<string, OsDetalheSnapshot>;
+    oss: string[];
+  } | null>(null);
+  const [mobile, setMobile] = useState(false);
+  const [demoDrill, setDemoDrill] = useState(false);
+  /** Elementos clicados, para devolver o foco ao fechar (D10). */
+  const focoDrillRef = useRef<HTMLElement | null>(null);
+  const focoOsRef = useRef<HTMLElement | null>(null);
+  const urlProntaRef = useRef(false);
   const [escala, setEscala] = useState(1);
   const [deslocamento, setDeslocamento] = useState(0);
   /**
@@ -2011,14 +2105,43 @@ export function SalaApp({
     }
   }, []);
 
+  const devolverFoco = useCallback((ref: { current: HTMLElement | null }) => {
+    const alvo = ref.current;
+    ref.current = null;
+    if (alvo && document.contains(alvo)) window.setTimeout(() => alvo.focus(), 0);
+  }, []);
+
   const limparDrill = useCallback(() => {
     setOsSelecionada(null);
     setDrill(null);
-  }, []);
+    setFiltrosDrill({});
+    setRecorteInfo(null);
+    focoOsRef.current = null;
+    devolverFoco(focoDrillRef);
+  }, [devolverFoco]);
 
-  const selecionarOs = useCallback((os: string) => {
+  const fecharOs = useCallback(() => {
+    setOsSelecionada(null);
+    devolverFoco(focoOsRef);
+  }, [devolverFoco]);
+
+  const selecionarOs = useCallback((os: string, el?: HTMLElement) => {
+    focoOsRef.current = el ?? (document.activeElement as HTMLElement | null);
     setOsSelecionada(os);
   }, []);
+
+  const onRecorteResolvido = useCallback(
+    (info: { titulo: string; total: number; detalhes: Record<string, OsDetalheSnapshot>; oss: string[] }) => {
+      setDrill((atual) => {
+        if (!atual) return atual;
+        setRecorteInfo({ id: atual.id, ...info });
+        // Link compartilhado (C9/D9): título vem do servidor.
+        if (!atual.titulo) return { ...atual, titulo: info.titulo };
+        return atual;
+      });
+    },
+    [],
+  );
 
   const onInteracaoCompras = useCallback((ativa: boolean) => {
     setInteracaoCompras(ativa);
@@ -2053,9 +2176,10 @@ export function SalaApp({
 
   const carregar = useCallback(async () => {
     try {
-      const demo =
-        typeof window !== "undefined" && new URLSearchParams(window.location.search).get("demo") === "1";
-      const resposta = await fetch(demo ? "/api/sala/snapshot?demo=1" : "/api/sala/snapshot", {
+      const demoParam = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("demo") : null;
+      const url =
+        demoParam === "1" ? "/api/sala/snapshot?demo=1" : demoParam === "drill" ? "/api/sala/snapshot?demo=drill" : "/api/sala/snapshot";
+      const resposta = await fetch(url, {
         cache: "no-store",
       });
       if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
@@ -2137,34 +2261,111 @@ export function SalaApp({
     pausadoManual || Boolean(drill) || Boolean(osSelecionada) || interacaoCompras;
 
   const selecionarDrill = useCallback(
-    (id: string, titulo: string) => {
-      setDrill((atual) => {
-        if (atual?.id === id) return null;
-        return { tela, id, titulo };
-      });
+    (id: string, titulo: string, contagem?: number) => {
+      if (drill?.id === id) {
+        limparDrill();
+        return;
+      }
+      focoDrillRef.current = document.activeElement as HTMLElement | null;
+      setOsSelecionada(null);
+      setFiltrosDrill({});
+      setRecorteInfo(null);
+      setDrill({ tela, id, titulo, contagem });
     },
-    [tela],
+    [tela, drill, limparDrill],
   );
 
+  const telaAnteriorRef = useRef(tela);
   useEffect(() => {
+    if (telaAnteriorRef.current === tela) return;
+    telaAnteriorRef.current = tela;
     setOsSelecionada(null);
     setDrill(null);
+    setFiltrosDrill({});
+    setRecorteInfo(null);
     setInteracaoCompras(false);
   }, [tela]);
 
+  // Esc fecha um nível (detalhe → lista) e devolve o foco ao elemento clicado (D4/D10).
   useEffect(() => {
     const tecla = (evento: KeyboardEvent) => {
       if (evento.key === "Escape") {
         if (osSelecionada) {
-          setOsSelecionada(null);
+          fecharOs();
           return;
         }
-        setDrill(null);
+        if (drill) limparDrill();
       }
     };
     window.addEventListener("keydown", tecla);
     return () => window.removeEventListener("keydown", tecla);
-  }, [osSelecionada]);
+  }, [osSelecionada, drill, fecharOs, limparDrill]);
+
+  // Celular (≤ 600 px): sheet em tela cheia fora do palco escalado (C10/D7).
+  useEffect(() => {
+    const consulta = window.matchMedia("(max-width: 600px)");
+    const aplicar = () => setMobile(consulta.matches);
+    aplicar();
+    consulta.addEventListener("change", aplicar);
+    return () => consulta.removeEventListener("change", aplicar);
+  }, []);
+
+  // URL → estado (C9/D9) no carregamento e no voltar/avançar do navegador (C7).
+  useEffect(() => {
+    const aplicar = () => {
+      const estado = lerUrlDrill(window.location.search);
+      setDemoDrill(new URLSearchParams(window.location.search).get("demo") === "drill");
+      if (estado.drill && isRecorteDrill(estado.drill)) {
+        setDrill((atual) => (atual?.id === estado.drill ? atual : { tela, id: estado.drill as string, titulo: "" }));
+        setFiltrosDrill(estado.filtros);
+        setOsSelecionada(estado.os);
+      } else {
+        setDrill((atual) => (atual && isRecorteDrill(atual.id) ? null : atual));
+        setOsSelecionada(estado.os);
+      }
+      urlProntaRef.current = true;
+    };
+    aplicar();
+    window.addEventListener("popstate", aplicar);
+    return () => window.removeEventListener("popstate", aplicar);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Estado → URL: abrir lista/OS cria entrada no histórico (voltar fecha); filtros só substituem.
+  const urlAnteriorRef = useRef<{ drill: string | null; os: string | null }>({ drill: null, os: null });
+  useEffect(() => {
+    if (!urlProntaRef.current) return;
+    const recorte = drill && isRecorteDrill(drill.id) ? drill.id : null;
+    const os = recorte ? osSelecionada : null;
+    const destino = `${window.location.pathname}${escreverUrlDrill(window.location.search, { drill: recorte, os, filtros: filtrosDrill })}`;
+    const atual = `${window.location.pathname}${window.location.search}`;
+    if (destino === atual) {
+      urlAnteriorRef.current = { drill: recorte, os };
+      return;
+    }
+    const anterior = urlAnteriorRef.current;
+    const abriu = (recorte && recorte !== anterior.drill) || (os && os !== anterior.os);
+    if (abriu) window.history.pushState(null, "", destino);
+    else window.history.replaceState(null, "", destino);
+    urlAnteriorRef.current = { drill: recorte, os };
+  }, [drill, osSelecionada, filtrosDrill]);
+
+  // Sem interação por 90 s, o drill fecha e a rotação volta — nunca com telaFixa (U1/D6).
+  const drillAberto = Boolean(drill) || Boolean(osSelecionada);
+  useEffect(() => {
+    if (telaFixa || !drillAberto) return;
+    let timer = window.setTimeout(() => limparDrill(), DRILL_IDLE_MS);
+    const reiniciar = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => limparDrill(), DRILL_IDLE_MS);
+    };
+    const eventos = ["pointerdown", "keydown", "wheel", "touchstart", "scroll"] as const;
+    for (const nome of eventos) window.addEventListener(nome, reiniciar, { capture: true, passive: true });
+    return () => {
+      window.clearTimeout(timer);
+      for (const nome of eventos) window.removeEventListener(nome, reiniciar, { capture: true });
+    };
+  }, [telaFixa, drillAberto, limparDrill]);
 
   useEffect(() => {
     if (telaFixa || pausado) return;
@@ -2217,19 +2418,29 @@ export function SalaApp({
   const proxima = sequencia[(indice + 1) % sequencia.length];
   const proximaLabel = TELAS_SALA.find((item) => item.id === proxima)?.label ?? proxima;
   const restante = Math.max(0, Math.ceil((1 - progresso) * segundos));
+  const recorteAtivo = Boolean(drill && isRecorteDrill(drill.id));
   const drillLinhas = drill
-    ? isCicloAnoDrill(drill.id)
+    ? isCicloAnoDrill(drill.id) || recorteAtivo
       ? []
       : (dados?.detalhes?.[drill.id] ?? [])
     : [];
   const cicloBucket = drill && dados && isCicloAnoDrill(drill.id) ? bucketCicloAno(dados, drill.id) : null;
   const cicloItens = cicloBucket?.itens ?? [];
+  const recorteDoDrill = recorteInfo && drill && recorteInfo.id === drill.id ? recorteInfo : null;
   const drillContagem = drill
     ? isCicloAnoDrill(drill.id)
       ? cicloItens.length
-      : drillLinhas.length
+      : recorteAtivo
+        ? (recorteDoDrill?.total ?? drill.contagem)
+        : drillLinhas.length
     : undefined;
-  const osDetalhe = osSelecionada ? (dados?.osDetalhes?.[osSelecionada] ?? null) : null;
+  /** Telas com detalhe buscado na API (D-SD1); as demais seguem só com o snapshot. */
+  const detalheRemoto = recorteAtivo || tela === "fluxo" || tela === "envelhecimento" || tela === "programadas";
+  const osDetalhe = osSelecionada && !detalheRemoto ? (dados?.osDetalhes?.[osSelecionada] ?? null) : null;
+  const cacheOs = osSelecionada
+    ? (recorteDoDrill?.detalhes[osSelecionada] ?? dados?.osDetalhes?.[osSelecionada] ?? null)
+    : null;
+  const osForaDoRecorte = Boolean(osSelecionada && recorteDoDrill && !recorteDoDrill.oss.includes(osSelecionada));
 
   return (
     <div className={`${mono.variable} sala-root`}>
@@ -2299,7 +2510,33 @@ export function SalaApp({
               onLimpar={limparDrill}
             />
           ) : null}
-          {drill && !osDetalhe && !isCicloAnoDrill(drill.id) ? (
+          {drill && recorteAtivo && dados && !mobile ? (
+            <SalaRecorteOverlay
+              drill={drill}
+              demo={demoDrill}
+              versao={dados.atualizadoEm}
+              filtros={filtrosDrill}
+              mobile={false}
+              impedimentos={dados.programadas.impedimentos}
+              onFiltros={setFiltrosDrill}
+              onLimpar={limparDrill}
+              onSelecionarOs={selecionarOs}
+              onResolvido={onRecorteResolvido}
+            />
+          ) : null}
+          {osSelecionada && detalheRemoto && !mobile ? (
+            <SalaOsDetalheRemoto
+              key={osSelecionada}
+              numero={osSelecionada}
+              cache={cacheOs}
+              demo={demoDrill}
+              mobile={false}
+              foraDoRecorte={osForaDoRecorte}
+              onVoltar={fecharOs}
+              onFechar={limparDrill}
+            />
+          ) : null}
+          {drill && !osDetalhe && !isCicloAnoDrill(drill.id) && !recorteAtivo ? (
             <SalaDrillOverlay
               drill={drill}
               linhas={drillLinhas}
@@ -2317,7 +2554,7 @@ export function SalaApp({
               }}
             />
           ) : null}
-          {osSelecionada && !osDetalhe ? (
+          {osSelecionada && !osDetalhe && !detalheRemoto ? (
             <div className="sala-os-detalhe-overlay" role="dialog" aria-modal="true" aria-label={`OS ${osSelecionada}`}>
               <button
                 type="button"
@@ -2395,6 +2632,32 @@ export function SalaApp({
           </div>
         </div>
       </div>
+      {mobile && drill && recorteAtivo && dados ? (
+        <SalaRecorteOverlay
+          drill={drill}
+          demo={demoDrill}
+          versao={dados.atualizadoEm}
+          filtros={filtrosDrill}
+          mobile
+          impedimentos={dados.programadas.impedimentos}
+          onFiltros={setFiltrosDrill}
+          onLimpar={limparDrill}
+          onSelecionarOs={selecionarOs}
+          onResolvido={onRecorteResolvido}
+        />
+      ) : null}
+      {mobile && osSelecionada && detalheRemoto ? (
+        <SalaOsDetalheRemoto
+          key={osSelecionada}
+          numero={osSelecionada}
+          cache={cacheOs}
+          demo={demoDrill}
+          mobile
+          foraDoRecorte={osForaDoRecorte}
+          onVoltar={fecharOs}
+          onFechar={limparDrill}
+        />
+      ) : null}
     </div>
   );
 }
