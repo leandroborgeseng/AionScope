@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 import { AlertTriangle, CheckCircle2, MinusCircle } from "lucide-react";
@@ -14,26 +14,18 @@ import { IndicadorPageLayout } from "@/components/indicadores/indicador-page-lay
 import { PageHeader } from "@/components/shell/page-header";
 import { DataTable } from "@/components/tables/data-table";
 import { CustoParqueChart, textoTooltipMes } from "@/components/charts/custo-parque-chart";
-import { useContratos, useParqueMeta } from "@/hooks/use-cadastros";
-import { useMedicalIndex } from "@/hooks/use-medical-index";
-import { useOsAnaliticoRollingYear } from "@/hooks/use-os-analitico-rolling-year";
-import { dataOf, usePbiQuery } from "@/hooks/use-pbi";
+import { useCustoParque } from "@/hooks/use-custo-parque";
 import {
   META_ANUAL_PCT,
-  buildCustoParqueAno,
   formatPctParque,
   rotuloStatus,
   type CustoParqueMes,
   type StatusMeta,
 } from "@/lib/pbi/custo-manutencao-parque";
 import { FICHAS } from "@/lib/pbi/fichas";
-import { buildGastoReparo, gastoReparoDoMes, type GastoReparoRow } from "@/lib/pbi/gasto-reparo";
+import { gastoReparoDoMes, type GastoReparoRow } from "@/lib/pbi/gasto-reparo";
 import { formatBRL } from "@/lib/pbi/indicators";
-import { EMPTY_FILTERS } from "@/lib/pbi/filters";
-import { nowInSaoPaulo, startOfMonthISO, todayISO } from "@/lib/pbi/dates";
-import { resumirValorParqueApi, valorParqueEfetivo } from "@/lib/pbi/parque-valor";
-import { PARQUE_ALERTA_DIAS, equipamentosSemValor, escolherValorParque, frescorParque, valorParqueDoMes } from "@/lib/pbi/parque-frescor";
-import type { EquipamentoItem } from "@/lib/pbi/types";
+import { PARQUE_ALERTA_DIAS } from "@/lib/pbi/parque-frescor";
 import { cn } from "@/lib/utils";
 
 const FICHA = FICHAS["custo-manutencao-parque"];
@@ -60,73 +52,38 @@ function StatusChip({ status }: { status: StatusMeta | null }) {
   );
 }
 
+/** Sem sessão (401 em parque/contratos): em vez de "Buscando dados…" para sempre (UX D1). */
+function EntrarParaVerIndicador() {
+  const [voltar, setVoltar] = useState("/indicadores/custo-manutencao-parque");
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setVoltar(`${window.location.pathname}${window.location.search}`), []);
+  return (
+    <div className="space-y-4">
+      <PageHeader title="Custo de manutenção do parque" description="Contratos de Manutenção + OS avulsas ÷ valor de substituição do parque." />
+      <div role="status" data-testid="entrar-para-ver" className="rounded-xl border border-aion-line bg-white p-6">
+        <p className="text-lg font-semibold text-aion-ink">Entre para ver os valores do indicador</p>
+        <p className="mt-1 text-sm text-aion-muted">Os valores em R$ ficam restritos a administradores. O % e o status aparecem na Sala.</p>
+        <Link
+          href={`/cadastros/contratos?voltar=${encodeURIComponent(voltar)}`}
+          className="mt-4 inline-flex rounded-lg bg-aion-blue px-4 py-2 text-sm font-semibold text-white"
+        >
+          Entrar
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 export function CustoManutencaoParqueCard() {
-  const { range, raw, bruta, loading: osLoading, error: osError, result: osResult } = useOsAnaliticoRollingYear("calendarYear");
-  const medical = useMedicalIndex();
-  const parqueQ = useParqueMeta();
-  const contratosQ = useContratos();
   const { open, ready, openFullscreen, closeFullscreen } = useChartFullscreen();
   const [drill, setDrill] = useState<CustoParqueMes | null>(null);
-  const hoje = useMemo(() => nowInSaoPaulo(), []);
+  // Fonte única com o card da Sala TV (hooks/use-custo-parque.ts, I3).
+  const {
+    bruta, osResult, medical, eqQ, gasto, contratos, year, mesAtual, ind, faltando, semDados, atual, pctAtual, statusAtual, loading,
+    apiResumo, escolha, frescor, semValor, precisaLogin,
+  } = useCustoParque();
 
-  const eqQ = usePbiQuery<EquipamentoItem[]>(
-    "equipamentos",
-    { ...EMPTY_FILTERS, from: startOfMonthISO(), to: todayISO(), tipoManutencao: "Todos", somenteMedicos: false },
-    { apenasAtivos: "true", incluirComponentes: "false", incluirCustoSubstituicao: "true" },
-  );
-
-  const apiResumo = useMemo(() => {
-    const items = dataOf(eqQ.data) ?? [];
-    return items.length ? resumirValorParqueApi(items) : null;
-  }, [eqQ.data]);
-
-  const gasto = useMemo(
-    () => buildGastoReparo(raw, range, medical.tags, medical.ids),
-    [raw, range, medical.tags, medical.ids],
-  );
-
-  // P2: soma ao vivo primeiro; valor gravado (parque_meta) só como reserva se a API/cache falhar.
-  const escolha = escolherValorParque({
-    aoVivo: apiResumo?.substituicao.todos.total ?? null,
-    gravado: parqueQ.data?.valorApi ?? null,
-  });
-  const efetivo = valorParqueEfetivo({ apiTodosSubstituicao: escolha.valor });
-  const frescor = useMemo(() => {
-    const iso = escolha.fonte === "ao-vivo" ? (eqQ.data?.cache?.fetchedAt ?? eqQ.data?.cachedAt ?? null) : (parqueQ.data?.atualizadoEm ?? null);
-    return frescorParque(iso, Date.now());
-  }, [escolha.fonte, eqQ.data, parqueQ.data?.atualizadoEm]);
-  const semValor = useMemo(() => equipamentosSemValor(dataOf(eqQ.data) ?? []), [eqQ.data]);
-
-  const contratos = useMemo(() => contratosQ.data ?? [], [contratosQ.data]);
-  const avulsosDisponiveis = !osError && !medical.error;
-  const year = range.months[0]?.year ?? hoje.getFullYear();
-  const mesAtual = year === hoje.getFullYear() ? hoje.getMonth() : 11;
-
-  const ind = useMemo(
-    () =>
-      buildCustoParqueAno({
-        year,
-        months: range.months,
-        contratos,
-        gastoMonths: gasto.months,
-        valorParque: efetivo.valor,
-        valorParqueDoMes:
-          parqueQ.data?.regra === "mensal"
-            ? (c: string) => valorParqueDoMes("mensal", efetivo.valor, parqueQ.data?.mensal ?? [], c)
-            : undefined,
-        avulsosDisponiveis,
-        mesAtual,
-      }),
-    [year, range.months, contratos, gasto.months, efetivo.valor, avulsosDisponiveis, mesAtual, parqueQ.data?.regra, parqueQ.data?.mensal],
-  );
-  const faltando = [...ind.faltando];
-  if (contratosQ.error || contratosQ.isError) faltando.push("cadastro de contratos indisponível");
-  const semDados = faltando.length > 0;
-  const atual = ind.atual;
-  const pctAtual = semDados ? null : (atual?.pctAcumulado ?? null);
-  const statusAtual = semDados ? null : (atual?.status ?? null);
-
-  const loading = osLoading || medical.loading || contratosQ.isLoading || parqueQ.isLoading || eqQ.isLoading;
+  if (precisaLogin) return <EntrarParaVerIndicador />;
 
   const osDrill: GastoReparoRow[] = drill ? gastoReparoDoMes(gasto.noIntervalo, drill.year, drill.month) : [];
   const osColumns: ColumnDef<GastoReparoRow>[] = [
