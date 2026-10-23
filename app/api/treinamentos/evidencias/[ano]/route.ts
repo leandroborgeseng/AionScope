@@ -1,6 +1,7 @@
 import { createReadStream, statSync } from "fs";
 import { Readable } from "stream";
 import { NextResponse } from "next/server";
+import { exigirSessaoAdmin } from "@/lib/auth/contratos-sessao";
 import {
   caminhoEvidencia,
   evidenciaExiste,
@@ -14,9 +15,12 @@ type Ctx = { params: Promise<{ ano: string }> };
 
 /**
  * PDFs das listas de presença. O de 2026 contém CPF/e-mail — nunca público.
- * Exige TREINAMENTOS_EVIDENCIAS_TOKEN (Bearer, ?token= ou cookie).
+ * A4: exige a sessão de administrador SEMPRE (mesmo sem token configurado) e, se houver,
+ * TREINAMENTOS_EVIDENCIAS_TOKEN (Bearer, ?token= ou cookie). 401 sem dados.
  */
 export async function GET(request: Request, ctx: Ctx) {
+  const negado = exigirSessaoAdmin(request);
+  if (negado) return negado;
   if (!tokenEvidenciaValido(request)) {
     return recusarEvidencia();
   }
