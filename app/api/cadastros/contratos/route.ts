@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { exigirSessaoContratos } from "@/lib/auth/contratos-sessao";
+import { exigirSessaoAdmin, exigirSessaoContratos } from "@/lib/auth/contratos-sessao";
 import { validarContrato } from "@/lib/cadastros/contratos-proprios";
 import { readContratos, upsertContrato } from "@/lib/cadastros/store";
 import type { ContratoInput } from "@/lib/cadastros/types";
@@ -7,8 +7,10 @@ import type { ContratoInput } from "@/lib/cadastros/types";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-/** Leitura segue aberta como as demais telas (login global fica para o backlog). */
-export async function GET() {
+/** Leitura exige sessão de administrador: devolve valores e fornecedores (aceite A3). */
+export async function GET(request: Request) {
+  const recusa = exigirSessaoAdmin(request);
+  if (recusa) return recusa;
   return Response.json({ ok: true, data: readContratos() });
 }
 

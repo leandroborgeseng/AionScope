@@ -61,12 +61,12 @@ test("token: assinatura, expiração e adulteração", () => {
   assert.equal(tokenSessaoValido(t, 1000), false, "outro segredo invalida");
 });
 
-test("escrita sem sessão = 401 (POST/PATCH/DELETE); GET aberto", async () => {
+test("escrita e leitura sem sessão = 401 (GET/POST/PATCH/DELETE)", async () => {
   assert.equal((await rotaLista.POST(json("POST", novo))).status, 401);
   assert.equal((await rotaItem.PATCH(json("PATCH", { ativo: false }), ctx("x"))).status, 401);
   assert.equal((await rotaItem.DELETE(json("DELETE", {}), ctx("x"))).status, 401);
   assert.equal((await rotaLista.POST(json("POST", novo, `${COOKIE_SESSAO_CONTRATOS}=lixo.abcdefghijklmnopqrstuvwxyz`))).status, 401);
-  assert.equal((await rotaLista.GET()).status, 200);
+  assert.equal((await rotaLista.GET(new Request(URL_BASE))).status, 401);
 });
 
 test("sem envs: login recusado e escrita sempre 401", async () => {
@@ -107,7 +107,7 @@ test("CRUD com sessão: cria, valida, edita, inativa sem apagar", async () => {
   assert.equal(fimRuim.status, 400);
 
   assert.equal((await rotaItem.DELETE(json("DELETE", {}, cookie), ctx(criado.id))).status, 200);
-  const lista = (await (await rotaLista.GET()).json()).data as Array<{ id: string; ativo: boolean }>;
+  const lista = (await (await rotaLista.GET(new Request(URL_BASE, { headers: { cookie } }))).json()).data as Array<{ id: string; ativo: boolean }>;
   const ainda = lista.find((x) => x.id === criado.id);
   assert.ok(ainda, "continua no banco");
   assert.equal(ainda!.ativo, false);
