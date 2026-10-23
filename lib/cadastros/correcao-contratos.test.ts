@@ -188,3 +188,13 @@ test("validarSuspensao normaliza para mês inteiro", () => {
     assert.equal(contratoContaNoIndicador(k, 2026, 7), true); // ago/26
   }
 });
+
+test("planejar: dry-run simula suspensão pelo mês inteiro, igual à API", () => {
+  const r = planejar([c("s", 100)], { meses, operacoes: [{ op: "suspender", id: "s", de: "2026-07-15", ate: "2026-07-20" }] });
+  assert.ok(r.ok);
+  if (r.ok) {
+    assert.equal(r.passos[0].depois.suspensoDe, "2026-07-01");
+    assert.equal(r.passos[0].depois.suspensoAte, "2026-07-31");
+    assert.equal(contratoContaNoIndicador(r.final[0], 2026, 6), false); // jul/26 sai no dry-run
+  }
+});

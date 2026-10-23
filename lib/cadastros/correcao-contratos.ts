@@ -135,7 +135,9 @@ export function planejar(contratos: Contrato[], entrada: Entrada): { ok: true; p
       depois = { ...atual, ativo: false, inativadoEm: contaAte ? `${contaAte}T23:59:59-03:00` : null };
       chamada = { metodo: "PATCH", caminho, body: { ativo: false, contaAte } };
     } else {
-      depois = { ...atual, suspensoDe: o.de, suspensoAte: o.ate };
+      // Mesma normalização da API (mês inteiro), para o dry-run bater com o que será gravado.
+      const sv = validarSuspensao(o.de, o.ate);
+      depois = { ...atual, suspensoDe: sv.ok ? sv.de : o.de, suspensoAte: sv.ok ? sv.ate : o.ate };
       chamada = { metodo: "PATCH", caminho, body: { suspensoDe: o.de, suspensoAte: o.ate } };
     }
     mapa.set(o.id, depois);
