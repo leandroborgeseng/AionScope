@@ -18,6 +18,7 @@ import { aplicarMigration009ContratosProprios } from "./migrations/009_contratos
 import { aplicarMigration010ContratosInativadoEm } from "./migrations/010_contratos_inativado_em";
 import { aplicarMigration012PbiCache } from "./migrations/012_pbi_cache";
 import { aplicarMigration013ContratosSuspensao } from "./migrations/013_contratos_suspensao";
+import { aplicarMigration014ParqueHistorico } from "./migrations/014_parque_historico";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -253,6 +254,8 @@ function migrate(db: Database.Database) {
   aplicarMigration012PbiCache(db);
   // 013: aditiva e idempotente (só ADD COLUMN suspenso_de / suspenso_ate).
   aplicarMigration013ContratosSuspensao(db);
+  // 014: aditiva e idempotente (só CREATE TABLE parque_valor_historico).
+  aplicarMigration014ParqueHistorico(db);
 }
 
 /** Fecha o singleton — só para testes isolados. */

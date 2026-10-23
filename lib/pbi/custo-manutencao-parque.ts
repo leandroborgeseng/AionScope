@@ -64,6 +64,8 @@ export function buildCustoParqueAno(opts: {
   gastoMonths: GastoReparoMonth[];
   /** null/0 = parque ausente */
   valorParque: number | null;
+  /** Regra mensal (PARQUE_REGRA=mensal): denominador por competência YYYY-MM; ausente = valor único. */
+  valorParqueDoMes?: (competencia: string) => number | null;
   /** false = API GlobalThings fora / avulsos indisponíveis */
   avulsosDisponiveis: boolean;
   parqueErro?: string | null;
@@ -91,7 +93,9 @@ export function buildCustoParqueAno(opts: {
       const despesa = round2(contratos + avulsos);
       acumulado = round2(acumulado + despesa);
       const metaPct = metaProporcionalPct(slot.month);
-      const pctAcumulado = calculavel && !futuro ? (acumulado / opts.valorParque!) * 100 : null;
+      const comp = `${slot.year}-${String(slot.month + 1).padStart(2, "0")}`;
+      const den = opts.valorParqueDoMes?.(comp) ?? opts.valorParque!;
+      const pctAcumulado = calculavel && !futuro && den > 0 ? (acumulado / den) * 100 : null;
       const status: StatusMeta | null = pctAcumulado == null ? null : pctAcumulado <= metaPct ? "Dentro" : "Acima";
       return {
         ...slot,

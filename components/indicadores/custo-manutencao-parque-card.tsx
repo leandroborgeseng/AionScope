@@ -32,6 +32,7 @@ import { formatBRL } from "@/lib/pbi/indicators";
 import { EMPTY_FILTERS } from "@/lib/pbi/filters";
 import { nowInSaoPaulo, startOfMonthISO, todayISO } from "@/lib/pbi/dates";
 import { resumirValorParqueApi, valorParqueEfetivo } from "@/lib/pbi/parque-valor";
+import { PARQUE_ALERTA_DIAS, equipamentosSemValor, escolherValorParque, frescorParque, valorParqueDoMes } from "@/lib/pbi/parque-frescor";
 import type { EquipamentoItem } from "@/lib/pbi/types";
 import { cn } from "@/lib/utils";
 
@@ -84,9 +85,17 @@ export function CustoManutencaoParqueCard() {
     [raw, range, medical.tags, medical.ids],
   );
 
-  const efetivo = valorParqueEfetivo({
-    apiTodosSubstituicao: parqueQ.data?.valorApi ?? apiResumo?.substituicao.todos.total ?? null,
+  // P2: soma ao vivo primeiro; valor gravado (parque_meta) só como reserva se a API/cache falhar.
+  const escolha = escolherValorParque({
+    aoVivo: apiResumo?.substituicao.todos.total ?? null,
+    gravado: parqueQ.data?.valorApi ?? null,
   });
+  const efetivo = valorParqueEfetivo({ apiTodosSubstituicao: escolha.valor });
+  const frescor = useMemo(() => {
+    const iso = escolha.fonte === "ao-vivo" ? (eqQ.data?.cache?.fetchedAt ?? eqQ.data?.cachedAt ?? null) : (parqueQ.data?.atualizadoEm ?? null);
+    return frescorParque(iso, Date.now());
+  }, [escolha.fonte, eqQ.data, parqueQ.data?.atualizadoEm]);
+  const semValor = useMemo(() => equipamentosSemValor(dataOf(eqQ.data) ?? []), [eqQ.data]);
 
   const contratos = useMemo(() => contratosQ.data ?? [], [contratosQ.data]);
   const avulsosDisponiveis = !osError && !medical.error;
@@ -101,10 +110,14 @@ export function CustoManutencaoParqueCard() {
         contratos,
         gastoMonths: gasto.months,
         valorParque: efetivo.valor,
+        valorParqueDoMes:
+          parqueQ.data?.regra === "mensal"
+            ? (c: string) => valorParqueDoMes("mensal", efetivo.valor, parqueQ.data?.mensal ?? [], c)
+            : undefined,
         avulsosDisponiveis,
         mesAtual,
       }),
-    [year, range.months, contratos, gasto.months, efetivo.valor, avulsosDisponiveis, mesAtual],
+    [year, range.months, contratos, gasto.months, efetivo.valor, avulsosDisponiveis, mesAtual, parqueQ.data?.regra, parqueQ.data?.mensal],
   );
   const faltando = [...ind.faltando];
   if (contratosQ.error || contratosQ.isError) faltando.push("cadastro de contratos indisponível");
@@ -150,6 +163,37 @@ export function CustoManutencaoParqueCard() {
                 Meta até {MESES_LONGOS[mesAtual]}: {formatPctParque(atual?.metaPct ?? null)} · Teto anual:{" "}
                 {formatPctParque(META_ANUAL_PCT)} · Parque: {formatMi(ind.valorParque)}
               </p>
+              <div className="mt-2 space-y-1 text-sm text-aion-muted" data-testid="parque-frescor">
+                <p>
+                  {frescor.texto}
+                  {escolha.fonte === "gravado" ? " (valor gravado; soma ao vivo indisponível)" : escolha.fonte === "ao-vivo" ? " (soma ao vivo dos equipamentos ativos)" : ""}
+                  {apiResumo ? (
+                    <> · <span data-testid="parque-com-valor">{apiResumo.substituicao.todos.preenchidos.toLocaleString("pt-BR")} de {apiResumo.nTotal.toLocaleString("pt-BR")} com valor</span></>
+                  ) : null}
+                </p>
+                {ind.valorParque != null && frescor.desatualizado ? (
+                  <p role="status" data-testid="parque-alerta" className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-amber-900">
+                    <AlertTriangle className="mr-1 inline size-4" aria-hidden />
+                    O valor do parque tem mais de {PARQUE_ALERTA_DIAS} dias{frescor.dias != null ? ` (${frescor.dias} dias)` : ""}.{" "}
+                    <Link href="/cadastros/parque" className="underline">Atualizar o valor do parque</Link>
+                  </p>
+                ) : null}
+                {semValor.length > 0 ? (
+                  <details data-testid="parque-sem-valor" className="rounded-lg border border-aion-line bg-aion-mist px-3 py-2 text-aion-ink">
+                    <summary className="cursor-pointer">{semValor.length.toLocaleString("pt-BR")} equipamentos ativos sem valor de substituição (fora da soma)</summary>
+                    <div className="mt-2 max-h-72 overflow-auto">
+                      <table className="w-full text-xs" aria-label="Equipamentos ativos sem valor de substituição">
+                        <thead className="text-left"><tr><th className="py-1 pr-2">Tag</th><th className="py-1 pr-2">Equipamento</th><th className="py-1 pr-2">Modelo</th><th className="py-1">Setor</th></tr></thead>
+                        <tbody>
+                          {semValor.map((e) => (
+                            <tr key={`${e.Id}-${e.Tag}`} className="border-t border-aion-line"><td className="py-1 pr-2 tabular-nums">{e.Tag}</td><td className="py-1 pr-2">{e.Equipamento}</td><td className="py-1 pr-2">{e.Modelo}</td><td className="py-1">{e.Setor}</td></tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </details>
+                ) : null}
+              </div>
               <GlobalThingsFreshness results={[osResult, medical.result, eqQ.data]} />
               {semDados ? (
                 <p role="alert" className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
