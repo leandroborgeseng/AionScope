@@ -1,9 +1,9 @@
-import { readParqueMeta, writeParqueMeta } from "@/lib/cadastros/store";
+import { gravarValorParque } from "@/lib/cadastros/parque-historico";
 import type { ParqueMeta } from "@/lib/cadastros/types";
 import { fetchPbi } from "@/lib/pbi/client";
 import { startOfMonthISO, todayISO } from "@/lib/pbi/dates";
 import { EMPTY_FILTERS, toUpstreamParams } from "@/lib/pbi/filters";
-import { resumirValorParqueApi } from "@/lib/pbi/parque-valor";
+import type { resumirValorParqueApi } from "@/lib/pbi/parque-valor";
 import type { EquipamentoItem } from "@/lib/pbi/types";
 
 /** Reconsulta equipamentos e grava valorApi (soma substituição de TODOS). */
@@ -34,19 +34,5 @@ export async function atualizarParqueDaApi(opts?: {
     return { error: failure.message, status: failure.status };
   }
 
-  const resumo = resumirValorParqueApi(result.data);
-  const valorApi = Math.round(resumo.substituicao.todos.total * 100) / 100;
-  const current = readParqueMeta();
-  const meta = writeParqueMeta({
-    valorSubstituicaoManual: null,
-    valorApi,
-    fonte: "api",
-    escopo: "todos",
-    atualizadoEm: new Date().toISOString(),
-    atualizadoPor: opts?.atualizadoPor ?? null,
-    valorManualReferencia: current.valorManualReferencia ?? 57_000_000,
-    notas: `Soma ValorDeSubstituicao de todos os equipamentos (${resumo.nTotal} itens, ${resumo.substituicao.todos.pctPreenchidos.toFixed(1)}% preenchidos). Médicos (auditoria): ${resumo.substituicao.medicos.total}.`,
-  });
-
-  return { meta, resumo };
+  return gravarValorParque(result.data, { origem: "manual", atualizadoPor: opts?.atualizadoPor ?? null });
 }

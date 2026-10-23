@@ -1,3 +1,5 @@
+import { parqueRegraDe } from "@/lib/pbi/parque-frescor";
+import { lerHistoricoParque, lerParqueMensal } from "@/lib/cadastros/parque-historico";
 import { atualizarParqueDaApi } from "@/lib/cadastros/parque-api";
 import { readParqueMeta, resolveValorParque } from "@/lib/cadastros/store";
 import type { ParqueMeta } from "@/lib/cadastros/types";
@@ -15,6 +17,9 @@ function parquePayload(meta: ParqueMeta) {
     /** @deprecated alias — manual removido */
     valorEfetivoManual: null,
     fonteManual: null,
+    historico: lerHistoricoParque(12),
+    mensal: lerParqueMensal(),
+    regra: parqueRegraDe(process.env.PARQUE_REGRA),
     databasePath: getDatabaseFilePath(),
   };
 }
