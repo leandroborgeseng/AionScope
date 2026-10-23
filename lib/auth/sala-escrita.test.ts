@@ -23,6 +23,9 @@ const envAntes = { ...process.env };
 before(() => {
   dir = mkdtempSync(path.join(os.tmpdir(), "aion-sala-escrita-"));
   process.env.DATABASE_PATH = path.join(dir, "teste.sqlite");
+  // F6: health lê treinamentos; nos testes, volume e semente em dir temporário vazio (nada em /data).
+  process.env.TREINAMENTOS_DATA_PATH = path.join(dir, "treinamentos");
+  process.env.TREINAMENTOS_SEED_PATH = path.join(dir, "semente-vazia");
   closeDbForTests();
 });
 after(() => {
