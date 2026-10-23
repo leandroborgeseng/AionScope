@@ -122,7 +122,7 @@ async function draw(){
   fillTextSpaced(ctx,'Nº',97,26,1.5);
   ctx.font='800 47px '+LABEL_FONT;
   ctx.textAlign='right'; ctx.textBaseline='middle';
-  ctx.fillText('HSJ-00001',390,34,280);
+  ctx.fillText('HSJ-90001',390,34,280);
   ctx.fillRect(97,57,293,3);
 
   ctx.textAlign='left'; ctx.textBaseline='middle';

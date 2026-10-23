@@ -9,8 +9,8 @@ import {
 
 test("extrai OS do assunto padrão", () => {
   assert.equal(
-    extrairOs("[OS 202609588] Solicitação de compra – Placa – Bisturi HSJ-01174"),
-    "202609588",
+    extrairOs("[OS 209909588] Solicitação de compra – Placa – Bisturi HSJ-91174"),
+    "209909588",
   );
 });
 
@@ -27,17 +27,17 @@ test("extrai SC em formatos comuns", () => {
 
 test("extrai campos do corpo modelo", () => {
   const campos = extrairCamposPedido(
-    "[OS 202609588] Solicitação de compra – Placa de potência – Bisturi elétrico HSJ-01174",
-    `OS: 202609588
-Equipamento: Bisturi elétrico · TAG HSJ-01174
-Setor: Centro Cirúrgico 10A
+    "[OS 209909588] Solicitação de compra – Placa de potência – Bisturi elétrico HSJ-91174",
+    `OS: 209909588
+Equipamento: Bisturi elétrico · TAG HSJ-91174
+Setor: Centro Cirúrgico DEMO
 Item(ns):
   1. Placa de potência · ref. fabricante XXXX · qtd 1
 Urgência: Alta`,
   );
-  assert.equal(campos.os, "202609588");
-  assert.equal(campos.tag, "HSJ-01174");
-  assert.equal(campos.setor, "Centro Cirúrgico 10A");
+  assert.equal(campos.os, "209909588");
+  assert.equal(campos.tag, "HSJ-91174");
+  assert.equal(campos.setor, "Centro Cirúrgico DEMO");
   assert.match(campos.item ?? "", /Placa de potência/);
   assert.match(campos.equipamento ?? "", /Bisturi/);
 });

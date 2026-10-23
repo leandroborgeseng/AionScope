@@ -12,7 +12,7 @@ Gerador de etiquetas para a **Nimbot B1**: faixa preta com o logo AION em branco
 | Bloco | Posição | Detalhes |
 |---|---|---|
 | Faixa da marca | x 0–85, y 0–240 | **Preto sólido de ponta a ponta.** Logo AION em **branco**, girado 90° anti-horário (lê de baixo para cima), 210 pt de comprimento, centrado na faixa |
-| ID | x 97–390, y 8–60 | "EQUIP. Nº" 10 pt/600 (+1,5 pt espaço) à esquerda; "HSJ-00001" **47 pt/800** alinhado à direita; linha de 3 pt embaixo |
+| ID | x 97–390, y 8–60 | "EQUIP. Nº" 10 pt/600 (+1,5 pt espaço) à esquerda; "HSJ-90001" **47 pt/800** alinhado à direita; linha de 3 pt embaixo |
 | REALIZADO | x 97–235, y 70–94 | "REALIZADO" 9 pt/700 à esquerda, data 21 pt/700 à direita, linha de 1 pt embaixo |
 | PRÓXIMO | x 97–235, y 97–127 | **Caixa preta**, cantos 6 pt: "PRÓXIMO" 9 pt/800 e data **26 pt/800** em branco |
 | Testes | x 97–235, y 137–207 | **Chips um embaixo do outro**, 22 pt de altura, espaço 3 pt, cantos 5 pt. Checkbox 13 × 13 pt + sigla 15 pt. **Feito:** borda 2 pt, checkbox preto com ✓ branco, sigla 800. **Não feito:** borda tracejada 1 pt, checkbox vazio (contorno 2 pt), sigla 600 |
@@ -25,7 +25,7 @@ A B1 pode deixar ~1 mm branco na borda da faixa preta; isso é normal.
 ## Dados
 ```json
 {
-  "id": "HSJ-00001",
+  "id": "HSJ-90001",
   "realizado": "07/26",
   "proximo": "07/27",
   "testes": [

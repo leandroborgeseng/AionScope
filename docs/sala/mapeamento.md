@@ -37,7 +37,7 @@ Sim: `Causa`, 17 valores (desgaste natural, descuido, erro operacional/mau uso, 
 - Descontinuado: não existe. `EndOfService` é a data mais próxima. "EQUIPAMENTO OBSOLETO" aparece como causa de OS, não no cadastro.
 
 **DISP_EQUIPAMENTO mostra início e fim da parada?**
-`disponibilidade_equipamento` respondeu **404**. A versão mês a mês com `empresasId=2` é o HSJ: **1.892 equipamentos, todas as tags HSJ-** (Centro Cirúrgico 10A, Emergência, UTI). No último mês, 2 com `PossuiOSParadaSemFuncionamento`. A linha é mensal (`DiasParado`, percentual, TMEF/TMPR), sem data de início e fim. `Parada`/`Funcionamento` na OS continuam quase vazias. O id `1` é outro parque.
+`disponibilidade_equipamento` respondeu **404**. A versão mês a mês com `empresasId=2` é o HSJ: **1.892 equipamentos, todas as tags HSJ-** (Centro Cirúrgico DEMO, Emergência, UTI). No último mês, 2 com `PossuiOSParadaSemFuncionamento`. A linha é mensal (`DiasParado`, percentual, TMEF/TMPR), sem data de início e fim. `Parada`/`Funcionamento` na OS continuam quase vazias. O id `1` é outro parque.
 
 **Como ligar OS ↔ equipamento ↔ cronograma ↔ anexos?**
 - `equipamentos.Tag` = `OS.Tag` = `cronograma.Tag` = `anexos_equipamento.Tag` = `TMEF.Tag`.
@@ -58,7 +58,7 @@ Sim: `Causa`, 17 valores (desgaste natural, descuido, erro operacional/mau uso, 
 | Faixa horário / plantão | relógio do servidor | seg–sex 07:00–17:00; fora disso, plantão da Manutenção | ⚠️ a regra é nova; a API não diz quem está de plantão |
 | Atraso grave / fora do prazo / sem 1º atendimento | OS `Abertura`, `DataDoAtendimento` + meta do cadastro | situação do DESIGN.md em horas úteis, só OS abertas sem 1º atendimento | ⚠️ o evento real de mão de obra não existe; usar `DataDoAtendimento` até você decidir |
 | Equip. parados | disponibilidade mês, empresa `2` | `PossuiOSParadaSemFuncionamento` | ⚠️ diz que está parado, sem início/fim |
-| Plano do mês | cronograma | previsto no mês corrente sem OS do mesmo tipo/tag no mês | ⚠️ `ProximaRealizacao` é código (`202609735`), não data; `DataDaUltima` está 100% vazia |
+| Plano do mês | cronograma | previsto no mês corrente sem OS do mesmo tipo/tag no mês | ⚠️ `ProximaRealizacao` é código (`209909735`), não data; `DataDaUltima` está 100% vazia |
 | Fila de ação | OS + plano | ordem GRAVE → ATRASADA → plano do dia → VENCE LOGO → NO PRAZO | ⚠️ plano "vence hoje" depende de ler o código da próxima realização |
 | Etiqueta PARADO | `Parada` | parada preenchida e `Funcionamento` vazio | ❌ 7 OS só |
 | Etiqueta COMPRA | `Pendencia` ou tipo "SOLICITAÇÃO DE COMPRA" | texto contém compra ou peça | ⚠️ cobre poucas OS |

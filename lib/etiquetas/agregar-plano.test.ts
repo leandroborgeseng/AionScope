@@ -15,7 +15,7 @@ function os(
     CodigoSerialOS: Number(parcial.OS) || 1,
     Equipamento: "Monitor multiparamétrico",
     Modelo: "MX450",
-    Fabricante: "Philips",
+    Fabricante: "Fabricante Demo",
     Setor: "UTI",
     CentroDeCusto: "CC1",
     Fechamento: "",

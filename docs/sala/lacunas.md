@@ -7,7 +7,7 @@ Nada abaixo será inventado na tela. Onde não houver dado, o bloco mostra "—"
 1. **1º atendimento da TV = `DataDoAtendimento`.** A API não traz o lançamento de mão de obra.
 2. **Meta = texto do Effort**, não os 4h / 24h / 72h do app. Criticidade do equipamento: Alta 2h, Média 4h, Baixa 12h. Prioridade da OS: Alta criticidade 2h, Alto 4h, Média 12h, Baixa 72h.
 3. **`EndOfLife` em 01/01/2050 vale.** É a previsão de fim de vida registrada na Anvisa, não um placeholder.
-4. **Id do São Joaquim = `2`.** Teste de 01/10/2026: 1.892 equipamentos, todas as tags `HSJ-`, setores do HSJ (Centro Cirúrgico 10A, Emergência, UTI). O id `01`/`1` é outro parque e não deve ser usado. Gravado em `PBI_DEFAULT_EMPRESA_IDS`.
+4. **Id do São Joaquim = `2`.** Teste de 01/10/2026: 1.892 equipamentos, todas as tags `HSJ-`, setores do HSJ (Centro Cirúrgico DEMO, Emergência, UTI). O id `01`/`1` é outro parque e não deve ser usado. Gravado em `PBI_DEFAULT_EMPRESA_IDS`.
 
 ## ❌ não existe na API
 
