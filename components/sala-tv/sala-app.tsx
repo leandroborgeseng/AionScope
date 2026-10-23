@@ -29,6 +29,7 @@ import { idsOsAbertas, novasOsDesde } from "@/lib/ec/novas-os";
 import { parseMoeda } from "@/lib/ec/texto";
 import { desbloquearSomTv, SALA_SOM_STORAGE, tocarChimeNovaOs } from "@/components/sala-tv/som-nova-os";
 import { TvTreinamentos } from "@/components/treinamentos/tv-treinamentos";
+import { TelaIndicadoresSala } from "@/components/sala-tv/tela-indicadores";
 import { TelaEvolucao } from "@/components/sala-tv/tela-evolucao";
 import type { PainelTreinamentos } from "@/lib/treinamentos/types";
 import { SalaOsDetalhePainel } from "@/components/sala-tv/sala-os-detalhe";
@@ -1223,30 +1224,6 @@ function TelaCiclo({
   );
 }
 
-function TelaIndicadores({ dados }: { dados: SalaSnapshot }) {
-  return (
-    <div className="sala-cards" style={{ flex: 1 }}>
-      {dados.indicadores.cartoes.map((cartao) => {
-        const numeros = cartao.serie.filter((item): item is number => item != null);
-        const topo = Math.max(1, ...numeros);
-        return (
-          <div key={cartao.titulo} className="sala-cartao" style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div className="sala-rotulo-bloco">{cartao.titulo}</div>
-            <div className="sala-numero" style={{ fontSize: 56 }}>{cartao.valor}</div>
-            <div className="sala-spark" aria-hidden>
-              {cartao.serie.map((valor, index) => (
-                <i key={dados.indicadores.meses[index]} style={{ height: valor == null ? 4 : `${Math.max(8, (valor / topo) * 54)}px`, opacity: valor == null ? 0.35 : 1 }} />
-              ))}
-            </div>
-            <small style={{ color: "#4E6079", fontSize: 16 }}>{dados.indicadores.meses.join("  ")}</small>
-            <p style={{ margin: 0, fontSize: 18, color: "#4E6079" }}>{cartao.detalhe}</p>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function GraficoProgramadas({
   comparativo,
   drill,
@@ -2026,7 +2003,6 @@ function Conteudo({
   if (tela === "ciclo-de-vida") {
     return <TelaCiclo dados={dados} drill={drill} onDrill={onDrill} />;
   }
-  if (tela === "indicadores") return <TelaIndicadores dados={dados} />;
   if (tela === "treinamentos") {
     return <TvTreinamentos onInteracaoChange={onInteracaoChange} />;
   }
@@ -2050,6 +2026,8 @@ export function SalaApp({
   const [indice, setIndice] = useState(0);
   /** Pausa manual (Espaço / botão). Overlays e edição de Compras pausam à parte. */
   const [pausadoManual, setPausadoManual] = useState(false);
+  /** /sala/indicadores com mais de 6 cards pagina dentro da rotação (I13). */
+  const [paginasIndicadores, setPaginasIndicadores] = useState(1);
   /** Edição OS / confirmação de entrega na tela Compras — só enquanto ativo. */
   const [interacaoCompras, setInteracaoCompras] = useState(false);
   const [progresso, setProgresso] = useState(0);
@@ -2370,8 +2348,9 @@ export function SalaApp({
   useEffect(() => {
     if (telaFixa || pausado) return;
     const inicio = Date.now();
+    const paginas = tela === "indicadores" ? Math.max(1, paginasIndicadores) : 1;
     const timer = window.setInterval(() => {
-      const fracao = (Date.now() - inicio) / (segundos * 1000);
+      const fracao = (Date.now() - inicio) / (segundos * paginas * 1000);
       if (fracao >= 1) {
         setIndice((atual) => atual + 1);
         setProgresso(0);
@@ -2380,7 +2359,7 @@ export function SalaApp({
       }
     }, 200);
     return () => window.clearInterval(timer);
-  }, [indice, pausado, segundos, telaFixa]);
+  }, [indice, pausado, segundos, telaFixa, tela, paginasIndicadores]);
 
   useEffect(() => {
     if (telaFixa) return;
@@ -2417,7 +2396,9 @@ export function SalaApp({
   const desatualizado = atualizadoHaMin != null && atualizadoHaMin >= 20;
   const proxima = sequencia[(indice + 1) % sequencia.length];
   const proximaLabel = TELAS_SALA.find((item) => item.id === proxima)?.label ?? proxima;
-  const restante = Math.max(0, Math.ceil((1 - progresso) * segundos));
+  const paginasTela = tela === "indicadores" ? Math.max(1, paginasIndicadores) : 1;
+  const restante = Math.max(0, Math.ceil((1 - progresso) * segundos * paginasTela));
+  const paginaIndicadores = Math.min(paginasTela - 1, Math.floor(progresso * paginasTela));
   const recorteAtivo = Boolean(drill && isRecorteDrill(drill.id));
   const drillLinhas = drill
     ? isCicloAnoDrill(drill.id) || recorteAtivo
@@ -2480,6 +2461,8 @@ export function SalaApp({
                   />
                 ) : tela === "evolucao" ? (
                   <TelaEvolucao />
+                ) : tela === "indicadores" ? (
+                  <TelaIndicadoresSala pagina={paginaIndicadores} onPaginas={setPaginasIndicadores} onAbrir={() => setPausadoManual(true)} />
                 ) : (
                   <>
                     {erro && !dados ? <p className="sala-vazio">Sem conexão com o snapshot ({erro}).</p> : null}
@@ -2621,7 +2604,7 @@ export function SalaApp({
                     }
                   }}
                 >
-                  {pausado ? "continuar" : "pausar"} · próxima: {proximaLabel} em 0:{String(restante).padStart(2, "0")}
+                  {pausado ? "continuar" : "pausar"} · próxima: {proximaLabel} em {Math.floor(restante / 60)}:{String(restante % 60).padStart(2, "0")}
                 </button>
               )}
             </div>
