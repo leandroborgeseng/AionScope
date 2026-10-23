@@ -7,12 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EntrarParaVer } from "@/components/auth/entrar-para-ver";
+import { useSessaoAdmin } from "@/hooks/use-sessao-admin";
 import { useParqueMeta, useRefreshParqueApi } from "@/hooks/use-cadastros";
 import { dataOf, errorOf, usePbiQuery } from "@/hooks/use-pbi";
 import { startOfMonthISO, todayISO } from "@/lib/pbi/dates";
 import { formatBRL } from "@/lib/pbi/indicators";
 import { EMPTY_FILTERS } from "@/lib/pbi/filters";
-import { PARQUE_META_REFERENCIA, resumirValorParqueApi } from "@/lib/pbi/parque-valor";
+import { resumirValorParqueApi } from "@/lib/pbi/parque-valor";
 import type { EquipamentoItem } from "@/lib/pbi/types";
 
 export function ParqueCadastroForm() {
@@ -36,6 +38,13 @@ export function ParqueCadastroForm() {
       incluirCustoSubstituicao: "true",
     },
   );
+
+  // M1: a página começa "sem sessão" (SSR e 1º render) e só mostra a auditoria depois que
+  // GET /sessao confirma login. Sem sessão o proxy também devolve só a allowlist (sem R$).
+  const sessao = useSessaoAdmin();
+  const sessaoConfirmada = !sessao.carregando && sessao.logado;
+  const auditoriaSemSessao =
+    !sessaoConfirmada || Boolean((eqQ.data as { parcialSemSessao?: boolean } | undefined)?.parcialSemSessao);
 
   const apiResumo = useMemo(() => {
     const items = dataOf(eqQ.data) ?? [];
@@ -76,7 +85,7 @@ export function ParqueCadastroForm() {
       <Card>
         <CardHeader>
           <CardTitle>Valor em uso (API)</CardTitle>
-          <CardDescription>
+            <CardDescription>
             Persistido em SQLite (<code className="text-xs">DATABASE_PATH</code>, default{" "}
             <code className="text-xs">/data/aionscope.sqlite</code>). Escopo: todos os equipamentos
             cadastrados.
@@ -125,57 +134,58 @@ export function ParqueCadastroForm() {
       <Card>
         <CardHeader>
           <CardTitle>Auditoria da API (live)</CardTitle>
-          <CardDescription>
-            GET equipamentos com <code className="text-xs">incluirCustoSubstituicao=true</code>. O
-            cálculo usa a soma de <strong>todos</strong>; médicos só para comparação. Referência
-            antiga (não usada): {formatBRL(PARQUE_META_REFERENCIA)}.
-          </CardDescription>
+          {auditoriaSemSessao ? null : (
+            <CardDescription>
+              GET equipamentos com <code className="text-xs">incluirCustoSubstituicao=true</code>. O
+              cálculo usa a soma de <strong>todos</strong>; médicos só para comparação.
+            </CardDescription>
+          )}
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          {eqQ.isLoading ? <p className="text-aion-muted">Consultando API…</p> : null}
-          {errorOf(eqQ.data)?.message ? (
-            <p className="text-rose-700">{errorOf(eqQ.data)?.message}</p>
-          ) : null}
-          {apiResumo ? (
+          {auditoriaSemSessao ? (
+            <EntrarParaVer oque="a auditoria da API" />
+          ) : (
             <>
-              <div className="flex flex-wrap gap-2">
-                <Badge tone="info">{apiResumo.nTotal} equipamentos</Badge>
-                <Badge tone="info">{apiResumo.nMedicos} médicos</Badge>
-              </div>
-              <ul className="space-y-1 text-aion-ink/85">
-                <li>
-                  Substituição (todos — denominador):{" "}
-                  <strong className="tabular-nums">
-                    {formatBRL(apiResumo.substituicao.todos.total)}
-                  </strong>{" "}
-                  · preenchidos {apiResumo.substituicao.todos.pctPreenchidos.toFixed(1)}%
-                  {apiResumo.vsMetaTodosSubstituicao != null ? (
-                    <span className="text-aion-muted">
-                      {" "}
-                      ({apiResumo.vsMetaTodosSubstituicao.toFixed(1)}% da ref. 57 mi)
-                    </span>
-                  ) : null}
-                </li>
-                <li>
-                  Substituição (médicos — auditoria):{" "}
-                  <strong className="tabular-nums">
-                    {formatBRL(apiResumo.substituicao.medicos.total)}
-                  </strong>{" "}
-                  · preenchidos {apiResumo.substituicao.medicos.pctPreenchidos.toFixed(1)}%
-                </li>
-                <li>
-                  Aquisição (todos):{" "}
-                  <strong className="tabular-nums">{formatBRL(apiResumo.aquisicao.todos.total)}</strong>{" "}
-                  — não usar (outliers).
-                </li>
-              </ul>
-              <ul className="list-disc space-y-1 pl-5 text-xs text-aion-muted">
-                {apiResumo.notas.map((n) => (
-                  <li key={n}>{n}</li>
-                ))}
-              </ul>
+              {eqQ.isLoading ? <p className="text-aion-muted">Consultando API…</p> : null}
+              {errorOf(eqQ.data)?.message ? (
+                <p className="text-rose-700">{errorOf(eqQ.data)?.message}</p>
+              ) : null}
+              {apiResumo ? (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    <Badge tone="info">{apiResumo.nTotal} equipamentos</Badge>
+                    <Badge tone="info">{apiResumo.nMedicos} médicos</Badge>
+                  </div>
+                  <ul className="space-y-1 text-aion-ink/85">
+                    <li>
+                      Substituição (todos — denominador):{" "}
+                      <strong className="tabular-nums">
+                        {formatBRL(apiResumo.substituicao.todos.total)}
+                      </strong>{" "}
+                      · preenchidos {apiResumo.substituicao.todos.pctPreenchidos.toFixed(1)}%
+                    </li>
+                    <li>
+                      Substituição (médicos — auditoria):{" "}
+                      <strong className="tabular-nums">
+                        {formatBRL(apiResumo.substituicao.medicos.total)}
+                      </strong>{" "}
+                      · preenchidos {apiResumo.substituicao.medicos.pctPreenchidos.toFixed(1)}%
+                    </li>
+                    <li>
+                      Aquisição (todos):{" "}
+                      <strong className="tabular-nums">{formatBRL(apiResumo.aquisicao.todos.total)}</strong>{" "}
+                      — não usar (outliers).
+                    </li>
+                  </ul>
+                  <ul className="list-disc space-y-1 pl-5 text-xs text-aion-muted">
+                    {apiResumo.notas.map((n) => (
+                      <li key={n}>{n}</li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
             </>
-          ) : null}
+          )}
         </CardContent>
       </Card>
     </div>

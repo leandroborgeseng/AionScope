@@ -1,5 +1,6 @@
 "use client";
 
+import { EntrarParaVer, ehErroSemSessao } from "@/components/auth/entrar-para-ver";
 import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { CsvButton } from "@/components/export/csv-button";
@@ -109,6 +110,10 @@ export default function DocumentacaoPage() {
       {oficinaQ.data && !oficinaQ.data.ok && oficinaQ.data.disabled ? (
         <div className="mb-4">
           <PendingBanner title="API_PBI_OFICINA bloqueada" detail="A lista de oficinas do filtro é derivada da listagem de OS até o suporte liberar o endpoint." />
+        </div>
+      ) : oficinaQ.data && !oficinaQ.data.ok && ehErroSemSessao(oficinaQ.data.message) ? (
+        <div className="mb-4">
+          <EntrarParaVer oque="a lista de oficinas" />
         </div>
       ) : null}
 

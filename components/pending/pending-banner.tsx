@@ -1,3 +1,4 @@
+import { EntrarParaVer, ehErroSemSessao } from "@/components/auth/entrar-para-ver";
 import { AlertTriangle } from "lucide-react";
 
 export function PendingBanner({
@@ -21,6 +22,8 @@ export function PendingBanner({
 }
 
 export function SectionError({ message }: { message: string }) {
+  // Sem sessão de admin (401): card "Entre para ver…" com Entrar, em vez de erro vermelho.
+  if (ehErroSemSessao(message)) return <EntrarParaVer oque="estas informações" />;
   return (
     <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900">
       {message}

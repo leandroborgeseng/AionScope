@@ -49,7 +49,7 @@ export function gravarValorParque(
       escopo: "todos",
       atualizadoEm: agora,
       atualizadoPor: opts.atualizadoPor ?? (opts.origem === "agendador" ? "agendador" : null),
-      valorManualReferencia: current.valorManualReferencia ?? 57_000_000,
+      valorManualReferencia: current.valorManualReferencia ?? null,
       notas: `Soma ValorDeSubstituicao de todos os equipamentos (${resumo.nTotal} itens, ${resumo.substituicao.todos.pctPreenchidos.toFixed(1)}% preenchidos). Médicos (auditoria): ${resumo.substituicao.medicos.total}.`,
     });
   })();

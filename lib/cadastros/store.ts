@@ -43,7 +43,7 @@ const EMPTY_PARQUE: ParqueMeta = {
   escopo: "todos",
   atualizadoEm: null,
   atualizadoPor: null,
-  valorManualReferencia: 57_000_000,
+  valorManualReferencia: null,
   notas: null,
 };
 
@@ -60,7 +60,7 @@ function mapParque(row: ParqueRow | undefined): ParqueMeta {
     valorManualReferencia:
       row.valor_manual_referencia != null && Number.isFinite(row.valor_manual_referencia)
         ? row.valor_manual_referencia
-        : 57_000_000,
+        : null,
     notas: row.notas,
   };
 }

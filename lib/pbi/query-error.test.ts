@@ -24,7 +24,7 @@ test("erro de rede vira avulsos indisponíveis: sem %, sem status", () => {
     months: months as never,
     contratos: [],
     gastoMonths: [] as never,
-    valorParque: 57_000_000,
+    valorParque: 1_000_000,
     avulsosDisponiveis,
     mesAtual: 9,
   });
