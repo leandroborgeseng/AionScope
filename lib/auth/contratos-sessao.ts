@@ -109,3 +109,12 @@ export function registrarFalha(ip: string, agora = Date.now()) {
 export function limparFalhas(ip: string) {
   falhas.delete(ip);
 }
+
+/**
+ * Guard das rotas de cadastro (/api/cadastros/*): mesma sessão de administrador dos contratos.
+ * 401 sem nenhum dado no corpo (aceite A1). null = autorizado.
+ */
+export function exigirSessaoAdmin(request: Request): Response | null {
+  if (sessaoContratosValida(request)) return null;
+  return Response.json({ ok: false, message: "Entre com a senha de administrador." }, { status: 401 });
+}
