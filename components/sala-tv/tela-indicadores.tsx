@@ -24,6 +24,15 @@ import {
 import { clonesDemo, custoParqueDemo } from "@/lib/indicadores/fixture-sala-indicadores";
 import { RESUMOS_INDICADORES } from "@/components/sala-tv/indicadores-resumos";
 
+/**
+ * Linha tracejada da meta (UX Designer, 23/10/2026): contraste ≥ 3:1 contra o fundo branco (WCAG 1.4.11).
+ * #4E6079 = 6,42:1 (meses passados); #6B7685 = 4,61:1 (meses futuros; antes #C5CDD8 = 1,60:1).
+ */
+export const COR_META = "#4E6079";
+export const COR_META_FUTURA = "#6B7685";
+/** Com 4+ cards na página a legenda do gráfico some (o rodapé "Meta até … · Teto anual" fica, ≥ 18 px). */
+export const MIN_CARDS_SEM_LEGENDA = 4;
+
 const MESES = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 const COR: Record<StatusCard, { fg: string; bg: string; borda: string }> = {
   dentro: { fg: "#FFFFFF", bg: "#3E7A1E", borda: "#3E7A1E" },
@@ -31,7 +40,7 @@ const COR: Record<StatusCard, { fg: string; bg: string; borda: string }> = {
   "sem-dados": { fg: "#1F2A3A", bg: "#E3E8EF", borda: "#9AA6B5" },
 };
 
-function MiniGrafico({ r, altura }: { r: ResumoIndicador; altura: number }) {
+function MiniGrafico({ r, altura, semLegenda }: { r: ResumoIndicador; altura: number; semLegenda?: boolean }) {
   const W = 1000;
   const H = altura;
   const pad = 8;
@@ -49,7 +58,7 @@ function MiniGrafico({ r, altura }: { r: ResumoIndicador; altura: number }) {
         {r.serieMensal.map((p, i) =>
           p.meta == null ? null : (
             <line key={`m${i}`} x1={x(i) - passo / 2} x2={x(i) + passo / 2} y1={y(p.meta)} y2={y(p.meta)}
-              stroke={p.futuro ? "#C5CDD8" : "#4E6079"} strokeWidth={3} strokeDasharray="10 6" vectorEffect="non-scaling-stroke" />
+              stroke={p.futuro ? COR_META_FUTURA : COR_META} strokeWidth={3} strokeDasharray="10 6" vectorEffect="non-scaling-stroke" />
           ),
         )}
         {r.teto != null ? (
@@ -69,7 +78,7 @@ function MiniGrafico({ r, altura }: { r: ResumoIndicador; altura: number }) {
           </span>
         ))}
       </div>
-      <div style={{ fontSize: 18, color: "#4E6079", marginTop: 4 }}>── acumulado · ┄┄ meta proporcional · ··· teto {r.teto?.toLocaleString("pt-BR")}%</div>
+      {semLegenda ? null : <div data-testid="legenda-grafico" style={{ fontSize: 18, color: "#4E6079", marginTop: 4 }}>── acumulado · ┄┄ meta proporcional · ··· teto {r.teto?.toLocaleString("pt-BR")}%</div>}
     </div>
   );
 }
@@ -83,7 +92,7 @@ function Chip({ status }: { status: StatusCard }) {
   );
 }
 
-export function CardIndicadorView({ estado, def, ampliado, onAbrir }: { estado: EstadoCard; def: IndicadorSalaDef; ampliado: boolean; onAbrir?: () => void }) {
+export function CardIndicadorView({ estado, def, ampliado, onAbrir, semLegenda }: { estado: EstadoCard; def: IndicadorSalaDef; ampliado: boolean; onAbrir?: () => void; semLegenda?: boolean }) {
   const r = estado.tipo === "ok" ? estado.resumo : estado.tipo === "erro" ? estado.ultimo : null;
   const erro = estado.tipo === "erro";
   const status: StatusCard = r && !erro ? r.status : r ? r.status : "sem-dados";
@@ -125,8 +134,8 @@ export function CardIndicadorView({ estado, def, ampliado, onAbrir }: { estado: 
               {r.valorMes ? <div style={{ fontSize: 22, fontVariantNumeric: "tabular-nums" }} data-testid="valor-mes">{r.valorMes}</div> : null}
             </>
           ) : null}
-          {r ? <MiniGrafico r={r} altura={ampliado ? 420 : 120} /> : null}
-          {r?.meta ? <div style={{ fontSize: 22, color: "#4E6079" }}>{r.meta}</div> : null}
+          {r ? <MiniGrafico r={r} altura={ampliado ? 420 : 120} semLegenda={semLegenda} /> : null}
+          {r?.meta ? <div data-testid="rodape-meta" style={{ fontSize: 22, color: "#4E6079" }}>{r.meta}</div> : null}
         </div>
       )}
       {erro ? (
@@ -163,7 +172,7 @@ function lerUltimo(id: string): { resumo: ResumoIndicador; em: number } | null {
 }
 
 /** Card ao vivo: chama o hook do resumo (RESUMOS_INDICADORES[id]); guarda a última leitura boa para o estado de erro. */
-function CardAoVivo({ def, ampliado, onAbrir }: { def: IndicadorSalaDef; ampliado: boolean; onAbrir?: () => void }) {
+function CardAoVivo({ def, ampliado, onAbrir, semLegenda }: { def: IndicadorSalaDef; ampliado: boolean; onAbrir?: () => void; semLegenda?: boolean }) {
   const usar = RESUMOS_INDICADORES[def.id];
   if (!usar) throw new Error(`resumo ausente: ${def.id}`);
   const { resumo, carregando, erro } = usar();
@@ -181,7 +190,7 @@ function CardAoVivo({ def, ampliado, onAbrir }: { def: IndicadorSalaDef; ampliad
       /* sem storage */
     }
   }, [ultimo, def.id]);
-  return <CardIndicadorView def={def} ampliado={ampliado} onAbrir={onAbrir} estado={estadoCard({ carregando, erro, resumo, ultimo })} />;
+  return <CardIndicadorView def={def} ampliado={ampliado} onAbrir={onAbrir} semLegenda={semLegenda} estado={estadoCard({ carregando, erro, resumo, ultimo })} />;
 }
 
 type Demo = { n: number; estado: "ok" | "vazio" | "erro" };
@@ -230,6 +239,7 @@ export function TelaIndicadoresSala({
   const g = gradeIndicadores(total);
   useEffect(() => onPaginas?.(Math.max(1, g.paginas)), [g.paginas, onPaginas]);
   const pag = g.paginas > 0 ? pagina % g.paginas : 0;
+  const semLegenda = !g.ampliado && Math.min(total, g.porPagina) >= MIN_CARDS_SEM_LEGENDA;
 
   if (total === 0) {
     return <div style={{ flex: 1, display: "grid", placeItems: "center", fontSize: 32, color: "#4E6079" }}>— Nenhum indicador habilitado para a Sala</div>;
@@ -249,11 +259,11 @@ export function TelaIndicadoresSala({
       <div className="sala-ind-grade" data-testid="grade-indicadores" data-colunas={g.colunas} data-paginas={g.paginas} style={estilo}>
         {demoCards
           ? paginar(demoCards, pag, g.porPagina).map((c) => (
-              <CardIndicadorView key={c.def.id} def={c.def} estado={c.estado} ampliado={g.ampliado} onAbrir={onAbrir} />
+              <CardIndicadorView key={c.def.id} def={c.def} estado={c.estado} ampliado={g.ampliado} onAbrir={onAbrir} semLegenda={semLegenda} />
             ))
           : paginar(defs, pag, g.porPagina).map((def) => (
               <LimiteErro key={def.id} def={def}>
-                <CardAoVivo def={def} ampliado={g.ampliado} onAbrir={onAbrir} />
+                <CardAoVivo def={def} ampliado={g.ampliado} onAbrir={onAbrir} semLegenda={semLegenda} />
               </LimiteErro>
             ))}
       </div>
