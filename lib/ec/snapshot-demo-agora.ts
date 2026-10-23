@@ -128,7 +128,6 @@ export function snapshotDemoAgora(): SalaSnapshot {
       "ciclo-de-vida",
       "evolucao",
       "indicadores",
-      "processos",
     ],
     alertas: [],
     blocos: [{ id: "os", fonte: "manual" }],

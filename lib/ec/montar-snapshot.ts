@@ -9,14 +9,15 @@ import { EMPTY_FILTERS, toUpstreamParams, type DashboardFilters } from "@/lib/pb
 import { isTipoManutencaoMedica, isEquipamentoMedico } from "@/lib/pbi/medical";
 import { isOficinaEngenhariaClinica } from "@/lib/pbi/oficina-ec";
 import type { CronogramaItem, DisponibilidadeItem, EquipamentoItem, OsAnaliticoItem, TmefItem } from "@/lib/pbi/types";
-import { isOsCancelada, osFechamentoDate } from "@/lib/pbi/volume-ec";
-import { ETAPAS, etapaOs, type EtapaOs } from "./etapas";
-import { diasDesde, FAIXAS_IDADE, faixaIdadeDias } from "./envelhecimento";
+import { isOsCancelada, OFICINAS_VOLUME_PLANO, osFechamentoDate } from "@/lib/pbi/volume-ec";
+import { etapaOs, type EtapaOs } from "./etapas";
+import { diasDesde } from "./envelhecimento";
 import { ordenarFila } from "./fila";
 import { dentroDoExpediente, diffHorasUteis, horarioUtilConfig, type HorarioUtilConfig } from "./horario-util";
 import { metaHorasEsforco, rotuloCriticidade } from "./meta";
 import { planoAgoraCards, resumoProgramadasMes } from "./programadas-mes";
 import { montarOsDetalhe } from "./os-detalhe";
+import { comparativoProgramadas, recortesEnvelhecimento, recortesFluxo } from "./sala-recortes";
 import { situacaoPrimeiroAtendimento, type SituacaoOs } from "./situacao";
 import type { LinhaDrillEquip, LinhaFila, SalaSnapshot, TelaSala } from "./snapshot-tipos";
 import { classeDemanda, classeManutencao, parseMoeda, semAcento, texto, type ClasseManutencao } from "./texto";
@@ -36,10 +37,9 @@ const SEQUENCIA_PADRAO: TelaSala[] = [
   "evolucao",
   "indicadores",
   "treinamentos",
-  "processos",
 ];
 
-type OsVista = {
+export type OsVista = {
   os: OsAnaliticoItem;
   tag: string;
   abertura: Date | null;
@@ -175,11 +175,15 @@ function aberta(os: OsAnaliticoItem) {
   return osFechamentoDate(os) == null;
 }
 
-export function montarSnapshotDeDados(
+/**
+ * Vistas das OS EC do parque (mesma base de todas as contagens da Sala).
+ * Exportada para que o drill-down (/api/sala/recorte) use exatamente a mesma regra.
+ */
+export function montarVistasSala(
   dados: DadosSala,
-  agora = nowInSaoPaulo(),
+  agora: Date,
   configBase: HorarioUtilConfig = horarioUtilConfig(),
-): SalaSnapshot {
+) {
   const manuais = dados.manuais;
   const feriados = new Set([
     ...configBase.feriados,
@@ -244,6 +248,16 @@ export function montarSnapshotDeDados(
       compra: classe === "compra" || semAcento(`${os.Pendencia ?? ""} ${os.PendenciaAberta ?? ""}`).includes("COMPRA"),
     });
   }
+  return { vistas, config, tagsMedicas, porTag, parados };
+}
+
+export function montarSnapshotDeDados(
+  dados: DadosSala,
+  agora = nowInSaoPaulo(),
+  configBase: HorarioUtilConfig = horarioUtilConfig(),
+): SalaSnapshot {
+  const manuais = dados.manuais;
+  const { vistas, config, tagsMedicas, parados } = montarVistasSala(dados, agora, configBase);
 
   const demandaAberta = vistas.filter((item) => !item.encerrada && classeDemanda(item.classe));
   const semAtendimento = demandaAberta.filter((item) => !item.atendimento);
@@ -359,8 +373,10 @@ export function montarSnapshotDeDados(
       return num(b.tempo) - num(a.tempo);
     });
 
-  const etapasFluxo = ETAPAS.filter((etapa) => etapa !== "Encerrada").map((etapa) => {
-    const grupo = demandaAberta.filter((item) => item.etapa === etapa);
+  // Contagens de Fluxo/Envelhecimento = tamanho das listas de sala-recortes (C2).
+  const recFluxo = recortesFluxo(vistas, agora);
+  const recEnv = recortesEnvelhecimento(vistas, agora);
+  const etapasFluxo = recFluxo.etapas.map(({ etapa, itens: grupo }) => {
     const maisAntiga = [...grupo].sort((a, b) => (a.abertura?.getTime() ?? 0) - (b.abertura?.getTime() ?? 0))[0];
     return {
       etapa,
@@ -389,22 +405,15 @@ export function montarSnapshotDeDados(
     .filter((valor): valor is number => valor != null && valor > 0);
   const tmefMediana = mediana(tmefValores);
 
-  const entraramHoje = vistas
-    .filter((item) => item.abertura && mesmaData(item.abertura, agora) && classeDemanda(item.classe))
-    .sort((a, b) => (b.abertura?.getTime() ?? 0) - (a.abertura?.getTime() ?? 0));
+  const entraramHoje = recFluxo.entraram;
 
   const abertasDemanda = demandaAberta.filter((item) => item.abertura);
-  const faixas = FAIXAS_IDADE.map((faixa) => {
-    const grupo = abertasDemanda.filter((item) => faixaIdadeDias(diasDesde(item.abertura as Date, agora)) === faixa.id);
-    const partesMap = new Map<string, number>();
-    for (const item of grupo) partesMap.set(item.etapa, (partesMap.get(item.etapa) ?? 0) + 1);
-    return {
-      id: faixa.id,
-      label: faixa.label,
-      total: grupo.length,
-      partes: [...partesMap.entries()].map(([etapa, quantidade]) => ({ etapa, quantidade })),
-    };
-  });
+  const faixas = recEnv.faixas.map((faixa) => ({
+    id: faixa.id,
+    label: faixa.label,
+    total: faixa.itens.length,
+    partes: faixa.partes.map((parte) => ({ etapa: parte.etapa, quantidade: parte.itens.length })),
+  }));
   const idadeMediaDias = abertasDemanda.length
     ? Math.round(
         abertasDemanda.reduce((soma, item) => soma + diasDesde(item.abertura as Date, agora), 0) / abertasDemanda.length,
@@ -710,7 +719,7 @@ export function montarSnapshotDeDados(
     fluxo: {
       entraramHoje: entraramHoje.length,
       etapas: etapasFluxo,
-      encerradasHoje: fechadasNo((data) => mesmaData(data, agora)),
+      encerradasHoje: recFluxo.encerradas.length,
       entraram: entraramHoje.slice(0, FLUXO_LIMITE).map((item) => ({
         hora: item.abertura ? format(item.abertura, "HH:mm") : "—",
         os: texto(item.os.OS) || "—",
@@ -746,21 +755,14 @@ export function montarSnapshotDeDados(
             etapa: item.etapa,
           };
         });
-      const semMovimentoMais7 = abertasDemanda.filter((item) => {
-        const dias = diasSemMovimento(item);
-        return dias != null && dias > 7;
-      }).length;
+      const semMovimentoMais7 = recEnv.semMovimentoMais7.length;
       return {
         faixas,
         maisAntigas,
         idadeMediaDias,
-        aguardandoTerceiros: demandaAberta.filter(
-          (item) => item.etapa === "Reparo externo" || item.etapa === "Contrato/assistência",
-        ).length,
+        aguardandoTerceiros: recEnv.aguardandoTerceiros.length,
         semMovimentoMais7,
-        pendenciaSemMotivo: demandaAberta.filter(
-          (item) => semAcento(item.os.SituacaoDaOS) === "PENDENTE" && !texto(item.os.Pendencia),
-        ).length,
+        pendenciaSemMotivo: recEnv.pendenciaSemMotivo.length,
         proxy:
           "Sem movimento ≈ dias desde DataDoAtendimento (ou desde Abertura se ainda sem 1º atendimento).",
       };
@@ -804,6 +806,28 @@ export function montarSnapshotDeDados(
       porTipo: programadasMes.porTipo,
       pendentes: programadasMes.pendentes,
       impedimentos,
+      comparativo: (() => {
+        const { range, comparativo } = comparativoProgramadas(dados.os, agora);
+        return {
+          ano: range.start.getFullYear(),
+          oficinas: OFICINAS_VOLUME_PLANO.map((item) => ({ chave: item.filterKey, rotulo: item.chipLabel })),
+          meses: comparativo.months.map((mes) => ({
+            chave: mes.key,
+            rotulo: mes.label,
+            porOficina: mes.porOficina.map((cel) => ({
+              chave: cel.filterKey,
+              abertas: cel.abertas,
+              fechadas: cel.fechadas,
+              pct: cel.pctLabel,
+            })),
+            consolidado: {
+              abertas: mes.consolidado.abertas,
+              fechadas: mes.consolidado.fechadas,
+              pct: mes.consolidado.pctLabel,
+            },
+          })),
+        };
+      })(),
     },
     ciclo: {
       trilha: [
@@ -938,17 +962,23 @@ const cacheSnapshot = {
 export function invalidarCacheSnapshot() {
   cacheSnapshot.expira = 0;
   cacheSnapshot.valor = null;
+  cacheDados.expira = 0;
+  cacheDados.valor = null;
 }
 
-export async function carregarSnapshot(): Promise<SalaSnapshot> {
-  if (cacheSnapshot.valor && cacheSnapshot.expira > Date.now()) return cacheSnapshot.valor;
-  if (m365Configurado()) {
-    try {
-      await sincronizarCompras();
-    } catch {
-      // Sync não derruba o snapshot da TV.
-    }
-  }
+const cacheDados = {
+  expira: 0,
+  valor: null as { dados: DadosSala; agora: Date } | null,
+};
+
+/**
+ * Dados brutos da Sala (GlobalThings), com cache de 60 s.
+ * Compartilhado entre o snapshot (contagens) e /api/sala/recorte (listas do drill),
+ * para que lista e gráfico venham da mesma carga.
+ */
+export async function carregarDadosSala(): Promise<{ dados: DadosSala; agora: Date }> {
+  // Mesmo `agora` da carga: faixas de idade e "hoje" iguais às do snapshot que usou estes dados.
+  if (cacheDados.valor && cacheDados.expira > Date.now()) return cacheDados.valor;
   const agora = nowInSaoPaulo();
   const base = filtros(agora);
   const inicioMes = format(new Date(agora.getFullYear(), agora.getMonth(), 1), "yyyy-MM-dd");
@@ -983,6 +1013,21 @@ export async function carregarSnapshot(): Promise<SalaSnapshot> {
     erroCronograma: cronograma.ok ? undefined : cronograma.message,
     erroTmef: tmef.ok ? undefined : tmef.message,
   };
+  cacheDados.valor = { dados, agora };
+  cacheDados.expira = Date.now() + 60_000;
+  return { dados, agora };
+}
+
+export async function carregarSnapshot(): Promise<SalaSnapshot> {
+  if (cacheSnapshot.valor && cacheSnapshot.expira > Date.now()) return cacheSnapshot.valor;
+  if (m365Configurado()) {
+    try {
+      await sincronizarCompras();
+    } catch {
+      // Sync não derruba o snapshot da TV.
+    }
+  }
+  const { dados, agora } = await carregarDadosSala();
   const snapshot = montarSnapshotDeDados(dados, agora);
   const gravesAgora = new Set(snapshot.agora.fila.filter((item) => item.situacao === "GRAVE").map((item) => item.os));
   if (cacheSnapshot.valor) {

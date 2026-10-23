@@ -11,8 +11,7 @@ export type TelaSala =
   | "ciclo-de-vida"
   | "evolucao"
   | "indicadores"
-  | "treinamentos"
-  | "processos";
+  | "treinamentos";
 
 export const TELAS_SALA: Array<{ id: TelaSala; label: string; rotulo: string; titulo: string }> = [
   { id: "agora", label: "Agora", rotulo: "SITUAÇÃO OPERACIONAL", titulo: "Agora" },
@@ -24,7 +23,6 @@ export const TELAS_SALA: Array<{ id: TelaSala; label: string; rotulo: string; ti
   { id: "evolucao", label: "Evolução", rotulo: "PARQUE E CHAMADOS", titulo: "Evolução histórica" },
   { id: "indicadores", label: "Indicadores", rotulo: "MÊS E SEIS MESES", titulo: "Indicadores" },
   { id: "treinamentos", label: "Treinamentos", rotulo: "BOMBAS B. BRAUN", titulo: "Treinamentos" },
-  { id: "processos", label: "Processos", rotulo: "MAPEAMENTO EC", titulo: "Processos" },
 ];
 
 export type FonteBloco = "api" | "manual" | "sem-dados";
@@ -53,6 +51,8 @@ export type SalaDrillSelecao = {
   id: string;
   /** Rótulo humano no chip, ex.: ATRASO GRAVE */
   titulo: string;
+  /** Número clicado no gráfico/KPI (chip mostra "· N OS"; a lista do servidor deve bater). */
+  contagem?: number;
 };
 
 export type Bloco = {
@@ -208,6 +208,17 @@ export type SalaSnapshot = {
     }>;
     pendentes: Array<{ tipo: string; equipamento: string; setor: string; tag: string }>;
     impedimentos: Array<{ tag: string; equipamento: string; motivo: string; novaData: string }>;
+    /** Abertas × fechadas por oficina de plano no ano (mesmo cálculo do indicador; só contagens). */
+    comparativo?: {
+      ano: number;
+      oficinas: Array<{ chave: string; rotulo: string }>;
+      meses: Array<{
+        chave: string;
+        rotulo: string;
+        porOficina: Array<{ chave: string; abertas: number; fechadas: number; pct: string }>;
+        consolidado: { abertas: number; fechadas: number; pct: string };
+      }>;
+    };
   };
   ciclo: {
     trilha: Array<{ etapa: string; quantidade: number | null }>;
@@ -264,6 +275,7 @@ export type SalaSnapshot = {
       fonte: FonteBloco;
     }>;
   };
+  /** Legado: a tela Processos saiu (D-SD4). Bloco mantido para não quebrar consumidores do snapshot. */
   processos: {
     itens: Array<{ id: string; nome: string; quantidade: string; fonte: FonteBloco }>;
     foraDoHorario: number;
