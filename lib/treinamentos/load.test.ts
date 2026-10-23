@@ -8,6 +8,8 @@ import {
   carregarPainelTreinamentos,
   carregarParticipantes,
   estadoTreinamentos,
+  copiarAtomico,
+  RE_TMP_SEMENTE,
   semearTreinamentosSeFaltar,
 } from "./load";
 import * as health from "../../app/api/v1/health/route";
@@ -53,11 +55,11 @@ beforeEach(() => {
 
 test("copia a semente para o volume quando falta e passa a ler do volume", () => {
   const r = semearTreinamentosSeFaltar();
-  assert.deepEqual(r, { copiados: 3, mantidos: 0, erro: false });
+  assert.deepEqual(r, { copiados: 3, mantidos: 0, erro: false, tmpRemovidos: 0 });
   assert.deepEqual(readdirSync(volume).sort(), ["kpis.json", "treinamentos.csv", "treinamentos.json"]);
   assert.equal(carregarParticipantes().length, 6);
   assert.ok(carregarPainelTreinamentos());
-  assert.deepEqual(estadoTreinamentos(), { linhas: 6, origem: "volume" });
+  assert.deepEqual(estadoTreinamentos(), { linhas: 6, origem: "semeado" });
 });
 
 test("não sobrescreve arquivo já existente no volume (copia só o que falta)", () => {
@@ -65,11 +67,11 @@ test("não sobrescreve arquivo já existente no volume (copia só o que falta)",
   const doVolume = JSON.stringify(fixture(2026).slice(0, 1));
   writeFileSync(path.join(volume, "treinamentos.json"), doVolume);
   const r = semearTreinamentosSeFaltar();
-  assert.deepEqual(r, { copiados: 2, mantidos: 1, erro: false });
+  assert.deepEqual(r, { copiados: 2, mantidos: 1, erro: false, tmpRemovidos: 0 });
   assert.equal(readFileSync(path.join(volume, "treinamentos.json"), "utf8"), doVolume, "volume mantido");
   assert.equal(carregarParticipantes().length, 1, "lê do volume, não do repo");
   // Segunda semeadura: nada muda.
-  assert.deepEqual(semearTreinamentosSeFaltar(), { copiados: 0, mantidos: 3, erro: false });
+  assert.deepEqual(semearTreinamentosSeFaltar(), { copiados: 0, mantidos: 3, erro: false, tmpRemovidos: 0 });
 });
 
 test("lê do volume mesmo se a semente mudar depois (repo não é a fonte)", () => {
@@ -108,9 +110,47 @@ test("health expõe só treinamentos:{linhas, origem} — sem nomes, matrículas
   for (const q of ["", "?persistencia=1"]) {
     const corpo = JSON.stringify(await (await health.GET(new Request(`http://local/api/v1/health${q}`))).json());
     const t = (JSON.parse(corpo) as { treinamentos: Record<string, unknown> }).treinamentos;
-    assert.deepEqual(t, { linhas: 6, origem: "volume" }, q);
+    assert.deepEqual(t, { linhas: 6, origem: "semeado" }, q);
     for (const proibido of [...NOMES, "90000", "Instrutor Demo", "SETOR DEMO", volume, semente, "treinamentos.json", "/data/treinamentos"]) {
       assert.equal(corpo.includes(proibido), false, `${q} contém ${proibido}`);
     }
   }
+});
+
+test("origem: 'semeado' no boot que copiou, 'volume' no boot seguinte, 'ausente' sem dados", () => {
+  semearTreinamentosSeFaltar();
+  assert.equal(estadoTreinamentos().origem, "semeado");
+  _resetTreinamentosCache(); // novo boot
+  assert.deepEqual(estadoTreinamentos(), { linhas: 6, origem: "volume" });
+  writeFileSync(path.join(volume, "treinamentos.json"), "[]");
+  _resetTreinamentosCache();
+  assert.deepEqual(estadoTreinamentos(), { linhas: 0, origem: "ausente" });
+});
+
+test("crash simulado no meio da cópia: tmp parcial sobra, não conta como existente; próximo boot limpa e copia completo", () => {
+  mkdirSync(volume, { recursive: true });
+  const origem = path.join(semente, "treinamentos.json");
+  const alvo = path.join(volume, "treinamentos.json");
+  assert.throws(() => copiarAtomico(origem, alvo, 10), /crash simulado/);
+  const sobra = readdirSync(volume);
+  assert.equal(sobra.length, 1);
+  assert.match(sobra[0], RE_TMP_SEMENTE);
+  assert.equal(existsSync(alvo), false, "destino não aparece pela metade");
+  // tmp de outro pid (processo morto) também é órfão
+  writeFileSync(path.join(volume, ".kpis.json.tmp-999999"), "{");
+  _resetTreinamentosCache();
+  const r = semearTreinamentosSeFaltar();
+  assert.deepEqual(r, { copiados: 3, mantidos: 0, erro: false, tmpRemovidos: 2 });
+  assert.deepEqual(readdirSync(volume).sort(), ["kpis.json", "treinamentos.csv", "treinamentos.json"]);
+  assert.equal(readFileSync(alvo, "utf8"), readFileSync(origem, "utf8"), "cópia completa");
+  assert.deepEqual(estadoTreinamentos(), { linhas: 6, origem: "semeado" });
+});
+
+test("cópia atômica não sobrescreve destino que aparece durante a escrita", () => {
+  mkdirSync(volume, { recursive: true });
+  const alvo = path.join(volume, "treinamentos.json");
+  writeFileSync(alvo, "[]");
+  assert.equal(copiarAtomico(path.join(semente, "treinamentos.json"), alvo), "existe");
+  assert.equal(readFileSync(alvo, "utf8"), "[]");
+  assert.deepEqual(readdirSync(volume), ["treinamentos.json"], "sem tmp sobrando");
 });
