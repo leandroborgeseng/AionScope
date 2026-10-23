@@ -123,13 +123,14 @@ export function osFechamentoDate(os: Pick<OsAnaliticoItem, "Fechamento" | "DataD
 }
 
 /**
- * Data para “fechada no mês” (volume abertas × fechadas).
- * Fechamento → DataDaSolucao → se cancelada e sem as duas, Abertura.
+ * Data para “fechada no mês” (volume abertas × fechadas): Fechamento → DataDaSolucao.
+ * Canceladas não chegam aqui (saem do conjunto em resolveOsParaVolume); se chegarem, não contam.
  */
 export function osDataFechadaIndicador(
   os: Pick<OsAnaliticoItem, "Fechamento" | "DataDaSolucao" | "Abertura" | "SituacaoDaOS">,
 ) {
-  return osFechamentoDate(os) || (isOsCancelada(os) ? parsePbiDate(os.Abertura) : null);
+  if (isOsCancelada(os)) return null;
+  return osFechamentoDate(os);
 }
 
 export function isTipoManutencaoEc(tipo: string | null | undefined) {
@@ -281,10 +282,17 @@ export function sampleOsParaConferencia(items: OsAnaliticoItem[], n = 5) {
     .slice(0, n);
 }
 
+/** Remove canceladas (SituacaoDaOS) do conjunto — vale para ABERT. e FECH. ao mesmo tempo. */
+export function semOsCanceladas<T extends Pick<OsAnaliticoItem, "SituacaoDaOS">>(os: T[]): T[] {
+  return os.filter((item) => !isOsCancelada(item));
+}
+
 function resolveOsParaVolume(os: OsAnaliticoItem[], options?: VolumeAbertasFechadasOptions) {
-  if (options?.oficinaEquals) return filterOsOficinaEquals(os, options.oficinaEquals);
-  if (options?.oficinaEqualsIn?.length) return filterOsOficinaEqualsIn(os, options.oficinaEqualsIn);
-  return filterOsTipoEc(os);
+  // Abertas e fechadas partem do MESMO conjunto: canceladas saem antes das duas contagens,
+  // inclusive as que vêm com Fechamento preenchido (data do cancelamento).
+  if (options?.oficinaEquals) return semOsCanceladas(filterOsOficinaEquals(os, options.oficinaEquals));
+  if (options?.oficinaEqualsIn?.length) return semOsCanceladas(filterOsOficinaEqualsIn(os, options.oficinaEqualsIn));
+  return semOsCanceladas(filterOsTipoEc(os));
 }
 
 export function buildVolumeAbertasFechadas(

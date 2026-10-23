@@ -431,8 +431,8 @@ export function OsVolumeCard({
               </li>
               <li>
                 <strong>Fechada no mês:</strong> Fechamento se preenchido; senão DataDaSolucao. OS com{" "}
-                <strong>SituacaoDaOS = Cancelada</strong> entram como fechadas; se cancelada sem
-                Fechamento/DataDaSolucao, usa-se a <strong>Abertura</strong> como mês.
+                <strong>SituacaoDaOS = Cancelada</strong> ficam fora das abertas e das fechadas. Datas no
+                horário de Brasília.
               </li>
               <li>
                 <strong>Aberta (estoque / Sala):</strong> sem Fechamento/DataDaSolucao e não cancelada.
@@ -453,7 +453,7 @@ export function OsVolumeCard({
             </p>
             <p>
               Abra o GlobalThings, busque pelo código da OS (campo <strong>OS</strong>). Confira Oficina, Tipo de
-              manutenção, Situação (cancelada conta como fechada), data de abertura e data de fechamento (ou data da
+              manutenção, Situação (cancelada não conta), data de abertura e data de fechamento (ou data da
               solução se o fechamento estiver vazio).
             </p>
           </div>
