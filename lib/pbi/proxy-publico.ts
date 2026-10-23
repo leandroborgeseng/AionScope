@@ -30,16 +30,16 @@ export function campoSuspeito(nome: string) {
   return (RE_SUSPEITO_RS.test(nome) && !EXCECOES_RE_SUSPEITO_RS.has(nome)) || RE_CAMPO_PESSOA.test(nome) || RE_CAMPO_LINK.test(nome);
 }
 
-/** Nome do resource normalizado (decode + trim + minúsculas); null se não estiver na lista. */
-export function normalizarResource(bruto: string): PbiResource | null {
-  let s = bruto;
-  try {
-    s = decodeURIComponent(bruto);
-  } catch {
-    return null;
-  }
-  const n = s.trim().toLowerCase();
-  return Object.prototype.hasOwnProperty.call(PBI_ENDPOINTS, n) ? (n as PbiResource) : null;
+/**
+ * M1 ciclo 5 (B1): nome do resource comparado CRU com a lista, sem decode/trim/minúsculas.
+ * `bruto` é o parâmetro da rota; `segmentoCru` (opcional) é o último segmento do pathname como chegou
+ * na URL (ainda com %xx). Os dois têm de ser idênticos a uma chave de PBI_ENDPOINTS: EQUIPAMENTOS,
+ * " equipamentos ", %20equipamentos%20 e %65quipamentos → null (404, sem chamar o PBI).
+ */
+export function resourceExato(bruto: string, segmentoCru?: string): PbiResource | null {
+  if (!Object.prototype.hasOwnProperty.call(PBI_ENDPOINTS, bruto)) return null;
+  if (segmentoCru !== undefined && segmentoCru !== bruto) return null;
+  return bruto as PbiResource;
 }
 
 const avisados = new Set<string>();

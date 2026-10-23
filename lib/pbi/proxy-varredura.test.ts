@@ -64,8 +64,11 @@ beforeEach(() => {
 
 const SESSAO = () => `${COOKIE_SESSAO_CONTRATOS}=${criarTokenSessao()}`;
 async function chamar(bruto: string, cookie?: string) {
-  const r = await proxy.GET(new NextRequest(`http://local/api/pbi/x?periodo=AnoAtual`, { headers: cookie ? { cookie } : {} }), {
-    params: Promise.resolve({ resource: bruto }),
+  // Como o Next: a URL chega crua (com %xx) e o param da rota chega decodificado.
+  let param = bruto;
+  try { param = decodeURIComponent(bruto); } catch { /* fica cru */ }
+  const r = await proxy.GET(new NextRequest(`http://local/api/pbi/${bruto}?periodo=AnoAtual`, { headers: cookie ? { cookie } : {} }), {
+    params: Promise.resolve({ resource: param }),
   });
   return { r, txt: await r.text() };
 }
@@ -74,13 +77,29 @@ function chaves(v: unknown, out: string[] = []): string[] {
   else if (v && typeof v === "object") for (const [k, x] of Object.entries(v)) { out.push(k); chaves(x, out); }
   return out;
 }
-const variacoes = (r: string) => [r, r.toUpperCase(), ` ${r} `, r[0].toUpperCase() + r.slice(1), encodeURIComponent(` ${r.toUpperCase()}`), r.split("").map((c) => "%" + c.charCodeAt(0).toString(16)).join("")];
+/** Grafias diferentes do nome exato: todas têm de dar 404 sem chamar o PBI (B1, ciclo 5). */
+const variacoes = (r: string) => [r.toUpperCase(), ` ${r} `, `%20${r}%20`, r[0].toUpperCase() + r.slice(1), encodeURIComponent(` ${r.toUpperCase()}`), "%" + r.charCodeAt(0).toString(16) + r.slice(1), r.split("").map((c) => "%" + c.charCodeAt(0).toString(16)).join(""), `${r}%20`, `${r}%00`];
 const TODOS = Object.keys(PBI_ENDPOINTS) as PbiResource[];
 
-test("sem sessão: nenhum resource (em qualquer grafia) devolve campo em R$, nome de pessoa nem LinkAnexo bytoken", async () => {
+test("B1: grafia diferente da chave exata (EQUIPAMENTOS, %20equipamentos%20, %65quipamentos…) → 404 sem chamar o PBI, com e sem sessão", async () => {
+  for (const v of ["EQUIPAMENTOS", "%20equipamentos%20", "%65quipamentos", " equipamentos", "Equipamentos"]) {
+    for (const ck of [undefined, SESSAO()]) {
+      const { r, txt } = await chamar(v, ck);
+      assert.equal(r.status, 404, v);
+      assert.equal(txt.includes("4.321,09"), false, v);
+    }
+  }
+  for (const res of TODOS) for (const v of variacoes(res)) {
+    const { r } = await chamar(v);
+    assert.equal(r.status, 404, `${res} como ${JSON.stringify(v)}`);
+  }
+  assert.equal(chamadasUpstream, 0);
+});
+
+test("sem sessão: nenhum resource devolve campo em R$, nome de pessoa nem LinkAnexo bytoken", async () => {
   let verificados = 0;
   for (const res of TODOS) {
-    for (const v of variacoes(res)) {
+    for (const v of [res]) {
       const { r, txt } = await chamar(v);
       const ctx = `${res} como ${JSON.stringify(v)}`;
       if (RESOURCES_SO_COM_SESSAO.includes(res)) {
@@ -106,12 +125,12 @@ test("sem sessão: nenhum resource (em qualquer grafia) devolve campo em R$, nom
       verificados++;
     }
   }
-  assert.equal(verificados, TODOS.length * 6);
+  assert.equal(verificados, TODOS.length);
 });
 
 test("contratos e anexos-* sem sessão: 401 sem chamar o PBI", async () => {
   for (const res of RESOURCES_SO_COM_SESSAO) {
-    for (const v of variacoes(res)) {
+    for (const v of [res]) {
       const { r } = await chamar(v);
       assert.equal(r.status, 401, v);
     }
@@ -130,7 +149,7 @@ test("resource desconhecido/malformado → 404 sem chamar o PBI e sem ecoar o no
 
 test("com sessão: resposta idêntica ao upstream em todos os resources (inclusive contratos/anexos)", async () => {
   for (const res of TODOS) {
-    for (const v of [res, res.toUpperCase()]) {
+    for (const v of [res]) {
       const { r, txt } = await chamar(v, SESSAO());
       assert.equal(r.status, 200, v);
       const j = JSON.parse(txt) as { data: unknown };

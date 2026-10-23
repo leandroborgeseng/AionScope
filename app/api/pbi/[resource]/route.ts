@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { PBI_ENDPOINTS } from "@/lib/pbi/catalog";
 import { fetchPbi } from "@/lib/pbi/client";
 import { sessaoContratosValida } from "@/lib/auth/contratos-sessao";
-import { RESOURCES_SO_COM_SESSAO, normalizarResource, somenteAllowlist } from "@/lib/pbi/proxy-publico";
+import { RESOURCES_SO_COM_SESSAO, resourceExato, somenteAllowlist } from "@/lib/pbi/proxy-publico";
 
 export const dynamic = "force-dynamic";
 // Nunca reaproveitar fetch/route cache do Next entre requisições (a resposta depende do cookie).
@@ -17,8 +17,9 @@ export async function GET(
   context: { params: Promise<{ resource: string }> },
 ) {
   const { resource: bruto } = await context.params;
-  // Nome normalizado e só da lista; desconhecido → 404 sem chamar o PBI (e sem ecoar o nome).
-  const resource = normalizarResource(bruto);
+  // Nome CRU idêntico a uma chave da lista (param e segmento da URL ainda codificado); senão 404 sem chamar o PBI (e sem ecoar o nome).
+  const segmentoCru = request.nextUrl.pathname.split("/").pop();
+  const resource = resourceExato(bruto, segmentoCru);
   if (!resource || !(resource in PBI_ENDPOINTS)) {
     return Response.json({ ok: false, status: 404, message: "Recurso inválido." }, { status: 404, headers: SEM_CACHE });
   }
