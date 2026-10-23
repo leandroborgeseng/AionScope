@@ -37,7 +37,7 @@ Sim: `Causa`, 17 valores (desgaste natural, descuido, erro operacional/mau uso, 
 - Descontinuado: não existe. `EndOfService` é a data mais próxima. "EQUIPAMENTO OBSOLETO" aparece como causa de OS, não no cadastro.
 
 **DISP_EQUIPAMENTO mostra início e fim da parada?**
-`disponibilidade_equipamento` respondeu **404**. A versão mês a mês com `empresasId=2` é o HSJ: **1.892 equipamentos, todas as tags HSJ-** (Centro Cirúrgico 10A, Emergência, UTI). No último mês, 2 com `PossuiOSParadaSemFuncionamento`. A linha é mensal (`DiasParado`, percentual, TMEF/TMPR), sem data de início e fim. `Parada`/`Funcionamento` na OS continuam quase vazias. O id `1` é outro parque.
+`disponibilidade_equipamento` respondeu **404**. A versão mês a mês com `empresasId=2` é o HSJ: **1.892 equipamentos, todas as tags HSJ-** (Centro Cirúrgico DEMO, Emergência, UTI). No último mês, 2 com `PossuiOSParadaSemFuncionamento`. A linha é mensal (`DiasParado`, percentual, TMEF/TMPR), sem data de início e fim. `Parada`/`Funcionamento` na OS continuam quase vazias. O id `1` é outro parque.
 
 **Como ligar OS ↔ equipamento ↔ cronograma ↔ anexos?**
 - `equipamentos.Tag` = `OS.Tag` = `cronograma.Tag` = `anexos_equipamento.Tag` = `TMEF.Tag`.

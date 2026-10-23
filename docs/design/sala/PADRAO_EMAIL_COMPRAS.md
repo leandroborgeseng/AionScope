@@ -18,7 +18,7 @@ Vale para todo pedido enviado de **leandro.borges@aion.eng.br** ou **oficina@aio
 ```
 OS: 209909588
 Equipamento: Bisturi elétrico · TAG HSJ-91174
-Setor: Centro Cirúrgico 10A
+Setor: Centro Cirúrgico DEMO
 Item(ns):
   1. Placa de potência · ref. fabricante XXXX · qtd 1
 Fornecedor sugerido (se houver): ...

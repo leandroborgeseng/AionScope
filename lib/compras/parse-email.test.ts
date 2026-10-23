@@ -30,14 +30,14 @@ test("extrai campos do corpo modelo", () => {
     "[OS 209909588] Solicitação de compra – Placa de potência – Bisturi elétrico HSJ-91174",
     `OS: 209909588
 Equipamento: Bisturi elétrico · TAG HSJ-91174
-Setor: Centro Cirúrgico 10A
+Setor: Centro Cirúrgico DEMO
 Item(ns):
   1. Placa de potência · ref. fabricante XXXX · qtd 1
 Urgência: Alta`,
   );
   assert.equal(campos.os, "209909588");
   assert.equal(campos.tag, "HSJ-91174");
-  assert.equal(campos.setor, "Centro Cirúrgico 10A");
+  assert.equal(campos.setor, "Centro Cirúrgico DEMO");
   assert.match(campos.item ?? "", /Placa de potência/);
   assert.match(campos.equipamento ?? "", /Bisturi/);
 });

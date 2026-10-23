@@ -110,20 +110,20 @@ class Component extends DCLogic {
     return {
       telas,
       etapas: [
-        st('1 · OS CRIADA', 'Sem 1º atendimento', 5, '1d 6h', '#D99A00', '#8A5A00', ['Bisturi · C. Cirúrgico', 'Incubadora · UTI Inf. 8']),
-        st('2 · TÉCNICO NO LOCAL', 'Em atendimento', 9, '4d 2h', '#2C66AB', '#2C66AB', ['Oxímetro · Pediatria 9', 'Monitor · UTI Adulto']),
-        st('3 · DEPENDÊNCIA', 'Aguarda peça / compra', 4, '27d', '#D9620F', '#A8460A', ['Incubadora · UTI Inf. 8', 'Foco cirúrgico · CC 10A']),
+        st('1 · OS CRIADA', 'Sem 1º atendimento', 5, '1d 6h', '#D99A00', '#8A5A00', ['Bisturi · C. Cirúrgico', 'Incubadora · UTI Inf. DEMO']),
+        st('2 · TÉCNICO NO LOCAL', 'Em atendimento', 9, '4d 2h', '#2C66AB', '#2C66AB', ['Oxímetro · Pediatria DEMO', 'Monitor · UTI Adulto']),
+        st('3 · DEPENDÊNCIA', 'Aguarda peça / compra', 4, '27d', '#D9620F', '#A8460A', ['Incubadora · UTI Inf. DEMO', 'Foco cirúrgico · CC 10A']),
         st('3 · DEPENDÊNCIA', 'Reparo externo', 3, '38d', '#7A8CA6', '#3D4E66', ['Desfibrilador · PA', 'Eletrocardiógrafo · PA']),
         st('3 · DEPENDÊNCIA', 'Contrato / assistência', 2, '41d', '#7A8CA6', '#3D4E66', ['Mesa cirúrgica · CC 10A', 'Tomógrafo · Imagem']),
-        st('4 · TESTE', 'Teste e devolução', 1, '6h', '#3E7A1E', '#3E7A1E', ['Bomba de seringa · UTI Inf. 8'])
+        st('4 · TESTE', 'Teste e devolução', 1, '6h', '#3E7A1E', '#3E7A1E', ['Bomba de seringa · UTI Inf. DEMO'])
       ],
       hoje: [
-        { hora: '16:45', os: '209909711', equip: 'Monitor multiparâmetro', setor: 'Pediatria 9', prio: 'Média', status: 'aguarda 1º at.', cor: '#8A5A00' },
+        { hora: '16:45', os: '209909711', equip: 'Monitor multiparâmetro', setor: 'Pediatria DEMO', prio: 'Média', status: 'aguarda 1º at.', cor: '#8A5A00' },
         { hora: '16:20', os: '209909702', equip: 'Ventilador pulmonar', setor: 'Unid. Internação 4', prio: 'Alta', status: 'aguarda 1º at. · 1h 40m', cor: '#8A5A00' },
-        { hora: '14:15', os: '209909709', equip: 'Radiômetro', setor: 'UTI Infantil 8', prio: 'Média', status: 'aguarda 1º at.', cor: '#8A5A00' },
-        { hora: '14:13', os: '209909708', equip: 'Bomba de infusão', setor: 'UTI Infantil 8', prio: 'Baixa', status: 'aguarda 1º at.', cor: '#8A5A00' },
-        { hora: '14:12', os: '209909707', equip: 'Bomba de seringa', setor: 'UTI Infantil 8', prio: 'Baixa', status: 'atendida 15:30 · em teste', cor: '#3E7A1E' },
-        { hora: '09:05', os: '209909641', equip: 'Injetora de contraste', setor: 'Hemodinâmica 138', prio: 'Média', status: 'ATRASADA +2h 30m', cor: '#A3123A' }
+        { hora: '14:15', os: '209909709', equip: 'Radiômetro', setor: 'UTI Infantil DEMO', prio: 'Média', status: 'aguarda 1º at.', cor: '#8A5A00' },
+        { hora: '14:13', os: '209909708', equip: 'Bomba de infusão', setor: 'UTI Infantil DEMO', prio: 'Baixa', status: 'aguarda 1º at.', cor: '#8A5A00' },
+        { hora: '14:12', os: '209909707', equip: 'Bomba de seringa', setor: 'UTI Infantil DEMO', prio: 'Baixa', status: 'atendida 15:30 · em teste', cor: '#3E7A1E' },
+        { hora: '09:05', os: '209909641', equip: 'Injetora de contraste', setor: 'Hemodinâmica DEMO', prio: 'Média', status: 'ATRASADA +2h 30m', cor: '#A3123A' }
       ],
       equipe: [
         { nome: 'Técnico A', n: 7, pct: '78%', det: '3 em atendimento · 4 aguardando terceiros' },
