@@ -114,7 +114,7 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     referenciaDaMeta:
       "Indicador operacional de capacidade. Não consta como meta percentual na planilha IndicadoresEC-definicao.xlsx; o acompanhamento visa equilibrar entrada e execução.",
     formula:
-      "Abertas no mês = OS com Abertura no mês. Fechadas no mês = OS com Fechamento (ou DataDaSolucao se Fechamento vazio) no mês; OS canceladas (SituacaoDaOS = Cancelada) entram como fechadas — se sem Fechamento/DataDaSolucao, usa-se a Abertura como mês. Coberto = min(abertas, fechadas). Déficit = max(0, abertas − fechadas). Superávit = max(0, fechadas − abertas). Saldo do período = total abertas − total fechadas. Gráfico: eixo Jan–Dez do ano civil vigente; meses futuros zerados.",
+      "Abertas no mês = OS com Abertura no mês. Fechadas no mês = OS com Fechamento (ou DataDaSolucao se Fechamento vazio) no mês; OS canceladas (SituacaoDaOS = Cancelada) ficam fora das abertas e das fechadas. Datas no horário de Brasília. Coberto = min(abertas, fechadas). Déficit = max(0, abertas − fechadas). Superávit = max(0, fechadas − abertas). Saldo do período = total abertas − total fechadas. Gráfico: eixo Jan–Dez do ano civil vigente; meses futuros zerados.",
     coletaDeDados:
       "Effort GlobalThings — API listagem_analitica_das_os. Recorte só por TipoDeManutencao de Engenharia Clínica (inclui A -, calibração, TSE, instrumental; exclui M - predial e O - obras). Não aplica filtro de equipamentos médicos. Ano civil vigente (America/Sao_Paulo): contagem de 1º de janeiro ao fim do mês atual; eixo do gráfico Jan–Dez (meses futuros zerados).",
     periodicidade: "Mensal",
@@ -129,7 +129,7 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     referenciaDaMeta:
       "Indicador de capacidade da oficina. Útil enquanto não há campo confiável de laudo; não deve ser usado como meta oficial de execução do plano.",
     formula:
-      "Recorte: Oficina equals PREVENTIVA EQUIPAMENTOS (normalizado). Abertas no mês = OS com Abertura no mês. Fechadas no mês = OS com Fechamento (ou DataDaSolucao se Fechamento vazio) no mês; canceladas (SituacaoDaOS = Cancelada) contam como fechadas (sem Fechamento/DataDaSolucao → mês da Abertura). % executada = fechadas ÷ abertas × 100. Gráfico: uma barra por mês com rótulo no topo; se abertas = 0 → barra 0 e label “—” (não 0%).",
+      "Recorte: Oficina equals PREVENTIVA EQUIPAMENTOS (normalizado). Abertas no mês = OS com Abertura no mês. Fechadas no mês = OS com Fechamento (ou DataDaSolucao se Fechamento vazio) no mês; canceladas (SituacaoDaOS = Cancelada) ficam fora das abertas e das fechadas. Datas no horário de Brasília. % executada = fechadas ÷ abertas × 100. Gráfico: uma barra por mês com rótulo no topo; se abertas = 0 → barra 0 e label “—” (não 0%).",
     coletaDeDados:
       "Effort GlobalThings — listagem_analitica_das_os. Filtro local por Oficina (equals). Ano civil vigente (America/Sao_Paulo): contagem de 1º de janeiro ao fim do mês atual; eixo do gráfico Jan–Dez (meses futuros zerados). Não filtra por Tag médica nem por tipo de manutenção.",
     periodicidade: "Mensal",
@@ -144,7 +144,7 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     referenciaDaMeta:
       "Indicador de capacidade da oficina. Complementa o gap de execução de plano sem comprometer auditoria com fechamento genérico.",
     formula:
-      "Recorte: Oficina equals CALIBRAÇÃO DE EQUIPAMENTOS (normalizado). Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês; canceladas (SituacaoDaOS = Cancelada) contam como fechadas (sem data de fechamento → Abertura). % executada = fechadas ÷ abertas × 100. Gráfico: uma barra/mês com rótulo; abertas = 0 → barra 0 e “—”.",
+      "Recorte: Oficina equals CALIBRAÇÃO DE EQUIPAMENTOS (normalizado). Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês; canceladas (SituacaoDaOS = Cancelada) ficam fora das abertas e das fechadas. Datas no horário de Brasília. % executada = fechadas ÷ abertas × 100. Gráfico: uma barra/mês com rótulo; abertas = 0 → barra 0 e “—”.",
     coletaDeDados:
       "Effort GlobalThings — listagem_analitica_das_os. Filtro local por Oficina (equals). Ano civil vigente (America/Sao_Paulo): 1º jan → fim do mês atual na contagem; eixo Jan–Dez (meses futuros zerados).",
     periodicidade: "Mensal",
@@ -159,7 +159,7 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     referenciaDaMeta:
       "Indicador de capacidade da oficina TSE/segurança elétrica. Não há oficina nomeada “TSE” na API — o match é SEGURANÇA ELÉTRICA.",
     formula:
-      "Recorte: Oficina equals SEGURANÇA ELÉTRICA (normalizado). Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês; canceladas (SituacaoDaOS = Cancelada) contam como fechadas (sem data de fechamento → Abertura). % executada = fechadas ÷ abertas × 100. Gráfico: uma barra/mês com rótulo; abertas = 0 → barra 0 e “—”.",
+      "Recorte: Oficina equals SEGURANÇA ELÉTRICA (normalizado). Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês; canceladas (SituacaoDaOS = Cancelada) ficam fora das abertas e das fechadas. Datas no horário de Brasília. % executada = fechadas ÷ abertas × 100. Gráfico: uma barra/mês com rótulo; abertas = 0 → barra 0 e “—”.",
     coletaDeDados:
       "Effort GlobalThings — listagem_analitica_das_os. Filtro local por Oficina (equals). Ano civil vigente (America/Sao_Paulo): 1º jan → fim do mês atual na contagem; eixo Jan–Dez (meses futuros zerados).",
     periodicidade: "Mensal",
@@ -174,7 +174,7 @@ export const FICHAS: Record<FichaIndicadorId, FichaIndicador> = {
     referenciaDaMeta:
       "Tabela comparativa + soma das três oficinas de plano. Não inclui OFICINA GERAL. Narrativa: se fechadas acompanham abertas no mês, o fluxo da oficina está alinhado ao cronograma; déficit sustentado indica atraso de execução.",
     formula:
-      "Recorte: Oficina equals (normalizado) PREVENTIVA EQUIPAMENTOS ∪ CALIBRAÇÃO DE EQUIPAMENTOS ∪ SEGURANÇA ELÉTRICA. Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês; canceladas contam como fechadas. % executada = fechadas ÷ abertas × 100. Gráfico: duas barras (abertas × fechadas) + % no rótulo; terceira série = ainda abertas (trabalho a matar), inclusive meses à frente (prazo/abertura). Ano civil Jan–Dez completo.",
+      "Recorte: Oficina equals (normalizado) PREVENTIVA EQUIPAMENTOS ∪ CALIBRAÇÃO DE EQUIPAMENTOS ∪ SEGURANÇA ELÉTRICA. Abertas = Abertura no mês; Fechadas = Fechamento ou DataDaSolucao no mês; canceladas (SituacaoDaOS = Cancelada) ficam fora das abertas e das fechadas. Datas no horário de Brasília. % executada = fechadas ÷ abertas × 100. Gráfico: duas barras (abertas × fechadas) + % no rótulo; terceira série = ainda abertas (trabalho a matar), inclusive meses à frente (prazo/abertura). Ano civil Jan–Dez completo.",
     coletaDeDados:
       "Effort GlobalThings — listagem_analitica_das_os. Filtro local por união das três oficinas (equals). Ano civil vigente (America/Sao_Paulo): 1º jan → 31 dez. Não filtra por Tag médica nem por tipo de manutenção.",
     periodicidade: "Mensal",

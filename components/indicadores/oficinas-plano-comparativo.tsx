@@ -17,6 +17,7 @@ import {
   filterOsOficinaEquals,
   filterOsOficinaEqualsIn,
   volumeEcDoMes,
+  semOsCanceladas,
   volumeEcDoPeriodo,
   type OficinaPlanoFilterKey,
   type RollingYearRange,
@@ -44,14 +45,16 @@ function toneMovimento(value: VolumeEcMovimento) {
 
 function filtroOsEscopo(raw: OsAnaliticoItem[], escopo: DrillEscopo): OsAnaliticoItem[] {
   if (escopo === "consolidado" || escopo === "todas") {
-    return filterOsOficinaEqualsIn(
-      raw,
-      OFICINAS_VOLUME_PLANO.map((o) => o.oficinaEquals),
+    return semOsCanceladas(
+      filterOsOficinaEqualsIn(
+        raw,
+        OFICINAS_VOLUME_PLANO.map((o) => o.oficinaEquals),
+      ),
     );
   }
   const cfg = OFICINAS_VOLUME_PLANO.find((o) => o.filterKey === escopo);
   if (!cfg) return [];
-  return filterOsOficinaEquals(raw, cfg.oficinaEquals);
+  return semOsCanceladas(filterOsOficinaEquals(raw, cfg.oficinaEquals));
 }
 
 function rotuloEscopo(escopo: DrillEscopo) {
