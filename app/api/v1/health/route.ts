@@ -7,6 +7,12 @@ import {
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+/** SHA curto do commit em execução (Railway injeta RAILWAY_GIT_COMMIT_SHA). */
+function commitAtual(): string | null {
+  const sha = (process.env.RAILWAY_GIT_COMMIT_SHA ?? "").trim();
+  return /^[0-9a-f]{7,40}$/i.test(sha) ? sha.slice(0, 7) : null;
+}
+
 /**
  * Health + diagnóstico de persistência (Railway volume).
  * GET /api/v1/health
@@ -21,6 +27,7 @@ export async function GET(request: Request) {
   if (!querPersistencia) {
     return jsonOk({
       status: persistencia.ok ? "ok" : "degraded",
+      commit: commitAtual(),
       persistencia_ok: persistencia.ok,
       ephemeral: persistencia.ephemeral,
       ordens_compra: persistencia.ordensCompra,
