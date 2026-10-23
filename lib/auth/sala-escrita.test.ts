@@ -102,3 +102,10 @@ test("D4: /api/v1/health mantém persistencia_ok e ephemeral, sem caminho do ban
   assert.match(corpoV, /"ok":(true|false)/);
   assert.match(corpoV, /"ephemeral":(true|false)/);
 });
+
+test("GET /api/sala/compras?sync=1 sem sessão → 401; sem sync segue aberto", async () => {
+  const r = await compras.GET(new Request(`${B}/compras?sync=1`));
+  assert.equal(r.status, 401);
+  assert.deepEqual(await r.json(), { ok: false, message: MSG_LOGIN_SALA });
+  assert.equal((await compras.GET(new Request(`${B}/compras`))).status, 200);
+});

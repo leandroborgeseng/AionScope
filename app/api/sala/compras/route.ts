@@ -35,6 +35,11 @@ function corpoManual(body: Record<string, unknown>): CompraManualInput {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const sync = url.searchParams.get("sync") === "1";
+  if (sync) {
+    // ?sync=1 força sincronização (efeito colateral): só com sessão de admin. Sem sync, leitura aberta.
+    const recusa = exigirSessaoEscritaSala(request);
+    if (recusa) return recusa;
+  }
   let syncResult = null;
   if (sync) {
     syncResult = await sincronizarCompras({ forcar: true });
