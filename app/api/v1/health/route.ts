@@ -1,5 +1,6 @@
 import { persistenciaPublica } from "@/lib/db/persistencia-publica";
 import { jsonOk } from "@/lib/ordens-compra/http";
+import { estadoTreinamentos } from "@/lib/treinamentos/load";
 import {
   diagnosticoPersistencia,
 } from "@/lib/db/persistencia";
@@ -17,6 +18,8 @@ export async function GET(request: Request) {
   const querPersistencia = url.searchParams.has("persistencia") || url.searchParams.has("verbose");
 
   const persistencia = diagnosticoPersistencia();
+  // Só contagem e origem (volume|semeado|ausente): sem nomes nem caminhos.
+  const treinamentos = estadoTreinamentos();
 
   if (!querPersistencia) {
     return jsonOk({
@@ -24,12 +27,14 @@ export async function GET(request: Request) {
       persistencia_ok: persistencia.ok,
       ephemeral: persistencia.ephemeral,
       ordens_compra: persistencia.ordensCompra,
+      treinamentos,
     });
   }
 
   return jsonOk({
     status: persistencia.ok ? "ok" : "degraded",
     persistencia: persistenciaPublica(persistencia),
+    treinamentos,
     dica: persistencia.ok
       ? "Volume parece OK — dados devem sobreviver ao redeploy."
       : "Configure Volume em /data + DATABASE_PATH=/data/aionscope.sqlite e faça redeploy. Depois reenvie a API/uploads.",

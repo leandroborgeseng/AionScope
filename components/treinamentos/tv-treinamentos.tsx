@@ -34,7 +34,10 @@ export function TvTreinamentos({
     (async () => {
       try {
         const res = await fetch("/api/treinamentos/resumo", { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          const corpo = (await res.json().catch(() => null)) as { erro?: string } | null;
+          throw new Error(corpo?.erro ?? `HTTP ${res.status}`);
+        }
         const data = (await res.json()) as PainelTreinamentos;
         if (!cancel) setPainel(data);
       } catch (e) {

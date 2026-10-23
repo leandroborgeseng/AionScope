@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { carregarPainelTreinamentos } from "@/lib/treinamentos/load";
+import { AVISO_TREINAMENTOS_INDISPONIVEIS, carregarPainelTreinamentos } from "@/lib/treinamentos/load";
 
 export const runtime = "nodejs";
 
@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 export async function GET() {
   try {
     const painel = carregarPainelTreinamentos();
+    if (!painel) return NextResponse.json({ erro: AVISO_TREINAMENTOS_INDISPONIVEIS }, { status: 503 });
     return NextResponse.json(painel, {
       headers: { "Cache-Control": "public, max-age=60" },
     });
