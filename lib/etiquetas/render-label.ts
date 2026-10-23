@@ -39,7 +39,7 @@ const STATUS_BOXES: { id: PlanoEtiqueta; label: string }[] = [
  * Layout 50×30 — kit oficial AION (coordenadas de desenho 400×240):
  *
  *  ┌────┬──────────────────────────────────────┐
- *  │AION│ EQUIP. Nº                HSJ-00001   │
+ *  │AION│ EQUIP. Nº                HSJ-90001   │
  *  │ ○A │ NOME DO EQUIPAMENTO…                 │
  *  │    │ ──────────────────────────────────── │
  *  │    │ REALIZADO      07/26      ┌──────┐   │

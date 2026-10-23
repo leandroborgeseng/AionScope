@@ -14,7 +14,7 @@ Exemplos abaixo são valores de categoria. Nomes de pessoas não entram aqui.
 | DataHoraInclusao | data | 0% | 2018-06-20T16:57:06 | Quando o arquivo entrou no Effort, não a data do laudo. |
 | EquipamentoId | number | 0% | 4479 | Id interno do equipamento. Liga com equipamentos.Id. |
 | LinkAnexo | texto | 0% | https://sjh.globalthings.net/api/v1/files/1048/bytoken/HhZSAuiUabN9cu24cY2kNGDjR | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Tag | texto | 0% | HSJ-00920 | Chave do equipamento (HSJ-#####). Liga OS, parque, cronograma e anexos. |
+| Tag | texto | 0% | HSJ-90920 | Chave do equipamento (HSJ-#####). Liga OS, parque, cronograma e anexos. |
 
 ## ANEXOS_OS
 
@@ -43,9 +43,9 @@ Exemplos abaixo são valores de categoria. Nomes de pessoas não entram aqui.
 | Observacao | vazio | 100% | — | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Perioridicade | texto | 0% | 6 Mês(Es) | Campo retornado pela API; uso na Sala ainda não fechado. |
 | PlanoDeManutencao | texto | 0% | CALIBRAÇÃO LABORATÓRIO ANÁLISES CLÍNICAS | Nome do plano. Liga cronograma ↔ OS. |
-| ProximaRealizacao | numero-texto | 0% | 202609735 | Código único por linha (ex. 202609735), não uma data de calendário. |
+| ProximaRealizacao | numero-texto | 0% | 209909735 | Código único por linha (ex. 209909735), não uma data de calendário. |
 | Setor | texto | 0% | LABORATÓRIO ANÁLISES CLÍNICAS -15A | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Tag | texto | 0% | HSJ-01880 | Chave do equipamento (HSJ-#####). Liga OS, parque, cronograma e anexos. |
+| Tag | texto | 0% | HSJ-91880 | Chave do equipamento (HSJ-#####). Liga OS, parque, cronograma e anexos. |
 | TipoDeManutencao | texto | 0% | A - CALIBRAÇÃO DE EQUIPAMENTOS MÉDICOS | Tipo do Effort (corretiva, preventiva, calibração, TSE…). |
 
 ## DISP_EQUIPAMENTO
@@ -82,7 +82,7 @@ Falha HTTP 400. Ocorreu um erro ao processar solicitação.
 | Endereco | texto | 0% | RUA ABÍLIO COUTINHO 331, SÃO JOAQUIM, FRANCA-SP | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Equipamento | texto | 0% | ESFIGMOMANÔMETRO | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Fabricante | texto | 5.5% | B BRAUN S/A. | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Fornecedor | texto | 52% | RIBERTEC HOSPITALAR | Campo retornado pela API; uso na Sala ainda não fechado. |
+| Fornecedor | texto | 52% | FORNECEDOR A | Campo retornado pela API; uso na Sala ainda não fechado. |
 | GarantiaExterna | texto | 96.4% | DE SERVIÇO: DRAGER INDUSTRIA E COMERCIO LTDA ATÉ: 10/04/2017 NA OS: 201607994 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | GrupoDeSetores | texto | 0% | DEPÓSITO PATRIMÔNIO | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Id | number | 0% | 7685 | Id interno do equipamento. |
@@ -97,7 +97,7 @@ Falha HTTP 400. Ocorreu um erro ao processar solicitação.
 | Setor | texto | 0% | DEPÓSITO PATRIMÔNIO | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Situacao | texto | 0% | PRÓPRIO | Propriedade do bem (PRÓPRIO, COMODATO, LOCADO…), não se está parado. |
 | Status | texto | 0% | ATIVO | No equipamento: ATIVO/INATIVO. Na OS: SLA preenchido em 0,2%. |
-| Tag | texto | 0% | HSJ-03001 | Chave do equipamento (HSJ-#####). Liga OS, parque, cronograma e anexos. |
+| Tag | texto | 0% | HSJ-93001 | Chave do equipamento (HSJ-#####). Liga OS, parque, cronograma e anexos. |
 | UF | texto | 0% | SP | Campo retornado pela API; uso na Sala ainda não fechado. |
 | ValidadeDoRegistroAnvisa | data | 27.3% | 01/01/2050 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | ValorDeAquisicao | texto | 0% | 0,00 | Valor de compra. 0,00 em mais da metade. |
@@ -113,7 +113,7 @@ Falha HTTP 400. Ocorreu um erro ao processar solicitação.
 | DataHoraAbertura | data | 0% | 04/02/2026 01:11:00 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Empresa | texto | 0% | HOSPITAL E MATERNIDADE SÃO JOAQUIM | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Equipamento | texto | 0% | CENTRAL DE MATERIAIS E ESTERILIZAÇÃO - 19 | Campo retornado pela API; uso na Sala ainda não fechado. |
-| NumeroOS | numero-texto | 0% | 202609834 | Campo retornado pela API; uso na Sala ainda não fechado. |
+| NumeroOS | numero-texto | 0% | 209909834 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | ObservacaoDaRequisicao | texto | 23.9% | SOLICITO MANUTENÇÃO DE PORTA AGULHA. | Campo retornado pela API; uso na Sala ainda não fechado. |
 | PrazoParaAtendimento | texto | 98.7% | 12:00 | Prazo mostrado no monitor. |
 | Prioridade | texto | 0% | BAIXA (MÁX. 72HS) | Na OS, prazo no texto (2h, 4h, 12h, 72h). No equipamento, quase vazio. |
@@ -211,7 +211,7 @@ Falha HTTP 404. Recurso não encontrado.
 | Setor | texto | 0% | UNIDADE DE EMERGÊNCIA - 26 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | SituacaoDaOS | texto | 0% | Fechada | Situação macro: Aberta, Fechada, Cancelada, Pendente. Não é a etapa peça/externo/contrato. |
 | Status | texto | 99.8% | Dentro do prazo para atendimento (SLA) | No equipamento: ATIVO/INATIVO. Na OS: SLA preenchido em 0,2%. |
-| Tag | texto | 79.4% | HSJ-02339 | Chave do equipamento (HSJ-#####). Liga OS, parque, cronograma e anexos. |
+| Tag | texto | 79.4% | HSJ-92339 | Chave do equipamento (HSJ-#####). Liga OS, parque, cronograma e anexos. |
 | TecnicoResolvedor | texto | 42.5% | (nome de pessoa) | Quem resolveu. Não é a lista de lançamentos. |
 | Tipo | texto | 0% | INT | INT (interna) ou EXT (externa). |
 | TipoDeManutencao | texto | 0% | CORRETIVA | Tipo do Effort (corretiva, preventiva, calibração, TSE…). |
@@ -277,7 +277,7 @@ Falha HTTP 404. Recurso não encontrado.
 | Os | numero-texto | 0% | 1 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Patrimonio | texto | 34.5% | 4705 | Campo retornado pela API; uso na Sala ainda não fechado. |
 | Setor | texto | 0% | UTI ADULTO - 5A | Campo retornado pela API; uso na Sala ainda não fechado. |
-| Tag | texto | 0% | HSJ-00001 | Chave do equipamento (HSJ-#####). Liga OS, parque, cronograma e anexos. |
+| Tag | texto | 0% | HSJ-90001 | Chave do equipamento (HSJ-#####). Liga OS, parque, cronograma e anexos. |
 
 ## TPM
 

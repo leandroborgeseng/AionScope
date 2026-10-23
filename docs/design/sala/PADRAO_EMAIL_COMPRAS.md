@@ -5,7 +5,7 @@ Vale para todo pedido enviado de **leandro.borges@aion.eng.br** ou **oficina@aio
 ## Assunto (obrigatório)
 
 ```
-[OS 202609588] Solicitação de compra – Placa de potência – Bisturi elétrico HSJ-01174
+[OS 209909588] Solicitação de compra – Placa de potência – Bisturi elétrico HSJ-91174
 ```
 
 - Sempre começa com `[OS ` + número da OS do Effort + `]`.
@@ -16,8 +16,8 @@ Vale para todo pedido enviado de **leandro.borges@aion.eng.br** ou **oficina@aio
 ## Corpo (modelo)
 
 ```
-OS: 202609588
-Equipamento: Bisturi elétrico · TAG HSJ-01174
+OS: 209909588
+Equipamento: Bisturi elétrico · TAG HSJ-91174
 Setor: Centro Cirúrgico 10A
 Item(ns):
   1. Placa de potência · ref. fabricante XXXX · qtd 1

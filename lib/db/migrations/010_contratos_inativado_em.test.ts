@@ -18,7 +18,7 @@ function checksum(db: Database.Database) {
   return createHash("sha256").update(JSON.stringify(rows)).digest("hex");
 }
 
-/** Banco pós-009 com 16 contratos (valores fictícios) — 10 Manutenção somando 124.004,14, 6 Locação. */
+/** Banco pós-009 com 16 contratos (valores fictícios) — 10 Manutenção somando 10.000,00, 6 Locação. */
 function banco009(file: string) {
   const db = new Database(file);
   db.exec(SCHEMA_SQL);
@@ -26,13 +26,13 @@ function banco009(file: string) {
   const ins = db.prepare(
     "INSERT INTO contratos (id, nome, fornecedor, valor_mensal, inicio, fim, ativo, tipo, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
   );
-  const man = [12400.41, 12400.41, 12400.41, 12400.41, 12400.41, 12400.41, 12400.41, 12400.41, 12400.41, 12400.45];
+  const man = [1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000];
   man.forEach((v, i) => ins.run(`m${i}`, `M${i}`, "F", v, "2026-01-01", null, 1, "MANUTENCAO", "2026-10-20T00:00:00Z", "2026-10-20T00:00:00Z"));
-  for (let i = 0; i < 6; i++) ins.run(`l${i}`, `L${i}`, "F", 7015.81, "2026-01-01", null, 1, "LOCACAO", "2026-10-20T00:00:00Z", "2026-10-20T00:00:00Z");
+  for (let i = 0; i < 6; i++) ins.run(`l${i}`, `L${i}`, "F", 500, "2026-01-01", null, 1, "LOCACAO", "2026-10-20T00:00:00Z", "2026-10-20T00:00:00Z");
   return db;
 }
 
-test("C6 010 aplicada 2x: aditiva, idempotente, 16 contratos e R$ 124.004,14 Manutenção iguais", () => {
+test("C6 010 aplicada 2x: aditiva, idempotente, 16 contratos e R$ 10.000,00 Manutenção iguais", () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), "m010-"));
   try {
     const db = banco009(path.join(dir, "t.sqlite"));
@@ -43,7 +43,7 @@ test("C6 010 aplicada 2x: aditiva, idempotente, 16 contratos e R$ 124.004,14 Man
     const cols = (db.prepare("PRAGMA table_info(contratos)").all() as Array<{ name: string }>).map((c) => c.name);
     assert.ok(cols.includes("inativado_em"));
     const r = db.prepare("SELECT COUNT(*) n, ROUND(SUM(CASE WHEN tipo='MANUTENCAO' THEN valor_mensal END), 2) m, COUNT(inativado_em) d FROM contratos").get() as { n: number; m: number; d: number };
-    assert.deepEqual(r, { n: 16, m: 124004.14, d: 0 });
+    assert.deepEqual(r, { n: 16, m: 10000, d: 0 });
     const n = db.prepare("SELECT COUNT(*) n FROM schema_migrations WHERE name = '010_contratos_inativado_em'").get() as { n: number };
     assert.equal(n.n, 1);
     db.close();

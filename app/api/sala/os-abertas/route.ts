@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
  * GET /api/sala/os-abertas?q=2026
  * Sugestões de OS abertas da EC para vincular OC ↔ OS.
  *
- * GET /api/sala/os-abertas?numero=202609698
+ * GET /api/sala/os-abertas?numero=209909698
  * Detalhe/status de uma OS específica (aberta ou fechada) para aviso no vínculo.
  */
 export async function GET(request: NextRequest) {
