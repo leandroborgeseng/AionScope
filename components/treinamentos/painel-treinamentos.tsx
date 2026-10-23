@@ -27,6 +27,9 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { META_RECICLAGEM_PCT } from "@/lib/treinamentos/calcular";
 import type { PainelTreinamentos, ParticipanteTreinamento } from "@/lib/treinamentos/types";
 import { cn } from "@/lib/utils";
+import { AvisoLoginAdmin } from "@/components/auth/aviso-login-admin";
+import { useSessaoAdmin } from "@/hooks/use-sessao-admin";
+import { DICA_REQUER_LOGIN, MSG_SESSAO_EXPIRADA } from "@/lib/auth/sessao-ui";
 
 const COR_ANTERIOR = "#9fb3bf";
 const COR_ATUAL = "#0f7c8c";
@@ -70,6 +73,7 @@ export function PainelTreinamentosView({
   const [busca, setBusca] = useState("");
   const [buscaDeferred, setBuscaDeferred] = useState("");
   const [, startTransition] = useTransition();
+  const { logado, recarregar: recarregarSessao } = useSessaoAdmin();
   const [tokenInput, setTokenInput] = useState("");
   const [evidenciaMsg, setEvidenciaMsg] = useState<string | null>(null);
   const [desbloqueado, setDesbloqueado] = useState(evidencias.liberado);
@@ -202,8 +206,9 @@ export function PainelTreinamentosView({
       body: JSON.stringify({ token: tokenInput }),
     });
     if (!res.ok) {
-      const body = (await res.json().catch(() => ({}))) as { erro?: string };
-      setEvidenciaMsg(body.erro ?? "Falha ao desbloquear");
+      const body = (await res.json().catch(() => ({}))) as { erro?: string; message?: string };
+      if (res.status === 401 && body.message) void recarregarSessao();
+      setEvidenciaMsg(res.status === 401 && body.message ? MSG_SESSAO_EXPIRADA : (body.erro ?? "Falha ao desbloquear"));
       setDesbloqueado(false);
       return;
     }
@@ -228,9 +233,10 @@ export function PainelTreinamentosView({
     form.set("ano", ano);
     form.set("arquivo", file);
     const res = await fetch("/api/treinamentos/evidencias/upload", { method: "POST", body: form });
-    const body = (await res.json().catch(() => ({}))) as { erro?: string };
+    const body = (await res.json().catch(() => ({}))) as { erro?: string; message?: string };
     if (!res.ok) {
-      setEvidenciaMsg(body.erro ?? `Falha no upload ${ano}`);
+      if (res.status === 401 && body.message) void recarregarSessao();
+      setEvidenciaMsg(res.status === 401 && body.message ? MSG_SESSAO_EXPIRADA : (body.erro ?? `Falha no upload ${ano}`));
       return;
     }
     setEvidenciaMsg(`Lista ${ano} gravada no volume.`);
@@ -339,6 +345,10 @@ export function PainelTreinamentosView({
           </div>
         </div>
 
+        {!logado ? (
+          <AvisoLoginAdmin className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" />
+        ) : null}
+
         {evidencias.tokenObrigatorio && !desbloqueado ? (
           <div className="flex flex-wrap items-end gap-2">
             <Input
@@ -351,7 +361,7 @@ export function PainelTreinamentosView({
                 if (e.key === "Enter") void desbloquearEvidencias();
               }}
             />
-            <Button type="button" onClick={() => void desbloquearEvidencias()}>
+            <Button type="button" disabled={!logado} title={logado ? undefined : DICA_REQUER_LOGIN} onClick={() => void desbloquearEvidencias()}>
               Desbloquear listas
             </Button>
           </div>
@@ -369,6 +379,8 @@ export function PainelTreinamentosView({
                     key={ano}
                     type="button"
                     variant={previewAno === ano ? "default" : "outline"}
+                    disabled={!logado}
+                    title={logado ? undefined : DICA_REQUER_LOGIN}
                     onClick={() => {
                       setPreviewAno(ano);
                       abrirLista(ano);
@@ -378,7 +390,7 @@ export function PainelTreinamentosView({
                   </Button>
                 ))}
                 {anosDisponiveis.map((ano) => (
-                  <Button key={`prev-${ano}`} type="button" variant="ghost" onClick={() => setPreviewAno(ano)}>
+                  <Button key={`prev-${ano}`} type="button" variant="ghost" disabled={!logado} title={logado ? undefined : DICA_REQUER_LOGIN} onClick={() => setPreviewAno(ano)}>
                     Pré-visualizar {ano}
                   </Button>
                 ))}
@@ -411,6 +423,8 @@ export function PainelTreinamentosView({
                   <input
                     type="file"
                     accept="application/pdf,.pdf"
+                    disabled={!logado}
+                    title={logado ? undefined : DICA_REQUER_LOGIN}
                     className="text-xs text-aion-muted file:mr-2 file:rounded file:border-0 file:bg-aion-blue file:px-2 file:py-1 file:text-white"
                     onChange={(e) => {
                       const file = e.target.files?.[0] ?? null;
@@ -422,7 +436,7 @@ export function PainelTreinamentosView({
               ))}
             </div>
 
-            {desbloqueado && previewAno && anosDisponiveis.includes(previewAno) ? (
+            {logado && desbloqueado && previewAno && anosDisponiveis.includes(previewAno) ? (
               <div className="overflow-hidden rounded-xl border border-aion-line bg-white">
                 <div className="flex items-center justify-between gap-2 border-b border-aion-line px-3 py-2 text-sm">
                   <span className="font-semibold text-aion-ink">Lista {previewAno}</span>
