@@ -1,18 +1,27 @@
 import { NextRequest } from "next/server";
-import { PBI_ENDPOINTS, type PbiResource } from "@/lib/pbi/catalog";
+import { PBI_ENDPOINTS } from "@/lib/pbi/catalog";
 import { fetchPbi } from "@/lib/pbi/client";
 import { sessaoContratosValida } from "@/lib/auth/contratos-sessao";
-import { semCamposRs } from "@/lib/pbi/proxy-publico";
+import { RESOURCES_SO_COM_SESSAO, normalizarResource, semCamposSensiveis } from "@/lib/pbi/proxy-publico";
 
 export const dynamic = "force-dynamic";
+
+// A resposta depende do cookie de sessão: nunca cachear em proxy/CDN compartilhado.
+const SEM_CACHE = { "Cache-Control": "private, no-store", Vary: "Cookie" };
 
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ resource: string }> },
 ) {
-  const { resource } = await context.params;
-  if (!(resource in PBI_ENDPOINTS)) {
-    return Response.json({ ok: false, status: 404, message: `Recurso inválido: ${resource}` }, { status: 404 });
+  const { resource: bruto } = await context.params;
+  // Nome normalizado e só da lista; desconhecido → 404 sem chamar o PBI (e sem ecoar o nome).
+  const resource = normalizarResource(bruto);
+  if (!resource || !(resource in PBI_ENDPOINTS)) {
+    return Response.json({ ok: false, status: 404, message: "Recurso inválido." }, { status: 404, headers: SEM_CACHE });
+  }
+  const logado = sessaoContratosValida(request);
+  if (!logado && RESOURCES_SO_COM_SESSAO.includes(resource)) {
+    return Response.json({ ok: false, message: "Entre com a senha de administrador." }, { status: 401, headers: SEM_CACHE });
   }
 
   const params = new URLSearchParams(request.nextUrl.searchParams);
@@ -28,10 +37,10 @@ export async function GET(
     if (resource === "oficina" && defaults[0]) params.set("companyId", defaults[0]);
   }
 
-  const completo = await fetchPbi(resource as PbiResource, params);
-  // M1: sem sessão de admin, campos em R$ saem (cópia; o cache guarda e devolve o completo só com sessão).
-  const result = semCamposRs(resource as PbiResource, completo, sessaoContratosValida(request));
+  const completo = await fetchPbi(resource, params);
+  // M1: sem sessão de admin, campos em R$ e nomes de pessoas saem (cópia; o cache guarda o completo).
+  const result = semCamposSensiveis(completo, logado);
   const httpStatus = result.ok ? 200 : result.disabled ? 200 : result.status && result.status >= 400 ? 502 : 500;
   // A resposta depende do cookie de sessão: nunca cachear em proxy/CDN compartilhado.
-  return Response.json(result, { status: httpStatus, headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
+  return Response.json(result, { status: httpStatus, headers: SEM_CACHE });
 }

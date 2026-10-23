@@ -9,7 +9,8 @@ import { NextRequest } from "next/server";
 const dir = mkdtempSync(path.join(os.tmpdir(), "pbi-proxy-sessao-"));
 process.env.DATABASE_PATH = path.join(dir, "t.sqlite");
 process.env.PBI_BASE_URL = "http://gt.invalid";
-for (const t of ["EQUIPAMENTOS", "OS_ANALITICO", "CRONOGRAMA"]) process.env[`PBI_TOKEN_${t}`] = "tok-test";
+import { PBI_ENDPOINTS } from "./catalog";
+for (const e of Object.values(PBI_ENDPOINTS)) process.env[e.tokenEnv] = "tok-test";
 
 import { closeDbForTests } from "@/lib/db/client";
 import { __setFetchForTests, invalidarCachePbi } from "./client";
@@ -62,7 +63,7 @@ test("sem sessão: equipamentos sem ValorDeSubstituicao/ValorDeAquisicao; resto 
   }
   assert.deepEqual(j.data.map((e) => e.Tag), ["HSJ-90001", "HSJ-90002"]);
   assert.equal(j.data[0].Setor, "SETOR DEMO A");
-  assert.deepEqual(j.camposOcultos, ["ValorDeSubstituicao", "ValorDeAquisicao"]);
+  assert.deepEqual(j.camposOcultos, ["ValorDeAquisicao", "ValorDeSubstituicao"]);
   for (const v of ["1.234,56", "999,00", "7.654,32"]) assert.equal(txt.includes(v), false, v);
   assert.equal(r.headers.get("cache-control"), "private, no-store");
   assert.equal(r.headers.get("vary"), "Cookie");
@@ -93,8 +94,7 @@ test("sessão inválida/forjada conta como sem sessão", async () => {
   assert.equal((JSON.parse(txt) as { data: Record<string, unknown>[] }).data.some((e) => "ValorDeSubstituicao" in e), false);
 });
 
-test("outros recursos não são alterados por este PR (sem sessão)", async () => {
+test("cronograma sem sessão: mesmo corte (ciclo 2: vale para todos os resources)", async () => {
   const { txt } = await chamar("cronograma", undefined, "periodo=AnoAtual");
-  const j = JSON.parse(txt) as { data: unknown[] };
-  assert.deepEqual(j.data, EQUIP, "cronograma passa como veio (fora do escopo M1)");
+  for (const v of ["1.234,56", "999,00", "7.654,32"]) assert.equal(txt.includes(v), false, v);
 });
