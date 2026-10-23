@@ -29,7 +29,6 @@ import { idsOsAbertas, novasOsDesde } from "@/lib/ec/novas-os";
 import { parseMoeda } from "@/lib/ec/texto";
 import { desbloquearSomTv, SALA_SOM_STORAGE, tocarChimeNovaOs } from "@/components/sala-tv/som-nova-os";
 import { TvTreinamentos } from "@/components/treinamentos/tv-treinamentos";
-import { AvisoLoginAdmin } from "@/components/auth/aviso-login-admin";
 import { useSessaoAdmin } from "@/hooks/use-sessao-admin";
 import { DICA_REQUER_LOGIN, MSG_SESSAO_EXPIRADA } from "@/lib/auth/sessao-ui";
 import { TelaEvolucao } from "@/components/sala-tv/tela-evolucao";
@@ -1743,7 +1742,7 @@ function TelaCompras({
 
   return (
     <div className="sala-coluna" style={{ flex: 1, minHeight: 0 }}>
-      {!logado ? <AvisoLoginAdmin style={{ margin: 0, fontSize: 18, color: "#8A5A00" }} /> : null}
+      {/* B1: no modo TV não mostra o aviso de login; os botões seguem desabilitados com a dica no title. */}
       <div
         style={{
           display: "grid",

@@ -13,5 +13,7 @@ export function useSessaoAdmin() {
     },
     staleTime: 30_000,
   });
-  return { logado: Boolean(q.data?.autenticado), carregando: q.isLoading, recarregar: q.refetch };
+  const carregando = q.isLoading;
+  // B3: enquanto carrega, estado neutro — `logado` fica true (não desabilita nem avisa); o servidor continua exigindo sessão (401).
+  return { logado: carregando || Boolean(q.data?.autenticado), carregando, recarregar: q.refetch };
 }

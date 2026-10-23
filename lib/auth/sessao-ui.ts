@@ -3,10 +3,23 @@ export const DICA_REQUER_LOGIN = "Requer login de admin";
 export const MSG_SESSAO_EXPIRADA = "Sessão expirada. Entre de novo para salvar.";
 export const ROTA_LOGIN_ADMIN = "/cadastros/contratos";
 
-/** Só caminhos internos ("/x"), nunca "//host" nem URL absoluta (evita open redirect). */
-export function voltarSeguro(v: string | null | undefined): string | null {
+const ORIGEM_BASE = "https://aionscope.invalid";
+
+/**
+ * Só caminhos internos ("/x"). Recusa caracteres de controle, espaço e barra invertida
+ * (navegadores os removem: "/\t/evil" vira "//evil"), "//host" e URL absoluta.
+ * Confere também que a URL resolvida fica na mesma origem (no servidor, base fictícia).
+ */
+export function voltarSeguro(v: string | null | undefined, origem?: string): string | null {
   if (!v || typeof v !== "string") return null;
-  if (!v.startsWith("/") || v.startsWith("//") || v.startsWith("/\\")) return null;
+  if (/[\x00-\x20\x7f\\]/.test(v)) return null;
+  if (!v.startsWith("/") || v.startsWith("//")) return null;
+  const base = origem || (typeof window !== "undefined" && window.location?.origin) || ORIGEM_BASE;
+  try {
+    if (new URL(v, base).origin !== new URL(base).origin) return null;
+  } catch {
+    return null;
+  }
   return v;
 }
 

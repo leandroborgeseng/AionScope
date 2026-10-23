@@ -134,7 +134,7 @@ export default function SalaRegistrosPage() {
       {!logado ? <AvisoLoginAdmin className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900" /> : null}
       <PageHeader
         title="Registros da Sala"
-        description="Impedimentos, P04–P07, feriados e melhorias do item 15. Ainda sem login — use só na rede interna."
+        description="Impedimentos, P04–P07, feriados e melhorias do item 15."
       />
       <p className="text-sm text-aion-muted">
         Estes dados entram no snapshot da TV em <Link className="text-aion-blue underline" href="/sala">/sala</Link>.
