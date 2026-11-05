@@ -395,6 +395,34 @@ describe("compareTagNatural / setor na etiqueta (E7–E9)", () => {
     assert.ok(trunc.endsWith("…"));
     assert.ok(trunc.length <= 28);
   });
+
+  it("mês de fechamento em America/Sao_Paulo: 31/10 22:00 BRT (UTC-3) conta como outubro, não novembro UTC", () => {
+    // Instant 2026-11-01T01:00:00Z == 31/10/2026 22:00 America/Sao_Paulo.
+    const itensZ: OsParaEtiqueta[] = [
+      os({
+        OS: "tz-z",
+        Tag: "EQ-TZ-Z",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "01/10/2026 08:00:00",
+        Fechamento: "2026-11-01T01:00:00.000Z",
+        SituacaoDaOS: "FECHADA",
+      }),
+    ];
+    const itensBr: OsParaEtiqueta[] = [
+      os({
+        OS: "tz-br",
+        Tag: "EQ-TZ-BR",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "01/10/2026 08:00:00",
+        Fechamento: "31/10/2026 22:00:00",
+        SituacaoDaOS: "FECHADA",
+      }),
+    ];
+    assert.equal(agregarEtiquetasPlano(itensZ, { monthKeys: ["2026-10"] }).length, 1);
+    assert.equal(agregarEtiquetasPlano(itensZ, { monthKeys: ["2026-11"] }).length, 0);
+    assert.equal(agregarEtiquetasPlano(itensBr, { monthKeys: ["2026-10"] }).length, 1);
+    assert.equal(agregarEtiquetasPlano(itensBr, { monthKeys: ["2026-11"] }).length, 0);
+  });
 });
 
 describe("absoluteFichaVidaUrl", () => {

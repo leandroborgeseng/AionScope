@@ -169,3 +169,6 @@ Se o BLE falhar, use o PNG no app oficial Niimbot / NiimBlue.
 ## Redeploy
 
 Após merge em `main`, o Railway/Coolify faz redeploy automático do Dockerfile. Confirme a rota `/etiquetas` no host público. Se alterou `NEXT_PUBLIC_ETIQUETA_*` / `NEXT_PUBLIC_EFFORT_EQUIPAMENTO_URL_TEMPLATE` / `NEXT_PUBLIC_ETIQUETA_QR_BASE`, é obrigatório **rebuild** (não basta restart).
+
+## Evidência PR #22 (setor + reimpressão + tablet)
+Ver `docs/evidencias/etiquetas-reimpressao-os-fechadas/` e `docs/evidencias/etiquetas-reimpressao-os-fechadas.md` (B1 com setor e viewports 800×1280 / 1280×800). Os `docs/ops/etiqueta-*.png` são do layout antigo sem a linha de setor.
