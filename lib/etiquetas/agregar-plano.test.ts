@@ -6,7 +6,14 @@ import {
   formatMesAno,
   formatProximaLabel,
 } from "./agregar-plano";
-import type { OsParaEtiqueta } from "./tipos";
+import {
+  compareTagNatural,
+  setorListaLabel,
+  setorParaEtiqueta,
+  truncateSetorEtiqueta,
+  SETOR_VAZIO_LABEL,
+  type OsParaEtiqueta,
+} from "./tipos";
 
 function os(
   parcial: Partial<OsParaEtiqueta> & Pick<OsParaEtiqueta, "OS" | "Oficina" | "Tag" | "Abertura">,
@@ -316,6 +323,77 @@ describe("agregarEtiquetasPlano", () => {
       agregarEtiquetasPlano(itens, { monthKeys: ["2026-10"], incluirFechadas: false }).length,
       0,
     );
+  });
+
+  it("E7: filtro de setor aplica também a OS fechadas (ZZTESTE)", () => {
+    const itens: OsParaEtiqueta[] = [
+      os({
+        OS: "950",
+        Tag: "ZZTESTE-SETOR-A",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "01/10/2026 08:00:00",
+        Fechamento: "12/10/2026 16:00:00",
+        SituacaoDaOS: "FECHADA",
+        Setor: "UTI",
+      }),
+      os({
+        OS: "951",
+        Tag: "ZZTESTE-SETOR-B",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "02/10/2026 08:00:00",
+        Fechamento: "13/10/2026 16:00:00",
+        SituacaoDaOS: "FECHADA",
+        Setor: "Centro Cirúrgico",
+      }),
+    ];
+    const rows = agregarEtiquetasPlano(itens, { monthKeys: ["2026-10"] });
+    assert.equal(rows.length, 2);
+    const soUti = rows.filter((r) => r.setor === "UTI");
+    assert.equal(soUti.length, 1);
+    assert.equal(soUti[0]!.tag, "ZZTESTE-SETOR-A");
+  });
+
+  it("E8 lista: setor vazio agrega vazio e o filtro usa Sem setor", () => {
+    const itens: OsParaEtiqueta[] = [
+      os({
+        OS: "960",
+        Tag: "ZZTESTE-SEM-SETOR",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "01/10/2026 08:00:00",
+        Fechamento: "10/10/2026 16:00:00",
+        SituacaoDaOS: "FECHADA",
+        Setor: "   ",
+      }),
+    ];
+    const rows = agregarEtiquetasPlano(itens, { monthKeys: ["2026-10"] });
+    assert.equal(rows[0]!.setor, "");
+    assert.equal(setorListaLabel(rows[0]!.setor), SETOR_VAZIO_LABEL);
+    assert.equal(setorParaEtiqueta(rows[0]!.setor), "");
+  });
+});
+
+describe("compareTagNatural / setor na etiqueta (E7–E9)", () => {
+  it("E7/ET1: ordenação natural crescente (TAG-2 antes de TAG-10)", () => {
+    const tags = ["ZZTESTE-TAG-10", "ZZTESTE-TAG-2", "ZZTESTE-TAG-1"];
+    tags.sort(compareTagNatural);
+    assert.deepEqual(tags, ["ZZTESTE-TAG-1", "ZZTESTE-TAG-2", "ZZTESTE-TAG-10"]);
+  });
+
+  it("E8: setorListaLabel mapeia vazio para Sem setor", () => {
+    assert.equal(setorListaLabel(""), SETOR_VAZIO_LABEL);
+    assert.equal(setorListaLabel("  "), SETOR_VAZIO_LABEL);
+    assert.equal(setorListaLabel(null), SETOR_VAZIO_LABEL);
+    assert.equal(setorListaLabel("UTI Adulto"), "UTI Adulto");
+  });
+
+  it("ET3/E9: setorParaEtiqueta some na etiqueta se vazio; trunca ~28 chars", () => {
+    assert.equal(setorParaEtiqueta(""), "");
+    assert.equal(setorParaEtiqueta(SETOR_VAZIO_LABEL), "");
+    assert.equal(setorParaEtiqueta("UTI"), "UTI");
+    const longo = "CENTRO CIRURGICO AMBULATORIAL EXTENSO DE TESTE";
+    const trunc = truncateSetorEtiqueta(longo);
+    assert.ok(trunc.endsWith("…"));
+    assert.ok(trunc.length <= 28);
   });
 });
 

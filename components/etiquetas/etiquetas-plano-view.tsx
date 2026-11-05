@@ -58,6 +58,10 @@ import {
   type LabelRenderInput,
   type LabelSizeId,
   type PlanoEtiqueta,
+  compareTagNatural,
+  setorListaLabel,
+  setorParaEtiqueta,
+  SETOR_VAZIO_LABEL,
 } from "@/lib/etiquetas/tipos";
 import { EMPTY_FILTERS } from "@/lib/pbi/filters";
 import { nowInSaoPaulo, parsePbiDate } from "@/lib/pbi/dates";
@@ -92,12 +96,12 @@ type SortKey = "tag" | "equipamento" | "setor" | "realizacao" | "proxima";
 function compareRows(a: EtiquetaEquipamento, b: EtiquetaEquipamento, key: SortKey): number {
   switch (key) {
     case "tag":
-      return a.tag.localeCompare(b.tag, "pt-BR");
+      return compareTagNatural(a.tag, b.tag);
     case "equipamento":
       return a.equipamento.localeCompare(b.equipamento, "pt-BR");
     case "setor": {
       const setor = a.setor.localeCompare(b.setor, "pt-BR");
-      return setor !== 0 ? setor : a.tag.localeCompare(b.tag, "pt-BR");
+      return setor !== 0 ? setor : compareTagNatural(a.tag, b.tag);
     }
     case "realizacao":
       return (a.realizacao?.getTime() ?? 0) - (b.realizacao?.getTime() ?? 0);
@@ -167,7 +171,7 @@ export function EtiquetasPlanoView() {
   const [setorFiltro, setSetorFiltro] = useState("todos");
   /** Busca rápida por tag, equipamento ou setor. */
   const [busca, setBusca] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("setor");
+  const [sortKey, setSortKey] = useState<SortKey>("tag");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
   const [page, setPage] = useState(0);
   /** Linha em foco no mockup (clique na tabela). */
@@ -290,10 +294,9 @@ export function EtiquetasPlanoView() {
   const rowsEnriched = useMemo(
     () =>
       rowsBase.map((row) => {
-        if (row.setor) return row;
         const eq = eqByTag.get(row.tag.trim().toLocaleUpperCase("pt-BR"));
-        const setor = (eq?.Setor ?? "").trim();
-        return setor ? { ...row, setor } : row;
+        const setor = setorListaLabel(row.setor || eq?.Setor);
+        return setor === row.setor ? row : { ...row, setor };
       }),
     [rowsBase, eqByTag],
   );
@@ -454,6 +457,7 @@ export function EtiquetasPlanoView() {
   function buildRenderInput(row: EtiquetaEquipamento | null): LabelRenderInput {
     const tag = row?.tag ?? "EQ-DEMO";
     const equipamento = row?.equipamento || "Monitor multiparamétrico";
+    const setor = setorParaEtiqueta(row?.setor);
     const planos = row?.planos?.length
       ? row.planos
       : (["preventiva", "calibracao"] as PlanoEtiqueta[]);
@@ -467,6 +471,7 @@ export function EtiquetasPlanoView() {
       logoUrl: branding.logoUrl,
       tag,
       equipamento,
+      setor,
       planos,
       realizacaoLabel: formatMesAno(realizacao),
       proximaLabel: formatProximaLabel(proxima),
@@ -814,7 +819,7 @@ export function EtiquetasPlanoView() {
   const showMobileBar = checkedCount > 0 || batchRunning;
 
   return (
-    <div className={cn("space-y-4 sm:space-y-5", showMobileBar && "pb-24 lg:pb-0")}>
+    <div className={cn("max-w-full overflow-x-hidden space-y-4 sm:space-y-5", showMobileBar && "pb-24 lg:pb-0")}>
       <PageHeader
         title="Etiquetas · plano Preventiva / Cal / TSE"
         description="Filtre por setor e mês, marque equipamentos e imprima na Niimbot B1 (Chrome/Edge com Bluetooth) ou baixe PNG. OS fechadas do mês selecionado entram na lista para reimpressão (mês de fechamento); canceladas ficam fora. No celular, use a barra inferior para a fila de impressão."
@@ -1009,7 +1014,7 @@ export function EtiquetasPlanoView() {
                     type="button"
                     onClick={() => toggleMonth(m.key)}
                     className={cn(
-                      "min-h-9 rounded-md border px-2.5 py-1.5 text-xs font-medium capitalize transition-colors",
+                      "min-h-11 rounded-md border px-2.5 py-1.5 text-xs font-medium capitalize transition-colors",
                       on
                         ? "border-aion-blue bg-aion-blue text-white"
                         : "border-aion-line bg-white text-aion-ink hover:bg-aion-mist",
@@ -1478,6 +1483,19 @@ export function EtiquetasPlanoView() {
               <div className="flex justify-center">
                 <div
                   className="relative bg-white shadow-[0_8px_28px_rgba(1,104,176,0.12)] ring-1 ring-aion-ink/15"
+                  title={
+                    selected
+                      ? [
+                          selected.tag,
+                          selected.equipamento,
+                          selected.setor && selected.setor !== SETOR_VAZIO_LABEL
+                            ? `Setor: ${selected.setor}`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")
+                      : undefined
+                  }
                   style={{
                     width: size.wMm * LABEL_PREVIEW_PX_PER_MM,
                     aspectRatio: `${size.wMm} / ${size.hMm}`,

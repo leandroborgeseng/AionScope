@@ -8,6 +8,7 @@ import {
 } from "@/lib/pbi/volume-ec";
 import {
   PLANOS_ETIQUETA,
+  compareTagNatural,
   type AgregarEtiquetasOptions,
   type EtiquetaEquipamento,
   type OsParaEtiqueta,
@@ -275,7 +276,7 @@ export function agregarEtiquetasPlano(
       equipamento: acc.equipamento,
       modelo: acc.modelo,
       fabricante: acc.fabricante,
-      setor: acc.setor,
+      setor: (acc.setor ?? "").trim(),
       centroDeCusto: acc.centroDeCusto,
       planos,
       realizacao,
@@ -286,11 +287,7 @@ export function agregarEtiquetasPlano(
     });
   }
 
-  return result.sort((a, b) => {
-    const setor = a.setor.localeCompare(b.setor, "pt-BR");
-    if (setor !== 0) return setor;
-    return a.tag.localeCompare(b.tag, "pt-BR");
-  });
+  return result.sort((a, b) => compareTagNatural(a.tag, b.tag));
 }
 
 export function formatMesAno(date: Date | null): string {
