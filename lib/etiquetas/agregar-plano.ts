@@ -1,5 +1,11 @@
 import { parsePbiDate } from "@/lib/pbi/dates";
-import { isOficinaEquals, isOsAindaAberta, mesTrabalhoPendente } from "@/lib/pbi/volume-ec";
+import {
+  isOficinaEquals,
+  isOsAindaAberta,
+  isOsCancelada,
+  mesTrabalhoPendente,
+  osDataFechadaIndicador,
+} from "@/lib/pbi/volume-ec";
 import {
   PLANOS_ETIQUETA,
   type AgregarEtiquetasOptions,
@@ -61,11 +67,46 @@ function latestDate(dates: Array<Date | null>): Date | null {
 }
 
 /**
- * Agrega OS abertas das oficinas de plano (Preventiva / Calibração / TSE)
+ * Preferência por Tag/plano (R1): OS aberta vence fechada; entre abertas, abertura mais antiga;
+ * entre fechadas, fechamento mais recente no mês.
+ */
+function shouldReplaceOs(
+  existing:
+    | (OsPlanoResumo & {
+        _abertura: Date | null;
+        _proximaOs: Date | null;
+        _aberta: boolean;
+        _fechamento: Date | null;
+      })
+    | undefined,
+  candidate: OsPlanoResumo & {
+    _abertura: Date | null;
+    _proximaOs: Date | null;
+    _aberta: boolean;
+    _fechamento: Date | null;
+  },
+): boolean {
+  if (!existing) return true;
+  if (candidate._aberta !== existing._aberta) return candidate._aberta;
+  if (candidate._aberta) {
+    if (!candidate._abertura) return false;
+    if (!existing._abertura) return true;
+    return candidate._abertura < existing._abertura;
+  }
+  if (!candidate._fechamento) return false;
+  if (!existing._fechamento) return true;
+  return candidate._fechamento > existing._fechamento;
+}
+
+/**
+ * Agrega OS das oficinas de plano (Preventiva / Calibração / TSE)
  * em uma linha por Tag, com quais etiquetas aplicar e datas de realização / próxima.
  *
- * Período: mês do trabalho pendente (`mesTrabalhoPendente` — prazo → limite → abertura).
- * Sem `monthKeys` → todas as abertas. LGPD: só Tag / equipamento (sem CPF).
+ * Abertas: mês do trabalho pendente (`mesTrabalhoPendente` — prazo → limite → abertura).
+ * Fechadas (não canceladas): mês de `Fechamento`/`DataDaSolucao` (mesmo critério FECH. do painel).
+ * Inclusão de fechadas exige `monthKeys` (default ligado quando há mês). Canceladas ficam fora.
+ * Mesmo Tag/plano: prefere OS aberta; senão a fechada mais recente do mês. Não altera Effort.
+ * Sem `monthKeys` → só abertas. LGPD: só Tag / equipamento (sem CPF).
  */
 export function agregarEtiquetasPlano(
   os: OsParaEtiqueta[],
@@ -96,20 +137,51 @@ export function agregarEtiquetasPlano(
     fabricante: string;
     setor: string;
     centroDeCusto: string;
-    osPorPlano: Partial<Record<PlanoEtiqueta, OsPlanoResumo & { _abertura: Date | null; _proximaOs: Date | null }>>;
+    osPorPlano: Partial<
+      Record<
+        PlanoEtiqueta,
+        OsPlanoResumo & {
+          _abertura: Date | null;
+          _proximaOs: Date | null;
+          _aberta: boolean;
+          _fechamento: Date | null;
+        }
+      >
+    >;
+  };
+
+  const incluirFechadas = options.incluirFechadas ?? Boolean(monthSet);
+  type AccOs = OsPlanoResumo & {
+    _abertura: Date | null;
+    _proximaOs: Date | null;
+    _aberta: boolean;
+    _fechamento: Date | null;
   };
 
   const byTag = new Map<string, Acc>();
 
   for (const item of os) {
-    if (!isOsAindaAberta(item)) continue;
+    if (isOsCancelada(item)) continue;
+    const aberta = isOsAindaAberta(item);
+    if (!aberta && !incluirFechadas) continue;
+
     const plano = planoDaOficina(item.Oficina);
     if (!plano || !planosFiltro.has(plano)) continue;
 
-    const mes = mesTrabalhoPendente(item);
-    if (monthSet && mes) {
-      if (!monthSet.has(monthKey(mes.year, mes.month))) continue;
-    } else if (monthSet && !mes) {
+    let mes: { year: number; month: number } | null = null;
+    let fechamento: Date | null = null;
+    if (aberta) {
+      mes = mesTrabalhoPendente(item);
+    } else {
+      fechamento = osDataFechadaIndicador(item);
+      if (!fechamento) continue;
+      mes = { year: fechamento.getFullYear(), month: fechamento.getMonth() };
+    }
+
+    if (monthSet) {
+      if (!mes || !monthSet.has(monthKey(mes.year, mes.month))) continue;
+    } else if (!aberta) {
+      // Sem mês: não lista fechadas (R2 — filtro obrigatório).
       continue;
     }
 
@@ -137,14 +209,16 @@ export function agregarEtiquetasPlano(
     const abertura = parsePbiDate(item.Abertura);
     const proximaOs =
       parsePbiDate(item.PrazoDeEncerramentoOs) || parsePbiDate(item.DataLimiteDaSolucao);
-    const existing = acc.osPorPlano[plano];
-    // Mantém a OS com abertura mais antiga (ciclo atual) para o plano.
-    if (!existing || (abertura && (!existing._abertura || abertura < existing._abertura))) {
-      acc.osPorPlano[plano] = {
-        ...toResumo(item, plano),
-        _abertura: abertura,
-        _proximaOs: proximaOs,
-      };
+    const candidate: AccOs = {
+      ...toResumo(item, plano),
+      _abertura: abertura,
+      _proximaOs: proximaOs,
+      _aberta: aberta,
+      _fechamento: fechamento,
+    };
+    const existing = acc.osPorPlano[plano] as AccOs | undefined;
+    if (shouldReplaceOs(existing, candidate)) {
+      acc.osPorPlano[plano] = candidate;
     }
   }
 

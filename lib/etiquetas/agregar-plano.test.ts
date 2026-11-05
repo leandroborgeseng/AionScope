@@ -28,7 +28,7 @@ function os(
 }
 
 describe("agregarEtiquetasPlano", () => {
-  it("agrupa Prev+TSE+Cal no mesmo equipamento e ignora fechadas/canceladas", () => {
+  it("agrupa Prev+TSE+Cal no mesmo equipamento e ignora fechadas de outro mês e canceladas", () => {
     const itens: OsParaEtiqueta[] = [
       os({
         OS: "1",
@@ -57,6 +57,7 @@ describe("agregarEtiquetasPlano", () => {
         Oficina: "PREVENTIVA EQUIPAMENTOS",
         Abertura: "01/09/2026 08:00:00",
         Fechamento: "02/09/2026 08:00:00",
+        SituacaoDaOS: "FECHADA",
       }),
       os({
         OS: "5",
@@ -140,6 +141,181 @@ describe("agregarEtiquetasPlano", () => {
     const semCrono = agregarEtiquetasPlano(itens, { monthKeys: ["2026-10"] });
     assert.equal(semCrono[0]!.proximaFonte, "estimativa");
     assert.equal(formatMesAno(semCrono[0]!.proxima), "10/2027");
+  });
+
+  it("E1: preventiva fechada no mês M aparece no filtro M (ZZTESTE)", () => {
+    const itens: OsParaEtiqueta[] = [
+      os({
+        OS: "901",
+        Tag: "ZZTESTE-FECH-01",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "03/10/2026 08:00:00",
+        Fechamento: "12/10/2026 16:00:00",
+        SituacaoDaOS: "FECHADA",
+        PrazoDeEncerramentoOs: "20/10/2026 17:00:00",
+      }),
+    ];
+    const rows = agregarEtiquetasPlano(itens, { monthKeys: ["2026-10"] });
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]!.tag, "ZZTESTE-FECH-01");
+    assert.deepEqual(rows[0]!.planos, ["preventiva"]);
+    assert.equal(rows[0]!.osPorPlano.preventiva?.os, "901");
+    assert.equal(formatMesAno(rows[0]!.realizacao), "10/2026");
+  });
+
+  it("E2: OS ainda aberta continua na lista (sem regressão)", () => {
+    const itens: OsParaEtiqueta[] = [
+      os({
+        OS: "902",
+        Tag: "ZZTESTE-ABERTA-01",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "05/10/2026 08:00:00",
+        PrazoDeEncerramentoOs: "25/10/2026 17:00:00",
+      }),
+    ];
+    const rows = agregarEtiquetasPlano(itens, { monthKeys: ["2026-10"] });
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]!.osPorPlano.preventiva?.os, "902");
+    assert.equal(rows[0]!.osPorPlano.preventiva?.situacao, "ABERTA");
+  });
+
+  it("E3: OS cancelada não aparece aberta nem fechada", () => {
+    const itens: OsParaEtiqueta[] = [
+      os({
+        OS: "903",
+        Tag: "ZZTESTE-CANC-01",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "05/10/2026 08:00:00",
+        SituacaoDaOS: "Cancelada",
+      }),
+      os({
+        OS: "904",
+        Tag: "ZZTESTE-CANC-02",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "01/10/2026 08:00:00",
+        Fechamento: "10/10/2026 12:00:00",
+        SituacaoDaOS: "Cancelada",
+      }),
+    ];
+    const rows = agregarEtiquetasPlano(itens, { monthKeys: ["2026-10"] });
+    assert.equal(rows.length, 0);
+  });
+
+  it("E4: fechada em mês N some do filtro M ≠ N", () => {
+    const itens: OsParaEtiqueta[] = [
+      os({
+        OS: "905",
+        Tag: "ZZTESTE-MES-01",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "20/09/2026 08:00:00",
+        Fechamento: "28/09/2026 17:00:00",
+        SituacaoDaOS: "FECHADA",
+      }),
+    ];
+    assert.equal(agregarEtiquetasPlano(itens, { monthKeys: ["2026-10"] }).length, 0);
+    assert.equal(agregarEtiquetasPlano(itens, { monthKeys: ["2026-09"] }).length, 1);
+  });
+
+  it("E5: agregação é só leitura — situação FECHADA permanece no resumo", () => {
+    const itens: OsParaEtiqueta[] = [
+      os({
+        OS: "906",
+        Tag: "ZZTESTE-RO-01",
+        Oficina: "CALIBRACAO DE EQUIPAMENTOS",
+        Abertura: "02/10/2026 09:00:00",
+        DataDaSolucao: "15/10/2026 11:00:00",
+        SituacaoDaOS: "Encerrada",
+      }),
+    ];
+    const before = structuredClone(itens);
+    const rows = agregarEtiquetasPlano(itens, { monthKeys: ["2026-10"] });
+    assert.equal(rows[0]!.osPorPlano.calibracao?.situacao, "Encerrada");
+    assert.deepEqual(itens, before);
+  });
+
+  it("R1: mesma Tag com aberta e fechada no mês prefere a aberta", () => {
+    const itens: OsParaEtiqueta[] = [
+      os({
+        OS: "910",
+        Tag: "ZZTESTE-PREF-01",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "01/10/2026 08:00:00",
+        Fechamento: "05/10/2026 16:00:00",
+        SituacaoDaOS: "FECHADA",
+      }),
+      os({
+        OS: "911",
+        Tag: "ZZTESTE-PREF-01",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "08/10/2026 08:00:00",
+        PrazoDeEncerramentoOs: "30/10/2026 17:00:00",
+      }),
+    ];
+    const rows = agregarEtiquetasPlano(itens, { monthKeys: ["2026-10"] });
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]!.osPorPlano.preventiva?.os, "911");
+  });
+
+  it("R1: entre fechadas do mês, fica a de fechamento mais recente", () => {
+    const itens: OsParaEtiqueta[] = [
+      os({
+        OS: "920",
+        Tag: "ZZTESTE-PREF-02",
+        Oficina: "SEGURANCA ELETRICA",
+        Abertura: "01/10/2026 08:00:00",
+        Fechamento: "10/10/2026 16:00:00",
+        SituacaoDaOS: "FECHADA",
+      }),
+      os({
+        OS: "921",
+        Tag: "ZZTESTE-PREF-02",
+        Oficina: "SEGURANCA ELETRICA",
+        Abertura: "12/10/2026 08:00:00",
+        Fechamento: "20/10/2026 16:00:00",
+        SituacaoDaOS: "FECHADA",
+      }),
+    ];
+    const rows = agregarEtiquetasPlano(itens, { monthKeys: ["2026-10"] });
+    assert.equal(rows[0]!.osPorPlano.tse?.os, "921");
+  });
+
+  it("R2: sem monthKeys não inclui fechadas", () => {
+    const itens: OsParaEtiqueta[] = [
+      os({
+        OS: "930",
+        Tag: "ZZTESTE-SEM-MES",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "01/10/2026 08:00:00",
+        Fechamento: "12/10/2026 16:00:00",
+        SituacaoDaOS: "FECHADA",
+      }),
+      os({
+        OS: "931",
+        Tag: "ZZTESTE-ABERTA-02",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "05/10/2026 08:00:00",
+      }),
+    ];
+    const rows = agregarEtiquetasPlano(itens);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]!.tag, "ZZTESTE-ABERTA-02");
+  });
+
+  it("incluirFechadas=false ignora fechadas mesmo com mês", () => {
+    const itens: OsParaEtiqueta[] = [
+      os({
+        OS: "940",
+        Tag: "ZZTESTE-OFF",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "01/10/2026 08:00:00",
+        Fechamento: "12/10/2026 16:00:00",
+        SituacaoDaOS: "FECHADA",
+      }),
+    ];
+    assert.equal(
+      agregarEtiquetasPlano(itens, { monthKeys: ["2026-10"], incluirFechadas: false }).length,
+      0,
+    );
   });
 });
 

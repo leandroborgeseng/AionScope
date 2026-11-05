@@ -51,7 +51,7 @@ export type EtiquetaEquipamento = {
   fabricante: string;
   setor: string;
   centroDeCusto: string;
-  /** Planos com OS aberta neste equipamento (ordem PREV → CAL → TSE). */
+  /** Planos com OS aberta ou fechada (reimpressão) neste equipamento (ordem PREV → CAL → TSE). */
   planos: PlanoEtiqueta[];
   /** Data de realização (Abertura da OS mais antiga entre os planos). */
   realizacao: Date | null;
@@ -75,6 +75,12 @@ export type AgregarEtiquetasOptions = {
   planos?: PlanoEtiqueta[];
   /** Próxima do cronograma por Tag (opcional). */
   cronogramaProximas?: CronogramaProximaHint[];
+  /**
+   * Inclui OS fechadas (não canceladas) pelo mês de Fechamento/DataDaSolucao.
+   * Default: ligado quando há `monthKeys`; sem mês, fechadas ficam de fora (R2).
+   * Só leitura — não reabre OS no Effort.
+   */
+  incluirFechadas?: boolean;
 };
 
 export type LabelSizeId = "50x30" | "40x30";

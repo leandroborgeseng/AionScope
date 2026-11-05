@@ -1,6 +1,6 @@
 # Etiquetas de plano · Niimbot B1
 
-Gera e imprime etiquetas para equipamentos com OS **abertas** nas oficinas de plano:
+Gera e imprime etiquetas para equipamentos com OS **abertas** ou **fechadas do mês** (reimpressão) nas oficinas de plano:
 
 - `PREVENTIVA EQUIPAMENTOS` → caixa **Manut. Preventiva**
 - `CALIBRAÇÃO DE EQUIPAMENTOS` → caixa **Calibração**
@@ -115,7 +115,10 @@ Alterar `NEXT_PUBLIC_*` exige **rebuild/redeploy** (valores são embutidos no bu
 
 - API: `GET /api/pbi/os-analitico` (mesmo pipeline dos indicadores).
 - Aberta = `isOsAindaAberta` em `lib/pbi/volume-ec.ts` (sem Fechamento/DataDaSolucao e não cancelada).
-- Mês = trabalho pendente (`PrazoDeEncerramentoOs` → `DataLimiteDaSolucao` → `Abertura`).
+- Fechada (reimpressão) = tem Fechamento/DataDaSolucao e **não** cancelada; mês = Fechamento → DataDaSolucao (mesmo critério FECH. do painel, America/Sao_Paulo).
+- Mês das abertas = trabalho pendente (`PrazoDeEncerramentoOs` → `DataLimiteDaSolucao` → `Abertura`).
+- Com filtro de mês, abertas e fechadas do mês entram na lista; sem mês, só abertas. Canceladas ficam fora. Preferência no mesmo Tag/plano: aberta > fechada mais recente.
+- Impressão/reimpressão é só leitura — não reabre a OS no Effort.
 - Cronograma (opcional) complementa a **próxima realização** se a OS não tiver prazo.
 - Id do QR: `GET /api/pbi/v1/equipamentos` → `equipamentos.Id` cruzado por Tag.
 

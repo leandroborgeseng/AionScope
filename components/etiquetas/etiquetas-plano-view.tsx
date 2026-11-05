@@ -817,7 +817,7 @@ export function EtiquetasPlanoView() {
     <div className={cn("space-y-4 sm:space-y-5", showMobileBar && "pb-24 lg:pb-0")}>
       <PageHeader
         title="Etiquetas · plano Preventiva / Cal / TSE"
-        description="Filtre por setor, marque equipamentos e imprima na Niimbot B1 (Chrome/Edge com Bluetooth) ou baixe PNG. No celular, use a barra inferior para a fila de impressão."
+        description="Filtre por setor e mês, marque equipamentos e imprima na Niimbot B1 (Chrome/Edge com Bluetooth) ou baixe PNG. OS fechadas do mês selecionado entram na lista para reimpressão (mês de fechamento); canceladas ficam fora. No celular, use a barra inferior para a fila de impressão."
       />
 
       <Card>
@@ -996,6 +996,9 @@ export function EtiquetasPlanoView() {
           <div>
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-aion-muted">
               Meses ({year})
+            </p>
+            <p className="mb-2 text-[11px] font-normal normal-case tracking-normal text-aion-muted">
+              Abertas pelo mês de trabalho pendente; fechadas pelo mês de Fechamento/DataDaSolução (reimpressão).
             </p>
             <div className="flex flex-wrap gap-1.5">
               {monthsOpts.map((m) => {
