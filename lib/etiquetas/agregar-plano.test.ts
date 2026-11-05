@@ -379,6 +379,87 @@ describe("compareTagNatural / setor na etiqueta (E7–E9)", () => {
     assert.deepEqual(tags, ["ZZTESTE-TAG-1", "ZZTESTE-TAG-2", "ZZTESTE-TAG-10"]);
   });
 
+  it("lista mista abertas/fechadas: ordem natural TAG-2, TAG-3, TAG-10 (não agrupa por situação)", () => {
+    // Entrada de propósito fora de ordem (TAG-10 antes de TAG-3) e com aberta no meio.
+    const itens: OsParaEtiqueta[] = [
+      os({
+        OS: "10",
+        Tag: "TAG-10",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "01/11/2026 08:00:00",
+        Fechamento: "12/11/2026 16:00:00",
+        SituacaoDaOS: "FECHADA",
+      }),
+      os({
+        OS: "2",
+        Tag: "TAG-2",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "05/11/2026 08:00:00",
+        SituacaoDaOS: "ABERTA",
+      }),
+      os({
+        OS: "3",
+        Tag: "TAG-3",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "02/11/2026 08:00:00",
+        Fechamento: "10/11/2026 12:00:00",
+        SituacaoDaOS: "FECHADA",
+      }),
+    ];
+    const rows = agregarEtiquetasPlano(itens, { monthKeys: ["2026-11"] });
+    assert.deepEqual(
+      rows.map((r) => r.tag),
+      ["TAG-2", "TAG-3", "TAG-10"],
+      "não TAG-2, TAG-10, TAG-3 (fechadas em ordem lexical)",
+    );
+    assert.equal(rows[0]!.osPorPlano.preventiva?.situacao, "ABERTA");
+    assert.equal(rows[1]!.osPorPlano.preventiva?.situacao, "FECHADA");
+    assert.equal(rows[2]!.osPorPlano.preventiva?.situacao, "FECHADA");
+
+    // Mesma regra da view (sortKey=tag default): reordenar lista misturada sem agrupar por situação.
+    const reshuffled = [rows[2]!, rows[0]!, rows[1]!]; // TAG-10, TAG-2, TAG-3
+    reshuffled.sort((a, b) => compareTagNatural(a.tag, b.tag));
+    assert.deepEqual(
+      reshuffled.map((r) => r.tag),
+      ["TAG-2", "TAG-3", "TAG-10"],
+    );
+
+    // Contraprova forte: se TAG-10 fosse a aberta, agrupar abertas primeiro daria
+    // TAG-10, TAG-2, TAG-3 — a ordem natural continua TAG-2, TAG-3, TAG-10.
+    const itensAbertaAlta: OsParaEtiqueta[] = [
+      os({
+        OS: "20",
+        Tag: "TAG-10",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "05/11/2026 08:00:00",
+        SituacaoDaOS: "ABERTA",
+      }),
+      os({
+        OS: "21",
+        Tag: "TAG-2",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "01/11/2026 08:00:00",
+        Fechamento: "08/11/2026 16:00:00",
+        SituacaoDaOS: "FECHADA",
+      }),
+      os({
+        OS: "22",
+        Tag: "TAG-3",
+        Oficina: "PREVENTIVA EQUIPAMENTOS",
+        Abertura: "02/11/2026 08:00:00",
+        Fechamento: "09/11/2026 12:00:00",
+        SituacaoDaOS: "FECHADA",
+      }),
+    ];
+    const rows2 = agregarEtiquetasPlano(itensAbertaAlta, { monthKeys: ["2026-11"] });
+    assert.deepEqual(
+      rows2.map((r) => r.tag),
+      ["TAG-2", "TAG-3", "TAG-10"],
+      "aberta no fim da ordem natural — não sobe por situação",
+    );
+    assert.equal(rows2[2]!.osPorPlano.preventiva?.situacao, "ABERTA");
+  });
+
   it("E8: setorListaLabel mapeia vazio para Sem setor", () => {
     assert.equal(setorListaLabel(""), SETOR_VAZIO_LABEL);
     assert.equal(setorListaLabel("  "), SETOR_VAZIO_LABEL);
