@@ -1,6 +1,6 @@
 # Etiquetas de plano · Niimbot B1
 
-Gera e imprime etiquetas para equipamentos com OS **abertas** nas oficinas de plano:
+Gera e imprime etiquetas para equipamentos com OS **abertas** ou **fechadas do mês** (reimpressão) nas oficinas de plano:
 
 - `PREVENTIVA EQUIPAMENTOS` → caixa **Manut. Preventiva**
 - `CALIBRAÇÃO DE EQUIPAMENTOS` → caixa **Calibração**
@@ -115,7 +115,13 @@ Alterar `NEXT_PUBLIC_*` exige **rebuild/redeploy** (valores são embutidos no bu
 
 - API: `GET /api/pbi/os-analitico` (mesmo pipeline dos indicadores).
 - Aberta = `isOsAindaAberta` em `lib/pbi/volume-ec.ts` (sem Fechamento/DataDaSolucao e não cancelada).
-- Mês = trabalho pendente (`PrazoDeEncerramentoOs` → `DataLimiteDaSolucao` → `Abertura`).
+- Fechada (reimpressão) = tem Fechamento/DataDaSolucao e **não** cancelada; mês = Fechamento → DataDaSolucao (mesmo critério FECH. do painel, America/Sao_Paulo).
+- Mês das abertas = trabalho pendente (`PrazoDeEncerramentoOs` → `DataLimiteDaSolucao` → `Abertura`).
+- Com filtro de mês, abertas e fechadas do mês entram na lista; sem mês, só abertas. Canceladas ficam fora. Preferência no mesmo Tag/plano: aberta > fechada mais recente.
+- Lista: ordenação padrão por Tag natural crescente; filtro de setor (vazio = "Sem setor").
+- Etiqueta B1: linha do setor sob o Tag (sem rótulo), ≤28 chars + …; se vazio a linha some.
+- Impressão/reimpressão é só leitura — não reabre a OS no Effort.
+- Tablet SM-X516B (Chrome): viewport 800×1280 / 1280×800; botões ≥44 px; BLE B1 ou PNG.
 - Cronograma (opcional) complementa a **próxima realização** se a OS não tiver prazo.
 - Id do QR: `GET /api/pbi/v1/equipamentos` → `equipamentos.Id` cruzado por Tag.
 
@@ -163,3 +169,6 @@ Se o BLE falhar, use o PNG no app oficial Niimbot / NiimBlue.
 ## Redeploy
 
 Após merge em `main`, o Railway/Coolify faz redeploy automático do Dockerfile. Confirme a rota `/etiquetas` no host público. Se alterou `NEXT_PUBLIC_ETIQUETA_*` / `NEXT_PUBLIC_EFFORT_EQUIPAMENTO_URL_TEMPLATE` / `NEXT_PUBLIC_ETIQUETA_QR_BASE`, é obrigatório **rebuild** (não basta restart).
+
+## Evidência PR #22 (setor + reimpressão + tablet)
+Ver `docs/evidencias/etiquetas-reimpressao-os-fechadas/` e `docs/evidencias/etiquetas-reimpressao-os-fechadas.md` (B1 com setor e viewports 800×1280 / 1280×800). Os `docs/ops/etiqueta-*.png` são do layout antigo sem a linha de setor.

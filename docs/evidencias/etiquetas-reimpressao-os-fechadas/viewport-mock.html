@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>AionScope · /etiquetas · evidência viewport (dados sintéticos)</title>
+<style>
+  :root { --aion:#0168b0; --line:#d7e3ef; --ink:#0f2740; --muted:#5b738c; --bg:#f4f7fb; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; background:var(--bg); color:var(--ink);
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  body { overflow-x: hidden; }
+  .page { max-width: 100%; overflow-x: hidden; padding: 12px 14px 96px; }
+  header { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  header img { height:28px; }
+  h1 { font-size: 1.15rem; margin:0; }
+  .sub { color:var(--muted); font-size:12px; margin:4px 0 14px; line-height:1.4; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:12px; margin-bottom:12px; }
+  .card h2 { font-size:14px; margin:0 0 10px; }
+  .row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  label { font-size:11px; color:var(--muted); display:block; margin-bottom:4px; }
+  select, input { min-height:44px; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:14px; background:#fff; }
+  .btn { min-height:44px; border-radius:8px; border:1px solid var(--line); padding:8px 12px; font-size:13px; background:#fff; }
+  .btn.primary { background:var(--aion); color:#fff; border-color:var(--aion); }
+  .chip { display:inline-flex; min-height:44px; align-items:center; padding:6px 10px; border-radius:8px; border:1px solid var(--line); font-size:12px; background:#fff; }
+  .chip.on { background:#0f2740; color:#fff; border-color:#0f2740; }
+  .grid { display:grid; gap:12px; }
+  @media (min-width: 900px) { .grid { grid-template-columns: 1fr minmax(280px,360px); } }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:10px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:600; font-size:11px; }
+  .tag { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight:700; }
+  .badge { display:inline-block; font-size:10px; padding:2px 6px; border-radius:999px; margin-right:4px; background:#e8f1fa; color:var(--aion); }
+  .badge.fechada { background:#eef2f6; color:var(--muted); }
+  .preview { background:#e8f3fb; border-radius:10px; padding:16px; display:flex; justify-content:center; }
+  .preview img { width:100%; max-width:400px; height:auto; background:#fff; border:1px solid #cfe0ef; }
+  .bar { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--line);
+    display:flex; gap:8px; padding:10px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+  .bar .btn { flex:1; }
+  .note { font-size:11px; color:var(--muted); margin-top:8px; }
+</style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <img src="aion-logo.png" alt="AION"/>
+      <div>
+        <div style="font-size:11px;color:var(--muted)">SJH · ENGENHARIA CLÍNICA</div>
+        <div style="font-size:11px;color:var(--muted)">Dashboard interno · America/Sao_Paulo</div>
+      </div>
+    </header>
+    <h1>Etiquetas · plano Preventiva / Cal / TSE</h1>
+    <p class="sub">Filtre por setor e mês, marque equipamentos e imprima na Niimbot B1. OS fechadas do mês entram para reimpressão. Evidência sintética (TAG-2 aberta + TAG-3/TAG-10 fechadas, ordem natural).</p>
+
+    <div class="card">
+      <h2>Filtros</h2>
+      <div class="row" style="margin-bottom:10px">
+        <div style="flex:1;min-width:160px">
+          <label>SETOR</label>
+          <select id="setor" style="width:100%">
+            <option>Todos os setores</option>
+            <option selected>UTI Adulto</option>
+            <option>Centro Cirúrgico Bloco B Ala Norte Equipamentos</option>
+            <option>Sem setor</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:160px">
+          <label>BUSCAR</label>
+          <input style="width:100%" placeholder="Tag, equipamento ou setor..."/>
+        </div>
+      </div>
+      <div class="row" style="margin-bottom:10px">
+        <span class="chip on">nov. de 2026</span>
+        <span class="chip">Mês atual</span>
+        <span class="chip">Manut. Preventiva</span>
+        <span class="chip">Calibração</span>
+        <span class="chip">Teste Seg. Elétrica</span>
+        <span class="chip on">50 × 30 mm · principal</span>
+      </div>
+      <div class="row">
+        <button class="btn primary" type="button">Imprimir setor</button>
+        <button class="btn" type="button">Guardar setor offline</button>
+      </div>
+      <p class="note">Ordenação padrão: Tag natural crescente (TAG-2 antes de TAG-10). Setor vazio na lista = “Sem setor”.</p>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Equipamentos (1 de 3 filtrados) · filtro UTI Adulto</h2>
+        <table>
+          <thead>
+            <tr><th></th><th>Tag</th><th>Equipamento</th><th>Setor</th><th>Situação</th></tr>
+          </thead>
+          <tbody>
+            <tr style="background:#f0f7fc">
+              <td><input type="checkbox" checked style="width:18px;height:18px"/></td>
+              <td class="tag">TAG-2</td>
+              <td>Bomba de Infusão</td>
+              <td>UTI Adulto</td>
+              <td><span class="badge">ABERTA</span></td>
+            </tr>
+            <tr style="opacity:.45">
+              <td></td>
+              <td class="tag">TAG-3</td>
+              <td>Desfibrilador</td>
+              <td>Sem setor</td>
+              <td><span class="badge fechada">FECHADA</span></td>
+            </tr>
+            <tr style="opacity:.45">
+              <td></td>
+              <td class="tag">TAG-10</td>
+              <td>Monitor multiparamétrico…</td>
+              <td>Centro Cirúrgico Bloco B…</td>
+              <td><span class="badge fechada">FECHADA</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="note">Lista misturando aberta (TAG-2) e fechadas (TAG-3, TAG-10) em ordem natural crescente — sem agrupar por situação. Sem rolagem horizontal da página (ET6/ET9).</p>
+      </div>
+      <div class="card">
+        <h2>Mockup · 50 × 30 mm</h2>
+        <p class="note" style="margin-top:0">Prévia hi-DPI; setor sob o Tag; nome longo truncado; REALIZADO/PRÓXIMO/QR sem sobreposição.</p>
+        <div class="preview">
+          <img src="b1-equipamento-longo.png" alt="Prévia B1 com setor e equipamento longo"/>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="bar">
+    <button class="btn" type="button">PNG sel.</button>
+    <button class="btn primary" type="button">Imprimir</button>
+    <button class="btn" type="button">Conectar B1</button>
+  </div>
+  <script>
+    // Mark overflow measurement for the harness
+    window.__EVIDENCIA__ = {
+      scrollW: () => document.documentElement.scrollWidth,
+      clientW: () => document.documentElement.clientWidth,
+    };
+  </script>
+</body>
+</html>

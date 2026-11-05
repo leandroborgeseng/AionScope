@@ -5,6 +5,7 @@ import {
   type LabelRenderInput,
   type LabelSizePx,
   type PlanoEtiqueta,
+  truncateSetorEtiqueta,
 } from "./tipos";
 
 /** Fallbacks se next/font ainda não injetou as variáveis CSS. */
@@ -40,7 +41,8 @@ const STATUS_BOXES: { id: PlanoEtiqueta; label: string }[] = [
  *
  *  ┌────┬──────────────────────────────────────┐
  *  │AION│ EQUIP. Nº                HSJ-90001   │
- *  │ ○A │ NOME DO EQUIPAMENTO…                 │
+ *  │ ○A │ SETOR (≤28…; some se vazio)          │
+ *  │    │ NOME DO EQUIPAMENTO…                 │
  *  │    │ ──────────────────────────────────── │
  *  │    │ REALIZADO      07/26      ┌──────┐   │
  *  │    │ [PRÓXIMO       07/27]     │  QR  │   │
@@ -188,10 +190,12 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   ctx.fillRect(0, 0, SPINE_W, 240);
   drawSpineBrand(ctx);
 
-  // ——— Header: EQUIP. Nº + TAG + nome ———
+  // ——— Header: EQUIP. Nº + TAG + setor (opcional) + nome ———
   const tag = truncate(input.tag.trim() || "—", 16);
   const nomeEq = (input.equipamento ?? "").trim() || "—";
   const contentW = CONTENT_RIGHT - CONTENT_X;
+  const setorLinha = truncateSetorEtiqueta((input.setor ?? "").trim());
+  const temSetor = Boolean(setorLinha);
 
   ctx.fillStyle = "#000000";
   ctx.textAlign = "left";
@@ -204,14 +208,32 @@ async function drawKit50x30(ctx: CanvasRenderingContext2D, input: LabelRenderInp
   ctx.textBaseline = "middle";
   fillThermalText(ctx, tag, CONTENT_RIGHT, 22, 220);
 
+  // Setor sob o Tag (ET3/E9): sem rótulo; se vazio a linha some e o nome sobe.
+  let nomeY = 44;
+  let lineY = 56;
+  if (temSetor) {
+    ctx.font = `600 14px ${font}`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    fillThermalText(
+      ctx,
+      fitTextWidth(ctx, setorLinha.toLocaleUpperCase("pt-BR"), contentW),
+      CONTENT_X,
+      36,
+      contentW,
+    );
+    nomeY = 52;
+    lineY = 64;
+  }
+
   ctx.font = `600 14px ${font}`;
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   const nomeFit = fitTextWidth(ctx, nomeEq.toLocaleUpperCase("pt-BR"), contentW);
-  fillThermalText(ctx, nomeFit, CONTENT_X, 44, contentW);
+  fillThermalText(ctx, nomeFit, CONTENT_X, nomeY, contentW);
 
   ctx.fillStyle = "#000000";
-  ctx.fillRect(CONTENT_X, 56, contentW, 2);
+  ctx.fillRect(CONTENT_X, lineY, contentW, 2);
 
   // ——— REALIZADO ———
   const realizacao = shortDate(input.realizacaoLabel);

@@ -51,7 +51,7 @@ export type EtiquetaEquipamento = {
   fabricante: string;
   setor: string;
   centroDeCusto: string;
-  /** Planos com OS aberta neste equipamento (ordem PREV → CAL → TSE). */
+  /** Planos com OS aberta ou fechada (reimpressão) neste equipamento (ordem PREV → CAL → TSE). */
   planos: PlanoEtiqueta[];
   /** Data de realização (Abertura da OS mais antiga entre os planos). */
   realizacao: Date | null;
@@ -75,6 +75,12 @@ export type AgregarEtiquetasOptions = {
   planos?: PlanoEtiqueta[];
   /** Próxima do cronograma por Tag (opcional). */
   cronogramaProximas?: CronogramaProximaHint[];
+  /**
+   * Inclui OS fechadas (não canceladas) pelo mês de Fechamento/DataDaSolucao.
+   * Default: ligado quando há `monthKeys`; sem mês, fechadas ficam de fora (R2).
+   * Só leitura — não reabre OS no Effort.
+   */
+  incluirFechadas?: boolean;
 };
 
 export type LabelSizeId = "50x30" | "40x30";
@@ -135,12 +141,43 @@ export type LabelRenderInput = {
   logoUrl: string;
   tag: string;
   equipamento: string;
+  /** Nome do setor na etiqueta; vazio = não desenha a linha (ET3/E9). */
+  setor: string;
   planos: PlanoEtiqueta[];
   realizacaoLabel: string;
   proximaLabel: string;
   qrUrl: string;
   size: LabelSizePx;
 };
+
+/** Texto no filtro/lista quando a OS/cadastro não tem setor (E8). Na etiqueta a linha some. */
+export const SETOR_VAZIO_LABEL = "Sem setor";
+
+export function setorListaLabel(setor: string | null | undefined): string {
+  const s = (setor ?? "").trim();
+  return s || SETOR_VAZIO_LABEL;
+}
+
+/** Setor para o canvas: vazio se não houver (não imprime "Sem setor"). */
+export function setorParaEtiqueta(setor: string | null | undefined): string {
+  const s = (setor ?? "").trim();
+  if (!s || s === SETOR_VAZIO_LABEL) return "";
+  return s;
+}
+
+/** Truncamento da linha de setor na B1 (~28 chars + …). */
+export const SETOR_ETIQUETA_MAX_CHARS = 28;
+
+export function truncateSetorEtiqueta(setor: string, max = SETOR_ETIQUETA_MAX_CHARS): string {
+  const t = setor.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, Math.max(0, max - 1))}…`;
+}
+
+/** Ordenação natural de Tag (TAG-2 antes de TAG-10), crescente pt-BR. */
+export function compareTagNatural(a: string, b: string): number {
+  return a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" });
+}
 
 /** Subconjunto de OS usado nos testes / agregador. */
 export type OsParaEtiqueta = Pick<
