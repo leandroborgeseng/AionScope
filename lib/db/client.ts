@@ -19,6 +19,7 @@ import { aplicarMigration010ContratosInativadoEm } from "./migrations/010_contra
 import { aplicarMigration012PbiCache } from "./migrations/012_pbi_cache";
 import { aplicarMigration013ContratosSuspensao } from "./migrations/013_contratos_suspensao";
 import { aplicarMigration014ParqueHistorico } from "./migrations/014_parque_historico";
+import { aplicarMigration015BotUsuario } from "./migrations/015_bot_usuario";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -256,6 +257,8 @@ function migrate(db: Database.Database) {
   aplicarMigration013ContratosSuspensao(db);
   // 014: aditiva e idempotente (só CREATE TABLE parque_valor_historico).
   aplicarMigration014ParqueHistorico(db);
+  // 015: cadastro do bot. Índice único só entre aprovados (ativo/inativo).
+  aplicarMigration015BotUsuario(db);
 }
 
 /** Fecha o singleton — só para testes isolados. */
