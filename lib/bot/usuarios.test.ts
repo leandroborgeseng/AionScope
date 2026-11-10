@@ -17,6 +17,7 @@ import {
 import {
   MSG_AUDITORIA_RECUSADA,
   MSG_CORPO_ACAO,
+  MSG_CORPO_CADASTRO,
   MSG_OUTROS_SETORES_INVALIDO,
   MSG_SETOR_INVALIDO,
   MSG_TELEFONE_APROVADO,
@@ -75,6 +76,10 @@ function auditoriaTexto() {
   return JSON.stringify(getDb().prepare("SELECT * FROM bot_auditoria").all());
 }
 
+function totalUsuarios() {
+  return (getDb().prepare("SELECT COUNT(*) n FROM bot_usuario").get() as { n: number }).n;
+}
+
 async function semLog(trechos: string[], fn: () => Promise<void> | void) {
   const saida: string[] = [];
   const metodos = ["log", "info", "warn", "error", "debug"] as const;
@@ -124,8 +129,10 @@ test("grafias do mesmo número resolvem o mesmo cadastro; unicidade só entre ap
   assert.equal(ids("pendente").length, 1);
   assert.equal(ids("ativo").length, 1);
 
+  const antes = totalUsuarios();
   const direto = criarUsuario(pedido(TEL_SEM_55, { situacao: "ativo", nome: "Carla Exemplo" }));
-  assert.deepEqual(direto, { ok: false, status: 409, message: MSG_TELEFONE_APROVADO });
+  assert.deepEqual(direto, { ok: false, status: 400, message: MSG_CORPO_CADASTRO });
+  assert.equal(totalUsuarios(), antes);
 
   const porMais = resolverRemetente(TEL);
   const porMenos = resolverRemetente("(11) 0000-0001");
@@ -152,9 +159,10 @@ test("grafias do mesmo número resolvem o mesmo cadastro; unicidade só entre ap
 });
 
 test("inativo continua ocupando o número; recusado não ocupa", () => {
-  const primeiro = criarUsuario(pedido(TEL, { situacao: "ativo" }));
+  const primeiro = criarUsuario(pedido(TEL));
   assert.equal(primeiro.ok, true);
   const id = primeiro.ok ? primeiro.data.id : "";
+  assert.equal(aplicarAcao(id, { acao: "aprovar" }).ok, true);
   assert.equal(aplicarAcao(id, { acao: "inativar" }).ok, true);
 
   const pendente = criarUsuario(pedido(TEL_SEM_55));
@@ -167,14 +175,16 @@ test("inativo continua ocupando o número; recusado não ocupa", () => {
   const recusado = criarUsuario(pedido(TEL));
   assert.equal(recusado.ok, true);
   assert.equal(aplicarAcao(recusado.ok ? recusado.data.id : "", { acao: "recusar" }).ok, true);
-  const depois = criarUsuario(pedido(TEL_SEM_9, { situacao: "ativo", nome: "Bruno Exemplo" }));
+  const depois = criarUsuario(pedido(TEL_SEM_9, { nome: "Bruno Exemplo" }));
   assert.equal(depois.ok, true);
+  assert.equal(aplicarAcao(depois.ok ? depois.data.id : "", { acao: "aprovar" }).ok, true);
 });
 
 test("A12: fora do cadastro, inativo e mal formatado recusam sem nenhum dado", () => {
-  const ativo = criarUsuario(pedido(OUTRO, { situacao: "ativo", nome: "Bruno Exemplo" }));
-  assert.equal(ativo.ok, true);
-  const id = ativo.ok ? ativo.data.id : "";
+  const criado = criarUsuario(pedido(OUTRO, { nome: "Bruno Exemplo" }));
+  assert.equal(criado.ok, true);
+  const id = criado.ok ? criado.data.id : "";
+  assert.equal(aplicarAcao(id, { acao: "aprovar" }).ok, true);
   assert.equal(aplicarAcao(id, { acao: "inativar" }).ok, true);
 
   const fora = resolverRemetente(TEL);
@@ -198,7 +208,7 @@ test("A12: fora do cadastro, inativo e mal formatado recusam sem nenhum dado", (
 });
 
 test("resposta pública é a mesma para número novo e já cadastrado", () => {
-  criarUsuario(pedido(TEL, { situacao: "ativo" }));
+  criarUsuario(pedido(TEL));
   assert.equal(respostaPublicaCadastro(TEL), RESPOSTA_PUBLICA_CADASTRO);
   assert.equal(respostaPublicaCadastro(TEL_SEM_9), respostaPublicaCadastro("numero-novo-zz"));
   assert.equal(respostaPublicaCadastro("abc"), RESPOSTA_PUBLICA_CADASTRO);
@@ -259,6 +269,66 @@ test("listagem mascara telefone e e-mail; auditoria não leva dado sensível nem
   }
   const colunas = (getDb().prepare("PRAGMA table_info(bot_auditoria)").all() as Array<{ name: string }>).map((c) => c.name);
   assert.deepEqual(colunas, ["id", "criado_em", "usuario_id", "ator", "acao", "recurso", "status"]);
+});
+
+test("POST cria só pendente; ativação só pela ação aprovar", () => {
+  const antes = totalUsuarios();
+  for (const extra of [
+    { situacao: "ativo" },
+    { situacao: "inativo" },
+    { aprovado_por: "Leandro" },
+    { verificado_em: "2026-11-10T00:00:00.000Z" },
+    { ativo: true },
+  ]) {
+    const recusado = criarUsuario(pedido(TEL, extra));
+    assert.deepEqual(recusado, { ok: false, status: 400, message: MSG_CORPO_CADASTRO });
+    assert.equal(JSON.stringify(recusado).includes("ativo"), false);
+    assert.equal(JSON.stringify(recusado).includes(TEL_DIGITO), false);
+  }
+  assert.equal(totalUsuarios(), antes);
+  assert.equal((getDb().prepare("SELECT COUNT(*) n FROM bot_auditoria").get() as { n: number }).n, 0);
+
+  const explicito = criarUsuario(pedido(OUTRO, { situacao: "pendente", nome: "Bruno Exemplo" }));
+  assert.equal(explicito.ok, true);
+  if (explicito.ok) {
+    assert.equal(explicito.data.situacao, "pendente");
+    assert.equal(explicito.data.aprovado_por, null);
+    assert.equal(explicito.data.verificado_em, null);
+  }
+
+  const criado = criarUsuario(pedido(TEL));
+  assert.equal(criado.ok, true);
+  if (!criado.ok) return;
+  assert.equal(criado.data.situacao, "pendente");
+  assert.equal(criado.data.aprovado_por, null);
+  assert.equal(criado.data.verificado_em, null);
+  const linha = getDb()
+    .prepare("SELECT situacao, aprovado_por, verificado_em FROM bot_usuario WHERE id = ?")
+    .get(criado.data.id) as { situacao: string; aprovado_por: string | null; verificado_em: string | null };
+  assert.deepEqual(linha, { situacao: "pendente", aprovado_por: null, verificado_em: null });
+
+  assert.equal(resolverRemetente(TEL), RECUSA_CADASTRO);
+  assert.equal(resolverRemetente(TEL_SEM_9), RECUSA_CADASTRO);
+
+  const pulo = aplicarAcao(criado.data.id, { situacao: "ativo" });
+  assert.deepEqual(pulo, { ok: false, status: 400, message: MSG_CORPO_ACAO });
+  const reativar = aplicarAcao(criado.data.id, { acao: "reativar" });
+  assert.equal(reativar.ok, false);
+  assert.equal(
+    (getDb().prepare("SELECT situacao FROM bot_usuario WHERE id = ?").get(criado.data.id) as { situacao: string }).situacao,
+    "pendente",
+  );
+
+  const aprovado = aplicarAcao(criado.data.id, { acao: "aprovar" });
+  assert.equal(aprovado.ok, true);
+  if (aprovado.ok) {
+    assert.equal(aprovado.data.situacao, "ativo");
+    assert.equal(aprovado.data.aprovado_por, APROVADOR_BOT_V1);
+    assert.ok(aprovado.data.verificado_em);
+  }
+  const liberado = resolverRemetente(TEL_SEM_55);
+  assert.equal(liberado.permitido, true);
+  if (liberado.permitido) assert.equal(liberado.usuario.id, criado.data.id);
 });
 
 test("auditoria recusa telefone, corpo ou campo extra e não grava a tentativa", () => {
