@@ -99,7 +99,7 @@ const ORIGEM: Record<Acao, Situacao[]> = {
   recusar: ["pendente"],
   inativar: ["ativo"],
   reativar: ["inativo"],
-  reenviar: ["ativo", "inativo"],
+  reenviar: ["ativo"],
 };
 
 function falha(status: FalhaCadastro["status"], message: string): FalhaCadastro {
@@ -324,10 +324,11 @@ export function aplicarAcao(id: string, body: unknown, agora = new Date()): Falh
     if (!motivo.ok) return falha(400, MSG_MOTIVO_INVALIDO);
     motivoNovo = motivo.texto;
   }
+  if (pedido === "aprovar" && !papelNovo) return falha(400, MSG_PAPEL_INVALIDO);
 
   const atual = buscarId(id);
   if (!atual) return falha(404, MSG_NAO_ENCONTRADO);
-  if (!ORIGEM[pedido].includes(atual.situacao)) {
+  if (!ORIGEM[pedido].includes(atual.situacao) || (pedido === "reenviar" && atual.entrega_status === "enviada")) {
     auditar(pedido, atual.id, 409, agora);
     return falha(409, MSG_ACAO_INVALIDA);
   }
@@ -358,7 +359,7 @@ export function aplicarAcao(id: string, body: unknown, agora = new Date()): Falh
        WHERE id = ?`,
     ).run(
       proxima,
-      papelNovo ?? atual.papel,
+      pedido === "aprovar" ? papelNovo : pedido === "recusar" ? "" : atual.papel,
       decide ? APROVADOR_BOT_V1 : atual.aprovado_por,
       iso,
       verifica ? iso : atual.verificado_em,

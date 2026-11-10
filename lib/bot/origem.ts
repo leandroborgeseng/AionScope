@@ -25,6 +25,23 @@ export function canonizarOrigem(valor: string | null | undefined): string | null
   return url.origin;
 }
 
+export function contagemOrigens(): { aceitas: number; descartadas: number } {
+  const bruto = process.env[ORIGENS_PERMITIDAS_ENV] ?? "";
+  let aceitas = 0;
+  let descartadas = 0;
+  for (const parte of bruto.split(",")) {
+    if (!parte.trim()) continue;
+    if (canonizarOrigem(parte)) aceitas += 1;
+    else descartadas += 1;
+  }
+  return { aceitas, descartadas };
+}
+
+export function textoAvisoOrigens(): string {
+  const { aceitas, descartadas } = contagemOrigens();
+  return `AIONSCOPE_ORIGENS_PERMITIDAS: ${aceitas} aceitas, ${descartadas} descartadas`;
+}
+
 export function origensPermitidas(): Set<string> {
   const bruto = process.env[ORIGENS_PERMITIDAS_ENV] ?? "";
   const lista = new Set<string>();

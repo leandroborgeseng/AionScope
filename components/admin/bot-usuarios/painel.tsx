@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Eye } from "lucide-react";
 import { PageHeader } from "@/components/shell/page-header";
@@ -14,9 +14,17 @@ import { ROTA_LOGIN_ADMIN, hrefLoginAdmin } from "@/lib/auth/sessao-ui";
 import {
   DURACAO_REVELACAO_MS,
   FILTRO_INICIAL,
+  MOTIVO_LIMITE,
+  ROTULO_MOTIVO,
+  TEXTO_AJUDA_CONFLITO,
+  TEXTO_AJUDA_MOTIVO,
   TEXTO_ERRO,
+  TEXTO_ESCOLHA_PAPEL,
+  TEXTO_PAPEL_PENDENTE,
   TEXTO_SEM_PERMISSAO,
   TEXTO_TENTAR,
+  TEXTO_TOAST_REENVIO,
+  TEXTO_TOAST_RECUSAR,
   TEXTO_TOAST_REVELAR,
   TEXTO_VAZIO_CADASTRADOS,
   TEXTO_VAZIO_PENDENTES,
@@ -26,6 +34,7 @@ import {
   divergeRotulo,
   filtrarUsuarios,
   formatarQuando,
+  podeReenviar,
   rotuloAcao,
   rotuloEntrega,
   rotuloSituacao,
@@ -33,6 +42,9 @@ import {
   textoInativar,
   textoReativar,
   textoRecusar,
+  textoToastAprovar,
+  textoToastInativar,
+  textoToastReativar,
   tomEntrega,
   tomSituacao,
   type AbaBot,
@@ -43,10 +55,11 @@ import {
 } from "@/lib/bot/apresentacao";
 import { formatarTelefoneCompleto } from "@/lib/bot/telefone";
 import { cn } from "@/lib/utils";
-import { ModalConfirmacao } from "./modal-confirmacao";
+import { focaveisDe, ModalConfirmacao } from "./modal-confirmacao";
 
 const FOCO =
   "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-aion-blue";
+const BORDA = "border-aion-muted";
 
 export type ResultadoAcao = { ok: true } | { ok: false; message: string };
 export type ResultadoRevelar = { ok: true; telefone: string } | { ok: false; message: string };
@@ -94,6 +107,8 @@ export function PainelBotUsuarios({
   const [auditoria, setAuditoria] = useState<AuditoriaCarregada | null>(null);
   const [auditoriaErro, setAuditoriaErro] = useState(false);
   const [hrefLogin, setHrefLogin] = useState(ROTA_LOGIN_ADMIN);
+  const detalheRef = useRef<HTMLElement>(null);
+  const origemDetalheRef = useRef<HTMLElement | null>(null);
 
   // A largura só existe no cliente.
   useEffect(() => {
@@ -109,23 +124,45 @@ export function PainelBotUsuarios({
     if (!revelado) return;
     const timer = setTimeout(() => {
       setRevelado(null);
-      setToast(null);
+      setToast((atual) => (atual === TEXTO_TOAST_REVELAR ? null : atual));
     }, duracaoRevelacaoMs);
     return () => clearTimeout(timer);
   }, [revelado, duracaoRevelacaoMs]);
 
   useEffect(() => {
     if (!detalheId || modal) return;
+    const dialog = detalheRef.current;
+    if (!dialog) return;
+    const titulo = dialog.querySelector<HTMLElement>("#detalhe-bot-titulo");
+    titulo?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
+        event.stopImmediatePropagation();
         setDetalheId(null);
-        origemDetalhe?.focus();
+        origemDetalheRef.current?.focus();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focaveis = focaveisDe(dialog);
+      if (!focaveis.length) {
+        event.preventDefault();
+        return;
+      }
+      const primeiro = focaveis[0]!;
+      const ultimo = focaveis[focaveis.length - 1]!;
+      const ativo = document.activeElement;
+      if (event.shiftKey && (ativo === primeiro || ativo === titulo || !dialog.contains(ativo))) {
+        event.preventDefault();
+        ultimo.focus();
+      } else if (!event.shiftKey && (ativo === ultimo || !dialog.contains(ativo))) {
+        event.preventDefault();
+        primeiro.focus();
       }
     };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [detalheId, modal, origemDetalhe]);
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [detalheId, modal]);
 
   // A URL de retorno só existe no cliente.
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -144,13 +181,26 @@ export function PainelBotUsuarios({
     setErroAcao((atual) => (atual?.id === id ? null : atual));
   }
 
-  async function executar(id: string, corpo: Record<string, string>) {
+  function avisoDe(usuario: UsuarioBot, corpo: Record<string, string>) {
+    if (corpo.acao === "aprovar") return textoToastAprovar(usuario.nome, corpo.papel ?? "");
+    if (corpo.acao === "recusar") return TEXTO_TOAST_RECUSAR;
+    if (corpo.acao === "inativar") return textoToastInativar(usuario.nome);
+    if (corpo.acao === "reativar") return textoToastReativar(usuario.nome);
+    if (corpo.acao === "reenviar") return TEXTO_TOAST_REENVIO;
+    return null;
+  }
+
+  async function executar(usuario: UsuarioBot, corpo: Record<string, string>) {
     setOcupado(true);
     setErroAcao(null);
     try {
-      const resultado = await onAcao(id, corpo);
-      if (!resultado.ok) setErroAcao({ id, message: resultado.message });
-      else setModal(null);
+      const resultado = await onAcao(usuario.id, corpo);
+      if (!resultado.ok) setErroAcao({ id: usuario.id, message: resultado.message });
+      else {
+        setModal(null);
+        const aviso = avisoDe(usuario, corpo);
+        if (aviso) setToast(aviso);
+      }
       return resultado.ok;
     } finally {
       setOcupado(false);
@@ -167,7 +217,13 @@ export function PainelBotUsuarios({
     setToast(TEXTO_TOAST_REVELAR);
   }
 
+  function ocultar(id: string) {
+    setRevelado((atual) => (atual?.id === id ? null : atual));
+    setToast((atual) => (atual === TEXTO_TOAST_REVELAR ? null : atual));
+  }
+
   async function abrir(usuario: UsuarioBot, origem: HTMLElement) {
+    origemDetalheRef.current = origem;
     setOrigemDetalhe(origem);
     setDetalheId(usuario.id);
     setAuditoria(null);
@@ -188,60 +244,72 @@ export function PainelBotUsuarios({
   }
 
   function telefone(usuario: UsuarioBot) {
+    const visivel = revelado?.id === usuario.id;
     return (
       <span className="inline-flex flex-wrap items-center gap-2">
         <span className="font-mono text-sm text-aion-ink">{telefoneDe(usuario)}</span>
         <Button
           type="button"
           variant="outline"
-          className={`min-h-11 ${FOCO}`}
-          aria-label="Revelar telefone"
+          className={`min-h-11 ${BORDA} ${FOCO}`}
+          aria-label={visivel ? `Ocultar telefone de ${usuario.nome}` : `Revelar telefone de ${usuario.nome}`}
           onClick={(event) => {
             event.stopPropagation();
-            void revelar(usuario.id);
+            if (visivel) ocultar(usuario.id);
+            else void revelar(usuario.id);
           }}
         >
-          <Eye className="h-4 w-4" aria-hidden="true" />
-          Revelar
+          {visivel ? null : <Eye className="h-4 w-4" aria-hidden="true" />}
+          {visivel ? "Ocultar" : "Revelar"}
         </Button>
       </span>
     );
   }
 
-  function seletorPapel(usuario: UsuarioBot) {
+  function seletorPapel(usuario: UsuarioBot, sufixo: string) {
+    const ajudaId = `ajuda-papel-${sufixo}-${usuario.id}`;
+    const escolhido = Boolean(papeisEscolhidos[usuario.id]);
     return (
-      <label className="grid gap-1 text-sm text-aion-ink" onClick={(event) => event.stopPropagation()}>
-        <span className="font-medium">Papel</span>
-        <select
-          className={`min-h-11 rounded-lg border border-aion-line bg-white px-3 text-sm ${FOCO}`}
-          aria-label={`Papel de ${usuario.nome}`}
-          value={papeisEscolhidos[usuario.id] ?? ""}
-          onChange={(event) => escolherPapel(usuario.id, event.target.value)}
-        >
-          <option value="">Escolha o papel</option>
-          {papeis.map((papel) => (
-            <option key={papel} value={papel}>
-              {papel}
-            </option>
-          ))}
-        </select>
-      </label>
+      <div className="grid gap-1" onClick={(event) => event.stopPropagation()}>
+        <label className="grid gap-1 text-sm text-aion-ink">
+          <span className="font-medium">Papel</span>
+          <select
+            className={`min-h-11 rounded-lg border ${BORDA} bg-white px-3 text-sm ${FOCO}`}
+            aria-label={`Papel de ${usuario.nome}`}
+            value={papeisEscolhidos[usuario.id] ?? ""}
+            onChange={(event) => escolherPapel(usuario.id, event.target.value)}
+          >
+            <option value="">Escolha o papel</option>
+            {papeis.map((papel) => (
+              <option key={papel} value={papel}>
+                {papel}
+              </option>
+            ))}
+          </select>
+        </label>
+        {escolhido ? null : (
+          <p id={ajudaId} className="text-sm text-aion-ink">
+            {TEXTO_ESCOLHA_PAPEL}
+          </p>
+        )}
+      </div>
     );
   }
 
-  function acoes(usuario: UsuarioBot) {
+  function acoes(usuario: UsuarioBot, noDetalhe = false) {
     const papel = papeisEscolhidos[usuario.id] ?? "";
     return (
       <div className="flex flex-col gap-2" onClick={(event) => event.stopPropagation()}>
         {usuario.situacao === "pendente" ? (
           <>
-            {seletorPapel(usuario)}
+            {seletorPapel(usuario, noDetalhe ? "detalhe" : "lista")}
             <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
                 className={`min-h-11 ${FOCO}`}
                 disabled={!papel || ocupado}
-                onClick={() => void executar(usuario.id, { acao: "aprovar", papel })}
+                aria-describedby={papel ? undefined : `ajuda-papel-${noDetalhe ? "detalhe" : "lista"}-${usuario.id}`}
+                onClick={() => void executar(usuario, { acao: "aprovar", papel })}
               >
                 Aprovar
               </Button>
@@ -262,15 +330,17 @@ export function PainelBotUsuarios({
         ) : null}
         {usuario.situacao === "ativo" || usuario.situacao === "inativo" ? (
           <div className="grid grid-cols-2 gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className={`min-h-11 ${FOCO}`}
-              disabled={ocupado}
-              onClick={() => void executar(usuario.id, { acao: "reenviar" })}
-            >
-              Reenviar
-            </Button>
+            {podeReenviar(usuario) ? (
+              <Button
+                type="button"
+                variant="outline"
+                className={`min-h-11 ${BORDA} ${FOCO}`}
+                disabled={ocupado}
+                onClick={() => void executar(usuario, { acao: "reenviar" })}
+              >
+                Reenviar
+              </Button>
+            ) : null}
             {usuario.situacao === "ativo" ? (
               <Button
                 type="button"
@@ -293,15 +363,17 @@ export function PainelBotUsuarios({
             )}
           </div>
         ) : null}
-        <Button
-          type="button"
-          variant="secondary"
-          className={`min-h-11 ${FOCO}`}
-          aria-label={`Abrir ${usuario.nome}`}
-          onClick={(event) => void abrir(usuario, event.currentTarget)}
-        >
-          Abrir
-        </Button>
+        {noDetalhe ? null : (
+          <Button
+            type="button"
+            variant="secondary"
+            className={`min-h-11 ${FOCO}`}
+            aria-label={`Abrir ${usuario.nome}`}
+            onClick={(event) => void abrir(usuario, event.currentTarget)}
+          >
+            Abrir
+          </Button>
+        )}
         {erroAcao?.id === usuario.id ? (
           <p role="alert" className="text-sm font-medium text-rose-800">
             {erroAcao.message}
@@ -325,7 +397,7 @@ export function PainelBotUsuarios({
             {usuario.outros_setores ? ` · ${usuario.outros_setores}` : ""}
           </p>
         ) : (
-          <p className="mt-2 text-sm text-aion-ink">{usuario.papel}</p>
+          <p className="mt-2 text-sm text-aion-ink">{usuario.papel || "—"}</p>
         )}
         <div className="mt-3">
           {telefone(usuario)}
@@ -335,13 +407,16 @@ export function PainelBotUsuarios({
         </p>
         {aba === "cadastrados" ? (
           <div className="mt-2 flex flex-wrap gap-2">
-            <Badge tone={tomEntrega(usuario.entrega_status)}>{rotuloEntrega(usuario.entrega_status)}</Badge>
+            <span className="text-sm text-aion-ink">
+              Entrega: <Badge tone={tomEntrega(usuario.entrega_status)}>{rotuloEntrega(usuario.entrega_status)}</Badge>
+            </span>
             <span className="text-sm text-aion-ink">Dono: {usuario.dono}</span>
           </div>
         ) : null}
         {conflito ? (
           <div className="mt-2">
             <Badge tone="warn">Conflito de número</Badge>
+            <p className="mt-1 text-sm text-aion-ink">{TEXTO_AJUDA_CONFLITO}</p>
           </div>
         ) : null}
         <div className="mt-3">
@@ -362,7 +437,15 @@ export function PainelBotUsuarios({
           {
             id: "conflito",
             header: "Conflito",
-            cell: ({ row }) => (temConflito(row.original.id, conflitos[row.original.id]) ? <Badge tone="warn">Conflito de número</Badge> : "—"),
+            cell: ({ row }) =>
+              temConflito(row.original.id, conflitos[row.original.id]) ? (
+                <div>
+                  <Badge tone="warn">Conflito de número</Badge>
+                  <p className="mt-1 text-sm text-aion-ink">{TEXTO_AJUDA_CONFLITO}</p>
+                </div>
+              ) : (
+                "—"
+              ),
           },
           { id: "acoes", header: "Ações", cell: ({ row }) => acoes(row.original) },
         ]
@@ -500,7 +583,7 @@ export function PainelBotUsuarios({
                   aria-label="Buscar"
                   value={filtro.busca}
                   autoComplete="off"
-                  className={`min-h-11 ${FOCO}`}
+                  className={`min-h-11 ${BORDA} ${FOCO}`}
                   onChange={(event) => setFiltro((atual) => ({ ...atual, busca: event.target.value }))}
                 />
               </label>
@@ -509,7 +592,7 @@ export function PainelBotUsuarios({
                   <span className="font-medium">Situação</span>
                   <select
                     aria-label="Filtrar por situação"
-                    className={`min-h-11 rounded-lg border border-aion-line bg-white px-3 text-sm ${FOCO}`}
+                    className={`min-h-11 rounded-lg border ${BORDA} bg-white px-3 text-sm ${FOCO}`}
                     value={filtro.situacao}
                     onChange={(event) =>
                       setFiltro((atual) => ({ ...atual, situacao: event.target.value as FiltroTela["situacao"] }))
@@ -521,11 +604,12 @@ export function PainelBotUsuarios({
                   </select>
                 </label>
               ) : null}
+              {aba === "cadastrados" ? (
               <label className="grid gap-1 text-sm text-aion-ink">
                 <span className="font-medium">Papel</span>
                 <select
                   aria-label="Filtrar por papel"
-                  className={`min-h-11 rounded-lg border border-aion-line bg-white px-3 text-sm ${FOCO}`}
+                  className={`min-h-11 rounded-lg border ${BORDA} bg-white px-3 text-sm ${FOCO}`}
                   value={filtro.papel}
                   onChange={(event) => setFiltro((atual) => ({ ...atual, papel: event.target.value }))}
                 >
@@ -537,11 +621,12 @@ export function PainelBotUsuarios({
                   ))}
                 </select>
               </label>
+              ) : null}
               <label className="grid gap-1 text-sm text-aion-ink">
                 <span className="font-medium">Dono</span>
                 <select
                   aria-label="Filtrar por dono"
-                  className={`min-h-11 rounded-lg border border-aion-line bg-white px-3 text-sm ${FOCO}`}
+                  className={`min-h-11 rounded-lg border ${BORDA} bg-white px-3 text-sm ${FOCO}`}
                   value={filtro.dono}
                   onChange={(event) => setFiltro((atual) => ({ ...atual, dono: event.target.value }))}
                 >
@@ -562,6 +647,7 @@ export function PainelBotUsuarios({
         <div className="fixed inset-0 z-[60] flex justify-end">
           <div className="absolute inset-0 bg-aion-ink/40" onClick={fecharDetalhe} />
           <aside
+            ref={detalheRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="detalhe-bot-titulo"
@@ -571,7 +657,7 @@ export function PainelBotUsuarios({
               <button type="button" className={`min-h-11 rounded-lg px-3 text-sm font-medium text-aion-blue lg:hidden ${FOCO}`} onClick={fecharDetalhe}>
                 Voltar
               </button>
-              <h2 id="detalhe-bot-titulo" className="min-w-0 flex-1 truncate text-lg font-semibold text-aion-ink">
+              <h2 id="detalhe-bot-titulo" tabIndex={-1} className="min-w-0 flex-1 truncate text-lg font-semibold text-aion-ink focus:[outline:3px_solid_var(--aion-blue)] focus:[outline-offset:2px]">
                 {detalhe.nome}
               </h2>
               <button type="button" className={`hidden min-h-11 rounded-lg px-3 text-sm font-medium text-aion-ink lg:inline-flex lg:items-center ${FOCO}`} aria-label="Fechar detalhe" onClick={fecharDetalhe}>
@@ -605,7 +691,9 @@ export function PainelBotUsuarios({
               <p className="text-sm text-aion-ink">
                 Situação: <Badge tone={tomSituacao(detalhe.situacao)}>{rotuloSituacao(detalhe.situacao)}</Badge>
               </p>
-              <p className="text-sm text-aion-ink">Papel atual: {detalhe.papel}</p>
+              <p className="text-sm text-aion-ink">
+                {detalhe.situacao === "pendente" ? TEXTO_PAPEL_PENDENTE : `Papel atual: ${detalhe.papel || "—"}`}
+              </p>
               <p className="text-sm text-aion-ink">Dono: {detalhe.dono}</p>
               {detalhe.email_mascarado ? <p className="text-sm text-aion-ink">E-mail: {detalhe.email_mascarado}</p> : null}
               <p className="text-sm text-aion-muted">Criado {formatarQuando(detalhe.criado_em)}</p>
@@ -621,6 +709,7 @@ export function PainelBotUsuarios({
               {temConflito(detalhe.id, conflitos[detalhe.id]) ? (
                 <div className="space-y-1">
                   <Badge tone="warn">Conflito de número</Badge>
+                  <p className="text-sm text-aion-ink">{TEXTO_AJUDA_CONFLITO}</p>
                   <ul className="list-disc pl-5 text-sm text-aion-ink">
                     {[...(conflitos[detalhe.id]?.pendentes ?? []), ...(conflitos[detalhe.id]?.aprovados ?? [])]
                       .filter((pessoa) => pessoa.id !== detalhe.id)
@@ -668,7 +757,7 @@ export function PainelBotUsuarios({
               </section>
             </div>
             <footer className="sticky bottom-0 flex flex-wrap gap-2 border-t border-aion-line bg-white p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-              {acoes(detalhe)}
+              {acoes(detalhe, true)}
             </footer>
           </aside>
         </div>
@@ -688,21 +777,28 @@ export function PainelBotUsuarios({
             const corpo: Record<string, string> = { acao: "recusar" };
             const texto = motivo.trim();
             if (texto) corpo.motivo = texto;
-            void executar(modal.usuario.id, corpo);
+            void executar(modal.usuario, corpo);
             return;
           }
-          void executar(modal.usuario.id, { acao: modal.tipo === "inativar" ? "inativar" : "reativar" });
+          void executar(modal.usuario, { acao: modal.tipo === "inativar" ? "inativar" : "reativar" });
         }}
       >
         {modal?.tipo === "recusar" ? (
           <label className="grid gap-1 text-sm text-aion-ink">
-            <span className="font-medium">Motivo (opcional)</span>
+            <span className="font-medium">{ROTULO_MOTIVO}</span>
             <textarea
-              className={`min-h-11 rounded-lg border border-aion-line px-3 py-2 text-sm ${FOCO}`}
-              maxLength={80}
+              className={`min-h-11 rounded-lg border ${BORDA} px-3 py-2 text-sm ${FOCO}`}
+              maxLength={MOTIVO_LIMITE}
+              aria-describedby="motivo-ajuda motivo-contador"
               value={motivo}
               onChange={(event) => setMotivo(event.target.value)}
             />
+            <span id="motivo-ajuda" className="text-sm text-aion-muted">
+              {TEXTO_AJUDA_MOTIVO}
+            </span>
+            <span id="motivo-contador" className="text-right text-sm text-aion-muted">
+              {motivo.length}/{MOTIVO_LIMITE}
+            </span>
           </label>
         ) : null}
         {modal && erroAcao?.id === modal.usuario.id ? (

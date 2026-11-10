@@ -114,8 +114,15 @@ test("com sessão: conflito, máscara e aprovação que não pisa em número já
   assert.equal(lista.includes(TEL_DIGITO), false);
   assert.equal(lista.includes("900000001"), false);
 
-  const conflito = await conflitos.GET(
+  const porTelefone = await conflitos.GET(
     new Request(`${URL_CONFLITO}?telefone=${encodeURIComponent("11 90000-0001")}`, { headers: logado() }),
+  );
+  assert.equal(porTelefone.status, 400);
+  const textoTelefone = await porTelefone.text();
+  assert.equal(textoTelefone.includes("90000"), false);
+  assert.equal(textoTelefone.includes(TEL_DIGITO), false);
+  const conflito = await conflitos.GET(
+    new Request(`${URL_CONFLITO}?id=${encodeURIComponent(a.data.id)}`, { headers: logado() }),
   );
   assert.equal(conflito.status, 200);
   const conflitoJson = await conflito.json();
@@ -123,12 +130,23 @@ test("com sessão: conflito, máscara e aprovação que não pisa em número já
   assert.equal(conflitoJson.data.aprovados.length, 0);
   assert.equal(JSON.stringify(conflitoJson).includes(TEL_DIGITO), false);
 
-  const ok = await item.PATCH(new Request(`${URL_LISTA}/${a.data.id}`, { method: "PATCH", headers: logado(), body: '{"acao":"aprovar"}' }), {
-    params: Promise.resolve({ id: a.data.id }),
-  });
+  const ok = await item.PATCH(
+    new Request(`${URL_LISTA}/${a.data.id}`, {
+      method: "PATCH",
+      headers: logado(),
+      body: '{"acao":"aprovar","papel":"Compras"}',
+    }),
+    {
+      params: Promise.resolve({ id: a.data.id }),
+    },
+  );
   assert.equal(ok.status, 200);
   const negado = await item.PATCH(
-    new Request(`${URL_LISTA}/${b.data.id}`, { method: "PATCH", headers: logado(), body: '{"acao":"aprovar"}' }),
+    new Request(`${URL_LISTA}/${b.data.id}`, {
+      method: "PATCH",
+      headers: logado(),
+      body: '{"acao":"aprovar","papel":"Compras"}',
+    }),
     { params: Promise.resolve({ id: b.data.id }) },
   );
   assert.equal(negado.status, 409);

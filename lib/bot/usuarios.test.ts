@@ -16,6 +16,7 @@ import {
 } from "./auditoria";
 import {
   MSG_AUDITORIA_RECUSADA,
+  MSG_ACAO_INVALIDA,
   MSG_CORPO_ACAO,
   MSG_CORPO_CADASTRO,
   MSG_MOTIVO_INVALIDO,
@@ -118,7 +119,7 @@ test("grafias do mesmo número resolvem o mesmo cadastro; unicidade só entre ap
   assert.equal(verdadeiro.ok, true);
   assert.equal(ids("pendente").length, 2);
 
-  const aprovado = aplicarAcao(verdadeiro.ok ? verdadeiro.data.id : "", { acao: "aprovar" });
+  const aprovado = aplicarAcao(verdadeiro.ok ? verdadeiro.data.id : "", { acao: "aprovar", papel: "Compras" });
   assert.equal(aprovado.ok, true);
   if (aprovado.ok) {
     assert.equal(aprovado.data.situacao, "ativo");
@@ -126,7 +127,7 @@ test("grafias do mesmo número resolvem o mesmo cadastro; unicidade só entre ap
     assert.ok(aprovado.data.verificado_em);
   }
 
-  const bloqueado = aplicarAcao(falso.ok ? falso.data.id : "", { acao: "aprovar" });
+  const bloqueado = aplicarAcao(falso.ok ? falso.data.id : "", { acao: "aprovar", papel: "Compras" });
   assert.deepEqual(bloqueado, { ok: false, status: 409, message: MSG_TELEFONE_APROVADO });
   assert.equal(JSON.stringify(bloqueado).includes(TEL_DIGITO), false);
   assert.equal(ids("pendente").length, 1);
@@ -165,12 +166,12 @@ test("inativo continua ocupando o número; recusado não ocupa", () => {
   const primeiro = criarUsuario(pedido(TEL));
   assert.equal(primeiro.ok, true);
   const id = primeiro.ok ? primeiro.data.id : "";
-  assert.equal(aplicarAcao(id, { acao: "aprovar" }).ok, true);
+  assert.equal(aplicarAcao(id, { acao: "aprovar", papel: "Compras" }).ok, true);
   assert.equal(aplicarAcao(id, { acao: "inativar" }).ok, true);
 
   const pendente = criarUsuario(pedido(TEL_SEM_55));
   assert.equal(pendente.ok, true);
-  const negado = aplicarAcao(pendente.ok ? pendente.data.id : "", { acao: "aprovar" });
+  const negado = aplicarAcao(pendente.ok ? pendente.data.id : "", { acao: "aprovar", papel: "Compras" });
   assert.equal(negado.ok, false);
   if (!negado.ok) assert.equal(negado.message, MSG_TELEFONE_APROVADO);
 
@@ -180,14 +181,14 @@ test("inativo continua ocupando o número; recusado não ocupa", () => {
   assert.equal(aplicarAcao(recusado.ok ? recusado.data.id : "", { acao: "recusar" }).ok, true);
   const depois = criarUsuario(pedido(TEL_SEM_9, { nome: "Bruno Exemplo" }));
   assert.equal(depois.ok, true);
-  assert.equal(aplicarAcao(depois.ok ? depois.data.id : "", { acao: "aprovar" }).ok, true);
+  assert.equal(aplicarAcao(depois.ok ? depois.data.id : "", { acao: "aprovar", papel: "Compras" }).ok, true);
 });
 
 test("A12: fora do cadastro, inativo e mal formatado recusam sem nenhum dado", () => {
   const criado = criarUsuario(pedido(OUTRO, { nome: "Bruno Exemplo" }));
   assert.equal(criado.ok, true);
   const id = criado.ok ? criado.data.id : "";
-  assert.equal(aplicarAcao(id, { acao: "aprovar" }).ok, true);
+  assert.equal(aplicarAcao(id, { acao: "aprovar", papel: "Compras" }).ok, true);
   assert.equal(aplicarAcao(id, { acao: "inativar" }).ok, true);
 
   const fora = resolverRemetente(TEL);
@@ -325,7 +326,7 @@ test("POST cria só pendente; ativação só pela ação aprovar", () => {
     "pendente",
   );
 
-  const aprovado = aplicarAcao(criado.data.id, { acao: "aprovar" });
+  const aprovado = aplicarAcao(criado.data.id, { acao: "aprovar", papel: "Compras" });
   assert.equal(aprovado.ok, true);
   if (aprovado.ok) {
     assert.equal(aprovado.data.situacao, "ativo");
@@ -408,16 +409,26 @@ test("nome, setor e outros_setores recusam U+200B e U+202E sem ecoar", () => {
   assert.equal(totalUsuarios(), antes);
 });
 
-test("aprovar grava o papel escolhido e o aprovador; papel inválido não muda o pendente", () => {
+test("aprovar exige papel da lista; sem papel ou papel inválido não grava nem audita sucesso", () => {
   const criado = criarUsuario(pedido(TEL, { papel: "Compras" }));
   assert.equal(criado.ok, true);
   if (!criado.ok) return;
+  const antes = (getDb().prepare("SELECT COUNT(*) n FROM bot_auditoria").get() as { n: number }).n;
+  const sem = aplicarAcao(criado.data.id, { acao: "aprovar" });
+  assert.deepEqual(sem, { ok: false, status: 400, message: MSG_PAPEL_INVALIDO });
   const ruim = aplicarAcao(criado.data.id, { acao: "aprovar", papel: "Enfermagem" });
   assert.deepEqual(ruim, { ok: false, status: 400, message: MSG_PAPEL_INVALIDO });
-  assert.equal(
-    (getDb().prepare("SELECT situacao, papel FROM bot_usuario WHERE id = ?").get(criado.data.id) as { situacao: string; papel: string }).situacao,
-    "pendente",
-  );
+  process.env[PAPEIS_BOT_ENV] = "Papel ZZTESTE";
+  const fora = aplicarAcao(criado.data.id, { acao: "aprovar", papel: "Compras" });
+  delete process.env[PAPEIS_BOT_ENV];
+  assert.deepEqual(fora, { ok: false, status: 400, message: MSG_PAPEL_INVALIDO });
+  const linha = getDb().prepare("SELECT situacao, papel FROM bot_usuario WHERE id = ?").get(criado.data.id) as {
+    situacao: string;
+    papel: string;
+  };
+  assert.equal(linha.situacao, "pendente");
+  assert.equal(linha.papel, "Compras");
+  assert.equal((getDb().prepare("SELECT COUNT(*) n FROM bot_auditoria").get() as { n: number }).n, antes);
   const aprovado = aplicarAcao(criado.data.id, { acao: "aprovar", papel: "Manutenção" });
   assert.equal(aprovado.ok, true);
   if (aprovado.ok) {
@@ -425,6 +436,8 @@ test("aprovar grava o papel escolhido e o aprovador; papel inválido não muda o
     assert.equal(aprovado.data.situacao, "ativo");
     assert.equal(aprovado.data.aprovado_por, APROVADOR_BOT_V1);
   }
+  assert.equal(auditoriaTexto().includes("aprovar"), true);
+  assert.equal(auditoriaTexto().includes("Manutenção"), false);
 });
 
 test("recusa guarda motivo curto e rejeita caractere invisível sem ecoar", () => {
@@ -438,16 +451,41 @@ test("recusa guarda motivo curto e rejeita caractere invisível sem ecoar", () =
   const ok = aplicarAcao(criado.data.id, { acao: "recusar", motivo: "Fora do piloto" });
   assert.equal(ok.ok, true);
   if (ok.ok) assert.equal(ok.data.motivo_recusa, "Fora do piloto");
+  const gravado = getDb().prepare("SELECT situacao, papel FROM bot_usuario WHERE id = ?").get(criado.data.id) as {
+    situacao: string;
+    papel: string;
+  };
+  assert.equal(gravado.situacao, "recusado");
+  assert.equal(gravado.papel, "");
+  assert.equal(ok.ok && ok.data.papel, "");
   const trilha = auditoriaTexto();
+  assert.equal(trilha.includes("recusar"), true);
+  assert.equal(trilha.includes("Compras"), false);
   assert.equal(trilha.includes("Fora do piloto"), false);
   assert.equal(trilha.includes("ZZMOTIVO"), false);
 });
 
-test("reenviar só marca o pedido e não muda a situação", () => {
+test("reenviar só marca o pedido de quem está ativo e ainda não recebeu", () => {
   const criado = criarUsuario(pedido(TEL, { nome: "Bruno Exemplo" }));
   assert.equal(criado.ok, true);
   if (!criado.ok) return;
-  assert.equal(aplicarAcao(criado.data.id, { acao: "aprovar" }).ok, true);
+  assert.equal(aplicarAcao(criado.data.id, { acao: "aprovar", papel: "Compras" }).ok, true);
+  getDb().prepare("UPDATE bot_usuario SET entrega_status = 'enviada' WHERE id = ?").run(criado.data.id);
+  const enviada = aplicarAcao(criado.data.id, { acao: "reenviar" });
+  assert.deepEqual(enviada, { ok: false, status: 409, message: MSG_ACAO_INVALIDA });
+  const aposEnviada = getDb()
+    .prepare("SELECT situacao, entrega_status, entrega_pedido_em FROM bot_usuario WHERE id = ?")
+    .get(criado.data.id) as { situacao: string; entrega_status: string; entrega_pedido_em: string | null };
+  assert.deepEqual(aposEnviada, { situacao: "ativo", entrega_status: "enviada", entrega_pedido_em: null });
+  assert.equal(aplicarAcao(criado.data.id, { acao: "inativar" }).ok, true);
+  const inativo = aplicarAcao(criado.data.id, { acao: "reenviar" });
+  assert.deepEqual(inativo, { ok: false, status: 409, message: MSG_ACAO_INVALIDA });
+  assert.equal(
+    (getDb().prepare("SELECT situacao, entrega_status FROM bot_usuario WHERE id = ?").get(criado.data.id) as { situacao: string; entrega_status: string })
+      .situacao,
+    "inativo",
+  );
+  getDb().prepare("UPDATE bot_usuario SET situacao = 'ativo', entrega_status = 'falhou' WHERE id = ?").run(criado.data.id);
   const pedidoReenvio = aplicarAcao(criado.data.id, { acao: "reenviar" });
   assert.equal(pedidoReenvio.ok, true);
   if (!pedidoReenvio.ok) return;

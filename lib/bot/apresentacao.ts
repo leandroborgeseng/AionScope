@@ -48,6 +48,16 @@ export const TEXTO_ERRO = "Não foi possível carregar. Tentar de novo.";
 export const TEXTO_TENTAR = "Tentar de novo";
 export const TEXTO_SEM_PERMISSAO = "Você não tem acesso a esta tela.";
 export const TEXTO_TOAST_REVELAR = "Número revelado · evento registrado na auditoria.";
+export const TEXTO_TOAST_REENVIO =
+  'Reenvio pedido. A mensagem sai pelo WhatsApp; o status fica "Envio pendente" até a confirmação.';
+export const TEXTO_TOAST_RECUSAR = "Pedido recusado.";
+export const TEXTO_PAPEL_PENDENTE = "Papel: definido na aprovação";
+export const TEXTO_ESCOLHA_PAPEL = "Escolha o papel para aprovar.";
+export const ROTULO_MOTIVO = "Motivo (opcional, uso interno)";
+export const TEXTO_AJUDA_MOTIVO = "A pessoa não vê o motivo. Ela recebe só a mensagem padrão.";
+export const TEXTO_AJUDA_CONFLITO =
+  "Outro pedido ou cadastro usa o mesmo número. Confira antes de aprovar. Um pedido não bloqueia o outro.";
+export const MOTIVO_LIMITE = 80;
 export const TITULO_RECUSAR = "Recusar vínculo?";
 export const TITULO_INATIVAR = "Inativar usuário?";
 export const TITULO_REATIVAR = "Reativar usuário?";
@@ -68,9 +78,25 @@ export function textoReativar(nome: string) {
 }
 
 export function rotuloEntrega(status: EntregaStatus) {
-  if (status === "enviada") return "Enviada";
-  if (status === "falhou") return "Falhou";
-  return "Pendente";
+  if (status === "enviada") return "Mensagem enviada";
+  if (status === "falhou") return "Envio falhou";
+  return "Envio pendente";
+}
+
+export function textoToastAprovar(nome: string, papel: string) {
+  return `${nome} aprovada como ${papel}. Entrega: Envio pendente.`;
+}
+
+export function textoToastInativar(nome: string) {
+  return `${nome} inativado.`;
+}
+
+export function textoToastReativar(nome: string) {
+  return `${nome} reativado.`;
+}
+
+export function podeReenviar(usuario: { situacao: SituacaoCadastro; entrega_status: EntregaStatus }) {
+  return usuario.situacao === "ativo" && usuario.entrega_status !== "enviada";
 }
 
 export function rotuloSituacao(situacao: SituacaoCadastro) {
@@ -133,7 +159,7 @@ export function filtrarUsuarios(usuarios: UsuarioBot[], aba: AbaBot, filtro: Fil
     if (aba === "pendentes" && usuario.situacao !== "pendente") return false;
     if (aba === "cadastrados" && usuario.situacao !== "ativo" && usuario.situacao !== "inativo") return false;
     if (aba === "cadastrados" && filtro.situacao !== "todos" && usuario.situacao !== filtro.situacao) return false;
-    if (filtro.papel && usuario.papel !== filtro.papel) return false;
+    if (aba !== "pendentes" && filtro.papel && usuario.papel !== filtro.papel) return false;
     if (filtro.dono && usuario.dono !== filtro.dono) return false;
     return incluiBusca(usuario, filtro.busca);
   });

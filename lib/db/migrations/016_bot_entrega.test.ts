@@ -44,6 +44,9 @@ test("016 duas vezes: idempotente e colunas com padrão pendente", () => {
     motivo_recusa: string | null;
   };
   assert.deepEqual(linha, { entrega_status: "pendente", entrega_pedido_em: null, motivo_recusa: null });
+  assert.throws(() => db.prepare("UPDATE bot_usuario SET entrega_status = 'xyz' WHERE id = 'p1'").run());
+  const depois = db.prepare("SELECT entrega_status FROM bot_usuario WHERE id = 'p1'").get() as { entrega_status: string };
+  assert.equal(depois.entrega_status, "pendente");
   db.close();
 });
 

@@ -8,6 +8,7 @@ import {
   exigirOrigemPermitida,
   origemDaRequisicao,
   origensPermitidas,
+  textoAvisoOrigens,
 } from "./origem";
 
 const envAntes = process.env[ORIGENS_PERMITIDAS_ENV];
@@ -39,6 +40,22 @@ test("lista vem só do env, sem host embutido", () => {
   assert.equal(fonte.includes("aion.eng.br"), false);
   assert.equal(fonte.includes("railway.app"), false);
   assert.equal(fonte.includes("console."), false);
+});
+
+test("aviso de boot conta origens aceitas e descartadas sem revelar os valores", () => {
+  process.env[ORIGENS_PERMITIDAS_ENV] = "https://painel.exemplo.test, https://outro.exemplo.test";
+  assert.equal(textoAvisoOrigens(), "AIONSCOPE_ORIGENS_PERMITIDAS: 2 aceitas, 0 descartadas");
+  process.env[ORIGENS_PERMITIDAS_ENV] = "https://painel.exemplo.test/admin,, ,https://outro.exemplo.test";
+  assert.equal(textoAvisoOrigens(), "AIONSCOPE_ORIGENS_PERMITIDAS: 2 aceitas, 0 descartadas");
+  process.env[ORIGENS_PERMITIDAS_ENV] = "scope.aion.eng.br;https://outra.test, https://painel.exemplo.test, *";
+  const texto = textoAvisoOrigens();
+  assert.equal(texto, "AIONSCOPE_ORIGENS_PERMITIDAS: 1 aceitas, 2 descartadas");
+  assert.equal(texto.includes("scope"), false);
+  assert.equal(texto.includes("painel"), false);
+  assert.equal(texto.includes("https"), false);
+  assert.equal(texto.includes("*"), false);
+  const boot = readFileSync("instrumentation.ts", "utf8");
+  assert.equal(boot.includes("console.warn(textoAvisoOrigens())"), true);
 });
 
 test("sem Origin usa Referer; Origin de outro host não passa nem com Referer certo", async () => {

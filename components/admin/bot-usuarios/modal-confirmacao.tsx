@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 const FOCO =
   "focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-aion-blue";
 
-function focaveisDe(raiz: HTMLElement) {
+export function focaveisDe(raiz: HTMLElement) {
   return [...raiz.querySelectorAll<HTMLElement>("button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled])")];
 }
 
@@ -103,7 +103,7 @@ export function ModalConfirmacao({
         </p>
         {children ? <div className="mt-4">{children}</div> : null}
         <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="outline" className={`min-h-11 ${FOCO}`} onClick={onFechar}>
+          <Button type="button" variant="outline" className={`min-h-11 border-aion-muted ${FOCO}`} onClick={onFechar}>
             Cancelar
           </Button>
           <Button

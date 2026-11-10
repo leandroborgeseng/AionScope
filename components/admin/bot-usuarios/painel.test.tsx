@@ -5,7 +5,19 @@ import { afterEach, describe, test } from "node:test";
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { PAPEIS_BOT_PADRAO } from "@/lib/bot/papeis";
-import { TEXTO_ERRO, TEXTO_SEM_PERMISSAO, TEXTO_TOAST_REVELAR, TEXTO_VAZIO_PENDENTES, TEXTO_VAZIO_CADASTRADOS, type UsuarioBot } from "@/lib/bot/apresentacao";
+import {
+  TEXTO_AJUDA_CONFLITO,
+  TEXTO_AJUDA_MOTIVO,
+  TEXTO_ERRO,
+  TEXTO_ESCOLHA_PAPEL,
+  TEXTO_PAPEL_PENDENTE,
+  TEXTO_SEM_PERMISSAO,
+  TEXTO_TOAST_REVELAR,
+  TEXTO_VAZIO_CADASTRADOS,
+  TEXTO_VAZIO_PENDENTES,
+  textoToastAprovar,
+  type UsuarioBot,
+} from "@/lib/bot/apresentacao";
 import { PainelBotUsuarios, type ResultadoAcao } from "./painel";
 
 function pessoa(parcial: Partial<UsuarioBot> & Pick<UsuarioBot, "id" | "nome" | "situacao">): UsuarioBot {
@@ -150,6 +162,9 @@ test("modal Recusar prende o foco, Esc fecha e o foco volta ao botão", async ()
   assert.ok(dialog);
   assert.match(dialog.textContent ?? "", /Recusar vínculo\?/);
   assert.match(dialog.textContent ?? "", /Ana Exemplo não poderá consultar o bot com este número/);
+  assert.match(dialog.textContent ?? "", /Motivo \(opcional, uso interno\)/);
+  assert.match(dialog.textContent ?? "", new RegExp(TEXTO_AJUDA_MOTIVO.replace(".", "\\.")));
+  assert.match(dialog.textContent ?? "", /0\/80/);
   const confirmar = [...dialog.querySelectorAll("button")].find((el) => el.textContent?.trim() === "Recusar");
   assert.match(confirmar?.className ?? "", /rose/);
   const focaveis = [...dialog.querySelectorAll<HTMLElement>("textarea, button")];
@@ -177,6 +192,16 @@ test("revelar mostra o número, o toast e volta a mascarar", async () => {
   });
   assert.match(document.body.textContent ?? "", /\+55 11 90000-0001/);
   assert.match(document.body.textContent ?? "", new RegExp(TEXTO_TOAST_REVELAR));
+  const ocultar = botao("Ocultar");
+  assert.equal(ocultar?.getAttribute("aria-label"), "Ocultar telefone de Ana Exemplo");
+  await act(async () => {
+    ocultar?.click();
+  });
+  assert.equal((document.body.textContent ?? "").includes("90000-0001"), false);
+  assert.match(document.body.textContent ?? "", /•••••-0001/);
+  await act(async () => {
+    botao("Revelar")?.click();
+  });
   await act(async () => {
     await new Promise((resolver) => setTimeout(resolver, 80));
   });
@@ -194,7 +219,8 @@ test("filtro Inativo troca a lista sem navegar", async () => {
   });
   assert.match(document.body.textContent ?? "", /Ana Exemplo/);
   assert.match(document.body.textContent ?? "", /Bruno Exemplo/);
-  assert.match(document.body.textContent ?? "", /Falhou/);
+  assert.match(document.body.textContent ?? "", /Entrega: Envio falhou/);
+  assert.equal(botao("Reenviar") != null, true, "reenviar visível");
   const select = document.querySelector('select[aria-label="Filtrar por situação"]') as HTMLSelectElement;
   await act(async () => {
     select.value = "inativo";
@@ -217,6 +243,80 @@ test("a tela não injeta HTML e não declara dangerouslySetInnerHTML", () => {
     assert.equal(fonte.includes("dangerouslySetInnerHTML"), false, arquivo);
     assert.equal(fonte.includes("console."), false, arquivo);
   }
+});
+
+test("detalhe prende o foco, não repete Abrir e mostra o papel ainda por definir", async () => {
+  await renderizar(<PainelBotUsuarios {...base()} />);
+  assert.equal(document.querySelector('select[aria-label="Filtrar por papel"]'), null);
+  assert.match(document.body.textContent ?? "", new RegExp(TEXTO_ESCOLHA_PAPEL.replace(".", "\\.")));
+  const origem = botao("Abrir");
+  assert.ok(origem);
+  await act(async () => {
+    origem?.click();
+  });
+  const dialog = document.querySelector("aside[role='dialog']") as HTMLElement;
+  assert.ok(dialog);
+  assert.equal(document.activeElement === dialog.querySelector("#detalhe-bot-titulo"), true, "foco no título");
+  assert.match(dialog.textContent ?? "", new RegExp(TEXTO_PAPEL_PENDENTE.replace(".", "\\.")));
+  assert.equal(dialog.textContent?.includes("Papel atual:"), false);
+  assert.equal(botao("Abrir", dialog), undefined);
+  const focaveis = [...dialog.querySelectorAll<HTMLElement>("button:not([disabled]), select:not([disabled])")];
+  const primeiro = focaveis[0]!;
+  const ultimo = focaveis[focaveis.length - 1]!;
+  ultimo.focus();
+  await act(async () => {
+    document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+  });
+  assert.equal(document.activeElement === primeiro, true, document.activeElement?.textContent?.trim() ?? "sem foco");
+  await act(async () => {
+    document.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  });
+  assert.equal(document.querySelector("aside[role='dialog']"), null);
+  assert.equal(document.activeElement === origem, true, document.activeElement?.textContent?.trim() ?? "sem foco");
+});
+
+test("reenvio some quando a mensagem já foi enviada e o toast usa o texto literal", async () => {
+  let corpo = "";
+  await renderizar(
+    <PainelBotUsuarios
+      {...base({
+        usuarios: [ANA, { ...BRUNO, entrega_status: "enviada" }],
+        onAcao: async (_id, pedido) => {
+          corpo = JSON.stringify(pedido);
+          return { ok: true };
+        },
+      })}
+    />,
+  );
+  const select = document.querySelector('select[aria-label="Papel de Ana Exemplo"]') as HTMLSelectElement;
+  await act(async () => {
+    select.value = "Compras";
+    select.dispatchEvent(new window.Event("change", { bubbles: true }));
+  });
+  await act(async () => {
+    botao("Aprovar")?.click();
+  });
+  assert.equal(corpo.includes("Compras"), true);
+  assert.match(document.body.textContent ?? "", new RegExp(textoToastAprovar("Ana Exemplo", "Compras").replace(".", "\\.")));
+  await act(async () => {
+    botao("Cadastrados")?.click();
+  });
+  assert.equal(botao("Reenviar"), undefined);
+  assert.match(document.body.textContent ?? "", /Entrega: Mensagem enviada/);
+});
+
+test("conflito explica que um pedido não bloqueia o outro", async () => {
+  await renderizar(
+    <PainelBotUsuarios
+      {...base({
+        conflitos: {
+          [ANA.id]: { pendentes: [{ id: "outro", nome: "Carla Exemplo", telefone_mascarado: "+55 11 •••••-0001" }], aprovados: [] },
+        },
+      })}
+    />,
+  );
+  assert.match(document.body.textContent ?? "", /Conflito de número/);
+  assert.match(document.body.textContent ?? "", new RegExp(TEXTO_AJUDA_CONFLITO.replace(".", "\\.")));
 });
 
 test("inativar usa o texto destrutivo e o botão de origem", async () => {

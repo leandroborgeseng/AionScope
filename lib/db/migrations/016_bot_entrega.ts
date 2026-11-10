@@ -13,7 +13,9 @@ export function aplicarMigration016BotEntrega(db: Database.Database, nome = MIGR
     const cols = db.prepare("PRAGMA table_info(bot_usuario)").all() as Array<{ name: string }>;
     const nomes = new Set(cols.map((coluna) => coluna.name));
     if (!nomes.has("entrega_status")) {
-      db.exec("ALTER TABLE bot_usuario ADD COLUMN entrega_status TEXT NOT NULL DEFAULT 'pendente'");
+      db.exec(
+        "ALTER TABLE bot_usuario ADD COLUMN entrega_status TEXT NOT NULL DEFAULT 'pendente' CHECK (entrega_status IN ('pendente', 'enviada', 'falhou'))",
+      );
     }
     if (!nomes.has("entrega_pedido_em")) {
       db.exec("ALTER TABLE bot_usuario ADD COLUMN entrega_pedido_em TEXT");

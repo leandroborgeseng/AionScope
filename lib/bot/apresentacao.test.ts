@@ -4,11 +4,19 @@ import {
   DURACAO_REVELACAO_MS,
   TEXTO_ERRO,
   TEXTO_SEM_PERMISSAO,
+  TEXTO_AJUDA_CONFLITO,
+  TEXTO_ESCOLHA_PAPEL,
+  TEXTO_PAPEL_PENDENTE,
+  TEXTO_TOAST_REENVIO,
+  TEXTO_TOAST_RECUSAR,
   TEXTO_TOAST_REVELAR,
   TEXTO_VAZIO_CADASTRADOS,
   TEXTO_VAZIO_PENDENTES,
   filtrarUsuarios,
+  podeReenviar,
+  rotuloEntrega,
   temConflito,
+  textoToastAprovar,
   textoInativar,
   textoRecusar,
   type UsuarioBot,
@@ -49,6 +57,21 @@ test("textos de estado, modal e revelação ficam literais", () => {
   assert.equal(TEXTO_ERRO, "Não foi possível carregar. Tentar de novo.");
   assert.equal(TEXTO_SEM_PERMISSAO, "Você não tem acesso a esta tela.");
   assert.equal(TEXTO_TOAST_REVELAR, "Número revelado · evento registrado na auditoria.");
+  assert.equal(
+    TEXTO_TOAST_REENVIO,
+    'Reenvio pedido. A mensagem sai pelo WhatsApp; o status fica "Envio pendente" até a confirmação.',
+  );
+  assert.equal(TEXTO_TOAST_RECUSAR, "Pedido recusado.");
+  assert.equal(TEXTO_PAPEL_PENDENTE, "Papel: definido na aprovação");
+  assert.equal(TEXTO_ESCOLHA_PAPEL, "Escolha o papel para aprovar.");
+  assert.equal(TEXTO_AJUDA_CONFLITO, "Outro pedido ou cadastro usa o mesmo número. Confira antes de aprovar. Um pedido não bloqueia o outro.");
+  assert.equal(rotuloEntrega("enviada"), "Mensagem enviada");
+  assert.equal(rotuloEntrega("falhou"), "Envio falhou");
+  assert.equal(rotuloEntrega("pendente"), "Envio pendente");
+  assert.equal(textoToastAprovar("Ana Exemplo", "Compras"), "Ana Exemplo aprovada como Compras. Entrega: Envio pendente.");
+  assert.equal(podeReenviar({ situacao: "ativo", entrega_status: "falhou" }), true);
+  assert.equal(podeReenviar({ situacao: "ativo", entrega_status: "enviada" }), false);
+  assert.equal(podeReenviar({ situacao: "inativo", entrega_status: "falhou" }), false);
   assert.equal(textoRecusar("Ana Exemplo"), "Ana Exemplo não poderá consultar o bot com este número.");
   assert.equal(
     textoInativar("Bruno Exemplo"),
@@ -76,6 +99,11 @@ test("filtro de situação, papel e dono não depende de navegação", () => {
     ["Bruno Exemplo"],
   );
   assert.deepEqual(filtrarUsuarios([ANA], "pendentes", base), []);
+  const pendente = pessoa({ id: "p", nome: "Carla Exemplo", situacao: "pendente", papel: "Compras" });
+  assert.deepEqual(
+    filtrarUsuarios([pendente], "pendentes", { ...base, papel: "Manutenção" }).map((item) => item.nome),
+    ["Carla Exemplo"],
+  );
 });
 
 test("conflito exige outro pendente ou um aprovado no mesmo número", () => {
