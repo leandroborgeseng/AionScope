@@ -22,8 +22,8 @@ import {
   MSG_NOME_INVALIDO,
   MSG_OUTROS_SETORES_INVALIDO,
   MSG_PAPEL_INVALIDO,
+  MSG_CORPO_CADASTRO,
   MSG_SETOR_INVALIDO,
-  MSG_SITUACAO_INICIAL,
   MSG_TELEFONE_APROVADO,
   MSG_TELEFONE_INVALIDO,
   RECUSA_CADASTRO,
@@ -43,7 +43,8 @@ const ACOES = ["aprovar", "recusar", "inativar", "reativar"] as const;
 
 type Situacao = "pendente" | "ativo" | "inativo" | "recusado";
 type Acao = (typeof ACOES)[number];
-type SituacaoInicial = "pendente" | "ativo";
+
+const CHAVES_CRIACAO = new Set(["nome", "papel", "telefone", "dono", "email", "setor", "outros_setores", "situacao"]);
 
 type Linha = {
   id: string;
@@ -115,6 +116,14 @@ function paraLista(linha: Linha): UsuarioLista {
 function objeto(body: unknown): Record<string, unknown> | null {
   if (!body || typeof body !== "object" || Array.isArray(body)) return null;
   return body as Record<string, unknown>;
+}
+
+/** Criação só aceita o cadastro pendente. Campo de ativação, ou situacao diferente de pendente, é corpo inválido. */
+function corpoCriacaoEstrito(dados: Record<string, unknown>) {
+  for (const chave of Object.keys(dados)) {
+    if (!CHAVES_CRIACAO.has(chave)) return false;
+  }
+  return !("situacao" in dados) || dados.situacao === "pendente";
 }
 
 function buscarId(id: string): Linha | null {
@@ -189,6 +198,7 @@ export function listarConflito(
 export function criarUsuario(body: unknown, agora = new Date()): FalhaCadastro | OkCadastro {
   const dados = objeto(body);
   if (!dados) return falha(400, MSG_JSON);
+  if (!corpoCriacaoEstrito(dados)) return falha(400, MSG_CORPO_CADASTRO);
 
   const nomeLivre = normalizarTextoLivre(dados.nome, NOME_MAXIMO);
   if (!nomeLivre.ok || !nomeLivre.texto || nomeLivre.texto.length < 2) return falha(400, MSG_NOME_INVALIDO);
@@ -213,18 +223,10 @@ export function criarUsuario(body: unknown, agora = new Date()): FalhaCadastro |
   const outros = normalizarTextoLivre(dados.outros_setores, SETOR_TAMANHO_MAXIMO);
   if (!outros.ok) return falha(400, MSG_OUTROS_SETORES_INVALIDO);
 
-  let situacao: SituacaoInicial = "pendente";
-  if ("situacao" in dados && dados.situacao !== undefined) {
-    if (dados.situacao !== "pendente" && dados.situacao !== "ativo") return falha(400, MSG_SITUACAO_INICIAL);
-    situacao = dados.situacao;
-  }
-
   const iso = agora.toISOString();
   const id = randomUUID();
-  const aprovado = situacao === "ativo";
   const db = getDb();
   const tx = db.transaction(() => {
-    if (aprovado && outroAprovado(telefone, null)) return falha(409, MSG_TELEFONE_APROVADO);
     db.prepare(
       `INSERT INTO bot_usuario (
         id, nome, papel, telefone_e164, situacao, dono, email, setor, outros_setores,
@@ -238,15 +240,15 @@ export function criarUsuario(body: unknown, agora = new Date()): FalhaCadastro |
       nome: nomeLivre.texto,
       papel,
       telefone_e164: telefone,
-      situacao,
+      situacao: "pendente",
       dono,
       email: email.email,
       setor: setor.texto,
       outros_setores: outros.texto,
-      aprovado_por: aprovado ? APROVADOR_BOT_V1 : null,
+      aprovado_por: null,
       criado_em: iso,
       atualizado_em: iso,
-      verificado_em: aprovado ? iso : null,
+      verificado_em: null,
     });
     auditar("criar", id, 201, agora);
     return { ok: true as const, data: paraLista(buscarId(id)!) };

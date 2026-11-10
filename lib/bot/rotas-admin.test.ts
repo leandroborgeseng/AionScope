@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, beforeEach, test } from "node:test";
 import { COOKIE_SESSAO_CONTRATOS, criarTokenSessao } from "@/lib/auth/contratos-sessao";
-import { MSG_TELEFONE_APROVADO } from "@/lib/bot/mensagens";
+import { MSG_CORPO_CADASTRO, MSG_TELEFONE_APROVADO } from "@/lib/bot/mensagens";
 import { closeDbForTests, getDb } from "@/lib/db/client";
 import * as colecao from "../../app/api/cadastros/bot-usuarios/route";
 import * as conflitos from "../../app/api/cadastros/bot-usuarios/conflitos/route";
@@ -139,6 +139,31 @@ test("com sessão: conflito, máscara e aprovação que não pisa em número já
   assert.equal(serial.includes(EMAIL), false);
   assert.equal(serial.includes("UTI ZZTESTE"), false);
   assert.equal(serial.includes("Plantao ZZTESTE"), false);
+});
+
+test("POST /api/cadastros/bot-usuarios só cria pendente", async () => {
+  const base = JSON.parse(corpo(TEL)) as Record<string, unknown>;
+  const recusado = await colecao.POST(
+    new Request(URL_LISTA, {
+      method: "POST",
+      headers: logado(),
+      body: JSON.stringify({ ...base, situacao: "ativo" }),
+    }),
+  );
+  const texto = await recusado.text();
+  assert.equal(recusado.status, 400);
+  assert.equal(texto, JSON.stringify({ ok: false, message: MSG_CORPO_CADASTRO }));
+  assert.equal(texto.includes(TEL_DIGITO), false);
+  assert.deepEqual(getDb().prepare("SELECT COUNT(*) n FROM bot_usuario").get(), { n: 0 });
+
+  const criado = await colecao.POST(new Request(URL_LISTA, { method: "POST", headers: logado(), body: corpo(TEL) }));
+  assert.equal(criado.status, 201);
+  const json = (await criado.json()) as {
+    data: { situacao: string; aprovado_por: string | null; verificado_em: string | null };
+  };
+  assert.equal(json.data.situacao, "pendente");
+  assert.equal(json.data.aprovado_por, null);
+  assert.equal(json.data.verificado_em, null);
 });
 
 test("este PR não publica tela nem rota do bot", () => {
