@@ -5,14 +5,17 @@ import path from "node:path";
 import { after, before, beforeEach, test } from "node:test";
 import { COOKIE_SESSAO_CONTRATOS, criarTokenSessao } from "@/lib/auth/contratos-sessao";
 import { MSG_CORPO_CADASTRO, MSG_TELEFONE_APROVADO } from "@/lib/bot/mensagens";
+import { MSG_ORIGEM_NEGADA, ORIGENS_PERMITIDAS_ENV } from "@/lib/bot/origem";
 import { closeDbForTests, getDb } from "@/lib/db/client";
 import * as colecao from "../../app/api/cadastros/bot-usuarios/route";
 import * as conflitos from "../../app/api/cadastros/bot-usuarios/conflitos/route";
 import * as item from "../../app/api/cadastros/bot-usuarios/[id]/route";
 import * as trilha from "../../app/api/cadastros/bot-usuarios/[id]/auditoria/route";
+import * as telefone from "../../app/api/cadastros/bot-usuarios/[id]/telefone/route";
 
 const URL_LISTA = "http://local/api/cadastros/bot-usuarios";
 const URL_CONFLITO = "http://local/api/cadastros/bot-usuarios/conflitos";
+const ORIGEM_OK = "https://painel.exemplo.test";
 const TEL = "+55 11 90000-0001";
 const TEL_DIGITO = "5511900000001";
 const EMAIL = "ana.zzteste@exemplo.invalid";
@@ -36,10 +39,14 @@ after(() => {
 beforeEach(() => {
   process.env.CONTRATOS_ADMIN_PASSWORD = "senha-ficticia-de-teste";
   process.env.SESSION_SECRET = "s".repeat(40);
+  process.env[ORIGENS_PERMITIDAS_ENV] = ORIGEM_OK;
   getDb().exec("DELETE FROM bot_auditoria; DELETE FROM bot_usuario;");
 });
 
-const logado = () => ({ cookie: `${COOKIE_SESSAO_CONTRATOS}=${criarTokenSessao()}` });
+const logado = () => ({
+  cookie: `${COOKIE_SESSAO_CONTRATOS}=${criarTokenSessao()}`,
+  origin: ORIGEM_OK,
+});
 
 function corpo(telefone: string) {
   return JSON.stringify({
@@ -168,5 +175,108 @@ test("POST /api/cadastros/bot-usuarios só cria pendente", async () => {
 
 test("este PR não publica tela nem rota do bot", () => {
   assert.equal(existsSync("app/api/bot"), false);
-  assert.equal(existsSync("app/admin/bot-usuarios"), false);
+  assert.equal(existsSync("app/convite"), false);
+  assert.equal(existsSync("app/admin/bot-usuarios/page.tsx"), true);
+});
+
+test("mutação exige origem da lista; GET segue só com a sessão", async () => {
+  const criado = await colecao.POST(
+    new Request(URL_LISTA, { method: "POST", headers: logado(), body: corpo(TEL) }),
+  );
+  assert.equal(criado.status, 201);
+  const id = ((await criado.json()) as { data: { id: string } }).data.id;
+
+  const semOrigem = await colecao.POST(
+    new Request(URL_LISTA, {
+      method: "POST",
+      headers: { cookie: logado().cookie },
+      body: corpo("+55 11 90000-0002"),
+    }),
+  );
+  assert.equal(semOrigem.status, 403);
+  assert.equal(await semOrigem.text(), JSON.stringify({ ok: false, message: MSG_ORIGEM_NEGADA }));
+
+  const outroHost = await item.PATCH(
+    new Request(`${URL_LISTA}/${id}`, {
+      method: "PATCH",
+      headers: { cookie: logado().cookie, origin: "https://hef.aion.eng.br", "content-type": "application/json" },
+      body: JSON.stringify({ acao: "aprovar", papel: "Compras" }),
+    }),
+    { params: Promise.resolve({ id }) },
+  );
+  assert.equal(outroHost.status, 403);
+  assert.equal(await outroHost.text(), JSON.stringify({ ok: false, message: MSG_ORIGEM_NEGADA }));
+  assert.equal(
+    (getDb().prepare("SELECT situacao FROM bot_usuario WHERE id = ?").get(id) as { situacao: string }).situacao,
+    "pendente",
+  );
+
+  const porReferer = await item.PATCH(
+    new Request(`${URL_LISTA}/${id}`, {
+      method: "PATCH",
+      headers: {
+        cookie: logado().cookie,
+        referer: `${ORIGEM_OK}/admin/bot-usuarios`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ acao: "aprovar", papel: "Compras" }),
+    }),
+    { params: Promise.resolve({ id }) },
+  );
+  assert.equal(porReferer.status, 200);
+
+  const leitura = await colecao.GET(new Request(URL_LISTA, { headers: { cookie: logado().cookie } }));
+  assert.equal(leitura.status, 200);
+});
+
+test("revelar telefone: 401 sem sessão e auditoria sem o número", async () => {
+  const criado = await colecao.POST(
+    new Request(URL_LISTA, { method: "POST", headers: logado(), body: corpo(TEL) }),
+  );
+  const id = ((await criado.json()) as { data: { id: string } }).data.id;
+  const negado = await telefone.POST(new Request(`${URL_LISTA}/${id}/telefone`, { method: "POST" }), {
+    params: Promise.resolve({ id }),
+  });
+  assert.equal(negado.status, 401);
+  const textoNegado = await negado.text();
+  assert.equal(textoNegado, MSG_401);
+  assert.equal(textoNegado.includes(TEL_DIGITO), false);
+
+  const saida: string[] = [];
+  const original = console.log;
+  console.log = (...args: unknown[]) => {
+    saida.push(args.map((item) => String(item)).join(" "));
+  };
+  try {
+    const ok = await telefone.POST(
+      new Request(`${URL_LISTA}/${id}/telefone`, { method: "POST", headers: logado() }),
+      { params: Promise.resolve({ id }) },
+    );
+    assert.equal(ok.status, 200);
+    const json = (await ok.json()) as { data: { telefone: string } };
+    assert.equal(json.data.telefone.endsWith("0001"), true);
+  } finally {
+    console.log = original;
+  }
+  assert.equal(saida.join("\n").includes(TEL_DIGITO), false);
+  const trilha = JSON.stringify(getDb().prepare("SELECT * FROM bot_auditoria").all());
+  assert.equal(trilha.includes("revelar"), true);
+  assert.equal(trilha.includes(TEL_DIGITO), false);
+  assert.equal(trilha.includes("900000001"), false);
+  assert.equal(trilha.includes(EMAIL), false);
+});
+
+test("conflito por id não devolve o telefone completo", async () => {
+  const primeiro = await colecao.POST(new Request(URL_LISTA, { method: "POST", headers: logado(), body: corpo(TEL) }));
+  const id = ((await primeiro.json()) as { data: { id: string } }).data.id;
+  await colecao.POST(
+    new Request(URL_LISTA, { method: "POST", headers: logado(), body: corpo("+55 11 90000-0001") }),
+  );
+  const resposta = await conflitos.GET(new Request(`${URL_CONFLITO}?id=${id}`, { headers: logado() }));
+  assert.equal(resposta.status, 200);
+  const texto = await resposta.text();
+  assert.equal(texto.includes(TEL_DIGITO), false);
+  assert.equal(texto.includes("900000001"), false);
+  const json = JSON.parse(texto) as { data: { pendentes: unknown[] } };
+  assert.equal(json.data.pendentes.length, 2);
 });

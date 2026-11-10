@@ -17,6 +17,7 @@ export const MSG_NAO_ENCONTRADO = "Cadastro não encontrado.";
 export const MSG_ACAO_DESCONHECIDA = "Ação inválida.";
 export const MSG_ACAO_INVALIDA = "Ação não permitida para a situação atual.";
 export const MSG_CORPO_ACAO = "Esta rota só aceita a ação.";
+export const MSG_MOTIVO_INVALIDO = "Motivo inválido.";
 export const MSG_GRAVACAO = "Não foi possível gravar o cadastro.";
 export const MSG_AUDITORIA_RECUSADA = "Auditoria recusou o registro.";
 

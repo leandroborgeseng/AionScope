@@ -8,7 +8,12 @@
 export const SETOR_TAMANHO_MAXIMO = 80;
 export const EMAIL_TAMANHO_MAXIMO = 254;
 
-const CONTROLE = /[\u0000-\u001F\u007F-\u009F\u2028\u2029]/;
+/**
+ * Controle (Cc), separadores de linha e invisíveis/bidi da categoria Unicode Cf
+ * (U+200B–U+200F, U+202A–U+202E, U+2060–U+2064, U+2066–U+2069, U+FEFF, U+00AD e o resto).
+ * Recusa o texto inteiro — não remove o caractere nem o devolve na mensagem.
+ */
+const CONTROLE = /[\u0000-\u001F\u007F-\u009F\u2028\u2029\p{Cf}]/u;
 const EMAIL =
   /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/;
 

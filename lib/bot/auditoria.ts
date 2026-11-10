@@ -15,7 +15,15 @@ export const BOT_AUDITORIA_MESES_BANCO_ENV = "AIONSCOPE_BOT_AUDITORIA_MESES_BANC
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CHAVES = ["usuarioId", "ator", "acao", "recurso", "status"] as const;
 
-export type AcaoAuditoria = "criar" | "aprovar" | "recusar" | "inativar" | "reativar" | "consulta";
+export type AcaoAuditoria =
+  | "criar"
+  | "aprovar"
+  | "recusar"
+  | "inativar"
+  | "reativar"
+  | "consulta"
+  | "revelar"
+  | "reenviar";
 
 export type EventoAuditoria = {
   usuarioId: string | null;

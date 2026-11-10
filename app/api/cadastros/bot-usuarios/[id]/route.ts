@@ -1,5 +1,6 @@
 import { exigirSessaoAdmin } from "@/lib/auth/contratos-sessao";
 import { MSG_GRAVACAO, MSG_JSON, MSG_NAO_ENCONTRADO } from "@/lib/bot/mensagens";
+import { exigirMutacaoAdmin } from "@/lib/bot/origem";
 import { aplicarAcao, obterUsuario } from "@/lib/bot/usuarios";
 
 export const dynamic = "force-dynamic";
@@ -16,9 +17,9 @@ export async function GET(request: Request, context: Ctx) {
   return Response.json({ ok: true, data: usuario });
 }
 
-/** Aprovar, recusar, inativar ou reativar. Não altera telefone, papel, e-mail, setor nem outros_setores. */
+/** Aprovar, recusar, inativar, reativar ou marcar reenvio. Não envia mensagem. */
 export async function PATCH(request: Request, context: Ctx) {
-  const recusa = exigirSessaoAdmin(request);
+  const recusa = exigirMutacaoAdmin(request);
   if (recusa) return recusa;
   const { id } = await context.params;
   let body: unknown;

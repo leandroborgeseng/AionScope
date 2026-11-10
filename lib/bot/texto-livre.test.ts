@@ -16,6 +16,16 @@ test("setor e outros_setores: trim, limite e texto puro", () => {
   assert.deepEqual(normalizarTextoLivre(alem, SETOR_TAMANHO_MAXIMO), { ok: false });
 });
 
+test("invisíveis e bidi (Cf) são recusados sem devolver o caractere", () => {
+  for (const caractere of ["\u200B", "\u200E", "\u202E", "\u2066", "\uFEFF", "\u00AD"]) {
+    const entrada = `UTI${caractere}ZZ`;
+    const resultado = normalizarTextoLivre(entrada, SETOR_TAMANHO_MAXIMO);
+    assert.deepEqual(resultado, { ok: false });
+    assert.equal(JSON.stringify(resultado).includes(caractere), false);
+    assert.equal(JSON.stringify(resultado).includes("ZZ"), false);
+  }
+});
+
 test("HTML e caracteres de controle são recusados, sem interpretar entidade", () => {
   for (const entrada of ["UTI <script>alert(1)</script>", "Plantao ZZ\nnoturno", "UTI\u0000ZZ", "aba\u2028c", "x\ty"]) {
     assert.deepEqual(normalizarTextoLivre(entrada, SETOR_TAMANHO_MAXIMO), { ok: false }, entrada);
