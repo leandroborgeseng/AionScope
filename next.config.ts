@@ -11,6 +11,18 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [{ source: "/sala/processos", destination: "/sala", permanent: false }];
   },
+  async headers() {
+    return [
+      {
+        source: "/convite/:token*",
+        headers: [
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Robots-Tag", value: "noindex" },
+          { key: "Cache-Control", value: "no-store" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

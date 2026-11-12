@@ -78,7 +78,7 @@ export function NavMenu({ pathname, onNavigate }: { pathname: string; onNavigate
 
   const inSala = pathMatches(pathname, "/sala");
   const inIndicadores = pathMatches(pathname, INDICADORES_HUB_HREF);
-  const inCadastros = pathMatches(pathname, CADASTROS_HUB_HREF);
+  const inCadastros = pathMatches(pathname, CADASTROS_HUB_HREF) || pathname.startsWith("/admin/bot-usuarios");
 
   const [salaOpen, setSalaOpen] = useState(inSala);
   const [indicadoresOpen, setIndicadoresOpen] = useState(inIndicadores);

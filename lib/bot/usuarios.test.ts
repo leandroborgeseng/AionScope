@@ -16,9 +16,13 @@ import {
 } from "./auditoria";
 import {
   MSG_AUDITORIA_RECUSADA,
+  MSG_ACAO_INVALIDA,
   MSG_CORPO_ACAO,
   MSG_CORPO_CADASTRO,
+  MSG_MOTIVO_INVALIDO,
+  MSG_NOME_INVALIDO,
   MSG_OUTROS_SETORES_INVALIDO,
+  MSG_PAPEL_INVALIDO,
   MSG_SETOR_INVALIDO,
   MSG_TELEFONE_APROVADO,
   RECUSA_CADASTRO,
@@ -27,7 +31,7 @@ import {
 } from "./mensagens";
 import { APROVADOR_BOT_V1, PAPEIS_BOT_ENV, PAPEIS_BOT_PADRAO, canonizarPapel, papeisBot } from "./papeis";
 import { SETOR_TAMANHO_MAXIMO } from "./texto-livre";
-import { aplicarAcao, criarUsuario, listarConflito, listarUsuarios, resolverRemetente } from "./usuarios";
+import { aplicarAcao, criarUsuario, listarConflito, listarUsuarios, resolverRemetente, revelarTelefone } from "./usuarios";
 
 const TEL = "+55 11 90000-0001";
 const TEL_SEM_55 = "11 90000-0001";
@@ -115,7 +119,7 @@ test("grafias do mesmo número resolvem o mesmo cadastro; unicidade só entre ap
   assert.equal(verdadeiro.ok, true);
   assert.equal(ids("pendente").length, 2);
 
-  const aprovado = aplicarAcao(verdadeiro.ok ? verdadeiro.data.id : "", { acao: "aprovar" });
+  const aprovado = aplicarAcao(verdadeiro.ok ? verdadeiro.data.id : "", { acao: "aprovar", papel: "Compras" });
   assert.equal(aprovado.ok, true);
   if (aprovado.ok) {
     assert.equal(aprovado.data.situacao, "ativo");
@@ -123,7 +127,7 @@ test("grafias do mesmo número resolvem o mesmo cadastro; unicidade só entre ap
     assert.ok(aprovado.data.verificado_em);
   }
 
-  const bloqueado = aplicarAcao(falso.ok ? falso.data.id : "", { acao: "aprovar" });
+  const bloqueado = aplicarAcao(falso.ok ? falso.data.id : "", { acao: "aprovar", papel: "Compras" });
   assert.deepEqual(bloqueado, { ok: false, status: 409, message: MSG_TELEFONE_APROVADO });
   assert.equal(JSON.stringify(bloqueado).includes(TEL_DIGITO), false);
   assert.equal(ids("pendente").length, 1);
@@ -162,12 +166,12 @@ test("inativo continua ocupando o número; recusado não ocupa", () => {
   const primeiro = criarUsuario(pedido(TEL));
   assert.equal(primeiro.ok, true);
   const id = primeiro.ok ? primeiro.data.id : "";
-  assert.equal(aplicarAcao(id, { acao: "aprovar" }).ok, true);
+  assert.equal(aplicarAcao(id, { acao: "aprovar", papel: "Compras" }).ok, true);
   assert.equal(aplicarAcao(id, { acao: "inativar" }).ok, true);
 
   const pendente = criarUsuario(pedido(TEL_SEM_55));
   assert.equal(pendente.ok, true);
-  const negado = aplicarAcao(pendente.ok ? pendente.data.id : "", { acao: "aprovar" });
+  const negado = aplicarAcao(pendente.ok ? pendente.data.id : "", { acao: "aprovar", papel: "Compras" });
   assert.equal(negado.ok, false);
   if (!negado.ok) assert.equal(negado.message, MSG_TELEFONE_APROVADO);
 
@@ -177,14 +181,14 @@ test("inativo continua ocupando o número; recusado não ocupa", () => {
   assert.equal(aplicarAcao(recusado.ok ? recusado.data.id : "", { acao: "recusar" }).ok, true);
   const depois = criarUsuario(pedido(TEL_SEM_9, { nome: "Bruno Exemplo" }));
   assert.equal(depois.ok, true);
-  assert.equal(aplicarAcao(depois.ok ? depois.data.id : "", { acao: "aprovar" }).ok, true);
+  assert.equal(aplicarAcao(depois.ok ? depois.data.id : "", { acao: "aprovar", papel: "Compras" }).ok, true);
 });
 
 test("A12: fora do cadastro, inativo e mal formatado recusam sem nenhum dado", () => {
   const criado = criarUsuario(pedido(OUTRO, { nome: "Bruno Exemplo" }));
   assert.equal(criado.ok, true);
   const id = criado.ok ? criado.data.id : "";
-  assert.equal(aplicarAcao(id, { acao: "aprovar" }).ok, true);
+  assert.equal(aplicarAcao(id, { acao: "aprovar", papel: "Compras" }).ok, true);
   assert.equal(aplicarAcao(id, { acao: "inativar" }).ok, true);
 
   const fora = resolverRemetente(TEL);
@@ -231,13 +235,19 @@ test("listagem mascara telefone e e-mail; auditoria não leva dado sensível nem
       "aprovado_por",
       "atualizado_em",
       "criado_em",
+      "descricao_funcao",
       "dono",
       "email_mascarado",
+      "entrega_pedido_em",
+      "entrega_status",
+      "funcao_declarada",
       "id",
+      "motivo_recusa",
       "nome",
       "outros_setores",
       "papel",
       "setor",
+      "setores",
       "situacao",
       "telefone_mascarado",
       "verificado_em",
@@ -319,7 +329,7 @@ test("POST cria só pendente; ativação só pela ação aprovar", () => {
     "pendente",
   );
 
-  const aprovado = aplicarAcao(criado.data.id, { acao: "aprovar" });
+  const aprovado = aplicarAcao(criado.data.id, { acao: "aprovar", papel: "Compras" });
   assert.equal(aprovado.ok, true);
   if (aprovado.ok) {
     assert.equal(aprovado.data.situacao, "ativo");
@@ -383,6 +393,131 @@ test("papel e retenção são configuráveis; papel não é a lista de setor", (
   assert.equal(noBanco.n, 2);
 });
 
+test("nome, setor e outros_setores recusam U+200B e U+202E sem ecoar", () => {
+  const antes = totalUsuarios();
+  const nome = criarUsuario(pedido(TEL, { nome: "ZZNOME\u200BExemplo" }));
+  assert.deepEqual(nome, { ok: false, status: 400, message: MSG_NOME_INVALIDO });
+  assert.equal(JSON.stringify(nome).includes("\u200B"), false);
+  assert.equal(JSON.stringify(nome).includes("ZZNOME"), false);
+
+  const setor = criarUsuario(pedido(TEL, { setor: "ZZSETOR\u202E" }));
+  assert.deepEqual(setor, { ok: false, status: 400, message: MSG_SETOR_INVALIDO });
+  assert.equal(JSON.stringify(setor).includes("\u202E"), false);
+  assert.equal(JSON.stringify(setor).includes("ZZSETOR"), false);
+
+  const outros = criarUsuario(pedido(OUTRO, { outros_setores: "ZZOUTRO\u200B" }));
+  assert.deepEqual(outros, { ok: false, status: 400, message: MSG_OUTROS_SETORES_INVALIDO });
+  assert.equal(JSON.stringify(outros).includes("\u200B"), false);
+  assert.equal(JSON.stringify(outros).includes("ZZOUTRO"), false);
+  assert.equal(totalUsuarios(), antes);
+});
+
+test("aprovar exige papel da lista; sem papel ou papel inválido não grava nem audita sucesso", () => {
+  const criado = criarUsuario(pedido(TEL, { papel: "Compras" }));
+  assert.equal(criado.ok, true);
+  if (!criado.ok) return;
+  const antes = (getDb().prepare("SELECT COUNT(*) n FROM bot_auditoria").get() as { n: number }).n;
+  const sem = aplicarAcao(criado.data.id, { acao: "aprovar" });
+  assert.deepEqual(sem, { ok: false, status: 400, message: MSG_PAPEL_INVALIDO });
+  const ruim = aplicarAcao(criado.data.id, { acao: "aprovar", papel: "Enfermagem" });
+  assert.deepEqual(ruim, { ok: false, status: 400, message: MSG_PAPEL_INVALIDO });
+  process.env[PAPEIS_BOT_ENV] = "Papel ZZTESTE";
+  const fora = aplicarAcao(criado.data.id, { acao: "aprovar", papel: "Compras" });
+  delete process.env[PAPEIS_BOT_ENV];
+  assert.deepEqual(fora, { ok: false, status: 400, message: MSG_PAPEL_INVALIDO });
+  const linha = getDb().prepare("SELECT situacao, papel FROM bot_usuario WHERE id = ?").get(criado.data.id) as {
+    situacao: string;
+    papel: string;
+  };
+  assert.equal(linha.situacao, "pendente");
+  assert.equal(linha.papel, "Compras");
+  assert.equal((getDb().prepare("SELECT COUNT(*) n FROM bot_auditoria").get() as { n: number }).n, antes);
+  const aprovado = aplicarAcao(criado.data.id, { acao: "aprovar", papel: "Manutenção" });
+  assert.equal(aprovado.ok, true);
+  if (aprovado.ok) {
+    assert.equal(aprovado.data.papel, "Manutenção");
+    assert.equal(aprovado.data.situacao, "ativo");
+    assert.equal(aprovado.data.aprovado_por, APROVADOR_BOT_V1);
+  }
+  assert.equal(auditoriaTexto().includes("aprovar"), true);
+  assert.equal(auditoriaTexto().includes("Manutenção"), false);
+});
+
+test("recusa guarda motivo curto e rejeita caractere invisível sem ecoar", () => {
+  const criado = criarUsuario(pedido(TEL));
+  assert.equal(criado.ok, true);
+  if (!criado.ok) return;
+  const ruim = aplicarAcao(criado.data.id, { acao: "recusar", motivo: "ZZMOTIVO\u202E" });
+  assert.deepEqual(ruim, { ok: false, status: 400, message: MSG_MOTIVO_INVALIDO });
+  assert.equal(JSON.stringify(ruim).includes("ZZMOTIVO"), false);
+  assert.equal(JSON.stringify(ruim).includes("\u202E"), false);
+  const ok = aplicarAcao(criado.data.id, { acao: "recusar", motivo: "Fora do piloto" });
+  assert.equal(ok.ok, true);
+  if (ok.ok) assert.equal(ok.data.motivo_recusa, "Fora do piloto");
+  const gravado = getDb().prepare("SELECT situacao, papel FROM bot_usuario WHERE id = ?").get(criado.data.id) as {
+    situacao: string;
+    papel: string;
+  };
+  assert.equal(gravado.situacao, "recusado");
+  assert.equal(gravado.papel, "");
+  assert.equal(ok.ok && ok.data.papel, "");
+  const trilha = auditoriaTexto();
+  assert.equal(trilha.includes("recusar"), true);
+  assert.equal(trilha.includes("Compras"), false);
+  assert.equal(trilha.includes("Fora do piloto"), false);
+  assert.equal(trilha.includes("ZZMOTIVO"), false);
+});
+
+test("reenviar só marca o pedido de quem está ativo e ainda não recebeu", () => {
+  const criado = criarUsuario(pedido(TEL, { nome: "Bruno Exemplo" }));
+  assert.equal(criado.ok, true);
+  if (!criado.ok) return;
+  assert.equal(aplicarAcao(criado.data.id, { acao: "aprovar", papel: "Compras" }).ok, true);
+  getDb().prepare("UPDATE bot_usuario SET entrega_status = 'enviada' WHERE id = ?").run(criado.data.id);
+  const enviada = aplicarAcao(criado.data.id, { acao: "reenviar" });
+  assert.deepEqual(enviada, { ok: false, status: 409, message: MSG_ACAO_INVALIDA });
+  const aposEnviada = getDb()
+    .prepare("SELECT situacao, entrega_status, entrega_pedido_em FROM bot_usuario WHERE id = ?")
+    .get(criado.data.id) as { situacao: string; entrega_status: string; entrega_pedido_em: string | null };
+  assert.deepEqual(aposEnviada, { situacao: "ativo", entrega_status: "enviada", entrega_pedido_em: null });
+  assert.equal(aplicarAcao(criado.data.id, { acao: "inativar" }).ok, true);
+  const inativo = aplicarAcao(criado.data.id, { acao: "reenviar" });
+  assert.deepEqual(inativo, { ok: false, status: 409, message: MSG_ACAO_INVALIDA });
+  assert.equal(
+    (getDb().prepare("SELECT situacao, entrega_status FROM bot_usuario WHERE id = ?").get(criado.data.id) as { situacao: string; entrega_status: string })
+      .situacao,
+    "inativo",
+  );
+  getDb().prepare("UPDATE bot_usuario SET situacao = 'ativo', entrega_status = 'falhou' WHERE id = ?").run(criado.data.id);
+  const pedidoReenvio = aplicarAcao(criado.data.id, { acao: "reenviar" });
+  assert.equal(pedidoReenvio.ok, true);
+  if (!pedidoReenvio.ok) return;
+  assert.equal(pedidoReenvio.data.situacao, "ativo");
+  assert.equal(pedidoReenvio.data.entrega_status, "pendente");
+  assert.ok(pedidoReenvio.data.entrega_pedido_em);
+  const trilha = auditoriaTexto();
+  assert.equal(trilha.includes("reenviar"), true);
+  assert.equal(trilha.includes(TEL_DIGITO), false);
+  assert.equal(trilha.includes("Bruno Exemplo"), false);
+});
+
+test("revelar grava auditoria sem o número e sem log", async () => {
+  const criado = criarUsuario(pedido(TEL));
+  assert.equal(criado.ok, true);
+  if (!criado.ok) return;
+  await semLog([TEL_DIGITO, "900000001", "Ana Exemplo", EMAIL, SETOR], () => {
+    const revelado = revelarTelefone(criado.data.id);
+    assert.equal(revelado.ok, true);
+    if (revelado.ok) assert.equal(revelado.data.telefone.endsWith("0001"), true);
+  });
+  const trilha = auditoriaTexto();
+  assert.equal(trilha.includes("revelar"), true);
+  assert.equal(trilha.includes(TEL_DIGITO), false);
+  assert.equal(trilha.includes("900000001"), false);
+  assert.equal(trilha.includes(EMAIL), false);
+  assert.equal(trilha.includes(SETOR), false);
+});
+
 test("código de produção do cadastro não loga e não traz número", () => {
   const arquivos = [
     "lib/bot/mensagens.ts",
@@ -390,12 +525,20 @@ test("código de produção do cadastro não loga e não traz número", () => {
     "lib/bot/telefone.ts",
     "lib/bot/texto-livre.ts",
     "lib/bot/auditoria.ts",
+    "lib/bot/origem.ts",
     "lib/bot/usuarios.ts",
+    "lib/bot/apresentacao.ts",
     "lib/db/migrations/015_bot_usuario.ts",
+    "lib/db/migrations/016_bot_entrega.ts",
     "app/api/cadastros/bot-usuarios/route.ts",
     "app/api/cadastros/bot-usuarios/conflitos/route.ts",
     "app/api/cadastros/bot-usuarios/[id]/route.ts",
     "app/api/cadastros/bot-usuarios/[id]/auditoria/route.ts",
+    "app/api/cadastros/bot-usuarios/[id]/telefone/route.ts",
+    "app/admin/bot-usuarios/page.tsx",
+    "components/admin/bot-usuarios/painel.tsx",
+    "components/admin/bot-usuarios/tela.tsx",
+    "components/admin/bot-usuarios/modal-confirmacao.tsx",
   ];
   for (const arquivo of arquivos) {
     const fonte = readFileSync(arquivo, "utf8");

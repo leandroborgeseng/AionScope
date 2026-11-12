@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { mascararTelefone, normalizarTelefone } from "./telefone";
+import { formatarTelefoneCompleto, mascararTelefone, normalizarTelefone } from "./telefone";
 
 const CANONICO = "+5511900000001";
 
@@ -58,4 +58,6 @@ test("máscara mostra só o DDD e os quatro finais", () => {
   assert.equal(mascararTelefone(CANONICO), "+55 11 •••••-0001");
   assert.equal(mascararTelefone(CANONICO).includes("90000"), false);
   assert.equal(mascararTelefone("nao-e-telefone"), "+55 •• ••••-••••");
+  assert.equal(formatarTelefoneCompleto(CANONICO), "+55 11 90000-0001");
+  assert.equal(formatarTelefoneCompleto("+5511900000002"), "+55 11 90000-0002");
 });

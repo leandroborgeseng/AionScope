@@ -15,11 +15,20 @@ export const BOT_AUDITORIA_MESES_BANCO_ENV = "AIONSCOPE_BOT_AUDITORIA_MESES_BANC
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const CHAVES = ["usuarioId", "ator", "acao", "recurso", "status"] as const;
 
-export type AcaoAuditoria = "criar" | "aprovar" | "recusar" | "inativar" | "reativar" | "consulta";
+export type AcaoAuditoria =
+  | "criar"
+  | "aprovar"
+  | "recusar"
+  | "inativar"
+  | "reativar"
+  | "consulta"
+  | "revelar"
+  | "reenviar"
+  | "excluir";
 
 export type EventoAuditoria = {
   usuarioId: string | null;
-  ator: "admin" | "canal";
+  ator: "admin" | "canal" | "formulario";
   acao: AcaoAuditoria;
   recurso: "cadastro";
   status: number;
@@ -71,7 +80,7 @@ function eventoSeguro(evento: EventoAuditoria) {
     return false;
   }
   if (evento.usuarioId !== null && !UUID.test(evento.usuarioId)) return false;
-  if (evento.ator !== "admin" && evento.ator !== "canal") return false;
+  if (evento.ator !== "admin" && evento.ator !== "canal" && evento.ator !== "formulario") return false;
   if (!/^[a-z]{3,16}$/.test(evento.acao)) return false;
   if (evento.recurso !== "cadastro") return false;
   if (!Number.isInteger(evento.status) || evento.status < 100 || evento.status > 599) return false;

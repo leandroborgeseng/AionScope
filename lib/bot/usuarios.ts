@@ -18,6 +18,7 @@ import {
   MSG_EMAIL_INVALIDO,
   MSG_GRAVACAO,
   MSG_JSON,
+  MSG_MOTIVO_INVALIDO,
   MSG_NAO_ENCONTRADO,
   MSG_NOME_INVALIDO,
   MSG_OUTROS_SETORES_INVALIDO,
@@ -37,11 +38,14 @@ export { RECUSA_CADASTRO, RESPOSTA_PUBLICA_CADASTRO, respostaPublicaCadastro } f
 
 const NOME_MAXIMO = 120;
 const DONO_MAXIMO = 80;
+const MOTIVO_MAXIMO = 80;
 const DONO_PADRAO = "dpo";
 const SITUACOES = new Set(["pendente", "ativo", "inativo", "recusado"]);
-const ACOES = ["aprovar", "recusar", "inativar", "reativar"] as const;
+const ACOES = ["aprovar", "recusar", "inativar", "reativar", "reenviar"] as const;
+const ENTREGAS = new Set(["pendente", "enviada", "falhou"]);
 
 type Situacao = "pendente" | "ativo" | "inativo" | "recusado";
+type EntregaStatus = "pendente" | "enviada" | "falhou";
 type Acao = (typeof ACOES)[number];
 
 const CHAVES_CRIACAO = new Set(["nome", "papel", "telefone", "dono", "email", "setor", "outros_setores", "situacao"]);
@@ -60,6 +64,11 @@ type Linha = {
   criado_em: string;
   atualizado_em: string;
   verificado_em: string | null;
+  entrega_status: string;
+  entrega_pedido_em: string | null;
+  motivo_recusa: string | null;
+  funcao_declarada: string | null;
+  descricao_funcao: string | null;
 };
 
 export type UsuarioLista = {
@@ -76,23 +85,49 @@ export type UsuarioLista = {
   criado_em: string;
   atualizado_em: string;
   verificado_em: string | null;
+  entrega_status: EntregaStatus;
+  entrega_pedido_em: string | null;
+  motivo_recusa: string | null;
+  funcao_declarada: string | null;
+  descricao_funcao: string | null;
+  setores: SetorVinculo[];
 };
+
+export type SetorVinculo = { codigo: string; nome: string };
 
 export type FalhaCadastro = { ok: false; status: 400 | 404 | 409 | 500; message: string };
 export type OkCadastro = { ok: true; data: UsuarioLista };
 
 const COLUNAS = `id, nome, papel, telefone_e164, situacao, dono, email, setor, outros_setores,
-  aprovado_por, criado_em, atualizado_em, verificado_em`;
+  aprovado_por, criado_em, atualizado_em, verificado_em, entrega_status, entrega_pedido_em, motivo_recusa,
+  funcao_declarada, descricao_funcao`;
 
 const ORIGEM: Record<Acao, Situacao[]> = {
   aprovar: ["pendente"],
   recusar: ["pendente"],
   inativar: ["ativo"],
   reativar: ["inativo"],
+  reenviar: ["ativo"],
 };
 
 function falha(status: FalhaCadastro["status"], message: string): FalhaCadastro {
   return { ok: false, status, message };
+}
+
+function comoEntrega(valor: string | null | undefined): EntregaStatus {
+  return valor && ENTREGAS.has(valor) ? (valor as EntregaStatus) : "pendente";
+}
+
+function setoresDo(id: string): SetorVinculo[] {
+  return getDb()
+    .prepare(
+      `SELECT s.setor_codigo AS codigo, t.nome AS nome
+       FROM bot_usuario_setor s
+       JOIN bot_setor t ON t.codigo = s.setor_codigo
+       WHERE s.usuario_id = ?
+       ORDER BY t.nome`,
+    )
+    .all(id) as SetorVinculo[];
 }
 
 function paraLista(linha: Linha): UsuarioLista {
@@ -110,6 +145,12 @@ function paraLista(linha: Linha): UsuarioLista {
     criado_em: linha.criado_em,
     atualizado_em: linha.atualizado_em,
     verificado_em: linha.verificado_em,
+    entrega_status: comoEntrega(linha.entrega_status),
+    entrega_pedido_em: linha.entrega_pedido_em,
+    motivo_recusa: linha.motivo_recusa,
+    funcao_declarada: linha.funcao_declarada,
+    descricao_funcao: linha.descricao_funcao,
+    setores: setoresDo(linha.id),
   };
 }
 
@@ -195,6 +236,27 @@ export function listarConflito(
   };
 }
 
+/** Mesma resposta de `listarConflito`, resolvendo o número no servidor. A resposta continua mascarada. */
+export function listarConflitoPorId(id: string) {
+  const linha = buscarId(id);
+  if (!linha) return falha(404, MSG_NAO_ENCONTRADO);
+  return listarConflito(linha.telefone_e164);
+}
+
+/**
+ * Devolve o E.164 ao administrador e grava auditoria sem o número.
+ * Não registra log. A tela mostra o valor por pouco tempo e volta a mascarar.
+ */
+export function revelarTelefone(
+  id: string,
+  agora = new Date(),
+): FalhaCadastro | { ok: true; data: { telefone: string } } {
+  const linha = buscarId(id);
+  if (!linha) return falha(404, MSG_NAO_ENCONTRADO);
+  auditar("revelar", linha.id, 200, agora);
+  return { ok: true, data: { telefone: linha.telefone_e164 } };
+}
+
 export function criarUsuario(body: unknown, agora = new Date()): FalhaCadastro | OkCadastro {
   const dados = objeto(body);
   if (!dados) return falha(400, MSG_JSON);
@@ -265,15 +327,31 @@ export function criarUsuario(body: unknown, agora = new Date()): FalhaCadastro |
 export function aplicarAcao(id: string, body: unknown, agora = new Date()): FalhaCadastro | OkCadastro {
   const dados = objeto(body);
   if (!dados) return falha(400, MSG_JSON);
-  const chaves = Object.keys(dados);
-  if (chaves.length !== 1 || chaves[0] !== "acao") return falha(400, MSG_CORPO_ACAO);
+  const chaves = Object.keys(dados).sort();
   const acao = dados.acao;
+  const soAcao = chaves.length === 1 && chaves[0] === "acao";
+  const aprovarComPapel = chaves.length === 2 && chaves[0] === "acao" && chaves[1] === "papel" && acao === "aprovar";
+  const recusarComMotivo = chaves.length === 2 && chaves[0] === "acao" && chaves[1] === "motivo" && acao === "recusar";
+  if (!soAcao && !aprovarComPapel && !recusarComMotivo) return falha(400, MSG_CORPO_ACAO);
   if (typeof acao !== "string" || !ACOES.includes(acao as Acao)) return falha(400, MSG_ACAO_DESCONHECIDA);
   const pedido = acao as Acao;
 
+  let papelNovo: string | null = null;
+  if (aprovarComPapel) {
+    papelNovo = canonizarPapel(dados.papel);
+    if (!papelNovo) return falha(400, MSG_PAPEL_INVALIDO);
+  }
+  let motivoNovo: string | null = null;
+  if (recusarComMotivo) {
+    const motivo = normalizarTextoLivre(dados.motivo, MOTIVO_MAXIMO);
+    if (!motivo.ok) return falha(400, MSG_MOTIVO_INVALIDO);
+    motivoNovo = motivo.texto;
+  }
+  if (pedido === "aprovar" && !papelNovo) return falha(400, MSG_PAPEL_INVALIDO);
+
   const atual = buscarId(id);
   if (!atual) return falha(404, MSG_NAO_ENCONTRADO);
-  if (!ORIGEM[pedido].includes(atual.situacao)) {
+  if (!ORIGEM[pedido].includes(atual.situacao) || (pedido === "reenviar" && atual.entrega_status === "enviada")) {
     auditar(pedido, atual.id, 409, agora);
     return falha(409, MSG_ACAO_INVALIDA);
   }
@@ -281,6 +359,15 @@ export function aplicarAcao(id: string, body: unknown, agora = new Date()): Falh
   const iso = agora.toISOString();
   const db = getDb();
   const tx = db.transaction(() => {
+    if (pedido === "reenviar") {
+      db.prepare(
+        `UPDATE bot_usuario
+         SET entrega_status = 'pendente', entrega_pedido_em = ?, atualizado_em = ?
+         WHERE id = ?`,
+      ).run(iso, iso, atual.id);
+      auditar("reenviar", atual.id, 200, agora);
+      return { ok: true as const, data: paraLista(buscarId(atual.id)!) };
+    }
     if ((pedido === "aprovar" || pedido === "reativar") && outroAprovado(atual.telefone_e164, atual.id)) {
       auditar(pedido, atual.id, 409, agora);
       return falha(409, MSG_TELEFONE_APROVADO);
@@ -291,13 +378,15 @@ export function aplicarAcao(id: string, body: unknown, agora = new Date()): Falh
     const verifica = pedido === "aprovar" || pedido === "reativar";
     db.prepare(
       `UPDATE bot_usuario
-       SET situacao = ?, aprovado_por = ?, atualizado_em = ?, verificado_em = ?
+       SET situacao = ?, papel = ?, aprovado_por = ?, atualizado_em = ?, verificado_em = ?, motivo_recusa = ?
        WHERE id = ?`,
     ).run(
       proxima,
+      pedido === "aprovar" ? papelNovo : pedido === "recusar" ? "" : atual.papel,
       decide ? APROVADOR_BOT_V1 : atual.aprovado_por,
       iso,
       verifica ? iso : atual.verificado_em,
+      recusarComMotivo ? motivoNovo : atual.motivo_recusa,
       atual.id,
     );
     auditar(pedido, atual.id, 200, agora);
@@ -310,6 +399,26 @@ export function aplicarAcao(id: string, body: unknown, agora = new Date()): Falh
     if (conflitoUnico(erro)) return falha(409, MSG_TELEFONE_APROVADO);
     return falha(500, MSG_GRAVACAO);
   }
+}
+
+/**
+ * Apaga o cadastro de verdade (pendente, aprovado ou recusado).
+ * A auditoria fica só com quem excluiu, quando e o id interno.
+ */
+export function excluirUsuario(id: string, agora = new Date()): FalhaCadastro | { ok: true } {
+  const atual = buscarId(id);
+  if (!atual) return falha(404, MSG_NAO_ENCONTRADO);
+  const db = getDb();
+  try {
+    db.transaction(() => {
+      auditar("excluir", atual.id, 200, agora);
+      db.prepare("DELETE FROM bot_usuario_setor WHERE usuario_id = ?").run(atual.id);
+      db.prepare("DELETE FROM bot_usuario WHERE id = ?").run(atual.id);
+    })();
+  } catch {
+    return falha(500, MSG_GRAVACAO);
+  }
+  return { ok: true };
 }
 
 /**

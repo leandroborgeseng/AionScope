@@ -70,6 +70,11 @@ export const CADASTROS = [
     label: "Equipamentos de terceiros",
     blurb: "Situação TERCEIRO… (API, somente leitura): valor de substituição, anexos e preventivas.",
   },
+  {
+    href: "/admin/bot-usuarios",
+    label: "Bot · usuários",
+    blurb: "Aprovar vínculos do assistente. Telefone mascarado e auditoria sem corpo.",
+  },
 ] as const;
 
 export type IndicadorNavItem = (typeof INDICADORES)[number];

@@ -1,16 +1,14 @@
 import { exigirSessaoAdmin } from "@/lib/auth/contratos-sessao";
 import { MSG_GRAVACAO, MSG_JSON } from "@/lib/bot/mensagens";
+import { exigirMutacaoAdmin } from "@/lib/bot/origem";
+import { papeisBot } from "@/lib/bot/papeis";
 import { criarUsuario, listarUsuarios } from "@/lib/bot/usuarios";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function semSessao(request: Request) {
-  return exigirSessaoAdmin(request);
-}
-
 export async function GET(request: Request) {
-  const recusa = semSessao(request);
+  const recusa = exigirSessaoAdmin(request);
   if (recusa) return recusa;
   const url = new URL(request.url);
   return Response.json({
@@ -19,11 +17,12 @@ export async function GET(request: Request) {
       situacao: url.searchParams.get("situacao"),
       papel: url.searchParams.get("papel"),
     }),
+    papeis: papeisBot(),
   });
 }
 
 export async function POST(request: Request) {
-  const recusa = semSessao(request);
+  const recusa = exigirMutacaoAdmin(request);
   if (recusa) return recusa;
   let body: unknown;
   try {

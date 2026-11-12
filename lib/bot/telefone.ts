@@ -59,3 +59,13 @@ export function mascararTelefone(e164: string): string {
   const ocultos = "•".repeat(assinante.length - 4);
   return `+55 ${ddd} ${ocultos}-${ultimos}`;
 }
+
+/** Número completo, só na revelação temporária da tela admin. Não usar em lista nem em log. */
+export function formatarTelefoneCompleto(e164: string): string {
+  const digitos = e164.replace(/\D/g, "");
+  if (!digitos.startsWith("55") || (digitos.length !== 12 && digitos.length !== 13)) return e164;
+  const ddd = digitos.slice(2, 4);
+  const assinante = digitos.slice(4);
+  const corte = assinante.length === 9 ? 5 : 4;
+  return `+55 ${ddd} ${assinante.slice(0, corte)}-${assinante.slice(corte)}`;
+}
