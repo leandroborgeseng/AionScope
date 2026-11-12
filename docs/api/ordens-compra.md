@@ -122,7 +122,7 @@ O lote JSON **não** leva arquivos em base64. Fluxo:
 4. Opcional: `GET /api/v1/ordens-compra/{numero}` — a OC vem com `anexos[]`
 5. Opcional: `GET /api/v1/ordens-compra/{numero}/anexos/{id}` — download/preview com Bearer (`?download=1` força attachment)
 
-Auth em todas as rotas acima (exceto health): `Authorization: Bearer $ORDENS_COMPRA_API_KEY`.
+Auth em todas as rotas acima (exceto health): `Authorization: Bearer $ORDENS_COMPRA_API_KEY`. O cookie do login do site não substitui essa chave, e estas rotas também não exigem o cookie.
 
 Arquivos no volume: pasta `ordens-compra-anexos/` ao lado do SQLite (`DATABASE_PATH`), ou `ORDENS_COMPRA_ANEXOS_PATH`. Tabela `ordem_anexos`. Reenvios do lote **não** apagam anexos (aditivos).
 
