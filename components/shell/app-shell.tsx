@@ -7,9 +7,20 @@ import { cn } from "@/lib/utils";
 import { AionLogo } from "@/components/brand/aion-logo";
 import { NavMenu } from "@/components/shell/nav-menu";
 
+function BotaoSair({ className }: { className?: string }) {
+  return (
+    <form method="post" action="/api/v1/painel/logout" className={className}>
+      <button type="submit" className="text-sm font-semibold text-aion-blue hover:underline">
+        Sair
+      </button>
+    </form>
+  );
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  if (pathname === "/login") return <>{children}</>;
   const isSalaTv =
     pathname === "/sala" ||
     (/^\/sala\/(agora|fluxo|envelhecimento|compras|programadas|ciclo-de-vida|indicadores|treinamentos|evolucao)(\/|$)/.test(
@@ -18,7 +29,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       !pathname.includes("/investimentos"));
 
   if (isSalaTv) {
-    return <>{children}</>;
+    return (
+      <>
+        <BotaoSair className="fixed top-3 right-3 z-[80] rounded-full bg-white/90 px-3 py-1 shadow" />
+        {children}
+      </>
+    );
   }
 
   return (
@@ -54,7 +70,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </div>
         <NavMenu pathname={pathname} onNavigate={() => setOpen(false)} />
-        <p className="mt-auto px-5 pb-5 text-[11px] text-aion-muted">Dashboard interno · America/Sao_Paulo</p>
+        <div className="mt-auto space-y-2 px-5 pb-5">
+          <BotaoSair />
+          <p className="text-[11px] text-aion-muted">Dashboard interno · America/Sao_Paulo</p>
+        </div>
       </aside>
 
       <div className="lg:pl-64">
@@ -68,6 +87,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Menu className="h-5 w-5" />
             </button>
             <AionLogo imgClassName="h-8" />
+            <BotaoSair className="ml-auto" />
           </div>
         </header>
         <main className="p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-4 lg:p-6">

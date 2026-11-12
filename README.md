@@ -83,6 +83,12 @@ Esse endpoint exige `empresasId`. O São Joaquim é o id `2` (`PBI_DEFAULT_EMPRE
 
 As API Routes guardam respostas em memória por 15 minutos (`PBI_CACHE_SECONDS=900`) para não sobrecarregar a GlobalThings. O cadastro de **equipamentos** usa TTL longo (`PBI_CACHE_EQUIPAMENTOS_SECONDS`, padrão 12h) com cache em disco no volume (`/data/pbi-cache`), porque o parque muda pouco.
 
+## Login do site
+
+O site inteiro pede um usuário e uma senha (`AIONSCOPE_PAINEL_USUARIO`, `AIONSCOPE_PAINEL_SENHA`) assinados com `SESSION_SECRET` (mínimo 32 caracteres). Sem qualquer uma dessas variáveis, nada protegido abre. A sessão de administrador dos contratos (`CONTRATOS_ADMIN_PASSWORD`) continua obrigatória nas escritas, por cima desse login.
+
+Ficam de fora do cookie: `/login`, `/api/v1/health`, `/convite/<token>`, os arquivos de `public/` e `/_next/static`, e a API do robô `/api/v1/ordens-compra` (ela segue exigindo `ORDENS_COMPRA_API_KEY`). Detalhe em `docs/ops/login-painel.md`.
+
 ## Convite do grupo (pré-cadastro do bot)
 
 A página pública fica em `/convite/<token>`. O host do link **não está no código**: o admin monta a URL com `AIONSCOPE_CONVITE_ORIGEM` (esquema + host, sem caminho). Em produção o valor é o domínio público do AionScope confirmado pelo DevOps.
