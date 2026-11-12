@@ -21,6 +21,7 @@ import { aplicarMigration013ContratosSuspensao } from "./migrations/013_contrato
 import { aplicarMigration014ParqueHistorico } from "./migrations/014_parque_historico";
 import { aplicarMigration015BotUsuario } from "./migrations/015_bot_usuario";
 import { aplicarMigration016BotEntrega } from "./migrations/016_bot_entrega";
+import { aplicarMigration017BotConvite } from "./migrations/017_bot_convite";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -262,6 +263,8 @@ function migrate(db: Database.Database) {
   aplicarMigration015BotUsuario(db);
   // 016: status de entrega e motivo de recusa. Não envia mensagem.
   aplicarMigration016BotEntrega(db);
+  // 017: link do grupo, setores e campos declarados. Só aditiva; não altera linhas existentes.
+  aplicarMigration017BotConvite(db);
 }
 
 /** Fecha o singleton — só para testes isolados. */
