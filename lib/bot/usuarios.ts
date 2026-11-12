@@ -402,6 +402,26 @@ export function aplicarAcao(id: string, body: unknown, agora = new Date()): Falh
 }
 
 /**
+ * Apaga o cadastro de verdade (pendente, aprovado ou recusado).
+ * A auditoria fica só com quem excluiu, quando e o id interno.
+ */
+export function excluirUsuario(id: string, agora = new Date()): FalhaCadastro | { ok: true } {
+  const atual = buscarId(id);
+  if (!atual) return falha(404, MSG_NAO_ENCONTRADO);
+  const db = getDb();
+  try {
+    db.transaction(() => {
+      auditar("excluir", atual.id, 200, agora);
+      db.prepare("DELETE FROM bot_usuario_setor WHERE usuario_id = ?").run(atual.id);
+      db.prepare("DELETE FROM bot_usuario WHERE id = ?").run(atual.id);
+    })();
+  } catch {
+    return falha(500, MSG_GRAVACAO);
+  }
+  return { ok: true };
+}
+
+/**
  * Identidade do remetente para o bot (ainda sem rota HTTP).
  * Só um cadastro ativo passa. Fora do cadastro, inativo, pendente ou mal formatado
  * devolvem o mesmo objeto, sem nome, telefone, e-mail ou setor.

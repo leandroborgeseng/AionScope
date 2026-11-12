@@ -68,7 +68,7 @@ export type ResultadoAcao = { ok: true } | { ok: false; message: string };
 export type ResultadoRevelar = { ok: true; telefone: string } | { ok: false; message: string };
 export type AuditoriaCarregada = { dias: number; eventos: EventoAuditoriaTela[] };
 
-type ModalAberto = { tipo: "recusar" | "inativar" | "reativar"; usuario: UsuarioBot; origem: HTMLElement | null };
+type ModalAberto = { tipo: "recusar" | "inativar" | "reativar" | "excluir"; usuario: UsuarioBot; origem: HTMLElement | null };
 type ModalLink = { tipo: "gerar" | "revogar"; origem: HTMLElement | null };
 
 function textoPuro(valor: string | null | undefined) {
@@ -87,6 +87,7 @@ export function PainelBotUsuarios({
   duracaoRevelacaoMs = DURACAO_REVELACAO_MS,
   convite,
   onConvite,
+  onExcluir,
 }: {
   fase: "carregando" | "sem-permissao" | "erro" | "pronto";
   usuarios: UsuarioBot[];
@@ -99,6 +100,7 @@ export function PainelBotUsuarios({
   duracaoRevelacaoMs?: number;
   convite?: ConviteGrupoTela | null;
   onConvite?: (corpo: PedidoConvite) => Promise<ResultadoAcao>;
+  onExcluir?: (id: string) => Promise<ResultadoAcao>;
 }) {
   const [aba, setAba] = useState<AbaBot>("pendentes");
   const [filtro, setFiltro] = useState<FiltroTela>(FILTRO_INICIAL);
@@ -224,6 +226,23 @@ export function PainelBotUsuarios({
         if (aviso) setToast(aviso);
       }
       return resultado.ok;
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  async function executarExclusao(usuario: UsuarioBot) {
+    if (!onExcluir) return;
+    setOcupado(true);
+    setErroAcao(null);
+    try {
+      const resultado = await onExcluir(usuario.id);
+      if (!resultado.ok) setErroAcao({ id: usuario.id, message: resultado.message });
+      else {
+        setModal(null);
+        setDetalheId((atual) => (atual === usuario.id ? null : atual));
+        setToast("Cadastro excluído.");
+      }
     } finally {
       setOcupado(false);
     }
@@ -404,6 +423,15 @@ export function PainelBotUsuarios({
             )}
           </div>
         ) : null}
+        <Button
+          type="button"
+          variant="outline"
+          className={`min-h-11 ${BORDA} ${FOCO}`}
+          disabled={ocupado}
+          onClick={(event) => setModal({ tipo: "excluir", usuario, origem: event.currentTarget })}
+        >
+          Excluir cadastro
+        </Button>
         {noDetalhe ? null : (
           <Button
             type="button"
@@ -544,14 +572,23 @@ export function PainelBotUsuarios({
           { id: "acoes", header: "Ações", cell: ({ row }) => acoes(row.original) },
         ];
 
-  const tituloModal = modal?.tipo === "recusar" ? TITULO_RECUSAR : modal?.tipo === "inativar" ? TITULO_INATIVAR : TITULO_REATIVAR;
+  const tituloModal =
+    modal?.tipo === "recusar"
+      ? TITULO_RECUSAR
+      : modal?.tipo === "inativar"
+        ? TITULO_INATIVAR
+        : modal?.tipo === "excluir"
+          ? "Excluir cadastro?"
+          : TITULO_REATIVAR;
   const corpoModal = !modal
     ? ""
     : modal.tipo === "recusar"
       ? textoRecusar(modal.usuario.nome)
       : modal.tipo === "inativar"
         ? textoInativar(modal.usuario.nome)
-        : textoReativar(modal.usuario.nome);
+        : modal.tipo === "excluir"
+          ? `${modal.usuario.nome}: esta ação apaga o nome, o telefone, o e-mail, a função declarada, a descrição e os setores. O assistente deixa de atender este número.`
+          : textoReativar(modal.usuario.nome);
 
   let miolo: ReactNode = null;
   if (fase === "sem-permissao") {
@@ -925,13 +962,19 @@ export function PainelBotUsuarios({
         aberto={Boolean(modal)}
         titulo={tituloModal}
         corpo={corpoModal}
-        rotuloConfirmar={modal?.tipo === "recusar" ? "Recusar" : modal?.tipo === "inativar" ? "Inativar" : "Reativar"}
-        destrutivo={modal?.tipo === "recusar" || modal?.tipo === "inativar"}
+        rotuloConfirmar={
+          modal?.tipo === "recusar" ? "Recusar" : modal?.tipo === "inativar" ? "Inativar" : modal?.tipo === "excluir" ? "Excluir cadastro" : "Reativar"
+        }
+        destrutivo={modal?.tipo === "recusar" || modal?.tipo === "inativar" || modal?.tipo === "excluir"}
         confirmarDesabilitado={ocupado}
         origem={modal?.origem ?? null}
         onFechar={() => setModal(null)}
         onConfirmar={() => {
           if (!modal) return;
+          if (modal.tipo === "excluir") {
+            void executarExclusao(modal.usuario);
+            return;
+          }
           if (modal.tipo === "recusar") {
             const corpo: Record<string, string> = { acao: "recusar" };
             const texto = motivo.trim();

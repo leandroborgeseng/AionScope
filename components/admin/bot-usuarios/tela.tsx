@@ -116,6 +116,17 @@ export function TelaBotUsuarios() {
     [cliente],
   );
 
+  const onExcluir = useCallback(
+    async (id: string): Promise<ResultadoAcao> => {
+      const resposta = await fetch(`/api/cadastros/bot-usuarios/${id}`, { method: "DELETE" });
+      const json = await lerJson(resposta);
+      if (!resposta.ok || json?.ok !== true) return { ok: false, message: mensagemDe(json) };
+      await cliente.invalidateQueries({ queryKey: ["admin", "bot-usuarios"] });
+      return { ok: true };
+    },
+    [cliente],
+  );
+
   const onRevelar = useCallback(async (id: string): Promise<ResultadoRevelar> => {
     const resposta = await fetch(`/api/cadastros/bot-usuarios/${id}/telefone`, { method: "POST" });
     const json = await lerJson(resposta);
@@ -151,6 +162,7 @@ export function TelaBotUsuarios() {
       onCarregarAuditoria={onCarregarAuditoria}
       convite={convite.isSuccess ? convite.data : null}
       onConvite={fase === "pronto" && convite.isSuccess ? onConvite : undefined}
+      onExcluir={onExcluir}
     />
   );
 }

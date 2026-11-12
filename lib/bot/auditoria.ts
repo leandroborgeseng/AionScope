@@ -23,7 +23,8 @@ export type AcaoAuditoria =
   | "reativar"
   | "consulta"
   | "revelar"
-  | "reenviar";
+  | "reenviar"
+  | "excluir";
 
 export type EventoAuditoria = {
   usuarioId: string | null;

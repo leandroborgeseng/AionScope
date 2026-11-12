@@ -164,6 +164,7 @@ export function rotuloAcao(acao: string) {
     consulta: "Consulta",
     revelar: "Revelação do número",
     reenviar: "Pedido de reenvio",
+    excluir: "Exclusão",
   };
   return mapa[acao] ?? acao;
 }
