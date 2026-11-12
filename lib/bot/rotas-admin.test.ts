@@ -191,9 +191,9 @@ test("POST /api/cadastros/bot-usuarios só cria pendente", async () => {
   assert.equal(json.data.verificado_em, null);
 });
 
-test("este PR não publica tela nem rota do bot", () => {
+test("a página pública do convite existe e a rota do canal do bot ainda não", () => {
   assert.equal(existsSync("app/api/bot"), false);
-  assert.equal(existsSync("app/convite"), false);
+  assert.equal(existsSync("app/convite/[token]/route.ts"), true);
   assert.equal(existsSync("app/admin/bot-usuarios/page.tsx"), true);
 });
 

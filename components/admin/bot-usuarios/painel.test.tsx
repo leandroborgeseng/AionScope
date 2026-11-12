@@ -334,4 +334,98 @@ test("inativar usa o texto destrutivo e o botão de origem", async () => {
     /Bruno Exemplo deixa de receber respostas imediatamente\. O histórico de auditoria permanece\./,
   );
 });
+
+test("função declarada pré-seleciona o papel e aparece com a descrição e os setores", async () => {
+  await renderizar(
+    <PainelBotUsuarios
+      {...base({
+        usuarios: [
+          {
+            ...ANA,
+            funcao_declarada: "Compras",
+            descricao_funcao: "Cuido dos equipamentos da UTI exemplo",
+            setores: [{ codigo: "55D", nome: "ALMOXARIFADO AION" }],
+            email_mascarado: "a•••@a•••",
+          },
+        ],
+      })}
+    />,
+  );
+  const select = document.querySelector('select[aria-label="Papel de Ana Exemplo"]') as HTMLSelectElement;
+  assert.equal(select.value, "Compras");
+  assert.equal(botao("Aprovar")?.disabled, false);
+  const texto = document.body.textContent ?? "";
+  assert.match(texto, /Função declarada: Compras/);
+  assert.match(texto, /Cuido dos equipamentos da UTI exemplo/);
+  assert.match(texto, /ALMOXARIFADO AION/);
+  assert.match(texto, /a•••@a•••/);
+  assert.equal(texto.includes("Meu setor não está na lista"), false);
+});
+
+test("cancelar Excluir cadastro não chama a ação", async () => {
+  let chamadas = 0;
+  await renderizar(
+    <PainelBotUsuarios
+      {...base({
+        onExcluir: async () => {
+          chamadas += 1;
+          return { ok: true };
+        },
+      })}
+    />,
+  );
+  await act(async () => {
+    botao("Excluir cadastro")?.click();
+  });
+  const dialog = document.querySelector("[role='dialog']") as HTMLElement;
+  assert.match(dialog.textContent ?? "", /Excluir cadastro\?/);
+  assert.match(dialog.textContent ?? "", /apaga o nome, o telefone, o e-mail/);
+  await act(async () => {
+    botao("Cancelar", dialog)?.click();
+  });
+  assert.equal(chamadas, 0);
+  assert.equal(document.querySelector("[role='dialog']"), null);
+});
+
+test("gerar novo link pede confirmação e cancelar não revoga", async () => {
+  let pedido = "";
+  await renderizar(
+    <PainelBotUsuarios
+      {...base({
+        convite: {
+          validade_dias: 7,
+          ativo: {
+            expira_em: "2026-11-19T00:00:00.000Z",
+            criado_em: "2026-11-12T00:00:00.000Z",
+            cadastros: 2,
+            url: "https://painel.exemplo.test/convite/token-sintetico-de-teste",
+          },
+        },
+        onConvite: async (corpo) => {
+          pedido = JSON.stringify(corpo);
+          return { ok: true };
+        },
+      })}
+    />,
+  );
+  assert.match(document.body.textContent ?? "", /2 cadastros por este link/);
+  await act(async () => {
+    botao("Gerar novo link")?.click();
+  });
+  const dialog = document.querySelector("[role='dialog']") as HTMLElement;
+  assert.match(dialog.textContent ?? "", /O link anterior deixa de valer na hora/);
+  await act(async () => {
+    botao("Cancelar", dialog)?.click();
+  });
+  assert.equal(pedido, "");
+  await act(async () => {
+    botao("Gerar novo link")?.click();
+  });
+  const deNovo = document.querySelector("[role='dialog']") as HTMLElement;
+  const confirmar = [...deNovo.querySelectorAll("button")].find((el) => el.textContent?.trim() === "Gerar novo link");
+  await act(async () => {
+    confirmar?.click();
+  });
+  assert.equal(pedido, JSON.stringify({ acao: "gerar" }));
+});
 });
