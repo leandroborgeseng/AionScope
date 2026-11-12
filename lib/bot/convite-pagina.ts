@@ -34,6 +34,16 @@ const ESTILO = `
     padding: 20px 16px 24px;
     box-shadow: 0 1px 2px rgba(1, 104, 176, 0.06), 0 10px 28px rgba(1, 104, 176, 0.05);
   }
+  .marca {
+    display: block;
+    width: 100%;
+    max-width: 180px;
+    height: auto;
+    max-height: 64px;
+    aspect-ratio: 980 / 285;
+    object-fit: contain;
+    margin: 0 0 16px;
+  }
   h1 { font-size: 1.25rem; margin: 0; }
   .sub { margin: 4px 0 16px; color: #3e5563; }
   .aviso {
@@ -397,6 +407,7 @@ function documento(titulo: string, miolo: string, script = "") {
   <main class="moldura">
     <article class="cartao">
       <header>
+        <img class="marca" src="/aion-logo.png" alt="Aion Engenharia" width="980" height="285">
         <h1>Engenharia Clínica · AionScope</h1>
         <p class="sub">Cadastro do assistente de consultas</p>
       </header>

@@ -6,9 +6,12 @@ import { after, before, beforeEach, test } from "node:test";
 import { COOKIE_SESSAO_CONTRATOS, criarTokenSessao } from "@/lib/auth/contratos-sessao";
 import { emitirConviteGrupo, lerConviteGrupo, revogarConviteAtivo, definirValidadeDias } from "@/lib/bot/convite";
 import { LIMITE_IP_ENV, LIMITE_TEL_ENV, TRUST_CF_CONNECTING_IP } from "@/lib/bot/convite-limite";
+import { paginaFormulario, paginaInativa } from "@/lib/bot/convite-pagina";
 import {
   MSG_CARACTERES_PROIBIDOS,
+  MSG_CONVITE_AGORA,
   MSG_CONVITE_ARMADILHA,
+  MSG_CONVITE_OFFLINE,
   MSG_CONVITE_RECEBIDO,
   MSG_CORPO_CADASTRO,
   MSG_EMAIL_EXEMPLO,
@@ -18,8 +21,10 @@ import {
   MSG_TEL_FORMATO,
   msgMaximo,
   AVISO_PRIVACIDADE,
+  RESPOSTA_PUBLICA_CADASTRO,
 } from "@/lib/bot/mensagens";
 import { ORIGENS_PERMITIDAS_ENV } from "@/lib/bot/origem";
+import { APROVADOR_BOT_V1 } from "@/lib/bot/papeis";
 import { aplicarAcao, listarConflitoPorId, resolverRemetente } from "@/lib/bot/usuarios";
 import { closeDbForTests, getDb } from "@/lib/db/client";
 import { RECUSA_CADASTRO } from "@/lib/bot/mensagens";
@@ -480,6 +485,95 @@ test("A64: excluir pendente, aprovado e recusado apaga o dado e a auditoria fica
     [pendente.id, aprovadoId, recusadoId].sort(),
   );
   assert.equal(trilha.every((evento) => evento.ator === "admin" && evento.acao === "excluir" && evento.recurso === "cadastro" && evento.criado_em), true);
+});
+
+const FRASE_RECEBIDO = "Recebemos seu cadastro. A Aion Engenharia vai conferir e liberar seu acesso.";
+const AVISO_CONTROLADOR =
+  "A Engenharia Clínica da Aion Engenharia (AionScope) usa estes dados só para liberar e controlar seu acesso ao assistente de consultas de ordens de serviço e equipamentos.";
+const AVISO_APROVACAO =
+  "Enviar o cadastro não libera o acesso: a Aion Engenharia confere e aprova cada pessoa. Você pode recusar ou pedir a exclusão dos seus dados a qualquer momento, sem prejuízo: é só mandar uma mensagem para a Aion Engenharia no WhatsApp.";
+
+function semNomePessoal(texto: string, estado: string) {
+  assert.equal(/leandro/i.test(texto), false, `${estado}: Leandro`);
+  assert.equal(/borges/i.test(texto), false, `${estado}: Borges`);
+}
+
+function assertLogo(html: string, estado: string) {
+  const marcas = (html.match(/<img\b[^>]*>/gi) ?? []).filter(
+    (tag) => tag.includes('src="/aion-logo.png"') && tag.includes('alt="Aion Engenharia"'),
+  );
+  assert.equal(marcas.length, 1, estado);
+  const marca = marcas[0]!;
+  assert.match(marca, /\bwidth="980"/, estado);
+  assert.match(marca, /\bheight="285"/, estado);
+  assert.match(html, /\.marca\s*\{[^}]*width:\s*100%/, estado);
+  assert.match(html, /\.marca\s*\{[^}]*max-width:\s*180px/, estado);
+  assert.match(html, /\.marca\s*\{[^}]*max-height:\s*64px/, estado);
+  assert.match(html, /\.marca\s*\{[^}]*aspect-ratio:\s*980\s*\/\s*285/, estado);
+  assert.ok(html.indexOf(marca) < html.indexOf("<h1>"), `${estado}: logo no topo`);
+}
+
+test("marca pública: HTML do convite e mensagens ao convidado não citam Leandro", async () => {
+  assert.equal(MSG_CONVITE_RECEBIDO, FRASE_RECEBIDO);
+  assert.equal(AVISO_PRIVACIDADE[0], AVISO_CONTROLADOR);
+  assert.equal(AVISO_PRIVACIDADE[2], AVISO_APROVACAO);
+  assert.equal(APROVADOR_BOT_V1, "Leandro");
+
+  const link = emitirConviteGrupo(AGORA);
+  assert.equal(link.ok, true);
+  if (!link.ok) return;
+  const valido = await abrir(link.token);
+
+  getDb().prepare("UPDATE bot_convite_grupo SET expira_em = ? WHERE id = ?").run("2026-11-01T00:00:00.000Z", link.id);
+  const expirado = await abrir(link.token);
+
+  const outro = emitirConviteGrupo(AGORA);
+  assert.equal(outro.ok, true);
+  if (!outro.ok) return;
+  assert.equal(revogarConviteAtivo(AGORA).ok, true);
+  const revogado = await abrir(outro.token);
+  const invalido = await abrir("token-inexistente-convite-publico");
+
+  const geradoValido = paginaFormulario({
+    csrf: "b".repeat(64),
+    setores: [{ codigo: "55D", nome: "UTI exemplo" }],
+    papeis: ["Compras"],
+  });
+  const geradoInativo = paginaInativa();
+
+  const paginas = [
+    ["válido", valido.html],
+    ["expirado", expirado.html],
+    ["revogado", revogado.html],
+    ["inválido", invalido.html],
+    ["gerado válido", geradoValido],
+    ["gerado inativo", geradoInativo],
+  ] as const;
+  for (const [estado, html] of paginas) {
+    semNomePessoal(html, estado);
+    assertLogo(html, estado);
+    assert.equal(html.toLowerCase().includes(APROVADOR_BOT_V1.toLowerCase()), false, `${estado}: aprovador`);
+  }
+
+  assert.equal(valido.html.includes('id="sucesso"'), true);
+  semNomePessoal(MSG_CONVITE_RECEBIDO, "enviado");
+  assert.equal(valido.html.includes(MSG_CONVITE_OFFLINE), true);
+  for (const [estado, texto] of [
+    ["erro agora", MSG_CONVITE_AGORA],
+    ["erro offline", MSG_CONVITE_OFFLINE],
+    ["erro armadilha", MSG_CONVITE_ARMADILHA],
+    ["erro link", MSG_LINK_INATIVO],
+  ] as const) {
+    semNomePessoal(texto, estado);
+  }
+  assert.equal(expirado.html.includes(MSG_LINK_INATIVO), true);
+  assert.equal(invalido.html.includes(MSG_LINK_INATIVO), true);
+  assert.equal(revogado.html.includes("Enviar cadastro"), false);
+
+  semNomePessoal(RESPOSTA_PUBLICA_CADASTRO.message, "bot");
+  for (const paragrafo of AVISO_PRIVACIDADE) semNomePessoal(paragrafo, "aviso");
+  assert.equal(valido.html.includes(AVISO_CONTROLADOR), true);
+  assert.equal(valido.html.includes(AVISO_APROVACAO), true);
 });
 
 test("validade editável recalcula o link ativo e o código não fixa host", () => {

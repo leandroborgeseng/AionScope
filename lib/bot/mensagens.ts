@@ -39,7 +39,7 @@ export function respostaPublicaCadastro(..._entradas: unknown[]) {
 }
 
 /** Frase única do pré-cadastro (A57). Igual para número novo, pendente ou aprovado. */
-export const MSG_CONVITE_RECEBIDO = "Recebemos seu cadastro. O Leandro vai conferir e liberar seu acesso.";
+export const MSG_CONVITE_RECEBIDO = "Recebemos seu cadastro. A Aion Engenharia vai conferir e liberar seu acesso.";
 export const MSG_LINK_INATIVO = "Este link não está mais ativo. Fale com a Engenharia Clínica para receber um novo.";
 export const MSG_CONVITE_AGORA = "Não foi possível enviar agora. Tente de novo em alguns minutos.";
 export const MSG_CONVITE_OFFLINE = "Sem conexão. Verifique a internet e tente de novo.";
@@ -62,8 +62,8 @@ export function msgMaximo(maximo: number) {
 }
 
 export const AVISO_PRIVACIDADE = [
-  "A Engenharia Clínica (AionScope, Leandro Borges) usa estes dados só para liberar e controlar seu acesso ao assistente de consultas de ordens de serviço e equipamentos.",
+  "A Engenharia Clínica da Aion Engenharia (AionScope) usa estes dados só para liberar e controlar seu acesso ao assistente de consultas de ordens de serviço e equipamentos.",
   "O telefone identifica você no WhatsApp. O e-mail serve para contato sobre o seu acesso. A função e os setores servem para o assistente mostrar só o que é da sua área.",
-  "Enviar o cadastro não libera o acesso: o Leandro confere e aprova cada pessoa. Você pode recusar ou pedir a exclusão dos seus dados a qualquer momento, sem prejuízo: é só mandar uma mensagem para o Leandro no WhatsApp.",
+  "Enviar o cadastro não libera o acesso: a Aion Engenharia confere e aprova cada pessoa. Você pode recusar ou pedir a exclusão dos seus dados a qualquer momento, sem prejuízo: é só mandar uma mensagem para a Aion Engenharia no WhatsApp.",
   "Não pedimos senha, CPF nem dado de paciente.",
 ] as const;
