@@ -27,7 +27,7 @@ export type AcaoAuditoria =
 
 export type EventoAuditoria = {
   usuarioId: string | null;
-  ator: "admin" | "canal";
+  ator: "admin" | "canal" | "formulario";
   acao: AcaoAuditoria;
   recurso: "cadastro";
   status: number;
@@ -79,7 +79,7 @@ function eventoSeguro(evento: EventoAuditoria) {
     return false;
   }
   if (evento.usuarioId !== null && !UUID.test(evento.usuarioId)) return false;
-  if (evento.ator !== "admin" && evento.ator !== "canal") return false;
+  if (evento.ator !== "admin" && evento.ator !== "canal" && evento.ator !== "formulario") return false;
   if (!/^[a-z]{3,16}$/.test(evento.acao)) return false;
   if (evento.recurso !== "cadastro") return false;
   if (!Number.isInteger(evento.status) || evento.status < 100 || evento.status > 599) return false;

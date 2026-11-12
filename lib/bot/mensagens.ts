@@ -37,3 +37,33 @@ export function respostaPublicaCadastro(..._entradas: unknown[]) {
   void _entradas;
   return RESPOSTA_PUBLICA_CADASTRO;
 }
+
+/** Frase única do pré-cadastro (A57). Igual para número novo, pendente ou aprovado. */
+export const MSG_CONVITE_RECEBIDO = "Recebemos seu cadastro. O Leandro vai conferir e liberar seu acesso.";
+export const MSG_LINK_INATIVO = "Este link não está mais ativo. Fale com a Engenharia Clínica para receber um novo.";
+export const MSG_CONVITE_AGORA = "Não foi possível enviar agora. Tente de novo em alguns minutos.";
+export const MSG_CONVITE_OFFLINE = "Sem conexão. Verifique a internet e tente de novo.";
+export const MSG_CONVITE_ARMADILHA = "Não foi possível confirmar o envio. Atualize a página e tente de novo.";
+export const MSG_NOME_VAZIO = "Preencha o nome completo.";
+export const MSG_TEL_VAZIO = "Informe seu WhatsApp com DDD.";
+export const MSG_TEL_CONFIRME = "Confirme o número.";
+export const MSG_TEL_DIVERGE = "Os números não coincidem. Confira o DDD e o número.";
+export const MSG_TEL_FORMATO = "Use o DDD e o número, por exemplo (16) 99999-9999.";
+export const MSG_EMAIL_VAZIO = "Informe seu e-mail.";
+export const MSG_EMAIL_EXEMPLO = "Informe um e-mail válido, como nome@hospital.com.br.";
+export const MSG_FUNCAO_VAZIA = "Selecione sua função.";
+export const MSG_DESCRICAO_VAZIA = "Descreva sua função.";
+export const MSG_SETOR_OBRIGATORIO = "Selecione pelo menos um setor.";
+export const MSG_ACEITE_OBRIGATORIO = "Marque o aceite para continuar.";
+export const MSG_CARACTERES_PROIBIDOS = "Remova caracteres especiais não permitidos.";
+
+export function msgMaximo(maximo: number) {
+  return `Máximo de ${maximo} caracteres.`;
+}
+
+export const AVISO_PRIVACIDADE = [
+  "A Engenharia Clínica (AionScope, Leandro Borges) usa estes dados só para liberar e controlar seu acesso ao assistente de consultas de ordens de serviço e equipamentos.",
+  "O telefone identifica você no WhatsApp. O e-mail serve para contato sobre o seu acesso. A função e os setores servem para o assistente mostrar só o que é da sua área.",
+  "Enviar o cadastro não libera o acesso: o Leandro confere e aprova cada pessoa. Você pode recusar ou pedir a exclusão dos seus dados a qualquer momento, sem prejuízo: é só mandar uma mensagem para o Leandro no WhatsApp.",
+  "Não pedimos senha, CPF nem dado de paciente.",
+] as const;

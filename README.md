@@ -82,3 +82,11 @@ Esse endpoint exige `empresasId`. O São Joaquim é o id `2` (`PBI_DEFAULT_EMPRE
 ## Cache
 
 As API Routes guardam respostas em memória por 15 minutos (`PBI_CACHE_SECONDS=900`) para não sobrecarregar a GlobalThings. O cadastro de **equipamentos** usa TTL longo (`PBI_CACHE_EQUIPAMENTOS_SECONDS`, padrão 12h) com cache em disco no volume (`/data/pbi-cache`), porque o parque muda pouco.
+
+## Convite do grupo (pré-cadastro do bot)
+
+A página pública fica em `/convite/<token>`. O host do link **não está no código**: o admin monta a URL com `AIONSCOPE_CONVITE_ORIGEM` (esquema + host, sem caminho). Em produção o valor é o domínio público do AionScope confirmado pelo DevOps.
+
+`TRUST_CF_CONNECTING_IP` controla o limite por IP do formulário. O padrão é `false`: o header `CF-Connecting-IP` é ignorado e vale o IP da conexão (último `X-Forwarded-For` ou `x-real-ip`). Na produção, o Traefik passa a aceitar só as faixas da Cloudflare; aí a variável fica `true`. Sem esse filtro, deixe `false`.
+
+O limite padrão é 60 envios por IP a cada 15 minutos e 5 por telefone a cada 60 minutos (`AIONSCOPE_CONVITE_LIMITE_IP`, `AIONSCOPE_CONVITE_LIMITE_IP_MS`, `AIONSCOPE_CONVITE_LIMITE_TELEFONE`, `AIONSCOPE_CONVITE_LIMITE_TELEFONE_MS`). A validade do link nasce em 7 dias e o admin pode alterar.
