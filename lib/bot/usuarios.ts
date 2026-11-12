@@ -67,6 +67,8 @@ type Linha = {
   entrega_status: string;
   entrega_pedido_em: string | null;
   motivo_recusa: string | null;
+  funcao_declarada: string | null;
+  descricao_funcao: string | null;
 };
 
 export type UsuarioLista = {
@@ -86,13 +88,19 @@ export type UsuarioLista = {
   entrega_status: EntregaStatus;
   entrega_pedido_em: string | null;
   motivo_recusa: string | null;
+  funcao_declarada: string | null;
+  descricao_funcao: string | null;
+  setores: SetorVinculo[];
 };
+
+export type SetorVinculo = { codigo: string; nome: string };
 
 export type FalhaCadastro = { ok: false; status: 400 | 404 | 409 | 500; message: string };
 export type OkCadastro = { ok: true; data: UsuarioLista };
 
 const COLUNAS = `id, nome, papel, telefone_e164, situacao, dono, email, setor, outros_setores,
-  aprovado_por, criado_em, atualizado_em, verificado_em, entrega_status, entrega_pedido_em, motivo_recusa`;
+  aprovado_por, criado_em, atualizado_em, verificado_em, entrega_status, entrega_pedido_em, motivo_recusa,
+  funcao_declarada, descricao_funcao`;
 
 const ORIGEM: Record<Acao, Situacao[]> = {
   aprovar: ["pendente"],
@@ -108,6 +116,18 @@ function falha(status: FalhaCadastro["status"], message: string): FalhaCadastro 
 
 function comoEntrega(valor: string | null | undefined): EntregaStatus {
   return valor && ENTREGAS.has(valor) ? (valor as EntregaStatus) : "pendente";
+}
+
+function setoresDo(id: string): SetorVinculo[] {
+  return getDb()
+    .prepare(
+      `SELECT s.setor_codigo AS codigo, t.nome AS nome
+       FROM bot_usuario_setor s
+       JOIN bot_setor t ON t.codigo = s.setor_codigo
+       WHERE s.usuario_id = ?
+       ORDER BY t.nome`,
+    )
+    .all(id) as SetorVinculo[];
 }
 
 function paraLista(linha: Linha): UsuarioLista {
@@ -128,6 +148,9 @@ function paraLista(linha: Linha): UsuarioLista {
     entrega_status: comoEntrega(linha.entrega_status),
     entrega_pedido_em: linha.entrega_pedido_em,
     motivo_recusa: linha.motivo_recusa,
+    funcao_declarada: linha.funcao_declarada,
+    descricao_funcao: linha.descricao_funcao,
+    setores: setoresDo(linha.id),
   };
 }
 

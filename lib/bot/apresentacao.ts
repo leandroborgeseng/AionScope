@@ -22,7 +22,24 @@ export type UsuarioBot = {
   entrega_pedido_em: string | null;
   motivo_recusa: string | null;
   rotulo?: string | null;
+  funcao_declarada?: string | null;
+  descricao_funcao?: string | null;
+  setores?: SetorVinculoTela[];
 };
+
+export type SetorVinculoTela = { codigo: string; nome: string };
+
+export type ConviteGrupoTela = {
+  validade_dias: number;
+  ativo: null | {
+    expira_em: string;
+    criado_em: string;
+    cadastros: number;
+    url: string | null;
+  };
+};
+
+export type PedidoConvite = { acao: "gerar" } | { acao: "revogar" } | { acao: "validade"; dias: number };
 
 export type EventoAuditoriaTela = {
   id: number;
@@ -119,6 +136,13 @@ export function tomEntrega(status: EntregaStatus): "ok" | "warn" | "danger" {
   return "warn";
 }
 
+export function formatarDia(iso: string | null) {
+  if (!iso) return "—";
+  const data = new Date(iso);
+  if (Number.isNaN(data.getTime())) return "—";
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(data);
+}
+
 export function formatarQuando(iso: string | null) {
   if (!iso) return "—";
   const data = new Date(iso);
@@ -147,7 +171,17 @@ export function rotuloAcao(acao: string) {
 function incluiBusca(usuario: UsuarioBot, busca: string) {
   const consulta = busca.trim().toLocaleLowerCase("pt-BR");
   if (!consulta) return true;
-  const alvo = [usuario.nome, usuario.setor, usuario.outros_setores, usuario.papel, usuario.dono, usuario.telefone_mascarado]
+  const alvo = [
+    usuario.nome,
+    usuario.setor,
+    usuario.outros_setores,
+    usuario.papel,
+    usuario.funcao_declarada,
+    usuario.descricao_funcao,
+    usuario.dono,
+    usuario.telefone_mascarado,
+    ...(usuario.setores ?? []).map((setor) => setor.nome),
+  ]
     .filter((parte): parte is string => Boolean(parte))
     .join(" ")
     .toLocaleLowerCase("pt-BR");

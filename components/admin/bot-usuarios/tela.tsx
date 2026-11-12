@@ -6,7 +6,7 @@ import { useSessaoAdmin } from "@/hooks/use-sessao-admin";
 import { PAPEIS_BOT_PADRAO } from "@/lib/bot/papeis";
 import type { AuditoriaCarregada, ResultadoAcao, ResultadoRevelar } from "./painel";
 import { PainelBotUsuarios } from "./painel";
-import type { ConflitoGrupo, EventoAuditoriaTela, UsuarioBot } from "@/lib/bot/apresentacao";
+import type { ConflitoGrupo, ConviteGrupoTela, EventoAuditoriaTela, PedidoConvite, UsuarioBot } from "@/lib/bot/apresentacao";
 
 class ErroPermissao extends Error {}
 
@@ -42,6 +42,18 @@ export function TelaBotUsuarios() {
     },
   });
 
+  const convite = useQuery({
+    queryKey: ["admin", "bot-usuarios", "convite"],
+    enabled: confirmada,
+    queryFn: async () => {
+      const resposta = await fetch("/api/cadastros/bot-usuarios/convite", { cache: "no-store" });
+      const json = await lerJson(resposta);
+      if (resposta.status === 401) throw new ErroPermissao();
+      if (!resposta.ok || !json || json.ok !== true || !json.data || typeof json.data !== "object") throw new Error("convite");
+      return json.data as ConviteGrupoTela;
+    },
+  });
+
   const idsPendentes = (lista.data?.usuarios ?? [])
     .filter((usuario) => usuario.situacao === "pendente")
     .map((usuario) => usuario.id)
@@ -70,8 +82,9 @@ export function TelaBotUsuarios() {
 
   const recarregar = useCallback(() => {
     void lista.refetch();
+    void convite.refetch();
     void conflitos.refetch();
-  }, [lista, conflitos]);
+  }, [lista, convite, conflitos]);
 
   const onAcao = useCallback(
     async (id: string, corpo: Record<string, string>): Promise<ResultadoAcao> => {
@@ -83,6 +96,21 @@ export function TelaBotUsuarios() {
       const json = await lerJson(resposta);
       if (!resposta.ok || json?.ok !== true) return { ok: false, message: mensagemDe(json) };
       await cliente.invalidateQueries({ queryKey: ["admin", "bot-usuarios"] });
+      return { ok: true };
+    },
+    [cliente],
+  );
+
+  const onConvite = useCallback(
+    async (corpo: PedidoConvite): Promise<ResultadoAcao> => {
+      const resposta = await fetch("/api/cadastros/bot-usuarios/convite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(corpo),
+      });
+      const json = await lerJson(resposta);
+      if (!resposta.ok || json?.ok !== true) return { ok: false, message: mensagemDe(json) };
+      await cliente.invalidateQueries({ queryKey: ["admin", "bot-usuarios", "convite"] });
       return { ok: true };
     },
     [cliente],
@@ -121,6 +149,8 @@ export function TelaBotUsuarios() {
       onAcao={onAcao}
       onRevelar={onRevelar}
       onCarregarAuditoria={onCarregarAuditoria}
+      convite={convite.isSuccess ? convite.data : null}
+      onConvite={fase === "pronto" && convite.isSuccess ? onConvite : undefined}
     />
   );
 }

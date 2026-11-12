@@ -33,6 +33,7 @@ import {
   TITULO_RECUSAR,
   divergeRotulo,
   filtrarUsuarios,
+  formatarDia,
   formatarQuando,
   podeReenviar,
   rotuloAcao,
@@ -49,8 +50,10 @@ import {
   tomSituacao,
   type AbaBot,
   type ConflitoGrupo,
+  type ConviteGrupoTela,
   type EventoAuditoriaTela,
   type FiltroTela,
+  type PedidoConvite,
   type UsuarioBot,
 } from "@/lib/bot/apresentacao";
 import { formatarTelefoneCompleto } from "@/lib/bot/telefone";
@@ -66,6 +69,7 @@ export type ResultadoRevelar = { ok: true; telefone: string } | { ok: false; mes
 export type AuditoriaCarregada = { dias: number; eventos: EventoAuditoriaTela[] };
 
 type ModalAberto = { tipo: "recusar" | "inativar" | "reativar"; usuario: UsuarioBot; origem: HTMLElement | null };
+type ModalLink = { tipo: "gerar" | "revogar"; origem: HTMLElement | null };
 
 function textoPuro(valor: string | null | undefined) {
   return valor?.trim() ? valor : "—";
@@ -81,6 +85,8 @@ export function PainelBotUsuarios({
   onRevelar,
   onCarregarAuditoria,
   duracaoRevelacaoMs = DURACAO_REVELACAO_MS,
+  convite,
+  onConvite,
 }: {
   fase: "carregando" | "sem-permissao" | "erro" | "pronto";
   usuarios: UsuarioBot[];
@@ -91,6 +97,8 @@ export function PainelBotUsuarios({
   onRevelar: (id: string) => Promise<ResultadoRevelar>;
   onCarregarAuditoria: (id: string) => Promise<AuditoriaCarregada | null>;
   duracaoRevelacaoMs?: number;
+  convite?: ConviteGrupoTela | null;
+  onConvite?: (corpo: PedidoConvite) => Promise<ResultadoAcao>;
 }) {
   const [aba, setAba] = useState<AbaBot>("pendentes");
   const [filtro, setFiltro] = useState<FiltroTela>(FILTRO_INICIAL);
@@ -107,6 +115,14 @@ export function PainelBotUsuarios({
   const [auditoria, setAuditoria] = useState<AuditoriaCarregada | null>(null);
   const [auditoriaErro, setAuditoriaErro] = useState(false);
   const [hrefLogin, setHrefLogin] = useState(ROTA_LOGIN_ADMIN);
+  const [modalLink, setModalLink] = useState<ModalLink | null>(null);
+  const [diasLink, setDiasLink] = useState(String(convite?.validade_dias ?? 7));
+  const [diasFonte, setDiasFonte] = useState(convite?.validade_dias);
+  if (convite?.validade_dias !== diasFonte) {
+    setDiasFonte(convite?.validade_dias);
+    setDiasLink(String(convite?.validade_dias ?? 7));
+  }
+  const [erroLink, setErroLink] = useState<string | null>(null);
   const detalheRef = useRef<HTMLElement>(null);
   const origemDetalheRef = useRef<HTMLElement | null>(null);
 
@@ -176,6 +192,12 @@ export function PainelBotUsuarios({
   );
   const detalhe = usuarios.find((usuario) => usuario.id === detalheId) ?? null;
 
+  function papelDo(usuario: UsuarioBot) {
+    if (Object.prototype.hasOwnProperty.call(papeisEscolhidos, usuario.id)) return papeisEscolhidos[usuario.id] ?? "";
+    const declarada = usuario.funcao_declarada?.trim() ?? "";
+    return papeis.includes(declarada) ? declarada : "";
+  }
+
   function escolherPapel(id: string, papel: string) {
     setPapeisEscolhidos((atual) => ({ ...atual, [id]: papel }));
     setErroAcao((atual) => (atual?.id === id ? null : atual));
@@ -202,6 +224,25 @@ export function PainelBotUsuarios({
         if (aviso) setToast(aviso);
       }
       return resultado.ok;
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  async function executarLink(corpo: PedidoConvite) {
+    if (!onConvite) return;
+    const tinhaAtivo = Boolean(convite?.ativo);
+    setOcupado(true);
+    setErroLink(null);
+    try {
+      const resultado = await onConvite(corpo);
+      if (!resultado.ok) setErroLink(resultado.message);
+      else {
+        setModalLink(null);
+        if (corpo.acao === "gerar") setToast(tinhaAtivo ? "Novo link gerado. O anterior deixou de valer." : "Link gerado.");
+        if (corpo.acao === "revogar") setToast("Link revogado.");
+        if (corpo.acao === "validade") setToast("Validade atualizada.");
+      }
     } finally {
       setOcupado(false);
     }
@@ -268,7 +309,7 @@ export function PainelBotUsuarios({
 
   function seletorPapel(usuario: UsuarioBot, sufixo: string) {
     const ajudaId = `ajuda-papel-${sufixo}-${usuario.id}`;
-    const escolhido = Boolean(papeisEscolhidos[usuario.id]);
+    const escolhido = Boolean(papelDo(usuario));
     return (
       <div className="grid gap-1" onClick={(event) => event.stopPropagation()}>
         <label className="grid gap-1 text-sm text-aion-ink">
@@ -276,7 +317,7 @@ export function PainelBotUsuarios({
           <select
             className={`min-h-11 rounded-lg border ${BORDA} bg-white px-3 text-sm ${FOCO}`}
             aria-label={`Papel de ${usuario.nome}`}
-            value={papeisEscolhidos[usuario.id] ?? ""}
+            value={papelDo(usuario)}
             onChange={(event) => escolherPapel(usuario.id, event.target.value)}
           >
             <option value="">Escolha o papel</option>
@@ -297,7 +338,7 @@ export function PainelBotUsuarios({
   }
 
   function acoes(usuario: UsuarioBot, noDetalhe = false) {
-    const papel = papeisEscolhidos[usuario.id] ?? "";
+    const papel = papelDo(usuario);
     return (
       <div className="flex flex-col gap-2" onClick={(event) => event.stopPropagation()}>
         {usuario.situacao === "pendente" ? (
@@ -383,6 +424,22 @@ export function PainelBotUsuarios({
     );
   }
 
+  function declarados(usuario: UsuarioBot) {
+    return (
+      <>
+        <p>Função declarada: {textoPuro(usuario.funcao_declarada)}</p>
+        <p className="whitespace-pre-wrap break-words">Descrição: {textoPuro(usuario.descricao_funcao)}</p>
+        <p className="break-words">
+          Setores:{" "}
+          {usuario.setores?.length
+            ? usuario.setores.map((setor) => setor.nome).join(", ")
+            : "—"}
+        </p>
+        <p>E-mail: {textoPuro(usuario.email_mascarado)}</p>
+      </>
+    );
+  }
+
   function cartao(usuario: UsuarioBot) {
     const conflito = temConflito(usuario.id, conflitos[usuario.id]);
     return (
@@ -392,10 +449,13 @@ export function PainelBotUsuarios({
           <Badge tone={tomSituacao(usuario.situacao)}>{rotuloSituacao(usuario.situacao)}</Badge>
         </div>
         {aba === "pendentes" ? (
-          <p className="mt-2 text-sm text-aion-ink">
-            {textoPuro(usuario.setor)}
-            {usuario.outros_setores ? ` · ${usuario.outros_setores}` : ""}
-          </p>
+          <div className="mt-2 space-y-2 text-sm text-aion-ink">
+            <p>
+              {textoPuro(usuario.setor)}
+              {usuario.outros_setores ? ` · ${usuario.outros_setores}` : ""}
+            </p>
+            {declarados(usuario)}
+          </div>
         ) : (
           <p className="mt-2 text-sm text-aion-ink">{usuario.papel || "—"}</p>
         )}
@@ -432,6 +492,22 @@ export function PainelBotUsuarios({
           { id: "nome", header: "Nome", accessorKey: "nome" },
           { id: "setor", header: "Setor", cell: ({ row }) => textoPuro(row.original.setor) },
           { id: "outros", header: "Outros setores", cell: ({ row }) => textoPuro(row.original.outros_setores) },
+          { id: "funcao", header: "Função declarada", cell: ({ row }) => textoPuro(row.original.funcao_declarada) },
+          {
+            id: "descricao",
+            header: "Descrição",
+            cell: ({ row }) => <span className="whitespace-pre-wrap break-words">{textoPuro(row.original.descricao_funcao)}</span>,
+          },
+          {
+            id: "setores",
+            header: "Setores",
+            cell: ({ row }) => (
+              <span className="break-words">
+                {row.original.setores?.length ? row.original.setores.map((setor) => setor.nome).join(", ") : "—"}
+              </span>
+            ),
+          },
+          { id: "email", header: "E-mail", cell: ({ row }) => textoPuro(row.original.email_mascarado) },
           { id: "telefone", header: "Telefone", cell: ({ row }) => telefone(row.original) },
           { id: "pedido", header: "Pedido em", cell: ({ row }) => formatarQuando(row.original.criado_em) },
           {
@@ -551,6 +627,89 @@ export function PainelBotUsuarios({
           </p>
         ) : null}
       </div>
+      {onConvite && fase !== "sem-permissao" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Link do grupo</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {convite?.ativo ? (
+              <>
+                <p className="text-sm text-aion-ink">
+                  Válido até {formatarDia(convite.ativo.expira_em)}. {convite.ativo.cadastros}{" "}
+                  {convite.ativo.cadastros === 1 ? "cadastro por este link" : "cadastros por este link"}.
+                </p>
+                {convite.ativo.url ? (
+                  <Input readOnly aria-label="Link ativo do grupo" value={convite.ativo.url} className={`min-h-11 font-mono text-xs ${BORDA} ${FOCO}`} />
+                ) : (
+                  <p className="text-sm text-aion-ink">Defina AIONSCOPE_CONVITE_ORIGEM para montar o endereço. O link ativo continua valendo.</p>
+                )}
+              </>
+            ) : (
+              <p className="text-sm text-aion-ink">Nenhum link ativo. Gere um para enviar no grupo.</p>
+            )}
+            <label className="grid max-w-xs gap-1 text-sm text-aion-ink">
+              <span className="font-medium">Validade em dias</span>
+              <Input
+                aria-label="Validade do link em dias"
+                inputMode="numeric"
+                value={diasLink}
+                className={`min-h-11 ${BORDA} ${FOCO}`}
+                onChange={(event) => setDiasLink(event.target.value.replace(/\D/g, "").slice(0, 2))}
+              />
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className={`min-h-11 ${BORDA} ${FOCO}`}
+                disabled={!convite?.ativo?.url || ocupado}
+                onClick={() => {
+                  const url = convite?.ativo?.url;
+                  if (!url || !navigator.clipboard?.writeText) return;
+                  void navigator.clipboard.writeText(url).then(() => setToast("Link copiado."));
+                }}
+              >
+                Copiar
+              </Button>
+              <Button
+                type="button"
+                className={`min-h-11 ${FOCO}`}
+                disabled={ocupado}
+                onClick={(event) => {
+                  if (convite?.ativo) setModalLink({ tipo: "gerar", origem: event.currentTarget });
+                  else void executarLink({ acao: "gerar" });
+                }}
+              >
+                Gerar novo link
+              </Button>
+              <Button
+                type="button"
+                variant="danger"
+                className={`min-h-11 ${FOCO}`}
+                disabled={!convite?.ativo || ocupado}
+                onClick={(event) => setModalLink({ tipo: "revogar", origem: event.currentTarget })}
+              >
+                Revogar link
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className={`min-h-11 ${FOCO}`}
+                disabled={ocupado}
+                onClick={() => void executarLink({ acao: "validade", dias: Number(diasLink) })}
+              >
+                Salvar validade
+              </Button>
+            </div>
+            {erroLink ? (
+              <p role="alert" className="text-sm font-medium text-rose-800">
+                {erroLink}
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
+      ) : null}
       {fase !== "sem-permissao" ? (
         <div className="space-y-3">
           <div role="tablist" aria-label="Cadastros do bot" className="flex flex-wrap gap-2">
@@ -688,6 +847,7 @@ export function PainelBotUsuarios({
               ) : null}
               <p className="text-sm text-aion-ink">Setor: {textoPuro(detalhe.setor)}</p>
               <p className="text-sm text-aion-ink">Outros setores: {textoPuro(detalhe.outros_setores)}</p>
+              <div className="space-y-2 text-sm text-aion-ink">{declarados(detalhe)}</div>
               <p className="text-sm text-aion-ink">
                 Situação: <Badge tone={tomSituacao(detalhe.situacao)}>{rotuloSituacao(detalhe.situacao)}</Badge>
               </p>
@@ -695,7 +855,6 @@ export function PainelBotUsuarios({
                 {detalhe.situacao === "pendente" ? TEXTO_PAPEL_PENDENTE : `Papel atual: ${detalhe.papel || "—"}`}
               </p>
               <p className="text-sm text-aion-ink">Dono: {detalhe.dono}</p>
-              {detalhe.email_mascarado ? <p className="text-sm text-aion-ink">E-mail: {detalhe.email_mascarado}</p> : null}
               <p className="text-sm text-aion-muted">Criado {formatarQuando(detalhe.criado_em)}</p>
               <p className="text-sm text-aion-muted">Atualizado {formatarQuando(detalhe.atualizado_em)}</p>
               <p className="text-sm text-aion-muted">Verificado {formatarQuando(detalhe.verificado_em)}</p>
@@ -807,6 +966,24 @@ export function PainelBotUsuarios({
           </p>
         ) : null}
       </ModalConfirmacao>
+      <ModalConfirmacao
+        aberto={Boolean(modalLink)}
+        titulo={modalLink?.tipo === "revogar" ? "Revogar link?" : "Gerar novo link?"}
+        corpo={
+          modalLink?.tipo === "revogar"
+            ? "O link deixa de aceitar cadastro na hora."
+            : "O link anterior deixa de valer na hora. Quem já tiver o endereço antigo não consegue enviar."
+        }
+        rotuloConfirmar={modalLink?.tipo === "revogar" ? "Revogar link" : "Gerar novo link"}
+        destrutivo={modalLink?.tipo === "revogar"}
+        confirmarDesabilitado={ocupado}
+        origem={modalLink?.origem ?? null}
+        onFechar={() => setModalLink(null)}
+        onConfirmar={() => {
+          if (!modalLink) return;
+          void executarLink({ acao: modalLink.tipo });
+        }}
+      />
     </div>
   );
 }
