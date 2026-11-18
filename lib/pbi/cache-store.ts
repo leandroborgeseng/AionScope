@@ -1,5 +1,5 @@
 /** Persistência da cópia da GlobalThings na tabela pbi_cache (migração 012). Nunca guarda token. */
-import { getDb } from "@/lib/db/client";
+import { aposExclusao, getDb } from "@/lib/db/client";
 
 export type CacheRow = {
   cache_key: string;
@@ -78,5 +78,6 @@ export function pruneRows(max: number, protegidas: Set<string>): string[] {
   const apagar = candidatas.map((r) => r.cache_key).filter((k) => !protegidas.has(k)).slice(0, excesso);
   const del = db.prepare("DELETE FROM pbi_cache WHERE cache_key = ?");
   db.transaction(() => apagar.forEach((k) => del.run(k)))();
+  if (apagar.length > 0) aposExclusao(db);
   return apagar;
 }

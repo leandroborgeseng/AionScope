@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { getDb } from "@/lib/db/client";
+import { aposExclusao, getDb } from "@/lib/db/client";
 import { situacaoCompra, type SituacaoCompra } from "./parse-email";
 
 export type CompraRow = {
@@ -422,6 +422,7 @@ export function atualizarCompra(id: string, input: CompraManualInput) {
 
 export function apagarCompra(id: string) {
   const db = getDb();
-  db.prepare("DELETE FROM compra_email WHERE compra_id = ?").run(id);
-  db.prepare("DELETE FROM compra WHERE id = ?").run(id);
+  const emails = db.prepare("DELETE FROM compra_email WHERE compra_id = ?").run(id);
+  const compra = db.prepare("DELETE FROM compra WHERE id = ?").run(id);
+  if (emails.changes > 0 || compra.changes > 0) aposExclusao(db);
 }

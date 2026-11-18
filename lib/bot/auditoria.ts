@@ -4,7 +4,7 @@
  * `AIONSCOPE_BOT_AUDITORIA_DIAS_VISIVEIS` e `AIONSCOPE_BOT_AUDITORIA_MESES_BANCO`
  * sobrescrevem o padrão. Não há coluna de corpo, telefone, e-mail, setor ou nome.
  */
-import { getDb } from "@/lib/db/client";
+import { aposExclusao, getDb } from "@/lib/db/client";
 import { MSG_AUDITORIA_RECUSADA } from "./mensagens";
 
 export const BOT_AUDITORIA_DIAS_VISIVEIS_PADRAO = 90;
@@ -71,7 +71,9 @@ export function limiteBanco(agora: Date) {
 }
 
 export function aplicarRetencao(agora = new Date()) {
-  getDb().prepare("DELETE FROM bot_auditoria WHERE criado_em < ?").run(limiteBanco(agora));
+  const db = getDb();
+  const info = db.prepare("DELETE FROM bot_auditoria WHERE criado_em < ?").run(limiteBanco(agora));
+  if (info.changes > 0) aposExclusao(db);
 }
 
 function eventoSeguro(evento: EventoAuditoria) {

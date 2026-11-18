@@ -1,6 +1,7 @@
 import { credencialConfere } from "@/lib/auth/painel-credencial";
 import { destinoSeguro } from "@/lib/auth/painel-guard";
 import { ipLogin, limiteLogin, limparFalhasLogin, registrarFalhaLogin } from "@/lib/auth/painel-limite";
+import { origemPainelPermitida } from "@/lib/auth/painel-origem";
 import { cookiePainel, emitirSessaoPainel, painelConfigurado } from "@/lib/auth/painel-sessao";
 
 export const dynamic = "force-dynamic";
@@ -10,6 +11,17 @@ const LIMITE_CORPO = 4096;
 const MSG_ERRO = "Usuário ou senha incorretos.";
 const MSG_LIMITE = "Muitas tentativas. Tente de novo em alguns minutos.";
 const MSG_INDISPONIVEL = "Login indisponível.";
+const MSG_ORIGEM = "Origem não permitida.";
+
+function origemRecusada() {
+  return new Response(JSON.stringify({ ok: false, message: MSG_ORIGEM }), {
+    status: 403,
+    headers: {
+      "Content-Type": "application/json; charset=utf-8",
+      "Cache-Control": "private, no-store",
+    },
+  });
+}
 
 function querJson(request: Request) {
   return (request.headers.get("content-type") ?? "").includes("application/json");
@@ -54,6 +66,7 @@ function camposDe(texto: string, jsonBody: boolean): Campos | null {
 }
 
 export async function POST(request: Request) {
+  if (!origemPainelPermitida(request)) return origemRecusada();
   const jsonBody = querJson(request);
   const nextInformado = destinoSeguro(
     new URL(request.url).searchParams.get("next"),

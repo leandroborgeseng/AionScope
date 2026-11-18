@@ -1,4 +1,4 @@
-import { getDb } from "@/lib/db/client";
+import { aposExclusao, concluirExclusao, descartarExclusaoPendente, getDb } from "@/lib/db/client";
 import { listarAnexosOrdem } from "./anexos";
 import {
   CAMPOS_ORDEM,
@@ -118,7 +118,8 @@ function itensDaOrdem(numero: string): ItemOrdem[] {
 
 function substituirItens(numero: string, itens: ItemOrdem[]) {
   const db = getDb();
-  db.prepare("DELETE FROM ordem_itens WHERE numero_ordem = ?").run(numero);
+  const apagados = db.prepare("DELETE FROM ordem_itens WHERE numero_ordem = ?").run(numero);
+  if (apagados.changes > 0) aposExclusao(db);
   const insert = db.prepare(
     `INSERT INTO ordem_itens (
       numero_ordem, descricao, quantidade, unidade, valor_unitario, valor_total, codigo, posicao
@@ -184,66 +185,73 @@ function valoresInsert(parsed: ParsedOrdem, agora: string) {
 export function upsertOrdemCompra(parsed: ParsedOrdem): { created: boolean; ordem: OrdemCompra } {
   const db = getDb();
   const agora = nowIso();
-  return db.transaction(() => {
-    const existente = obterRow(parsed.numero_ordem);
-    if (!existente) {
+  try {
+    const resultado = db.transaction(() => {
+      const existente = obterRow(parsed.numero_ordem);
+      if (!existente) {
+        db.prepare(
+          `INSERT INTO ordens_compra (
+            numero_ordem, status, categoria, data_pedido, data_ordem, data_entrega, itens_entregues,
+            motivo_exclusao, valor_total, fornecedor, numero_orcamento, numero_os, setor_equipamento,
+            origem, solicitante, assunto_email, email_message_id, anexo_origem, confianca, observacoes,
+            ordens_relacionadas, fonte, editado_manualmente, created_at, updated_at
+          ) VALUES (
+            @numero_ordem, @status, @categoria, @data_pedido, @data_ordem, @data_entrega, @itens_entregues,
+            @motivo_exclusao, @valor_total, @fornecedor, @numero_orcamento, @numero_os, @setor_equipamento,
+            @origem, @solicitante, @assunto_email, @email_message_id, @anexo_origem, @confianca, @observacoes,
+            @ordens_relacionadas, @fonte, @editado_manualmente, @created_at, @updated_at
+          )`,
+        ).run(valoresInsert(parsed, agora));
+        if (parsed.itens) substituirItens(parsed.numero_ordem, parsed.itens);
+        return { created: true, ordem: obterOrdemCompra(parsed.numero_ordem)! };
+      }
+
+      const protegido = parseEditado(existente.editado_manualmente);
+      const merged: Record<string, unknown> = { ...existente, updated_at: agora };
+
+      for (const nome of CAMPOS_ORDEM) {
+        if (!Object.prototype.hasOwnProperty.call(parsed.campos, nome)) continue;
+        if (protegido[nome]) continue;
+        const valor = parsed.campos[nome];
+        merged[nome] = nome === "ordens_relacionadas" ? (valor ? JSON.stringify(valor) : null) : (valor ?? null);
+      }
+
+      // data_entrega / itens_entregues nunca vêm do robô — preservados no merge via existente.
       db.prepare(
-        `INSERT INTO ordens_compra (
-          numero_ordem, status, categoria, data_pedido, data_ordem, data_entrega, itens_entregues,
-          motivo_exclusao, valor_total, fornecedor, numero_orcamento, numero_os, setor_equipamento,
-          origem, solicitante, assunto_email, email_message_id, anexo_origem, confianca, observacoes,
-          ordens_relacionadas, fonte, editado_manualmente, created_at, updated_at
-        ) VALUES (
-          @numero_ordem, @status, @categoria, @data_pedido, @data_ordem, @data_entrega, @itens_entregues,
-          @motivo_exclusao, @valor_total, @fornecedor, @numero_orcamento, @numero_os, @setor_equipamento,
-          @origem, @solicitante, @assunto_email, @email_message_id, @anexo_origem, @confianca, @observacoes,
-          @ordens_relacionadas, @fonte, @editado_manualmente, @created_at, @updated_at
-        )`,
-      ).run(valoresInsert(parsed, agora));
-      if (parsed.itens) substituirItens(parsed.numero_ordem, parsed.itens);
-      return { created: true, ordem: obterOrdemCompra(parsed.numero_ordem)! };
-    }
+        `UPDATE ordens_compra SET
+          status = @status,
+          categoria = @categoria,
+          data_pedido = @data_pedido,
+          data_ordem = @data_ordem,
+          valor_total = @valor_total,
+          fornecedor = @fornecedor,
+          numero_orcamento = @numero_orcamento,
+          numero_os = @numero_os,
+          setor_equipamento = @setor_equipamento,
+          origem = @origem,
+          solicitante = @solicitante,
+          assunto_email = @assunto_email,
+          email_message_id = @email_message_id,
+          anexo_origem = @anexo_origem,
+          confianca = @confianca,
+          observacoes = @observacoes,
+          ordens_relacionadas = @ordens_relacionadas,
+          updated_at = @updated_at
+        WHERE numero_ordem = @numero_ordem`,
+      ).run({ ...merged, numero_ordem: parsed.numero_ordem });
 
-    const protegido = parseEditado(existente.editado_manualmente);
-    const merged: Record<string, unknown> = { ...existente, updated_at: agora };
+      if (parsed.itens && !protegido.itens) {
+        substituirItens(parsed.numero_ordem, parsed.itens);
+      }
 
-    for (const nome of CAMPOS_ORDEM) {
-      if (!Object.prototype.hasOwnProperty.call(parsed.campos, nome)) continue;
-      if (protegido[nome]) continue;
-      const valor = parsed.campos[nome];
-      merged[nome] = nome === "ordens_relacionadas" ? (valor ? JSON.stringify(valor) : null) : (valor ?? null);
-    }
-
-    // data_entrega / itens_entregues nunca vêm do robô — preservados no merge via existente.
-    db.prepare(
-      `UPDATE ordens_compra SET
-        status = @status,
-        categoria = @categoria,
-        data_pedido = @data_pedido,
-        data_ordem = @data_ordem,
-        valor_total = @valor_total,
-        fornecedor = @fornecedor,
-        numero_orcamento = @numero_orcamento,
-        numero_os = @numero_os,
-        setor_equipamento = @setor_equipamento,
-        origem = @origem,
-        solicitante = @solicitante,
-        assunto_email = @assunto_email,
-        email_message_id = @email_message_id,
-        anexo_origem = @anexo_origem,
-        confianca = @confianca,
-        observacoes = @observacoes,
-        ordens_relacionadas = @ordens_relacionadas,
-        updated_at = @updated_at
-      WHERE numero_ordem = @numero_ordem`,
-    ).run({ ...merged, numero_ordem: parsed.numero_ordem });
-
-    if (parsed.itens && !protegido.itens) {
-      substituirItens(parsed.numero_ordem, parsed.itens);
-    }
-
-    return { created: false, ordem: obterOrdemCompra(parsed.numero_ordem)! };
-  })();
+      return { created: false, ordem: obterOrdemCompra(parsed.numero_ordem)! };
+    })();
+    concluirExclusao(db);
+    return resultado;
+  } catch (erro) {
+    descartarExclusaoPendente();
+    throw erro;
+  }
 }
 
 export function editarOrdemSala(numero: string, patch: PatchSalaOrdem): OrdemCompra | undefined {

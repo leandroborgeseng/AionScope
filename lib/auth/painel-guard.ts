@@ -155,7 +155,7 @@ export async function decidirPainel(request: Request) {
   const resposta = NextResponse.next();
   resposta.headers.set("Cache-Control", "private, no-store");
   if (sessao.renovar) {
-    const novo = await emitirSessaoPainel();
+    const novo = await emitirSessaoPainel(Date.now(), sessao.auth_time * 1000);
     if (novo) resposta.headers.append("Set-Cookie", cookiePainel(novo));
   }
   return resposta;
