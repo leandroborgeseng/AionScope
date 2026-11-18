@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { getDb } from "./client";
+import { aposExclusao, getDb } from "./client";
 
 export type Impedimento = {
   id: string;
@@ -296,5 +296,7 @@ export function criarFeriado(input: { data: string; nome: string }) {
 }
 
 export function apagarFeriado(id: string) {
-  getDb().prepare("DELETE FROM sala_feriado WHERE id = ?").run(id);
+  const db = getDb();
+  const info = db.prepare("DELETE FROM sala_feriado WHERE id = ?").run(id);
+  if (info.changes > 0) aposExclusao(db);
 }

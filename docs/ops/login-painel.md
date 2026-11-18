@@ -11,6 +11,8 @@ Nomes apenas. O valor fica no ambiente (Coolify), nunca no git.
 | `AIONSCOPE_PAINEL_USUARIO` | Usuário do login único |
 | `AIONSCOPE_PAINEL_SENHA` | Senha do login único |
 | `SESSION_SECRET` | Assina o cookie (HMAC-SHA256). Mínimo 32 caracteres. A mesma variável da sessão de admin |
+| `AIONSCOPE_PAINEL_GERACAO` | Opcional, até 64 caracteres. Entra no payload assinado. Trocar o valor derruba todas as sessões. Vazio é a geração padrão |
+| `AIONSCOPE_PAINEL_ORIGENS` | Opcional. Origens extras do login e do logout (`https://host`, vírgula), quando o host interno difere do site |
 
 Se faltar usuário, senha ou `SESSION_SECRET`, o painel fica fechado: páginas vão para `/login` com o texto "Login indisponível" e as APIs respondem 503. O formulário não aceita credencial.
 
@@ -18,9 +20,11 @@ Se faltar usuário, senha ou `SESSION_SECRET`, o painel fica fechado: páginas v
 
 ## Sessão
 
-Cookie `aion_painel_sessao`: `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` em produção. Validade de 90 dias. Depois de mais de um dia de uso, o middleware reemite o cookie. O payload traz a expiração e um HMAC da credencial: trocar usuário ou senha derruba sessões antigas. Assinatura inválida ou cookie vencido não abre nada.
+Cookie `aion_painel_sessao`: `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` em produção. O navegador guarda o cookie por 90 dias. O servidor impõe um teto absoluto de 8 horas desde o login: o payload assinado leva `auth_time` (o instante do login) junto com `iat`, `exp` e a geração. A renovação, se ocorrer, reemite `iat` e `exp` e preserva `auth_time`. Passadas 8 horas, a página volta para `/login` e a API responde 401, mesmo com uso contínuo. Cookie antigo, sem `auth_time`, não abre. Assinatura inválida, geração diferente ou cookie vencido também não.
 
-`POST /api/v1/painel/logout` apaga o cookie. O botão **Sair** fica no layout.
+`POST /api/v1/painel/login` e `POST /api/v1/painel/logout` exigem `Origin` com o mesmo host do pedido. Sem o header `Origin`, vale o `Referer`. A lista `AIONSCOPE_PAINEL_ORIGENS` soma origens permitidas. Origem ausente ou de outro host: 403, sem `Set-Cookie`.
+
+`POST /api/v1/painel/logout` apaga o cookie quando a origem confere. O botão **Sair** fica no layout.
 
 Cinco falhas em 15 minutos, por IP, respondem 429 com `Retry-After`. O contador usa a tabela `bot_convite_limite` com outra chave, e não mistura com a cota do convite.
 

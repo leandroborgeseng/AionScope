@@ -269,10 +269,63 @@ function migrate(db: Database.Database) {
 
 /** Fecha o singleton — só para testes isolados. */
 export function closeDbForTests() {
+  exclusaoNaTransacao = false;
   if (globalThis.__aionSqlite) {
     globalThis.__aionSqlite.close();
     globalThis.__aionSqlite = undefined;
   }
+}
+
+/**
+ * Apaga o rastro da exclusão no WAL. Dentro de uma transação só agenda:
+ * o truncamento vale depois do commit (e, se o chamador não concluir, no
+ * microtask seguinte — o convite grava auditoria dentro da transação).
+ */
+let exclusaoNaTransacao = false;
+let checkpointAgendado = false;
+
+function truncarWal(db: Database.Database) {
+  for (let i = 0; i < 3; i++) {
+    const linhas = db.pragma("wal_checkpoint(TRUNCATE)") as Array<{ busy?: number }>;
+    if (!linhas.some((linha) => linha.busy)) return;
+  }
+}
+
+function agendarCheckpoint(db: Database.Database) {
+  if (checkpointAgendado) return;
+  checkpointAgendado = true;
+  queueMicrotask(() => {
+    checkpointAgendado = false;
+    exclusaoNaTransacao = false;
+    if (!db.open || db.inTransaction) return;
+    try {
+      truncarWal(db);
+    } catch {
+      /* o checkpoint não muda a resposta do pedido */
+    }
+  });
+}
+
+/** Depois de apagar ou anonimizar. Fora de transação, trunca o WAL na hora. */
+export function aposExclusao(db: Database.Database = getDb()) {
+  if (db.inTransaction) {
+    exclusaoNaTransacao = true;
+    agendarCheckpoint(db);
+    return;
+  }
+  exclusaoNaTransacao = false;
+  truncarWal(db);
+}
+
+/** Depois do commit, se a transação apagou alguma coisa. */
+export function concluirExclusao(db: Database.Database = getDb()) {
+  if (!exclusaoNaTransacao || db.inTransaction) return;
+  aposExclusao(db);
+}
+
+/** A transação desfez a exclusão: não trunca no próximo commit. */
+export function descartarExclusaoPendente() {
+  exclusaoNaTransacao = false;
 }
 
 export function getDb(): Database.Database {
@@ -282,6 +335,7 @@ export function getDb(): Database.Database {
   const db = new Database(filePath);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
+  db.pragma("secure_delete = ON");
   migrate(db);
 
   globalThis.__aionSqlite = db;

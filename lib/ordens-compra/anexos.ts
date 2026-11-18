@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from "fs";
 import path from "path";
-import { getDb } from "@/lib/db/client";
+import { aposExclusao, getDb } from "@/lib/db/client";
 import { resolveDatabasePath } from "@/lib/db/path";
 import type { ErroValidacao, FonteAnexo, OrdemAnexo } from "./types";
 
@@ -343,7 +343,8 @@ export function removerAnexoOrdem(
   const anexo = obterAnexo(numero, id);
   if (!anexo) return { ok: false, motivo: "nao_encontrado" };
 
-  getDb().prepare("DELETE FROM ordem_anexos WHERE numero_ordem = ? AND id = ?").run(numero, id);
+  const info = getDb().prepare("DELETE FROM ordem_anexos WHERE numero_ordem = ? AND id = ?").run(numero, id);
+  if (info.changes > 0) aposExclusao();
   try {
     unlinkSync(caminhoAbsolutoAnexo(anexo.caminho_relativo));
   } catch {

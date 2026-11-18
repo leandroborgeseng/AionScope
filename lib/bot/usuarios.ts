@@ -8,7 +8,7 @@
  * que uma rota pública futura pode devolver.
  */
 import { randomUUID } from "crypto";
-import { getDb } from "@/lib/db/client";
+import { aposExclusao, concluirExclusao, descartarExclusaoPendente, getDb } from "@/lib/db/client";
 import { registrarAuditoria, type AcaoAuditoria } from "./auditoria";
 import {
   MSG_ACAO_DESCONHECIDA,
@@ -317,8 +317,11 @@ export function criarUsuario(body: unknown, agora = new Date()): FalhaCadastro |
   });
 
   try {
-    return tx();
+    const resultado = tx();
+    concluirExclusao(db);
+    return resultado;
   } catch (erro) {
+    descartarExclusaoPendente();
     if (conflitoUnico(erro)) return falha(409, MSG_TELEFONE_APROVADO);
     return falha(500, MSG_GRAVACAO);
   }
@@ -394,8 +397,11 @@ export function aplicarAcao(id: string, body: unknown, agora = new Date()): Falh
   });
 
   try {
-    return tx();
+    const resultado = tx();
+    concluirExclusao(db);
+    return resultado;
   } catch (erro) {
+    descartarExclusaoPendente();
     if (conflitoUnico(erro)) return falha(409, MSG_TELEFONE_APROVADO);
     return falha(500, MSG_GRAVACAO);
   }
@@ -414,10 +420,13 @@ export function excluirUsuario(id: string, agora = new Date()): FalhaCadastro | 
       auditar("excluir", atual.id, 200, agora);
       db.prepare("DELETE FROM bot_usuario_setor WHERE usuario_id = ?").run(atual.id);
       db.prepare("DELETE FROM bot_usuario WHERE id = ?").run(atual.id);
+      aposExclusao(db);
     })();
   } catch {
+    descartarExclusaoPendente();
     return falha(500, MSG_GRAVACAO);
   }
+  concluirExclusao(db);
   return { ok: true };
 }
 

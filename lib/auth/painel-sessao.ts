@@ -7,13 +7,22 @@
 export const PAINEL_USUARIO_ENV = "AIONSCOPE_PAINEL_USUARIO";
 export const PAINEL_SENHA_ENV = "AIONSCOPE_PAINEL_SENHA";
 export const SESSION_SECRET_ENV = "SESSION_SECRET";
+/** Trocar este valor invalida todas as sessões já emitidas. Até 64 caracteres. */
+export const GERACAO_PAINEL_ENV = "AIONSCOPE_PAINEL_GERACAO";
 export const COOKIE_SESSAO_PAINEL = "aion_painel_sessao";
 export const SECRET_MIN = 32;
 export const SESSAO_PAINEL_S = 90 * 24 * 60 * 60;
-/** Reemite o cookie depois de mais de um dia desde a emissão. */
+/** Reemite o cookie depois de mais de um dia desde a emissão. Não passa do teto absoluto. */
 export const RENOVACAO_PAINEL_S = 24 * 60 * 60;
+/** Teto absoluto desde o login, com ou sem uso. */
+export const TETO_ABSOLUTO_PAINEL_S = 8 * 60 * 60;
+const GERACAO_MAX = 64;
 const VERSAO = 1;
 const ROTULO_CREDENCIAL = "aionscope-painel-credencial-v1";
+
+function geracaoPainel() {
+  return (process.env[GERACAO_PAINEL_ENV] ?? "").trim().slice(0, GERACAO_MAX);
+}
 
 function usuarioConfigurado() {
   return (process.env[PAINEL_USUARIO_ENV] ?? "").trim();
@@ -105,7 +114,7 @@ export function lerCookie(request: Request, nome: string) {
   return null;
 }
 
-type Payload = { v: number; iat: number; exp: number; c: string };
+type Payload = { v: number; iat: number; exp: number; auth_time: number; g: string; c: string };
 
 function payloadDe(token: string): { corpo: string; payload: Payload } | null {
   if (token.length > 4096) return null;
@@ -124,10 +133,15 @@ function payloadDe(token: string): { corpo: string; payload: Payload } | null {
   }
   if (!json || typeof json !== "object" || Array.isArray(json)) return null;
   const bruto = json as Record<string, unknown>;
-  const { v, iat, exp, c } = bruto;
-  if (v !== VERSAO || typeof c !== "string" || !Number.isSafeInteger(iat) || !Number.isSafeInteger(exp)) return null;
+  const { v, iat, exp, auth_time, g, c } = bruto;
+  if (v !== VERSAO || typeof c !== "string" || typeof g !== "string") return null;
+  if (!Number.isSafeInteger(iat) || !Number.isSafeInteger(exp) || !Number.isSafeInteger(auth_time)) return null;
+  if (g.length > GERACAO_MAX) return null;
   if (!/^[A-Za-z0-9_-]{20,200}$/.test(c)) return null;
-  return { corpo: `${corpo}.${sig}`, payload: { v, iat: iat as number, exp: exp as number, c } };
+  return {
+    corpo: `${corpo}.${sig}`,
+    payload: { v, iat: iat as number, exp: exp as number, auth_time: auth_time as number, g, c },
+  };
 }
 
 async function assinaturaConfere(token: string) {
@@ -141,35 +155,40 @@ async function assinaturaConfere(token: string) {
 }
 
 export type SessaoPainel =
-  | { ok: true; renovar: boolean; iat: number }
-  | { ok: false; renovar: false; iat: null };
+  | { ok: true; renovar: boolean; iat: number; auth_time: number }
+  | { ok: false; renovar: false; iat: null; auth_time: null };
 
 export async function lerSessaoPainel(token: string | null | undefined, agoraMs = Date.now()): Promise<SessaoPainel> {
-  const negada: SessaoPainel = { ok: false, renovar: false, iat: null };
+  const negada: SessaoPainel = { ok: false, renovar: false, iat: null, auth_time: null };
   if (!painelConfigurado() || !token) return negada;
   const lido = payloadDe(token);
   if (!lido) return negada;
   if (!(await assinaturaConfere(token))) return negada;
   const agoraS = Math.floor(agoraMs / 1000);
-  const { iat, exp, c } = lido.payload;
+  const { iat, exp, auth_time, g, c } = lido.payload;
   if (iat > agoraS + 60) return negada;
   if (exp <= agoraS) return negada;
   if (exp > iat + SESSAO_PAINEL_S) return negada;
   if (exp <= iat) return negada;
+  if (auth_time > agoraS + 60 || auth_time > iat + 60) return negada;
+  if (agoraS - auth_time > TETO_ABSOLUTO_PAINEL_S) return negada;
+  if (g !== geracaoPainel()) return negada;
   const atual = await impressaoCredencial();
   const informado = base64UrlParaBytes(c);
   const esperado = atual ? base64UrlParaBytes(atual) : null;
   if (!informado || !esperado || !iguais(informado, esperado)) return negada;
-  return { ok: true, renovar: agoraS - iat > RENOVACAO_PAINEL_S, iat };
+  return { ok: true, renovar: agoraS - iat > RENOVACAO_PAINEL_S, iat, auth_time };
 }
 
-export async function emitirSessaoPainel(agoraMs = Date.now()) {
+export async function emitirSessaoPainel(agoraMs = Date.now(), authTimeMs?: number) {
   if (!painelConfigurado()) return null;
   const c = await impressaoCredencial();
   if (!c) return null;
   const iat = Math.floor(agoraMs / 1000);
+  const auth_time = Math.floor((authTimeMs ?? agoraMs) / 1000);
   const exp = iat + SESSAO_PAINEL_S;
-  const json = JSON.stringify({ v: VERSAO, iat, exp, c });
+  const g = geracaoPainel();
+  const json = JSON.stringify({ v: VERSAO, iat, exp, auth_time, g, c });
   const corpo = bytesParaBase64Url(new TextEncoder().encode(json));
   const sig = bytesParaBase64Url(await hmac(segredoConfigurado(), corpo));
   return `${corpo}.${sig}`;

@@ -16,10 +16,13 @@ import {
 } from "@/lib/auth/painel-guard";
 import { credencialConfere } from "@/lib/auth/painel-credencial";
 import { JANELA_LOGIN_MS, limiteLogin, registrarFalhaLogin } from "@/lib/auth/painel-limite";
+import { PAINEL_ORIGENS_ENV } from "@/lib/auth/painel-origem";
 import {
   COOKIE_SESSAO_PAINEL,
+  GERACAO_PAINEL_ENV,
   RENOVACAO_PAINEL_S,
   SESSAO_PAINEL_S,
+  TETO_ABSOLUTO_PAINEL_S,
   cookiePainel,
   emitirSessaoPainel,
   lerSessaoPainel,
@@ -65,6 +68,8 @@ beforeEach(() => {
   process.env.CONTRATOS_ADMIN_PASSWORD = "senha-admin-teste";
   process.env[TRUST_CF_CONNECTING_IP] = "false";
   delete process.env.ORDENS_COMPRA_API_KEY;
+  delete process.env[GERACAO_PAINEL_ENV];
+  delete process.env[PAINEL_ORIGENS_ENV];
   getDb().exec("DELETE FROM bot_convite_limite");
 });
 
@@ -76,7 +81,7 @@ async function entrar(body: unknown, headers?: Record<string, string>) {
   return loginRota.POST(
     new Request("http://local/api/v1/painel/login", {
       method: "POST",
-      headers: { "content-type": "application/json", ...headers },
+      headers: { "content-type": "application/json", origin: "http://local", ...headers },
       body: JSON.stringify(body),
     }),
   );
@@ -327,7 +332,7 @@ test("next externo é ignorado", async () => {
   const form = await loginRota.POST(
     new Request("http://local/api/v1/painel/login", {
       method: "POST",
-      headers: { "content-type": "application/x-www-form-urlencoded" },
+      headers: { "content-type": "application/x-www-form-urlencoded", origin: "http://local" },
       body: new URLSearchParams({ usuario: USUARIO, senha: SENHA, next: "https://evil.example" }),
     }),
   );
@@ -391,32 +396,96 @@ test("falha de login não consome a cota do convite e a janela expira", () => {
   assert.equal(limiteLogin(ip, agora + JANELA_LOGIN_MS + 1).bloqueado, false);
 });
 
-test("renovação deslizante reemite depois de um dia e não antes", async () => {
+test("renovação não estende o teto de 8 h", async () => {
   const base = 1_700_000_000_000;
   const token = await emitirSessaoPainel(base);
   assert.ok(token);
-  assert.equal((await lerSessaoPainel(token, base + RENOVACAO_PAINEL_S * 1000)).renovar, false);
-  assert.equal((await lerSessaoPainel(token, base + (RENOVACAO_PAINEL_S + 1) * 1000)).renovar, true);
+  const dentro = await lerSessaoPainel(token, base + 60 * 60 * 1000);
+  assert.equal(dentro.ok, true);
+  if (!dentro.ok) return;
+  assert.equal(dentro.renovar, false);
+  assert.equal(dentro.auth_time, Math.floor(base / 1000));
+
+  const renovado = await emitirSessaoPainel(base + 2 * 60 * 60 * 1000, dentro.auth_time * 1000);
+  assert.ok(renovado);
+  const ainda = await lerSessaoPainel(renovado, base + 7 * 60 * 60 * 1000);
+  assert.equal(ainda.ok, true);
+  if (ainda.ok) assert.equal(ainda.auth_time, dentro.auth_time);
+  assert.equal((await lerSessaoPainel(renovado, base + TETO_ABSOLUTO_PAINEL_S * 1000)).ok, true);
+  assert.equal((await lerSessaoPainel(renovado, base + (TETO_ABSOLUTO_PAINEL_S + 60) * 1000)).ok, false);
 
   const recente = await emitirSessaoPainel(Date.now() - 60 * 60 * 1000);
   const parado = await middleware(pedido("/sala", `${COOKIE_SESSAO_PAINEL}=${recente}`));
   assert.equal(parado.status, 200);
   assert.equal(cookieDe(parado), "");
 
-  const antigo = await emitirSessaoPainel(Date.now() - 2 * RENOVACAO_PAINEL_S * 1000);
-  const renovado = await middleware(pedido("/sala", `${COOKIE_SESSAO_PAINEL}=${antigo}`));
-  assert.equal(renovado.status, 200);
-  const set = cookieDe(renovado);
-  assert.match(set, /HttpOnly/);
-  assert.match(set, /SameSite=Lax/);
-  const novo = set.split(";")[0]?.slice(COOKIE_SESSAO_PAINEL.length + 1);
-  const sessao = await lerSessaoPainel(novo);
-  assert.equal(sessao.ok, true);
-  if (sessao.ok) assert.ok(sessao.iat > Math.floor((Date.now() - 2 * RENOVACAO_PAINEL_S * 1000) / 1000));
+  const estourou = await emitirSessaoPainel(Date.now(), Date.now() - (TETO_ABSOLUTO_PAINEL_S + 60) * 1000);
+  const pagina = await middleware(pedido("/sala", `${COOKIE_SESSAO_PAINEL}=${estourou}`));
+  assert.equal(pagina.status, 302);
+  assert.equal(new URL(pagina.headers.get("location") ?? "").pathname, "/login");
+  assert.equal(pagina.headers.get("set-cookie"), null);
+
+  const antigo = await emitirSessaoPainel(Date.now() - (TETO_ABSOLUTO_PAINEL_S + 60) * 1000);
+  const negado = await middleware(pedido("/sala", `${COOKIE_SESSAO_PAINEL}=${antigo}`));
+  assert.equal(negado.status, 302);
+  assert.equal(cookieDe(negado), "");
+  assert.equal(RENOVACAO_PAINEL_S > TETO_ABSOLUTO_PAINEL_S, true);
+});
+
+function bytesParaBase64Url(bytes: Uint8Array) {
+  let bin = "";
+  for (const byte of bytes) bin += String.fromCharCode(byte);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function base64UrlParaBytes(texto: string) {
+  const pad = texto.length % 4 === 0 ? "" : "=".repeat(4 - (texto.length % 4));
+  const bin = atob(texto.replace(/-/g, "+").replace(/_/g, "/") + pad);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function tokenSemAuthTime(valido: string) {
+  const corpo = valido.slice(0, valido.indexOf("."));
+  const json = JSON.parse(new TextDecoder().decode(base64UrlParaBytes(corpo))) as {
+    v: number;
+    iat: number;
+    exp: number;
+    g: string;
+    c: string;
+  };
+  const sem = JSON.stringify({ v: json.v, iat: json.iat, exp: json.exp, g: json.g, c: json.c });
+  const novoCorpo = bytesParaBase64Url(new TextEncoder().encode(sem));
+  const chave = await crypto.subtle.importKey("raw", new TextEncoder().encode(SEGREDO), { name: "HMAC", hash: "SHA-256" }, false, [
+    "sign",
+  ]);
+  const sig = new Uint8Array(await crypto.subtle.sign("HMAC", chave, new TextEncoder().encode(novoCorpo)));
+  return `${novoCorpo}.${bytesParaBase64Url(sig)}`;
+}
+
+test("cookie sem auth_time ou de outra geração não abre", async () => {
+  const valido = await emitirSessaoPainel();
+  assert.ok(valido);
+  const legado = await tokenSemAuthTime(valido);
+  assert.equal((await lerSessaoPainel(legado)).ok, false);
+  const pagina = await middleware(pedido("/sala", `${COOKIE_SESSAO_PAINEL}=${legado}`));
+  assert.equal(pagina.status, 302);
+  assert.equal(new URL(pagina.headers.get("location") ?? "").pathname, "/login");
+
+  process.env[GERACAO_PAINEL_ENV] = "geracao-1";
+  const daGeracao = await emitirSessaoPainel();
+  assert.equal((await lerSessaoPainel(daGeracao)).ok, true);
+  process.env[GERACAO_PAINEL_ENV] = "geracao-2";
+  assert.equal((await lerSessaoPainel(daGeracao)).ok, false);
+  const derrubada = await middleware(pedido("/indicadores", `${COOKIE_SESSAO_PAINEL}=${daGeracao}`));
+  assert.equal(derrubada.status, 302);
 });
 
 test("logout limpa o cookie", async () => {
-  const resposta = await logoutRota.POST();
+  const resposta = await logoutRota.POST(
+    new Request("http://local/api/v1/painel/logout", { method: "POST", headers: { origin: "http://local" } }),
+  );
   assert.equal(resposta.status, 303);
   assert.equal(resposta.headers.get("location"), "/login");
   const set = cookieDe(resposta);
@@ -503,6 +572,55 @@ test("o layout tem o botão Sair e esconde o menu na tela de login", () => {
   assert.match(fonte, /action="\/api\/v1\/painel\/logout"/);
   assert.match(fonte, /\bSair\b/);
   assert.match(fonte, /pathname === "\/login"/);
+});
+
+test("login e logout recusam origem de outro host e não mexem no cookie", async () => {
+  const estranho = await entrar({ usuario: USUARIO, senha: SENHA }, { origin: "https://evil.example" });
+  assert.equal(estranho.status, 403);
+  assert.equal(cookieDe(estranho), "");
+  assert.equal(/Max-Age=0/.test(cookieDe(estranho)), false);
+  assert.equal((await estranho.json()).message, "Origem não permitida.");
+
+  const mesmo = await entrar({ usuario: USUARIO, senha: SENHA }, { origin: "http://local" });
+  assert.equal(mesmo.status, 200);
+  assert.match(cookieDe(mesmo), new RegExp(`Max-Age=${SESSAO_PAINEL_S}`));
+
+  const referer = await loginRota.POST(
+    new Request("http://local/api/v1/painel/login", {
+      method: "POST",
+      headers: { "content-type": "application/json", referer: "http://local/login" },
+      body: JSON.stringify({ usuario: USUARIO, senha: SENHA }),
+    }),
+  );
+  assert.equal(referer.status, 200);
+  assert.match(cookieDe(referer), /HttpOnly/);
+
+  const originRuimComReferer = await entrar(
+    { usuario: USUARIO, senha: SENHA },
+    { origin: "https://evil.example", referer: "http://local/login" },
+  );
+  assert.equal(originRuimComReferer.status, 403);
+  assert.equal(cookieDe(originRuimComReferer), "");
+
+  process.env[PAINEL_ORIGENS_ENV] = "https://painel.exemplo.test";
+  const lista = await entrar({ usuario: USUARIO, senha: SENHA }, { origin: "https://painel.exemplo.test" });
+  assert.equal(lista.status, 200);
+
+  const logoutRuim = await logoutRota.POST(
+    new Request("http://local/api/v1/painel/logout", {
+      method: "POST",
+      headers: { origin: "https://evil.example" },
+    }),
+  );
+  assert.equal(logoutRuim.status, 403);
+  assert.equal(cookieDe(logoutRuim), "");
+  assert.equal(/Max-Age=0/.test(cookieDe(logoutRuim)), false);
+
+  const logoutOk = await logoutRota.POST(
+    new Request("http://local/api/v1/painel/logout", { method: "POST", headers: { origin: "http://local" } }),
+  );
+  assert.equal(logoutOk.status, 303);
+  assert.match(cookieDe(logoutOk), /Max-Age=0/);
 });
 
 test("cookie helper de produção leva Secure e o de teste não", () => {
