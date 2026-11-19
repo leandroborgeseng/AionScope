@@ -60,6 +60,18 @@ test("celular de 11 dígitos é telefone; CPF válido sem esse formato continua 
   assert.equal(prepararSolicitacao(`doc ${ambos}`), "doc [telefone]");
 });
 
+test("fixo de 10 dígitos, CPF com ponto e faixa de OS", () => {
+  assert.equal(prepararSolicitacao("tel 1633334444"), "tel [telefone]");
+  assert.equal(prepararSolicitacao("cpf 123456789.09 fim"), "cpf [cpf] fim");
+  assert.equal(prepararSolicitacao("OS 3301-3302"), "OS 3301-3302");
+  assert.equal(prepararSolicitacao("os 3301-3302"), "os 3301-3302");
+  assert.equal(prepararSolicitacao("tel 3333-4444"), "tel [telefone]");
+  assert.equal(prepararSolicitacao("tel 99000-1111"), "tel [telefone]");
+  assert.equal(prepararSolicitacao("tel 5516990001111"), "tel [telefone]");
+  assert.equal(prepararSolicitacao("tel +5516990001111"), "tel [telefone]");
+  assert.equal(prepararSolicitacao("nota 2033334444"), "nota 2033334444");
+});
+
 test("máscara vem antes do corte e não parte marcador nem dígito", () => {
   const cruzando = prepararSolicitacao(`${"x".repeat(270)} 12345678909`);
   assert.equal(cruzando.endsWith("[cpf]"), true);

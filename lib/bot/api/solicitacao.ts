@@ -11,14 +11,18 @@
  * 1. E-mail `local@domínio`, com ou sem TLD (`nome@intranet` inclusive).
  * 2. Telefone com formato: `+55` ou `55` + DDD, DDD entre parênteses,
  *    `DD NNNNN-NNNN`, `DD-NNNNN-NNNN`, `DD 9 NNNN-NNNN`, tronco `0DD`
- *    e `NNNNN-NNNN` / `NNNN-NNNN` sem DDD.
+ *    e `NNNNN-NNNN` / `NNNN-NNNN` sem DDD. O separador antes do número
+ *    fica no texto (`tel 55…` continua `tel [telefone]`).
+ *    `OS 3301-3302` não é telefone: `NNNN-NNNN` logo depois de `OS` permanece.
  * 3. Onze dígitos contínuos: DDD da Anatel e o assinante começando em `9`
  *    → `[telefone]`, mesmo se o dígito verificador de CPF também fechar.
  *    Sem esse formato, CPF com os dois dígitos verificadores válidos
  *    → `[cpf]`. DDD válido que não é celular nem CPF → `[telefone]`.
  *    Os outros 11 dígitos → `[cpf]`, para não deixar o número à vista.
- * 4. CPF desenhado com separador (`NNN.NNN.NNN-NN`, `NNN NNN NNN NN`,
- *    `NNN.NNN.NNN.NN`, `NNNNNNNNN-NN`) → `[cpf]` pelo formato.
+ * 4. Dez dígitos contínuos: DDD válido e o 3º dígito de 2 a 5 (fixo)
+ *    → `[telefone]`. Fora disso, o número fica.
+ * 5. CPF desenhado com separador (`NNN.NNN.NNN-NN`, `NNN NNN NNN NN`,
+ *    `NNN.NNN.NNN.NN`, `NNNNNNNNN-NN`, `NNNNNNNNN.NN`) → `[cpf]` pelo formato.
  */
 const LIMITE = 280;
 const MARCADORES = ["[telefone]", "[e-mail]", "[cpf]"];
@@ -31,13 +35,14 @@ const DDDS = new Set(
 );
 
 const EMAIL = /[a-z0-9._%+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*/gi;
-const TEL_PAIS = /(?<!\d)\+?\s*55[\s.-]*\(?\s*\d{2}\s*\)?[\s.-]*(?:9[\s.-]+)?\d{4,5}[\s.-]?\d{4}(?!\d)/gi;
+const TEL_PAIS = /(?<!\d)(?:\+\s*)?55[\s.-]*\(?\s*\d{2}\s*\)?[\s.-]*(?:9[\s.-]+)?\d{4,5}[\s.-]?\d{4}(?!\d)/gi;
 const TEL_PAREN = /(?<!\d)\(\s*\d{2}\s*\)[\s.-]*(?:9[\s.-]+)?\d{4,5}[\s.-]?\d{4}(?!\d)/gi;
 const TEL_DDD = /(?<!\d)0?\d{2}[\s.-]+(?:9[\s.-]+)?\d{4,5}[\s.-]?\d{4}(?!\d)/gi;
-const TEL_SEM_DDD = /(?<!\d)\d{4,5}-\d{4}(?!\d)/g;
+const TEL_SEM_DDD = /(?<!\bos\s)(?<!\d)\d{4,5}-\d{4}(?!\d)/gi;
 const TEL_PAIS_SOLTO = /(?<!\d)\+?55\d{10,11}(?!\d)/g;
-const CPF_SEPARADO = /(?<!\d)\d{3}(?:[.\s]\d{3}){2}[-.\s]\d{2}(?!\d)|(?<!\d)\d{9}-\d{2}(?!\d)/g;
+const CPF_SEPARADO = /(?<!\d)\d{3}(?:[.\s]\d{3}){2}[-.\s]\d{2}(?!\d)|(?<!\d)\d{9}[-.]\d{2}(?!\d)/g;
 const ONZE = /(?<!\d)\d{11}(?!\d)/g;
+const DEZ = /(?<!\d)\d{10}(?!\d)/g;
 
 function cpfValido(d: string) {
   if (!/^\d{11}$/.test(d) || /^(\d)\1{10}$/.test(d)) return false;
@@ -49,6 +54,12 @@ function cpfValido(d: string) {
     return resto === 10 ? 0 : resto;
   };
   return dv(9) === n[9] && dv(10) === n[10];
+}
+
+/** 10 dígitos contínuos. Fixo: DDD válido e assinante começando em 2–5. */
+function rotuloDezDigitos(d: string) {
+  if (DDDS.has(d.slice(0, 2)) && "2345".includes(d[2] ?? "")) return "[telefone]";
+  return d;
 }
 
 /** 11 dígitos contínuos. Celular (DDD válido + 9) ganha do CPF. */
@@ -68,7 +79,8 @@ function mascarar(texto: string) {
     .replace(TEL_SEM_DDD, "[telefone]")
     .replace(TEL_PAIS_SOLTO, "[telefone]")
     .replace(CPF_SEPARADO, "[cpf]")
-    .replace(ONZE, (m) => rotuloOnzeDigitos(m));
+    .replace(ONZE, (m) => rotuloOnzeDigitos(m))
+    .replace(DEZ, (m) => rotuloDezDigitos(m));
 }
 
 function cortar(texto: string) {
