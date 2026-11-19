@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 /** Estado das evidências PDF para o painel (sem servir o arquivo). */
 export async function GET(request: Request) {
-  const status = statusEvidencias(request);
+  const status = await statusEvidencias(request);
   return NextResponse.json({
     tokenObrigatorio: status.tokenObrigatorio,
     anos: status.anos,

@@ -19,7 +19,7 @@ type Ctx = { params: Promise<{ ano: string }> };
  * TREINAMENTOS_EVIDENCIAS_TOKEN (Bearer, ?token= ou cookie). 401 sem dados.
  */
 export async function GET(request: Request, ctx: Ctx) {
-  const negado = exigirSessaoAdmin(request);
+  const negado = await exigirSessaoAdmin(request);
   if (negado) return negado;
   if (!tokenEvidenciaValido(request)) {
     return recusarEvidencia();

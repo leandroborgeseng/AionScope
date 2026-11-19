@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 /** Conflito pelo id do cadastro. O telefone não entra na query, para não ir aos logs. */
 export async function GET(request: Request) {
-  const recusa = exigirSessaoAdmin(request);
+  const recusa = await exigirSessaoAdmin(request);
   if (recusa) return recusa;
   const id = new URL(request.url).searchParams.get("id")?.trim() ?? "";
   if (!id) return Response.json({ ok: false, message: MSG_CORPO_CADASTRO }, { status: 400 });

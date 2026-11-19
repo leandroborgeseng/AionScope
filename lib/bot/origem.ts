@@ -67,8 +67,8 @@ export function exigirOrigemPermitida(request: Request): Response | null {
 }
 
 /** Sessão de administrador e, em seguida, origem permitida. 401 não vaza se a origem passaria. */
-export function exigirMutacaoAdmin(request: Request): Response | null {
-  const sessao = exigirSessaoAdmin(request);
+export async function exigirMutacaoAdmin(request: Request): Promise<Response | null> {
+  const sessao = await exigirSessaoAdmin(request);
   if (sessao) return sessao;
   return exigirOrigemPermitida(request);
 }

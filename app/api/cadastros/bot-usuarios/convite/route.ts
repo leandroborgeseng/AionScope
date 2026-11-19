@@ -11,7 +11,7 @@ function json(status: number, message: string) {
 }
 
 export async function GET(request: Request) {
-  const recusa = exigirSessaoAdmin(request);
+  const recusa = await exigirSessaoAdmin(request);
   if (recusa) return recusa;
   try {
     return Response.json({ ok: true, data: lerConviteGrupo() });
@@ -22,7 +22,7 @@ export async function GET(request: Request) {
 
 /** Gerar revoga o link anterior na hora. A resposta traz a URL para o admin copiar, sem auditoria. */
 export async function POST(request: Request) {
-  const recusa = exigirMutacaoAdmin(request);
+  const recusa = await exigirMutacaoAdmin(request);
   if (recusa) return recusa;
   let body: unknown;
   try {

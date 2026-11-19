@@ -15,7 +15,7 @@ export async function DELETE(
   request: Request,
   context: { params: Promise<{ tipo: string; id: string }> },
 ) {
-  const recusa = exigirSessaoEscritaSala(request);
+  const recusa = await exigirSessaoEscritaSala(request);
   if (recusa) return recusa;
   const { tipo, id } = await context.params;
   try {

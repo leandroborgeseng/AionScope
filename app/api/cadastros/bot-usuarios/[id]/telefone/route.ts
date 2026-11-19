@@ -9,7 +9,7 @@ type Ctx = { params: Promise<{ id: string }> };
 
 /** Revela o E.164 para a sessão de administrador e grava auditoria sem o número. */
 export async function POST(request: Request, context: Ctx) {
-  const recusa = exigirMutacaoAdmin(request);
+  const recusa = await exigirMutacaoAdmin(request);
   if (recusa) return recusa;
   const { id } = await context.params;
   try {

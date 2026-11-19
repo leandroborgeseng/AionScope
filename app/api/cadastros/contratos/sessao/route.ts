@@ -19,7 +19,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   return Response.json({
     ok: true,
-    data: { autenticado: sessaoContratosValida(request), habilitado: authContratosConfigurada() },
+    data: { autenticado: await sessaoContratosValida(request), habilitado: authContratosConfigurada() },
   });
 }
 

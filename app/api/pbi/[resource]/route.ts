@@ -23,7 +23,7 @@ export async function GET(
   if (!resource || !(resource in PBI_ENDPOINTS)) {
     return Response.json({ ok: false, status: 404, message: "Recurso inválido." }, { status: 404, headers: SEM_CACHE });
   }
-  const logado = sessaoContratosValida(request);
+  const logado = await sessaoContratosValida(request);
   if (!logado && RESOURCES_SO_COM_SESSAO.includes(resource)) {
     return Response.json({ ok: false, message: "Entre com a senha de administrador." }, { status: 401, headers: SEM_CACHE });
   }

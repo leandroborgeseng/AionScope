@@ -9,13 +9,13 @@ export const runtime = "nodejs";
 
 /** Leitura exige sessão de administrador: devolve valores e fornecedores (aceite A3). */
 export async function GET(request: Request) {
-  const recusa = exigirSessaoAdmin(request);
+  const recusa = await exigirSessaoAdmin(request);
   if (recusa) return recusa;
   return Response.json({ ok: true, data: readContratos() });
 }
 
 export async function POST(request: Request) {
-  const recusa = exigirSessaoContratos(request);
+  const recusa = await exigirSessaoContratos(request);
   if (recusa) return recusa;
 
   let body: ContratoInput;

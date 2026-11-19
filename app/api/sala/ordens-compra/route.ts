@@ -19,7 +19,7 @@ export async function GET(request: Request) {
  * e marca-os em editado_manualmente para o robô não sobrescrever.
  */
 export async function PATCH(request: Request) {
-  const recusa = exigirSessaoEscritaSala(request);
+  const recusa = await exigirSessaoEscritaSala(request);
   if (recusa) return recusa;
   const body = await lerJson(request);
   if (body && typeof body === "object" && "_invalido" in body) return jsonInvalido();

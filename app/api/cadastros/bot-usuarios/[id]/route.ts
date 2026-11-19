@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(request: Request, context: Ctx) {
-  const recusa = exigirSessaoAdmin(request);
+  const recusa = await exigirSessaoAdmin(request);
   if (recusa) return recusa;
   const { id } = await context.params;
   const usuario = obterUsuario(id);
@@ -19,7 +19,7 @@ export async function GET(request: Request, context: Ctx) {
 
 /** Aprovar, recusar, inativar, reativar ou marcar reenvio. Não envia mensagem. */
 export async function PATCH(request: Request, context: Ctx) {
-  const recusa = exigirMutacaoAdmin(request);
+  const recusa = await exigirMutacaoAdmin(request);
   if (recusa) return recusa;
   const { id } = await context.params;
   let body: unknown;
@@ -39,7 +39,7 @@ export async function PATCH(request: Request, context: Ctx) {
 
 /** A64: sem sessão de admin, 403. A confirmação fica na tela; cancelar não chama esta rota. */
 export async function DELETE(request: Request, context: Ctx) {
-  if (exigirSessaoAdmin(request)) {
+  if (await exigirSessaoAdmin(request)) {
     return Response.json({ ok: false, message: "Sem permissão." }, { status: 403 });
   }
   const origem = exigirOrigemPermitida(request);

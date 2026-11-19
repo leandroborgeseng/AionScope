@@ -55,7 +55,7 @@ export async function GET(request: Request, context: Ctx) {
 
 /** Remove anexo (metadado + arquivo). */
 export async function DELETE(request: Request, context: Ctx) {
-  const recusa = exigirSessaoEscritaSala(request);
+  const recusa = await exigirSessaoEscritaSala(request);
   if (recusa) return recusa;
   const { numero, id } = await resolver(context);
   if (!Number.isInteger(id) || id <= 0) return jsonErro("não encontrado", 404);

@@ -71,7 +71,7 @@ test("A3 status sem caminho do servidor; liberado só com sessão", async () => 
   assert.equal(txt.includes(dir), false);
   assert.equal(/"diretorio"/.test(txt), false);
   assert.equal((anon as { liberado: boolean }).liberado, false);
-  const s = statusEvidencias(new Request("http://local/x", { headers: { cookie: SESSAO() } }));
+  const s = await statusEvidencias(new Request("http://local/x", { headers: { cookie: SESSAO() } }));
   assert.equal(s.liberado, true);
   assert.equal(s.sessao, true);
 });
