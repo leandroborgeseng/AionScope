@@ -83,7 +83,9 @@ Não há `vencidas`, prazo, limite nem SLA nesse bloco. `maisAntiga` é a abertu
 
 `etapa` sai de `etapaOs` (`lib/ec/etapas.ts`): Sem 1º atendimento, Em atendimento, Aguarda peça/compra, Reparo externo, Contrato/assistência, Teste e devolução. As flags vêm de `montarOsDetalhe`.
 
-`solicitacao` reutiliza `textoSolicitacaoOs` (`lib/ec/os-detalhe.ts`): o primeiro texto entre `ObservacaoDaRequisicao`, `Servico`, `Ocorrencia` e `ObservacaoDaOS`. Espaços colapsados, corte em 280 caracteres, CPF, telefone e e-mail mascarados (`[cpf]`, `[telefone]`, `[e-mail]`). Só Diretoria/Gestão e Manutenção recebem o campo, na visão por setor e em `/os/{numero}`. Papel assistencial não recebe a chave.
+`solicitacao` reutiliza `textoSolicitacaoOs` (`lib/ec/os-detalhe.ts`): o primeiro texto entre `ObservacaoDaRequisicao`, `Servico`, `Ocorrencia` e `ObservacaoDaOS`. Espaços colapsados. A máscara roda antes do corte de 280: o corte não parte `[cpf]`, `[telefone]` nem `[e-mail]`, e não termina no meio de uma sequência de dígitos. Só Diretoria/Gestão e Manutenção recebem o campo, na visão por setor e em `/os/{numero}`. Papel assistencial não recebe a chave.
+
+A máscara, nesta ordem: e-mail `local@domínio` com ou sem TLD (`nome@intranet` inclusive); telefone com `+55` ou `55`, DDD entre parênteses, `DD NNNNN-NNNN`, `DD-NNNNN-NNNN`, `DD 9 NNNN-NNNN`, tronco `0DD` e número sem DDD (`NNNNN-NNNN`); onze dígitos contínuos com DDD válido (Anatel) e assinante começando em `9` saem `[telefone]`, mesmo quando o dígito verificador de CPF também fecha. Sem esse formato de celular, CPF com os dois dígitos verificadores válidos sai `[cpf]`. CPF desenhado com separador (`NNN.NNN.NNN-NN`, `NNN NNN NNN NN`, `NNN.NNN.NNN.NN`, `NNNNNNNNN-NN`) sai `[cpf]`.
 
 **Ressalva para o DPO:** nome de paciente em texto livre não é detectável por essa máscara. O campo pode continuar com nome próprio. A máscara cobre CPF, telefone e e-mail, não anamnese.
 
@@ -114,7 +116,7 @@ curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
 
 curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
   -H "X-Bot-Telefone: +55 11 90000-0001" \
-  "https://scope.aion.eng.br/api/bot/v1/os?abertas=1&setor=UTI&limit=20"
+  "https://scope.aion.eng.br/api/bot/v1/os?abertas=1&setor=Centro%20Cirurgico&limit=20"
 
 curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
   -H "X-Bot-Telefone: +55 11 90000-0001" \
@@ -122,7 +124,7 @@ curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
 
 curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
   -H "X-Bot-Telefone: +55 11 90000-0001" \
-  "https://scope.aion.eng.br/api/bot/v1/calibracao?setor=UTI&ano=2026"
+  "https://scope.aion.eng.br/api/bot/v1/calibracao?setor=Centro%20Cirurgico&ano=2026"
 ```
 
 Cada resposta de dado traz `fetchedAt` (ISO) e `idadeSegundos`, exceto o pedido de cadastro de setor, que não abre a cópia. Cópia com mais de 7 dias e atualização falha responde 503, com a data da cópia, e não devolve lista vazia no lugar do erro.
