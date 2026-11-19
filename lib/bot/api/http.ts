@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import { registrarConsultaApi } from "@/lib/bot/auditoria";
 import { identificarRemetente } from "@/lib/bot/usuarios";
 import { mascararTelefone, normalizarTelefone } from "@/lib/bot/telefone";
+import { consultarSituacao } from "./usuario";
 import { botIdAtual, bearerConfere, tokenConfigurado } from "./token";
 import { chaveLimite, consumirLimiteApi } from "./limite";
 
@@ -95,6 +96,50 @@ export async function atenderGet(request: Request, executar: (usuarioId: string)
     const resposta = await executar(identificado.usuarioId);
     status = resposta.status;
     return resposta;
+  } catch {
+    status = 500;
+    return json(500, { ok: false });
+  } finally {
+    auditar(request, status, usuarioId, inicio);
+  }
+}
+
+/**
+ * Única rota que devolve a situação real de um telefone não aprovado.
+ * Sem Bearer continua 401. Sem telefone normalizável continua 403.
+ */
+export function atenderSituacao(request: Request) {
+  const inicio = performance.now();
+  let status = 500;
+  let usuarioId: string | null = null;
+  const telefone = request.headers.get("x-bot-telefone");
+  try {
+    if (!tokenConfigurado()) {
+      status = 503;
+      usuarioId = idSePossivel(telefone);
+      return json(503, { ok: false, message: "API desativada." });
+    }
+    if (!bearerConfere(request)) {
+      status = 401;
+      usuarioId = idSePossivel(telefone);
+      return json(401, { ok: false });
+    }
+    const ficha = consultarSituacao(telefone);
+    if (!ficha) {
+      status = 403;
+      return json(403, { ok: false });
+    }
+    usuarioId = ficha.usuarioId;
+    const apresentado = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+    const chaves = [chaveLimite("token", apresentado)];
+    if (ficha.usuarioId) chaves.push(chaveLimite("pessoa", ficha.usuarioId));
+    const limite = consumirLimiteApi(chaves);
+    if (!limite.permitido) {
+      status = 429;
+      return json(429, { ok: false }, { "retry-after": String(limite.retryAfter) });
+    }
+    status = 200;
+    return json(200, ficha.corpo);
   } catch {
     status = 500;
     return json(500, { ok: false });

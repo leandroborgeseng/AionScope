@@ -138,6 +138,7 @@ test("allowlist literal: rotas exatas e arquivos públicos", () => {
     "/api/bot/v1/meta/freshness",
     "/api/bot/v1/os",
     "/api/bot/v1/os/[numero]",
+    "/api/bot/v1/usuario",
   ]);
   for (const rota of rotasSob("app/api/bot")) {
     const fonte = readFileSync(`app${rota}/route.ts`, "utf8");
@@ -252,6 +253,7 @@ test("página protegida sem cookie redireciona; API responde 401", async () => {
 test("o cookie do painel não abre o bot e o bot não abre o cadastro", async () => {
   assert.equal((await middleware(pedido("/api/bot/v1/health"))).status, 200);
   assert.equal((await middleware(pedido("/api/bot/v1/os/1001"))).status, 200);
+  assert.equal((await middleware(pedido("/api/bot/v1/usuario"))).status, 200);
   assert.equal((await middleware(pedido("/api/bot"))).status, 401);
   assert.equal((await middleware(pedido("/api/bot/v1extra"))).status, 401);
   assert.equal((await middleware(pedido("/api/cadastros/bot-usuarios"))).status, 401);

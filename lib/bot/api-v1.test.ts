@@ -7,6 +7,7 @@ import { closeDbForTests, getDb } from "@/lib/db/client";
 import { AJUDA_CALIBRACAO_ENV } from "@/lib/bot/api/calibracao";
 import { BOT_LIMITE_ENV, BOT_LIMITE_MS_ENV, chaveLimite, consumirLimiteApi, resetLimiteApi } from "@/lib/bot/api/limite";
 import { BOT_TOKEN_ENV } from "@/lib/bot/api/token";
+import { permissoesPorPapel } from "@/lib/bot/permissoes";
 import { aplicarAcao, criarUsuario } from "@/lib/bot/usuarios";
 import * as health from "../../app/api/bot/v1/health/route";
 import * as freshness from "../../app/api/bot/v1/meta/freshness/route";
@@ -14,6 +15,7 @@ import * as osLista from "../../app/api/bot/v1/os/route";
 import * as osItem from "../../app/api/bot/v1/os/[numero]/route";
 import * as equipamento from "../../app/api/bot/v1/equipamentos/[tag]/route";
 import * as calibracao from "../../app/api/bot/v1/calibracao/route";
+import * as usuario from "../../app/api/bot/v1/usuario/route";
 
 const TOKEN = "token-ficticio-zzteste-0123456789abcd";
 const TEL = "+55 11 90000-0001";
@@ -53,11 +55,21 @@ function pedido(rota: string, extra?: { token?: string | null; telefone?: string
   return new Request(`http://local${rota}`, { headers });
 }
 
-function pessoa(telefone = TEL, situacao: "ativo" | "inativo" | "pendente" = "ativo", papel = "Compras") {
-  const criado = criarUsuario({ nome: "Pessoa ZZTESTE", papel, telefone, setor: "ZZ" });
+function pessoa(
+  telefone = TEL,
+  situacao: "ativo" | "inativo" | "pendente" | "recusado" = "ativo",
+  papel = "Compras",
+  email?: string,
+) {
+  const criado = criarUsuario({ nome: "Pessoa ZZTESTE", papel, telefone, setor: "ZZ", email });
   assert.equal(criado.ok, true);
   if (!criado.ok) return "";
   if (situacao === "pendente") return criado.data.id;
+  if (situacao === "recusado") {
+    const recusa = aplicarAcao(criado.data.id, { acao: "recusar", motivo: "motivo secreto zz" });
+    assert.equal(recusa.ok, true);
+    return criado.data.id;
+  }
   const aprovado = aplicarAcao(criado.data.id, { acao: "aprovar", papel });
   assert.equal(aprovado.ok, true);
   if (situacao === "inativo") {
@@ -718,4 +730,108 @@ test("A65 A66 A67 A68 A69 A70 calibração por setor, só do cache", async () =>
   const semCopia = await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=uti%20zzteste&ano=2026"));
   assert.equal(semCopia.status, 503);
   assert.equal((await semCopia.text()).includes('"meses"'), false);
+});
+
+test("usuario devolve a situacao real, sem dado pessoal, e as permissoes da v1", async () => {
+  const ativos = ["os", "equipamentos", "calibracao"];
+  assert.deepEqual(permissoesPorPapel("Diretoria/Gestão", "ativo"), ativos);
+  assert.deepEqual(permissoesPorPapel("Compras", "ativo"), ativos);
+  assert.equal(ativos.includes("indicadores"), false);
+  for (const situacao of ["pendente", "inativo", "recusado", "nao_cadastrado"]) {
+    assert.deepEqual(permissoesPorPapel("Diretoria/Gestão", situacao), []);
+  }
+
+  const idAtivo = pessoa(TEL, "ativo", "Compras", "zzteste@example.com");
+  const idPendente = pessoa("+55 11 90000-0002", "pendente");
+  const idInativo = pessoa("+55 11 90000-0003", "inativo");
+  const idRecusado = pessoa("+55 11 90000-0004", "recusado");
+  const antes = getDb().prepare("SELECT COUNT(*) n FROM bot_usuario").get() as { n: number };
+
+  const casos = [
+    { telefone: TEL, id: idAtivo, situacao: "ativo", pode: true },
+    { telefone: "+55 11 90000-0002", id: idPendente, situacao: "pendente", pode: false },
+    { telefone: "+55 11 90000-0003", id: idInativo, situacao: "inativo", pode: false },
+    { telefone: "+55 11 90000-0004", id: idRecusado, situacao: "recusado", pode: false },
+    { telefone: "+55 11 90000-0005", id: null, situacao: "nao_cadastrado", pode: false },
+  ];
+  for (const caso of casos) {
+    const resposta = await usuario.GET(pedido("/api/bot/v1/usuario", { telefone: caso.telefone }));
+    assert.equal(resposta.status, 200);
+    const json = (await resposta.json()) as Record<string, unknown>;
+    assert.equal(json.situacao, caso.situacao);
+    assert.equal(json.podeResponder, caso.pode);
+    assert.deepEqual(json.permissoes, caso.pode ? ativos : []);
+    const texto = JSON.stringify(json);
+    for (const proibido of ["telefone", "email", "motivo", "auditoria", "criado_em", "atualizado_em", "verificado_em", "@", "ZZTESTE", "secreto", "example.com", "zzteste@"]) {
+      assert.equal(texto.toLowerCase().includes(proibido.toLowerCase()), false, proibido);
+    }
+    if (caso.id) assert.equal(texto.includes(caso.id), false);
+    if (caso.situacao === "ativo") {
+      assert.deepEqual(Object.keys(json).sort(), ["papel", "permissoes", "podeResponder", "primeiroNome", "setor", "situacao"]);
+      assert.equal(json.primeiroNome, "Pessoa");
+      assert.equal(json.papel, "Compras");
+      assert.equal(json.setor, "ZZ");
+    } else if (caso.situacao === "nao_cadastrado") {
+      assert.deepEqual(json, { situacao: "nao_cadastrado", podeResponder: false, permissoes: [] });
+    } else {
+      assert.deepEqual(Object.keys(json).sort(), ["permissoes", "podeResponder", "situacao"]);
+      assert.equal(texto.includes("Pessoa"), false);
+      assert.equal(texto.includes("Compras"), false);
+      assert.equal(texto.includes("ZZ"), false);
+    }
+    if (caso.situacao !== "ativo") {
+      assert.equal((await health.GET(pedido("/api/bot/v1/health", { telefone: caso.telefone }))).status, 403);
+    }
+  }
+
+  const grafia = (await (await usuario.GET(pedido("/api/bot/v1/usuario", { telefone: "11 0000-0001" }))).json()) as {
+    situacao: string;
+    primeiroNome: string;
+  };
+  assert.equal(grafia.situacao, "ativo");
+  assert.equal(grafia.primeiroNome, "Pessoa");
+  pessoa("+55 11 90000-0006", "ativo", "Diretoria/Gestão");
+  const diretoria = (await (await usuario.GET(pedido("/api/bot/v1/usuario", { telefone: "+55 11 90000-0006" }))).json()) as {
+    permissoes: string[];
+    papel: string;
+  };
+  assert.equal(diretoria.papel, "Diretoria/Gestão");
+  assert.deepEqual(diretoria.permissoes, ativos);
+  assert.equal((getDb().prepare("SELECT COUNT(*) n FROM bot_usuario").get() as { n: number }).n, antes.n + 1);
+
+  const semToken = await usuario.GET(pedido("/api/bot/v1/usuario", { token: null }));
+  assert.equal(semToken.status, 401);
+  assert.equal(await semToken.text(), JSON.stringify({ ok: false }));
+  const errado = await usuario.GET(pedido("/api/bot/v1/usuario", { token: "token-errado-zzteste-0123456789abcd" }));
+  assert.equal(errado.status, 401);
+  assert.equal(await errado.text(), JSON.stringify({ ok: false }));
+  delete process.env[BOT_TOKEN_ENV];
+  const off = await usuario.GET(pedido("/api/bot/v1/usuario"));
+  assert.equal(off.status, 503);
+  assert.equal((await off.json() as { message: string }).message, "API desativada.");
+  process.env[BOT_TOKEN_ENV] = TOKEN;
+
+  const post = await usuario.POST(pedido("/api/bot/v1/usuario"));
+  assert.equal(post.status, 405);
+  assert.equal(post.headers.get("allow"), "GET");
+  assert.equal(await post.text(), JSON.stringify({ ok: false }));
+  assert.equal(
+    (getDb().prepare("SELECT situacao FROM bot_usuario WHERE id = ?").get(idAtivo) as { situacao: string }).situacao,
+    "ativo",
+  );
+
+  const trilha = auditarTexto();
+  assert.equal(trilha.includes("ZZTESTE"), false);
+  assert.equal(trilha.includes("example.com"), false);
+  assert.equal(trilha.includes("secreto"), false);
+  assert.equal(trilha.includes(DIGITOS), false);
+  assert.equal(trilha.includes(TOKEN), false);
+  const linhas = getDb()
+    .prepare("SELECT usuario_id, rota, status, telefone_mascarado FROM bot_api_auditoria WHERE rota = '/api/bot/v1/usuario'")
+    .all() as Array<{ usuario_id: string | null; rota: string; status: number; telefone_mascarado: string | null }>;
+  assert.equal(linhas.find((linha) => linha.status === 200 && linha.usuario_id === idRecusado)?.telefone_mascarado?.includes("0004"), true);
+  assert.equal(linhas.some((linha) => linha.status === 200 && linha.usuario_id === null), true);
+  assert.equal(linhas.some((linha) => linha.status === 401), true);
+  assert.equal(linhas.some((linha) => linha.status === 405), true);
+  assert.equal(linhas.some((linha) => linha.status === 503), true);
 });
