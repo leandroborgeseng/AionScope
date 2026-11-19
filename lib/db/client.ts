@@ -22,6 +22,7 @@ import { aplicarMigration014ParqueHistorico } from "./migrations/014_parque_hist
 import { aplicarMigration015BotUsuario } from "./migrations/015_bot_usuario";
 import { aplicarMigration016BotEntrega } from "./migrations/016_bot_entrega";
 import { aplicarMigration017BotConvite } from "./migrations/017_bot_convite";
+import { aplicarMigration018BotApiAuditoria } from "./migrations/018_bot_api_auditoria";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -265,6 +266,8 @@ function migrate(db: Database.Database) {
   aplicarMigration016BotEntrega(db);
   // 017: link do grupo, setores e campos declarados. Só aditiva; não altera linhas existentes.
   aplicarMigration017BotConvite(db);
+  // 018: auditoria da API do bot. Sem corpo, telefone completo, e-mail ou setor.
+  aplicarMigration018BotApiAuditoria(db);
 }
 
 /** Fecha o singleton — só para testes isolados. */

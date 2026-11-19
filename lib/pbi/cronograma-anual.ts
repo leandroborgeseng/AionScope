@@ -153,12 +153,19 @@ export function plannedMonthsInYear(opts: {
   const yearEnd = year * 12 + 11;
   const anchorIdx = anchor.getFullYear() * 12 + anchor.getMonth();
   let idx = anchorIdx;
-  while (idx >= yearStart) idx -= intervalMonths;
-  idx += intervalMonths;
+  // Âncora vencida: avança pela periodicidade até o ano, e só devolve mês 0–11.
+  if (idx < yearStart) {
+    const passos = Math.ceil((yearStart - idx) / intervalMonths);
+    idx += passos * intervalMonths;
+  } else {
+    while (idx >= yearStart) idx -= intervalMonths;
+    idx += intervalMonths;
+  }
 
   const months: number[] = [];
   while (idx <= yearEnd) {
-    months.push(idx - yearStart);
+    const mes = idx - yearStart;
+    if (mes >= 0 && mes <= 11) months.push(mes);
     idx += intervalMonths;
   }
   return months;
