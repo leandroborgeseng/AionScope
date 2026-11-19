@@ -38,7 +38,8 @@ const E164 = "+5511900000001";
 const DIGITOS = "5511900000001";
 const DESCRICAO = "Enfermeira exemplo da UTI ZZTESTE";
 const ORIGEM = "https://painel.exemplo.test";
-const AGORA = new Date("2026-11-12T03:00:00.000Z");
+// A rota confere o relógio real. A data fixa 2026-11-12 vence 7 dias depois (2026-11-19).
+const AGORA = new Date(Date.now() - 60_000);
 const DIA = 86_400_000;
 
 let dir = "";

@@ -1,8 +1,12 @@
 /**
  * CSRF do login único. Origin presente tem prioridade; Referer só entra
  * se o header Origin não veio. A resposta não ecoa a origem recebida.
- * `AIONSCOPE_PAINEL_ORIGENS`: origens extras (esquema + host + porta), vírgula.
- * O host do próprio pedido sempre passa, para o formulário no mesmo site.
+ * A origem informada passa se coincidir com o primeiro `X-Forwarded-Proto`
+ * mais o primeiro `X-Forwarded-Host`, com o Host (ou o host do pedido) e o
+ * proto (`X-Forwarded-Proto` ou o do pedido), ou com um item de
+ * `AIONSCOPE_PAINEL_ORIGENS` (esquema + host + porta, vírgula).
+ * O host é comparado sem distinção de maiúsculas e a porta 80/443 sai.
+ * Sem Origin e sem Referer, recusa.
  */
 export const PAINEL_ORIGENS_ENV = "AIONSCOPE_PAINEL_ORIGENS";
 
@@ -21,6 +25,19 @@ function canonizar(valor: string | null | undefined): URL | null {
   return url;
 }
 
+function primeiro(valor: string | null): string {
+  if (!valor) return "";
+  return (valor.split(",")[0] ?? "").trim();
+}
+
+/** Esquema + host, com o host em minúsculas e a porta padrão omitida. */
+function origemHttp(proto: string, host: string): string | null {
+  const esquema = proto.trim().toLowerCase();
+  const nome = host.trim();
+  if ((esquema !== "http" && esquema !== "https") || !nome) return null;
+  return canonizar(`${esquema}://${nome}`)?.origin ?? null;
+}
+
 function origensConfiguradas() {
   const bruto = process.env[PAINEL_ORIGENS_ENV] ?? "";
   const lista = new Set<string>();
@@ -31,7 +48,7 @@ function origensConfiguradas() {
   return lista;
 }
 
-/** Host do pedido, ou uma origem da lista. Sem Origin e sem Referer, recusa. */
+/** Host do pedido, cabeçalhos do proxy, ou uma origem da lista. Sem Origin e sem Referer, recusa. */
 export function origemPainelPermitida(request: Request) {
   const bruto = request.headers.has("origin") ? request.headers.get("origin") : request.headers.get("referer");
   const informada = canonizar(bruto);
@@ -42,6 +59,15 @@ export function origemPainelPermitida(request: Request) {
   } catch {
     return false;
   }
-  if (informada.host === pedido.host) return true;
-  return origensConfiguradas().has(informada.origin);
+  const origem = informada.origin;
+  const protoEnc = primeiro(request.headers.get("x-forwarded-proto"));
+  const hostEnc = primeiro(request.headers.get("x-forwarded-host"));
+  if (hostEnc && protoEnc && origemHttp(protoEnc, hostEnc) === origem) return true;
+
+  const proto = protoEnc || pedido.protocol.slice(0, -1);
+  const hosts = [primeiro(request.headers.get("host")), pedido.host];
+  for (const host of hosts) {
+    if (host && origemHttp(proto, host) === origem) return true;
+  }
+  return origensConfiguradas().has(origem);
 }
