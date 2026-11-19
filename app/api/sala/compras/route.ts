@@ -37,7 +37,7 @@ export async function GET(request: Request) {
   const sync = url.searchParams.get("sync") === "1";
   if (sync) {
     // ?sync=1 força sincronização (efeito colateral): só com sessão de admin. Sem sync, leitura aberta.
-    const recusa = exigirSessaoEscritaSala(request);
+    const recusa = await exigirSessaoEscritaSala(request);
     if (recusa) return recusa;
   }
   let syncResult = null;
@@ -58,7 +58,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const recusa = exigirSessaoEscritaSala(request);
+  const recusa = await exigirSessaoEscritaSala(request);
   if (recusa) return recusa;
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const acao = String(body.acao ?? "criar");

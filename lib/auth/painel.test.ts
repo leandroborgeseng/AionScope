@@ -529,12 +529,16 @@ test("logout limpa o cookie", async () => {
   );
   assert.equal(resposta.status, 303);
   assert.equal(resposta.headers.get("location"), "/login");
-  const set = cookieDe(resposta);
-  assert.match(set, new RegExp(`^${COOKIE_SESSAO_PAINEL}=;`));
-  assert.match(set, /Max-Age=0/);
-  assert.match(set, /HttpOnly/);
-  assert.match(set, /Path=\//);
-  assert.match(set, /SameSite=Lax/);
+  const cookies = resposta.headers.getSetCookie();
+  assert.equal(cookies.length, 2);
+  assert.match(cookies[0] ?? "", new RegExp(`^${COOKIE_SESSAO_PAINEL}=;`));
+  assert.match(cookies[1] ?? "", /^aion_contratos_sessao=;/);
+  for (const set of cookies) {
+    assert.match(set, /Max-Age=0/);
+    assert.match(set, /HttpOnly/);
+    assert.match(set, /Path=\//);
+    assert.match(set, /SameSite=Lax/);
+  }
   const depois = await middleware(pedido("/sala"));
   assert.equal(depois.status, 302);
 });
@@ -554,16 +558,16 @@ test("ordens de compra seguem sem cookie e exigem a chave própria", async () =>
   assert.equal((await middleware(pedido("/api/sala/ordens-compra"))).status, 401);
 });
 
-test("a sessão do painel não substitui a senha de admin das escritas", async () => {
+test("a sessão do painel autoriza a escrita administrativa", async () => {
   const painel = await emitirSessaoPainel();
-  const semAdmin = await contratosRota.POST(
+  const comPainel = await contratosRota.POST(
     new Request("http://local/api/cadastros/contratos", {
       method: "POST",
       headers: { "content-type": "application/json", cookie: `${COOKIE_SESSAO_PAINEL}=${painel}` },
       body: "{}",
     }),
   );
-  assert.equal(semAdmin.status, 401);
+  assert.equal(comPainel.status, 400);
 
   const comAdmin = await contratosRota.POST(
     new Request("http://local/api/cadastros/contratos", {

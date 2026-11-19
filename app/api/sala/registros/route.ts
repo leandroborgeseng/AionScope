@@ -19,7 +19,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const recusa = exigirSessaoEscritaSala(request);
+  const recusa = await exigirSessaoEscritaSala(request);
   if (recusa) return recusa;
   const body = (await request.json()) as Record<string, unknown>;
   const tipo = String(body.tipo ?? "");

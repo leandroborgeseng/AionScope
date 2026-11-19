@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-/** Estado da sessão de admin (GET /api/cadastros/contratos/sessao). Mesma queryKey do cadastro de contratos. */
+/** Estado da sessão de admin (GET /api/cadastros/contratos/sessao): painel ou cookie antigo de contratos. */
 export function useSessaoAdmin() {
   const q = useQuery({
     queryKey: ["cadastros", "contratos", "sessao"],

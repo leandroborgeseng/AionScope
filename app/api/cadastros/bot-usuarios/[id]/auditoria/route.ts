@@ -10,7 +10,7 @@ type Ctx = { params: Promise<{ id: string }> };
 
 /** Trilha visível (padrão 90 dias). Sem telefone, e-mail, setor ou corpo. */
 export async function GET(request: Request, context: Ctx) {
-  const recusa = exigirSessaoAdmin(request);
+  const recusa = await exigirSessaoAdmin(request);
   if (recusa) return recusa;
   const { id } = await context.params;
   if (!obterUsuario(id)) return Response.json({ ok: false, message: MSG_NAO_ENCONTRADO }, { status: 404 });

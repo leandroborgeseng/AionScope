@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: Request) {
   // Grava PDF no volume: exige a sessão de administrador (#13) além do token de evidências.
-  const negado = exigirSessaoAdmin(request);
+  const negado = await exigirSessaoAdmin(request);
   if (negado) return negado;
   if (!tokenEvidenciaValido(request)) {
     return recusarEvidencia();
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       ok: true,
       ano,
       bytes: bytes.length,
-      status: statusEvidencias(request),
+      status: await statusEvidencias(request),
     });
   } catch (e) {
     return NextResponse.json(

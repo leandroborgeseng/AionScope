@@ -24,7 +24,7 @@ function parquePayload(meta: ParqueMeta) {
 }
 
 export async function GET(request: Request) {
-  const recusa = exigirSessaoAdmin(request);
+  const recusa = await exigirSessaoAdmin(request);
   if (recusa) return recusa;
   const meta = readParqueMeta();
   return Response.json({
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
 
 /** Atualiza valorApi a partir da soma de substituição (todos os equipamentos). */
 export async function POST(request: Request) {
-  const recusa = exigirSessaoAdmin(request);
+  const recusa = await exigirSessaoAdmin(request);
   if (recusa) return recusa;
   let atualizadoPor: string | null = null;
   try {

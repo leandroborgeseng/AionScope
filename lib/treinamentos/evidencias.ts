@@ -124,11 +124,11 @@ export function evidenciasTokenConfigurado() {
 }
 
 /** Status para a UI: quais PDFs existem e se o token é obrigatório. */
-export function statusEvidencias(request?: Request) {
+export async function statusEvidencias(request?: Request) {
   const anos = anosEvidenciaDisponiveis();
   const tokenObrigatorio = evidenciasTokenConfigurado();
   // A4: abrir o PDF exige a sessão de admin (e o token, se configurado). Sem caminho do servidor (A3).
-  const sessao = Boolean(request && sessaoContratosValida(request));
+  const sessao = Boolean(request && (await sessaoContratosValida(request)));
   const liberado = sessao && (tokenObrigatorio ? Boolean(request && tokenEvidenciaValido(request)) : true);
   return {
     tokenObrigatorio,

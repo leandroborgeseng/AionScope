@@ -1,10 +1,12 @@
 /**
  * Sessão de escrita do cadastro de contratos (D1 opção b).
  * - Senha única de admin em CONTRATOS_ADMIN_PASSWORD; cookie assinado (HMAC-SHA256) com SESSION_SECRET.
- * - Sem as duas variáveis (ou segredo curto), o login é recusado e a escrita fica sempre 401.
+ * - Sem as duas variáveis (ou segredo curto), o login por essa senha é recusado.
+ * - Quem já tem a sessão válida do painel (assinatura, teto de 8 h e geração) também é admin.
  * - A senha nunca é registrada em log nem devolvida em resposta.
  */
 import { createHash, createHmac, timingSafeEqual } from "crypto";
+import { COOKIE_SESSAO_PAINEL, lerCookie as lerCookiePainel, lerSessaoPainel } from "@/lib/auth/painel-sessao";
 
 export const CONTRATOS_ADMIN_PASSWORD_ENV = "CONTRATOS_ADMIN_PASSWORD";
 export const SESSION_SECRET_ENV = "SESSION_SECRET";
@@ -62,8 +64,14 @@ export function lerCookie(request: Request, nome: string) {
   return null;
 }
 
-export function sessaoContratosValida(request: Request) {
-  return tokenSessaoValido(lerCookie(request, COOKIE_SESSAO_CONTRATOS));
+/**
+ * Autorização única de admin: cookie antigo de contratos OU sessão válida do painel
+ * (mesmas regras de `lerSessaoPainel`: assinatura, teto absoluto de 8 h e geração).
+ */
+export async function sessaoContratosValida(request: Request) {
+  if (tokenSessaoValido(lerCookie(request, COOKIE_SESSAO_CONTRATOS))) return true;
+  const painel = await lerSessaoPainel(lerCookiePainel(request, COOKIE_SESSAO_PAINEL));
+  return painel.ok;
 }
 
 export function cookieSessao(token: string, maxAge = SESSAO_DURACAO_S) {
@@ -72,8 +80,8 @@ export function cookieSessao(token: string, maxAge = SESSAO_DURACAO_S) {
 }
 
 /** null = autorizado; senão a resposta 401. */
-export function exigirSessaoContratos(request: Request): Response | null {
-  if (sessaoContratosValida(request)) return null;
+export async function exigirSessaoContratos(request: Request): Promise<Response | null> {
+  if (await sessaoContratosValida(request)) return null;
   return Response.json(
     { ok: false, message: "Entre com a senha de administrador para alterar contratos." },
     { status: 401 },
@@ -111,10 +119,10 @@ export function limparFalhas(ip: string) {
 }
 
 /**
- * Guard das rotas de cadastro (/api/cadastros/*): mesma sessão de administrador dos contratos.
+ * Guard das rotas de admin: `sessaoContratosValida` (contratos ou painel).
  * 401 sem nenhum dado no corpo (aceite A1). null = autorizado.
  */
-export function exigirSessaoAdmin(request: Request): Response | null {
-  if (sessaoContratosValida(request)) return null;
+export async function exigirSessaoAdmin(request: Request): Promise<Response | null> {
+  if (await sessaoContratosValida(request)) return null;
   return Response.json({ ok: false, message: "Entre com a senha de administrador." }, { status: 401 });
 }

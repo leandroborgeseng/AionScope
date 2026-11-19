@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const recusa = exigirSessaoAdmin(request);
+  const recusa = await exigirSessaoAdmin(request);
   if (recusa) return recusa;
   const url = new URL(request.url);
   return Response.json({
@@ -22,7 +22,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const recusa = exigirMutacaoAdmin(request);
+  const recusa = await exigirMutacaoAdmin(request);
   if (recusa) return recusa;
   let body: unknown;
   try {
