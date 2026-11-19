@@ -34,7 +34,7 @@ Nas rotas de dado, o telefone precisa estar cadastrado, ativo e aprovado. Duas g
 | `GET /api/bot/v1/os?abertas=1` | OS abertas. Filtros `setor`, `tag`, `equipamento`. `limit` ou `pageSize` (1 a 100), `offset` ou `cursor` |
 | `GET /api/bot/v1/os/{numero}` | Situação e histórico (só datas) |
 | `GET /api/bot/v1/equipamentos/{tag}` | Status, até 5 OS e a próxima preventiva |
-| `GET /api/bot/v1/calibracao?setor=&ano=YYYY` | Meses e quantidade de equipamentos. Sem lista de equipamentos |
+| `GET /api/bot/v1/calibracao?setor=&ano=YYYY` | Meses e quantidade de equipamentos. `ano` é opcional; vazio, vale o ano corrente. Sem lista de equipamentos |
 | `GET /api/bot/v1/usuario` | Situação do telefone. Única rota que responde 200 para quem não está aprovado |
 
 `indicadores/resumo` não entra: o resumo que já existe é o card de custo do parque, com valor em R$ na versão interna. Não dá para reaproveitar sem montar outro indicador.
@@ -74,7 +74,7 @@ Cada resposta de dado traz `fetchedAt` (ISO) e `idadeSegundos`. Cópia com mais 
 | Código | Quando |
 | --- | --- |
 | 200 | Consulta aceita. Calibração ambígua ou a refinar também. |
-| 400 | Página inválida, `limit` ou `pageSize` acima de 100, `abertas` diferente de 1, setor ou ano ausente. |
+| 400 | Página inválida, `limit` ou `pageSize` acima de 100, `abertas` diferente de 1, setor ausente ou ano fora de 2000–2100. |
 | 401 | Sem Bearer ou Bearer errado. Corpo só `{ "ok": false }`. |
 | 403 | Nas rotas de dado: telefone ausente, mal formatado, fora do cadastro, pendente, inativo ou recusado. O corpo não diz o motivo. Em `/usuario`, só o telefone ausente ou mal formatado. |
 | 404 | OS, tag ou setor não encontrado. A mensagem da OS e da tag é "Não encontrei.". A do setor é "setor não encontrado". |
@@ -82,4 +82,4 @@ Cada resposta de dado traz `fetchedAt` (ISO) e `idadeSegundos`. Cópia com mais 
 | 429 | Limite do token ou da pessoa. Cabeçalho `Retry-After` em segundos. |
 | 503 | Token não configurado ("API desativada.") ou cópia ausente/vencida. |
 
-Não saem valor em R$, endereço, CEP, anexo, e-mail nem texto livre (ocorrência, causa, observação, descrição). Saem nome do solicitante, nome do técnico, matrícula e responsável. A auditoria guarda rota, hash da query, telefone mascarado, status e latência. Não guarda o corpo.
+Não saem valor em R$, endereço, CEP, anexo, e-mail nem texto livre (ocorrência, causa, observação, descrição). Saem nome do solicitante, nome do técnico, matrícula e responsável. A auditoria guarda rota, hash da query, telefone mascarado, status e latência. Não guarda o corpo. Chamada sem token ou com token inválido (401 e 503 "API desativada.") não grava linha: só entra num contador em memória, com no máximo um log por minuto.

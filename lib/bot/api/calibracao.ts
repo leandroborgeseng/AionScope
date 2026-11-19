@@ -5,7 +5,7 @@
  */
 import { getDb } from "@/lib/db/client";
 import { semAcento, texto } from "@/lib/ec/texto";
-import { parsePbiDate } from "@/lib/pbi/dates";
+import { nowInSaoPaulo, parsePbiDate } from "@/lib/pbi/dates";
 import { classifyPlanoEc } from "@/lib/pbi/indicadores-os";
 import { keepCronogramaPlano, parsePeriodicidadeMeses, plannedMonthsInYear } from "@/lib/pbi/cronograma-anual";
 import type { CronogramaItem } from "@/lib/pbi/types";
@@ -69,6 +69,7 @@ function mesesDoSetor(itens: CronogramaItem[], chaveSetor: string, ano: number) 
     });
     const chave = chaveEquipamento(item, indice);
     for (const mes of meses) {
+      if (mes < 0 || mes > 11) continue;
       const grupo = porMes.get(mes) ?? new Set<string>();
       grupo.add(chave);
       porMes.set(mes, grupo);
@@ -87,9 +88,10 @@ export function consultarCalibracao(request: Request, usuarioId: string) {
   const setor = params.get("setor")?.trim() ?? "";
   const anoBruto = params.get("ano")?.trim() ?? "";
   if (!setor) return json(400, { ok: false, message: "Informe o setor." });
-  if (!/^\d{4}$/.test(anoBruto)) return json(400, { ok: false, message: "Ano inválido." });
-  const ano = Number(anoBruto);
-  if (ano < 2000 || ano > 2100) return json(400, { ok: false, message: "Ano inválido." });
+  const ano = anoBruto ? Number(anoBruto) : nowInSaoPaulo().getFullYear();
+  if (anoBruto && (!/^\d{4}$/.test(anoBruto) || ano < 2000 || ano > 2100)) {
+    return json(400, { ok: false, message: "Ano inválido." });
+  }
 
   const copia = lerLista("cronograma");
   if (!copia.ok) return copiaIndisponivel(copia.motivo, copia.motivo === "expirada" ? copia : undefined);

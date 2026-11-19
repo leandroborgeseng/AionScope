@@ -4,8 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, beforeEach, test } from "node:test";
 import { closeDbForTests, getDb } from "@/lib/db/client";
+import { nowInSaoPaulo } from "@/lib/pbi/dates";
 import { AJUDA_CALIBRACAO_ENV } from "@/lib/bot/api/calibracao";
 import { BOT_LIMITE_ENV, BOT_LIMITE_MS_ENV, chaveLimite, consumirLimiteApi, resetLimiteApi } from "@/lib/bot/api/limite";
+import { contagemRecusaAuth, resetRecusaAuth } from "@/lib/bot/api/recusa";
 import { BOT_TOKEN_ENV } from "@/lib/bot/api/token";
 import { permissoesPorPapel } from "@/lib/bot/permissoes";
 import { aplicarAcao, criarUsuario } from "@/lib/bot/usuarios";
@@ -45,6 +47,7 @@ beforeEach(() => {
   delete process.env[BOT_LIMITE_MS_ENV];
   delete process.env[AJUDA_CALIBRACAO_ENV];
   resetLimiteApi();
+  resetRecusaAuth();
   getDb().exec("DELETE FROM bot_api_auditoria; DELETE FROM bot_usuario_setor; DELETE FROM bot_usuario; DELETE FROM pbi_cache;");
 });
 
@@ -500,9 +503,33 @@ test("A8 A14 A27 auditoria grava a chamada sem corpo, token, telefone completo, 
     status: number;
     telefone_mascarado: string | null;
   }>;
-  assert.deepEqual(status.map((item) => item.status), [200, 401, 403, 503]);
+  assert.deepEqual(status.map((item) => item.status), [200, 403]);
   assert.equal(JSON.stringify(status).includes("nao-e-telefone"), false);
   assert.equal(JSON.stringify(getDb().prepare("SELECT * FROM bot_api_auditoria").all()).includes(TOKEN), false);
+  assert.equal(contagemRecusaAuth(), 2);
+
+  process.env[BOT_TOKEN_ENV] = TOKEN;
+  resetRecusaAuth();
+  const antes = (getDb().prepare("SELECT COUNT(*) n FROM bot_api_auditoria").get() as { n: number }).n;
+  const logs: string[] = [];
+  console.log = (...args: unknown[]) => {
+    logs.push(args.map((item) => String(item)).join(" "));
+  };
+  try {
+    for (let i = 0; i < 30; i++) {
+      const recusa = await health.GET(pedido("/api/bot/v1/health", { token: "token-errado-zzteste-0123456789abcd" }));
+      assert.equal(recusa.status, 401);
+    }
+  } finally {
+    console.log = original;
+  }
+  assert.equal((getDb().prepare("SELECT COUNT(*) n FROM bot_api_auditoria").get() as { n: number }).n, antes);
+  assert.equal(contagemRecusaAuth(), 30);
+  assert.equal(logs.length, 1);
+  assert.match(logs[0] ?? "", /status=401/);
+  assert.equal(logs.join("\n").includes(TOKEN), false);
+  assert.equal(logs.join("\n").includes(DIGITOS), false);
+  assert.equal(logs.join("\n").includes("nao-e-telefone"), false);
 });
 
 test("A9 A18 limite por token e por pessoa responde 429 com Retry-After", async () => {
@@ -714,8 +741,10 @@ test("A65 A66 A67 A68 A69 A70 calibração por setor, só do cache", async () =>
   assert.equal(foraDoVinculo.status, 404);
   assert.equal(((await foraDoVinculo.json()) as { status: string }).status, "nao_encontrado");
 
+  const antesAuth = (getDb().prepare("SELECT COUNT(*) n FROM bot_api_auditoria").get() as { n: number }).n;
   const semToken = await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=uti%20zzteste&ano=2026", { token: null }));
   assert.equal(semToken.status, 401);
+  assert.equal((getDb().prepare("SELECT COUNT(*) n FROM bot_api_auditoria").get() as { n: number }).n, antesAuth);
   const semFone = await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=uti%20zzteste&ano=2026", { telefone: "+55 11 90000-0099" }));
   assert.equal(semFone.status, 403);
   const trilha = auditarTexto();
@@ -730,6 +759,59 @@ test("A65 A66 A67 A68 A69 A70 calibração por setor, só do cache", async () =>
   const semCopia = await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=uti%20zzteste&ano=2026"));
   assert.equal(semCopia.status, 503);
   assert.equal((await semCopia.text()).includes('"meses"'), false);
+  assert.equal(
+    (getDb().prepare("SELECT status FROM bot_api_auditoria ORDER BY id DESC LIMIT 1").get() as { status: number }).status,
+    503,
+  );
+});
+
+test("F1 R1 plano vencido conta só meses de 1 a 12 e ano vazio é o corrente", async () => {
+  pessoa();
+  gravar("cronograma", [
+    plano({
+      Setor: "Setor Vencido Zz",
+      Tag: "ZZVENC1",
+      Perioridicade: "Anual",
+      ProximaRealizacao: "10/05/2024",
+    }),
+    plano({
+      Setor: "Setor Vencido Zz",
+      Tag: "ZZVENC2",
+      Perioridicade: "Semestral",
+      ProximaRealizacao: "20/01/2025",
+    }),
+  ]);
+  const ano = nowInSaoPaulo().getFullYear();
+  assert.equal(ano >= 2026, true);
+  const esperado = (alvo: number) => [
+    { mes: `${alvo}-01`, equipamentos: 1 },
+    { mes: `${alvo}-05`, equipamentos: 1 },
+    { mes: `${alvo}-07`, equipamentos: 1 },
+  ];
+  for (const alvo of [ano, ano + 1]) {
+    const resposta = await calibracao.GET(pedido(`/api/bot/v1/calibracao?setor=setor%20vencido%20zz&ano=${alvo}`));
+    assert.equal(resposta.status, 200);
+    const json = (await resposta.json()) as { status: string; ano: number; meses: Array<{ mes: string; equipamentos: number }> };
+    assert.equal(json.status, "ok");
+    assert.equal(json.ano, alvo);
+    assert.deepEqual(json.meses, esperado(alvo));
+    for (const item of json.meses) assert.match(item.mes, /^\d{4}-(0[1-9]|1[0-2])$/);
+    assert.equal(JSON.stringify(json).includes("--"), false);
+  }
+  const semAno = (await (await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=setor%20vencido%20zz"))).json()) as {
+    ano: number;
+    meses: Array<{ mes: string; equipamentos: number }>;
+  };
+  const anoVazio = (await (await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=setor%20vencido%20zz&ano="))).json()) as {
+    ano: number;
+    meses: Array<{ mes: string; equipamentos: number }>;
+  };
+  assert.equal(semAno.ano, ano);
+  assert.deepEqual(semAno.meses, esperado(ano));
+  assert.equal(anoVazio.ano, ano);
+  assert.deepEqual(anoVazio.meses, esperado(ano));
+  assert.equal((await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=setor%20vencido%20zz&ano=1999"))).status, 400);
+  assert.equal((await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=setor%20vencido%20zz&ano=20261"))).status, 400);
 });
 
 test("usuario devolve a situacao real, sem dado pessoal, e as permissoes da v1", async () => {
@@ -831,7 +913,8 @@ test("usuario devolve a situacao real, sem dado pessoal, e as permissoes da v1",
     .all() as Array<{ usuario_id: string | null; rota: string; status: number; telefone_mascarado: string | null }>;
   assert.equal(linhas.find((linha) => linha.status === 200 && linha.usuario_id === idRecusado)?.telefone_mascarado?.includes("0004"), true);
   assert.equal(linhas.some((linha) => linha.status === 200 && linha.usuario_id === null), true);
-  assert.equal(linhas.some((linha) => linha.status === 401), true);
+  assert.equal(linhas.some((linha) => linha.status === 401), false);
   assert.equal(linhas.some((linha) => linha.status === 405), true);
-  assert.equal(linhas.some((linha) => linha.status === 503), true);
+  assert.equal(linhas.some((linha) => linha.status === 503), false);
+  assert.equal(contagemRecusaAuth() >= 3, true);
 });

@@ -9,6 +9,7 @@ import { mascararTelefone, normalizarTelefone } from "@/lib/bot/telefone";
 import { consultarSituacao } from "./usuario";
 import { botIdAtual, bearerConfere, tokenConfigurado } from "./token";
 import { chaveLimite, consumirLimiteApi } from "./limite";
+import { anotarRecusaAuth } from "./recusa";
 
 export function json(status: number, body: unknown, headers?: Record<string, string>) {
   return Response.json(body, {
@@ -66,16 +67,19 @@ export async function atenderGet(request: Request, executar: (usuarioId: string)
   const inicio = performance.now();
   let status = 500;
   let usuarioId: string | null = null;
+  let trilha = true;
   const telefone = request.headers.get("x-bot-telefone");
   try {
     if (!tokenConfigurado()) {
       status = 503;
-      usuarioId = idSePossivel(telefone);
+      trilha = false;
+      anotarRecusaAuth(503);
       return json(503, { ok: false, message: "API desativada." });
     }
     if (!bearerConfere(request)) {
       status = 401;
-      usuarioId = idSePossivel(telefone);
+      trilha = false;
+      anotarRecusaAuth(401);
       return json(401, { ok: false });
     }
     const identificado = identificarRemetente(telefone);
@@ -100,7 +104,7 @@ export async function atenderGet(request: Request, executar: (usuarioId: string)
     status = 500;
     return json(500, { ok: false });
   } finally {
-    auditar(request, status, usuarioId, inicio);
+    if (trilha) auditar(request, status, usuarioId, inicio);
   }
 }
 
@@ -112,16 +116,19 @@ export function atenderSituacao(request: Request) {
   const inicio = performance.now();
   let status = 500;
   let usuarioId: string | null = null;
+  let trilha = true;
   const telefone = request.headers.get("x-bot-telefone");
   try {
     if (!tokenConfigurado()) {
       status = 503;
-      usuarioId = idSePossivel(telefone);
+      trilha = false;
+      anotarRecusaAuth(503);
       return json(503, { ok: false, message: "API desativada." });
     }
     if (!bearerConfere(request)) {
       status = 401;
-      usuarioId = idSePossivel(telefone);
+      trilha = false;
+      anotarRecusaAuth(401);
       return json(401, { ok: false });
     }
     const ficha = consultarSituacao(telefone);
@@ -144,7 +151,7 @@ export function atenderSituacao(request: Request) {
     status = 500;
     return json(500, { ok: false });
   } finally {
-    auditar(request, status, usuarioId, inicio);
+    if (trilha) auditar(request, status, usuarioId, inicio);
   }
 }
 
