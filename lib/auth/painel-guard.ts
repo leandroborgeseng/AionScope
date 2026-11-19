@@ -77,6 +77,11 @@ function ordensLiberada(caminho: string) {
   return caminho === "/api/v1/ordens-compra" || caminho.startsWith("/api/v1/ordens-compra/");
 }
 
+/** API do bot: o Bearer é conferido na rota. O cookie do painel não abre o resto do site. */
+function botV1Liberada(caminho: string) {
+  return caminho === "/api/bot/v1" || caminho.startsWith("/api/bot/v1/");
+}
+
 function estaticoLiberado(caminho: string) {
   return caminho.startsWith("/_next/static/") || caminho === "/_next/image" || caminho.startsWith("/_next/image/");
 }
@@ -87,6 +92,7 @@ export function rotaLiberada(caminho: string) {
   if (estaticoLiberado(caminho)) return true;
   if (conviteLiberado(caminho)) return true;
   if (ordensLiberada(caminho)) return true;
+  if (botV1Liberada(caminho)) return true;
   return false;
 }
 

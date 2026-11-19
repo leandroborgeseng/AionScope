@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, beforeEach, test } from "node:test";
@@ -191,10 +191,35 @@ test("POST /api/cadastros/bot-usuarios só cria pendente", async () => {
   assert.equal(json.data.verificado_em, null);
 });
 
-test("a página pública do convite existe e a rota do canal do bot ainda não", () => {
-  assert.equal(existsSync("app/api/bot"), false);
+test("a página pública do convite existe e o bot só tem as rotas GET de leitura", () => {
   assert.equal(existsSync("app/convite/[token]/route.ts"), true);
   assert.equal(existsSync("app/admin/bot-usuarios/page.tsx"), true);
+  const achados: string[] = [];
+  const andar = (dir: string) => {
+    for (const nome of readdirSync(dir)) {
+      const abs = path.join(dir, nome);
+      if (statSync(abs).isDirectory()) andar(abs);
+      else if (nome === "route.ts") {
+        const rel = path.relative("app", abs).split(path.sep).join("/");
+        achados.push(`/${rel.replace(/\/route\.ts$/, "")}`);
+      }
+    }
+  };
+  andar("app/api/bot");
+  assert.deepEqual(achados.sort(), [
+    "/api/bot/v1/calibracao",
+    "/api/bot/v1/equipamentos/[tag]",
+    "/api/bot/v1/health",
+    "/api/bot/v1/meta/freshness",
+    "/api/bot/v1/os",
+    "/api/bot/v1/os/[numero]",
+  ]);
+  for (const rota of achados) {
+    const fonte = readFileSync(`app${rota}/route.ts`, "utf8");
+    assert.match(fonte, /export (async )?function GET/);
+    assert.equal(fonte.includes("INSERT"), false, rota);
+    assert.equal(/export async function (POST|PUT|PATCH|DELETE)/.test(fonte), false, rota);
+  }
 });
 
 test("mutação exige origem da lista; GET segue só com a sessão", async () => {

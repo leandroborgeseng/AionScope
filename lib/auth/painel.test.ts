@@ -131,8 +131,38 @@ test("allowlist literal: rotas exatas e arquivos públicos", () => {
     ARQUIVOS_PUBLICOS.filter((item) => item !== "/favicon.ico").sort(),
   );
   assert.equal(existsSync("app/favicon.ico"), true);
-  assert.equal(existsSync("app/api/bot"), false);
+  assert.deepEqual(rotasSob("app/api/bot"), [
+    "/api/bot/v1/calibracao",
+    "/api/bot/v1/equipamentos/[tag]",
+    "/api/bot/v1/health",
+    "/api/bot/v1/meta/freshness",
+    "/api/bot/v1/os",
+    "/api/bot/v1/os/[numero]",
+  ]);
+  for (const rota of rotasSob("app/api/bot")) {
+    const fonte = readFileSync(`app${rota}/route.ts`, "utf8");
+    assert.match(fonte, /export (async )?function GET/);
+    assert.match(fonte, /metodosFechados/);
+    assert.equal(fonte.includes("INSERT"), false, rota);
+    assert.equal(/export async function (POST|PUT|PATCH|DELETE)/.test(fonte), false, rota);
+  }
 });
+
+function rotasSob(pasta: string) {
+  const achados: string[] = [];
+  const andar = (dir: string) => {
+    for (const nome of readdirSync(dir)) {
+      const abs = path.join(dir, nome);
+      if (statSync(abs).isDirectory()) andar(abs);
+      else if (nome === "route.ts") {
+        const rel = path.relative("app", abs).split(path.sep).join("/");
+        achados.push(`/${rel.replace(/\/route\.ts$/, "")}`);
+      }
+    }
+  };
+  andar(pasta);
+  return achados.sort();
+}
 
 test("normalização não libera prefixo nem caminho codificado", () => {
   const token = "a".repeat(43);
@@ -217,6 +247,15 @@ test("página protegida sem cookie redireciona; API responde 401", async () => {
   const api = await middleware(pedido("/api/sala/snapshot"));
   assert.equal(api.status, 401);
   assert.equal(await api.text(), MSG_401);
+});
+
+test("o cookie do painel não abre o bot e o bot não abre o cadastro", async () => {
+  assert.equal((await middleware(pedido("/api/bot/v1/health"))).status, 200);
+  assert.equal((await middleware(pedido("/api/bot/v1/os/1001"))).status, 200);
+  assert.equal((await middleware(pedido("/api/bot"))).status, 401);
+  assert.equal((await middleware(pedido("/api/bot/v1extra"))).status, 401);
+  assert.equal((await middleware(pedido("/api/cadastros/bot-usuarios"))).status, 401);
+  assert.equal(await (await middleware(pedido("/api/cadastros/bot-usuarios"))).text(), MSG_401);
 });
 
 test("convite e health seguem acessíveis sem cookie", async () => {
