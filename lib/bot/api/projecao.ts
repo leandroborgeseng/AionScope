@@ -27,9 +27,9 @@ export type OsPublica = {
   dataLimiteSolucao: string;
   solicitante: string;
   tecnico: string;
-  matriculaTecnico: string;
+  matriculaTecnico?: string;
   responsavel: string;
-  matriculaResponsavel: string;
+  matriculaResponsavel?: string;
 };
 
 export type EventoHistorico = {
@@ -46,8 +46,8 @@ const EVENTOS: Array<[EventoHistorico["tipo"], keyof OsAnaliticoItem]> = [
   ["limiteSolucao", "DataLimiteDaSolucao"],
 ];
 
-export function projetarOs(item: OsAnaliticoItem): OsPublica {
-  return {
+export function projetarOs(item: OsAnaliticoItem, opts?: { matriculas?: boolean }): OsPublica {
+  const os: OsPublica = {
     numero: texto(item.OS),
     situacao: texto(item.SituacaoDaOS),
     tipo: texto(item.Tipo),
@@ -70,10 +70,13 @@ export function projetarOs(item: OsAnaliticoItem): OsPublica {
     dataLimiteSolucao: texto(item.DataLimiteDaSolucao),
     solicitante: texto(item.Requisitante),
     tecnico: texto(item.TecnicoResolvedor),
-    matriculaTecnico: texto(item.MatriculaResolvedor),
     responsavel: texto(item.Responsavel),
-    matriculaResponsavel: texto(item.MatriculaResponsavel),
   };
+  if (opts?.matriculas) {
+    os.matriculaTecnico = texto(item.MatriculaResolvedor);
+    os.matriculaResponsavel = texto(item.MatriculaResponsavel);
+  }
+  return os;
 }
 
 export function historicoOs(item: OsAnaliticoItem): EventoHistorico[] {

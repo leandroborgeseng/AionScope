@@ -155,8 +155,57 @@ export function atenderSituacao(request: Request) {
   }
 }
 
+/**
+ * Saúde da API. Só o Bearer: o telefone não é exigido.
+ * Token ausente ou errado segue o mesmo 401/503 das outras rotas, sem auditoria.
+ */
+export function atenderSaude(request: Request) {
+  const inicio = performance.now();
+  let status = 500;
+  let usuarioId: string | null = null;
+  let trilha = true;
+  const telefone = request.headers.get("x-bot-telefone");
+  try {
+    if (!tokenConfigurado()) {
+      status = 503;
+      trilha = false;
+      anotarRecusaAuth(503);
+      return json(503, { ok: false, message: "API desativada." });
+    }
+    if (!bearerConfere(request)) {
+      status = 401;
+      trilha = false;
+      anotarRecusaAuth(401);
+      return json(401, { ok: false });
+    }
+    const apresentado = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+    const limite = consumirLimiteApi([chaveLimite("token", apresentado)]);
+    if (!limite.permitido) {
+      status = 429;
+      return json(429, { ok: false }, { "retry-after": String(limite.retryAfter) });
+    }
+    const identificado = identificarRemetente(telefone);
+    if (identificado.ok) usuarioId = identificado.usuarioId;
+    status = 200;
+    return json(200, { ok: true });
+  } catch {
+    status = 500;
+    return json(500, { ok: false });
+  } finally {
+    if (trilha) auditar(request, status, usuarioId, inicio);
+  }
+}
+
 export function atenderFechado(request: Request) {
   const inicio = performance.now();
+  if (!tokenConfigurado()) {
+    anotarRecusaAuth(503);
+    return json(503, { ok: false, message: "API desativada." });
+  }
+  if (!bearerConfere(request)) {
+    anotarRecusaAuth(405);
+    return json(405, { ok: false }, { allow: "GET" });
+  }
   const telefone = request.headers.get("x-bot-telefone");
   auditar(request, 405, idSePossivel(telefone), inicio);
   return json(405, { ok: false }, { allow: "GET" });

@@ -213,6 +213,7 @@ test("a página pública do convite existe e o bot só tem as rotas GET de leitu
     "/api/bot/v1/meta/freshness",
     "/api/bot/v1/os",
     "/api/bot/v1/os/[numero]",
+    "/api/bot/v1/os/por-setor",
     "/api/bot/v1/usuario",
   ]);
   for (const rota of achados) {

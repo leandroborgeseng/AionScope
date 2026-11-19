@@ -7,7 +7,7 @@ const JANELA_LOG_MS = 60_000;
 let total = 0;
 let ultimoLog = 0;
 
-export function anotarRecusaAuth(status: 401 | 503, agora = Date.now()) {
+export function anotarRecusaAuth(status: 401 | 405 | 503, agora = Date.now()) {
   total += 1;
   if (agora - ultimoLog < JANELA_LOG_MS) return;
   ultimoLog = agora;

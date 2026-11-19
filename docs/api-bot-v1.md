@@ -10,46 +10,100 @@ O cookie do painel não entra aqui. `/api/cadastros/bot-usuarios` continua exigi
 | --- | --- |
 | `AIONSCOPE_BOT_TOKEN` | Bearer. Sem ela, ou com menos de 32 caracteres, toda rota responde 503. Fica só no ambiente (Railway), nunca no código. |
 | `AIONSCOPE_BOT_AJUDA_EFFORT_CALIBRACAO` | Texto de `comoConsultarNoEffort`. Vazia ou ausente, o campo vem `null`. |
-| `AIONSCOPE_BOT_LIMITE` | Chamadas por janela, por token e por pessoa. Padrão 600. |
+| `AIONSCOPE_BOT_LIMITE` | Chamadas por janela, por token e por pessoa. Padrão 600. Em `/health` o limite é só do token. |
 | `AIONSCOPE_BOT_LIMITE_MS` | Janela em milissegundos. Padrão 60000. |
 
 Deploy em produção só com OK do Leandro. Esta API não envia mensagem nem lote.
 
 ## Chamada
 
+`GET /health` exige só o Bearer. O cabeçalho `X-Bot-Telefone` não é obrigatório nessa rota.
+
 ```bash
 curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
-  -H "X-Bot-Telefone: +55 11 90000-0001" \
   "https://scope.aion.eng.br/api/bot/v1/health"
 ```
 
-Nas rotas de dado, o telefone precisa estar cadastrado, ativo e aprovado. Duas grafias do mesmo número (com ou sem `+55`, com ou sem o nono dígito) caem no mesmo cadastro. `GET /api/bot/v1/usuario` usa a mesma normalização e devolve a situação real.
+Nas outras rotas, o telefone precisa estar cadastrado, ativo e aprovado. Duas grafias do mesmo número (com ou sem `+55`, com ou sem o nono dígito) caem no mesmo cadastro. `GET /api/bot/v1/usuario` usa a mesma normalização e devolve a situação real.
+
+## Escopo
+
+Engenharia clínica e equipamentos médicos. A comparação da oficina é normalizada: sem acento, sem diferença de caixa e com espaços extras colapsados.
+
+Entra a oficina exatamente `ENGENHARIA CLÍNICA`.
+
+Também entram duas oficinas em que a cópia registra preventiva e calibração de equipamento médico fora desse nome (as mesmas do volume de plano): `PREVENTIVA EQUIPAMENTOS` e `CALIBRAÇÃO DE EQUIPAMENTOS`. Refrigeração, predial, obras e preventiva de manutenção predial ficam de fora.
+
+A visão `/os/por-setor` é mais estreita: só corretiva (`tipoManutencao` contém `CORRETIVA`, na mesma normalização) e só a oficina `ENGENHARIA CLÍNICA`.
+
+O cronograma da cópia não traz oficina no tipo. Linha sem `Oficina` permanece. Se o campo vier preenchido e a oficina estiver fora do recorte, a linha sai. OS e tag fora do recorte respondem o mesmo 404 de quem não existe (`Não encontrei.`), sem dizer que o registro existe.
+
+## Setor
+
+A busca é igualdade normalizada (sem acento, sem caixa, espaços extras colapsados). Não é mais substring: `Centro Cirúrgico` não traz Ambulatorial nem Farmácia Satélite, e um pedaço curto que não fecha um nome não devolve lista vazia.
+
+Apelidos ficam na tabela `bot_setor_apelido` (`apelido`, `nome`). A migration 019 grava `CC` → `Centro Cirúrgico`. Um apelido com mais de um nome, ou um nome que também existe à parte, devolve candidatos. Novo apelido é um `INSERT` nessa tabela; esta versão não tem tela para isso.
+
+Zero nomes: HTTP 404, `status: "nao_encontrado"`, mensagem `setor não encontrado`, sem lista. Dois a cinco: HTTP 200, `status: "ambiguo"` e a lista numerada, com o nome em maiúsculas. Mais de cinco: HTTP 200, `status: "refinar"`, sem a lista. Setor que casou e não tem dado no ano ou nas abertas devolve a lista vazia (ou `meses: []`), com o resumo no caso das OS.
+
+Papéis assistenciais (`Chefia de Enfermagem` e `Solicitante assistencial`): o setor é o vínculo pessoa-setor de `bot_usuario_setor`. O parâmetro `setor` é ignorado. Sem vínculo, a resposta não traz dado e pede o cadastro:
+
+```json
+{ "ok": false, "status": "setor_nao_cadastrado", "message": "Cadastre o setor deste usuário para consultar." }
+```
+
+HTTP 200. Vários vínculos: `/os` e o equipamento reúnem todos; a calibração devolve `ambiguo` com esses nomes, porque o plano é de um setor só.
+
+`Diretoria/Gestão` e `Manutenção` filtram qualquer setor. O vínculo não restringe. Os demais papéis (Compras) continuam como antes: com vínculo, só esses setores; sem vínculo, o parâmetro escolhe qualquer um.
 
 ## Rotas (só GET)
 
 | Rota | Resposta |
 | --- | --- |
-| `GET /api/bot/v1/health` | `{ "ok": true }` |
+| `GET /api/bot/v1/health` | `{ "ok": true }`. Só o Bearer |
 | `GET /api/bot/v1/meta/freshness` | `fetchedAt` e `idadeSegundos` por recurso |
-| `GET /api/bot/v1/os?abertas=1` | OS abertas. Filtros `setor`, `tag`, `equipamento`. `limit` ou `pageSize` (1 a 100), `offset` ou `cursor` |
-| `GET /api/bot/v1/os/{numero}` | Situação e histórico (só datas) |
-| `GET /api/bot/v1/equipamentos/{tag}` | Status, até 5 OS e a próxima preventiva |
+| `GET /api/bot/v1/os?abertas=1` | OS abertas do recorte. Filtros `setor`, `tag`, `equipamento`. `limit` ou `pageSize` (1 a 100), `offset` ou `cursor`. Traz `resumo` |
+| `GET /api/bot/v1/os/{numero}` | Situação, histórico (só datas), etapa e tempos. Sem matrícula nem `solicitacao` para quem não é gestão ou manutenção |
+| `GET /api/bot/v1/os/por-setor?abertas=1&tipo=corretiva` | Corretivas abertas da EC, agrupadas por setor e, dentro do setor, por etapa. Só Diretoria/Gestão e Manutenção |
+| `GET /api/bot/v1/equipamentos/{tag}` | Status, até 5 OS do recorte e a próxima preventiva. Tag fora do recorte é o mesmo 404 |
 | `GET /api/bot/v1/calibracao?setor=&ano=YYYY` | Meses e quantidade de equipamentos. `ano` é opcional; vazio, vale o ano corrente. Sem lista de equipamentos |
 | `GET /api/bot/v1/usuario` | Situação do telefone. Única rota que responde 200 para quem não está aprovado |
 
 `indicadores/resumo` não entra: o resumo que já existe é o card de custo do parque, com valor em R$ na versão interna. Não dá para reaproveitar sem montar outro indicador.
 
-Quem tem setores vinculados em `bot_usuario_setor` só consulta esses setores na calibração. Sem vínculo, não há filtro de setor.
+`resumo` de `/os?abertas=1` é calculado no conjunto já filtrado (recorte e setor), antes da página:
 
-A busca do setor ignora maiúsculas e acentos. Um setor devolve o plano. Dois a cinco devolvem `status: "ambiguo"` e a lista numerada, com o nome do Effort em maiúsculas. Mais de cinco devolvem `status: "refinar"`, sem a lista. Nenhum devolve `status: "nao_encontrado"` com HTTP 404. Setor sem calibração no ano devolve `status: "ok"` e `meses: []`.
+```json
+{ "total": 2, "porPrioridade": { "Alta": 1 }, "maisAntiga": { "numero": "1001", "abertura": "01/03/2026 10:00" }, "semTecnico": 1 }
+```
 
-Quem está ativo recebe `situacao`, `podeResponder: true`, `primeiroNome`, `papel`, `setor` e `permissoes`. Na v1 o papel só rotula: todo ativo recebe `os`, `equipamentos` e `calibracao`. `indicadores` não entra, porque essa rota não existe. Pendente, inativo e recusado recebem só `situacao`, `podeResponder: false` e `permissoes: []`. Fora do cadastro:
+Não há `vencidas`, prazo, limite nem SLA nesse bloco. `maisAntiga` é a abertura mais antiga, não um vencimento.
+
+`/os/por-setor` devolve `setores[]` com `setor`, `quantidade` e `porEtapa[]`. Cada etapa tem `quantidade` e `os`. Cada OS traz `numero`, `equipamento`, `tag`, `solicitacao`, `etapa`, `manutencaoExterna`, `pendenciaCompra`, `abertura`, `dataAtendimento`, `tempoAteAtendimento` (`{ horas, dias }` inteiros, ou `null`), `diasNaEtapa`, `diasNaEtapaOrigem` e `textoEtapa`. Papel assistencial e Compras recebem 403 `{ "ok": false }`.
+
+`etapa` sai de `etapaOs` (`lib/ec/etapas.ts`): Sem 1º atendimento, Em atendimento, Aguarda peça/compra, Reparo externo, Contrato/assistência, Teste e devolução. As flags vêm de `montarOsDetalhe`.
+
+`solicitacao` reutiliza `textoSolicitacaoOs` (`lib/ec/os-detalhe.ts`): o primeiro texto entre `ObservacaoDaRequisicao`, `Servico`, `Ocorrencia` e `ObservacaoDaOS`. Espaços colapsados, corte em 280 caracteres, CPF, telefone e e-mail mascarados (`[cpf]`, `[telefone]`, `[e-mail]`). Só Diretoria/Gestão e Manutenção recebem o campo, na visão por setor e em `/os/{numero}`. Papel assistencial não recebe a chave.
+
+**Ressalva para o DPO:** nome de paciente em texto livre não é detectável por essa máscara. O campo pode continuar com nome próprio. A máscara cobre CPF, telefone e e-mail, não anamnese.
+
+`diasNaEtapa` é dia civil em America/Sao_Paulo. A origem, nesta ordem:
+
+1. `pendencia` — `PendenciaAbertaEm` da listagem analítica (data em que a pendência aberta foi registrada). Não usa `PrazoDeEncerramentoPendencia`, que é prazo. `DataAberturaPendencia` existe na OS resumida, que esta API não lê.
+2. `atendimento` — `DataDoAtendimento`, se não houver data de pendência.
+3. `abertura` — se ainda não houve atendimento. `dataAtendimento` e `tempoAteAtendimento` vêm `null`.
+
+`tempoAteAtendimento` é a duração da abertura até o primeiro atendimento, em horas e dias inteiros (o resto fica de fora). Não é SLA. `textoEtapa` é curto: `Aguarda peça/compra há 12 dias`, `Em atendimento há 1 dia`, `Sem 1º atendimento desde hoje`.
+
+Quem está ativo recebe `situacao`, `podeResponder: true`, `primeiroNome`, `papel`, `setor` e `permissoes`. Na v1 o papel deixa de ser só rótulo nestas rotas: assistência fica no próprio setor; gestão e manutenção enxergam matrícula, solicitação e a visão por setor. Todo ativo continua recebendo `os`, `equipamentos` e `calibracao` na lista de permissões. `indicadores` não entra, porque essa rota não existe. Pendente, inativo e recusado recebem só `situacao`, `podeResponder: false` e `permissoes: []`. Fora do cadastro:
 
 ```json
 { "situacao": "nao_cadastrado", "podeResponder": false, "permissoes": [] }
 ```
 
 A resposta não traz telefone, e-mail, motivo de recusa, id interno nem data.
+
+Matrícula do técnico e do responsável (`matriculaTecnico`, `matriculaResponsavel`) só saem para Manutenção e Diretoria/Gestão. Nos outros papéis a chave não vem.
 
 Exemplos:
 
@@ -64,22 +118,26 @@ curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
 
 curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
   -H "X-Bot-Telefone: +55 11 90000-0001" \
+  "https://scope.aion.eng.br/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva"
+
+curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
+  -H "X-Bot-Telefone: +55 11 90000-0001" \
   "https://scope.aion.eng.br/api/bot/v1/calibracao?setor=UTI&ano=2026"
 ```
 
-Cada resposta de dado traz `fetchedAt` (ISO) e `idadeSegundos`. Cópia com mais de 7 dias e atualização falha responde 503, com a data da cópia, e não devolve lista vazia no lugar do erro.
+Cada resposta de dado traz `fetchedAt` (ISO) e `idadeSegundos`, exceto o pedido de cadastro de setor, que não abre a cópia. Cópia com mais de 7 dias e atualização falha responde 503, com a data da cópia, e não devolve lista vazia no lugar do erro.
 
 ## Códigos
 
 | Código | Quando |
 | --- | --- |
-| 200 | Consulta aceita. Calibração ambígua ou a refinar também. |
-| 400 | Página inválida, `limit` ou `pageSize` acima de 100, `abertas` diferente de 1, setor ausente ou ano fora de 2000–2100. |
+| 200 | Consulta aceita. Calibração ou OS ambígua, a refinar, ou setor não cadastrado (`ok: false`) também. |
+| 400 | Página inválida, `limit` ou `pageSize` acima de 100, `abertas` diferente de 1, `tipo` diferente de `corretiva` na visão por setor, setor ausente na calibração (fora da assistência) ou ano fora de 2000–2100. |
 | 401 | Sem Bearer ou Bearer errado. Corpo só `{ "ok": false }`. |
-| 403 | Nas rotas de dado: telefone ausente, mal formatado, fora do cadastro, pendente, inativo ou recusado. O corpo não diz o motivo. Em `/usuario`, só o telefone ausente ou mal formatado. |
-| 404 | OS, tag ou setor não encontrado. A mensagem da OS e da tag é "Não encontrei.". A do setor é "setor não encontrado". |
-| 405 | POST, PUT, PATCH e DELETE. Cabeçalho `Allow: GET`. |
+| 403 | Nas rotas de dado: telefone ausente, mal formatado, fora do cadastro, pendente, inativo ou recusado. O corpo não diz o motivo. Em `/usuario`, só o telefone ausente ou mal formatado. Em `/os/por-setor`, também quem não é Diretoria/Gestão nem Manutenção. `/health` não usa este código por causa do telefone. |
+| 404 | OS, tag ou setor não encontrado. A mensagem da OS e da tag é "Não encontrei.", também quando existem e estão fora do recorte ou do setor da assistência. A do setor é "setor não encontrado". |
+| 405 | POST, PUT, PATCH e DELETE com Bearer válido. Cabeçalho `Allow: GET`. |
 | 429 | Limite do token ou da pessoa. Cabeçalho `Retry-After` em segundos. |
 | 503 | Token não configurado ("API desativada.") ou cópia ausente/vencida. |
 
-Não saem valor em R$, endereço, CEP, anexo, e-mail nem texto livre (ocorrência, causa, observação, descrição). Saem nome do solicitante, nome do técnico, matrícula e responsável. A auditoria guarda rota, hash da query, telefone mascarado, status e latência. Não guarda o corpo. Chamada sem token ou com token inválido (401 e 503 "API desativada.") não grava linha: só entra num contador em memória, com no máximo um log por minuto.
+Não saem valor em R$, endereço, CEP, anexo nem e-mail de cadastro. Texto livre de ocorrência não sai como campo próprio. `solicitacao`, quando sai, é o recorte mascarado acima. A auditoria guarda rota, hash da query, telefone mascarado, status e latência. Não guarda o corpo. Chamada sem Bearer ou com Bearer inválido (401, 405 de método sem token e 503 "API desativada.") não grava linha: só entra num contador em memória, com no máximo um log por minuto. POST, PUT, PATCH e DELETE sem Bearer continuam 405 com `Allow: GET`, mas não gravam auditoria.

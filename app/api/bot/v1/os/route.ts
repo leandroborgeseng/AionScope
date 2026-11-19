@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export function GET(request: Request) {
-  return atenderGet(request, () => consultarOsAbertas(request));
+  return atenderGet(request, (usuarioId) => consultarOsAbertas(request, usuarioId));
 }
 
 export const { POST, PUT, PATCH, DELETE } = metodosFechados();
