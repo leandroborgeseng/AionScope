@@ -112,3 +112,56 @@ export function listarAuditoria(usuarioId: string, agora = new Date()): Registro
     )
     .all(usuarioId, limiteVisivel(agora)) as RegistroAuditoria[];
 }
+
+const CHAVES_CONSULTA = ["usuarioId", "botId", "rota", "queryHash", "telefoneMascarado", "status", "latenciaMs"] as const;
+const ROTA_API = /^\/api\/bot\/v1(?:\/[A-Za-z0-9._~%-]+)*$/;
+const HASH_64 = /^[0-9a-f]{64}$/;
+const BOT_ID = /^[0-9a-f]{12}$/;
+const MASCARA = /^\+55 \d{2} •{4,5}-\d{4}$/;
+
+export type ConsultaApi = {
+  usuarioId: string | null;
+  botId: string | null;
+  rota: string;
+  queryHash: string;
+  telefoneMascarado: string | null;
+  status: number;
+  latenciaMs: number;
+};
+
+function consultaSegura(evento: ConsultaApi) {
+  const chaves = Object.keys(evento);
+  if (chaves.length !== CHAVES_CONSULTA.length || chaves.some((chave) => !CHAVES_CONSULTA.includes(chave as (typeof CHAVES_CONSULTA)[number]))) {
+    return false;
+  }
+  if (evento.usuarioId !== null && !UUID.test(evento.usuarioId)) return false;
+  if (evento.botId !== null && !BOT_ID.test(evento.botId)) return false;
+  if (!ROTA_API.test(evento.rota) || evento.rota.length > 180) return false;
+  if (!HASH_64.test(evento.queryHash)) return false;
+  if (evento.telefoneMascarado !== null && !MASCARA.test(evento.telefoneMascarado)) return false;
+  if (!Number.isInteger(evento.status) || evento.status < 100 || evento.status > 599) return false;
+  if (!Number.isInteger(evento.latenciaMs) || evento.latenciaMs < 0 || evento.latenciaMs > 120_000) return false;
+  return true;
+}
+
+/** Uma linha por chamada da API. Sem corpo, token, telefone completo, e-mail ou setor. */
+export function registrarConsultaApi(evento: ConsultaApi, agora = new Date()) {
+  if (!consultaSegura(evento)) throw new Error(MSG_AUDITORIA_RECUSADA);
+  const db = getDb();
+  db.prepare(
+    `INSERT INTO bot_api_auditoria (
+       criado_em, usuario_id, bot_id, rota, query_hash, telefone_mascarado, status, latencia_ms
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  ).run(
+    agora.toISOString(),
+    evento.usuarioId,
+    evento.botId,
+    evento.rota,
+    evento.queryHash,
+    evento.telefoneMascarado,
+    evento.status,
+    evento.latenciaMs,
+  );
+  const info = db.prepare("DELETE FROM bot_api_auditoria WHERE criado_em < ?").run(limiteBanco(agora));
+  if (info.changes > 0) aposExclusao(db);
+}

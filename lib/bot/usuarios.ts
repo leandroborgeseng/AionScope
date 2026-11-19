@@ -458,3 +458,17 @@ export function resolverRemetente(telefone: unknown, agora = new Date()) {
   );
   return RECUSA_CADASTRO;
 }
+
+/**
+ * O mesmo critério de `resolverRemetente`, sem gravar auditoria.
+ * A rota da API registra uma linha só, já com o status final da chamada.
+ */
+export function identificarRemetente(telefone: unknown): { ok: true; usuarioId: string } | { ok: false; usuarioId: string | null } {
+  const canonico = normalizarTelefone(telefone);
+  if (!canonico) return { ok: false, usuarioId: null };
+  const linhas = buscarPorTelefone(canonico);
+  const ativos = linhas.filter((linha) => linha.situacao === "ativo");
+  if (ativos.length === 1) return { ok: true, usuarioId: ativos[0]!.id };
+  const aprovado = linhas.find((linha) => linha.situacao === "ativo" || linha.situacao === "inativo");
+  return { ok: false, usuarioId: aprovado?.id ?? null };
+}
