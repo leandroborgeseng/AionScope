@@ -8,7 +8,7 @@ type Ctx = { params: Promise<{ numero: string }> };
 
 export async function GET(request: Request, context: Ctx) {
   const { numero } = await context.params;
-  return atenderGet(request, () => consultarOsNumero(numero));
+  return atenderGet(request, (usuarioId) => consultarOsNumero(numero, usuarioId));
 }
 
 export const { POST, PUT, PATCH, DELETE } = metodosFechados();

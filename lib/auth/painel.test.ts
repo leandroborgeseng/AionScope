@@ -138,6 +138,7 @@ test("allowlist literal: rotas exatas e arquivos públicos", () => {
     "/api/bot/v1/meta/freshness",
     "/api/bot/v1/os",
     "/api/bot/v1/os/[numero]",
+    "/api/bot/v1/os/por-setor",
     "/api/bot/v1/usuario",
   ]);
   for (const rota of rotasSob("app/api/bot")) {

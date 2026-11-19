@@ -46,6 +46,13 @@ function primeiroTexto(...valores: Array<string | null | undefined>) {
   return "";
 }
 
+/** Pedido do solicitante. A API do bot reutiliza esta ordem; não duplica a lista. */
+export function textoSolicitacaoOs(
+  os: Pick<OsAnaliticoItem, "ObservacaoDaRequisicao" | "Servico" | "Ocorrencia" | "ObservacaoDaOS">,
+) {
+  return primeiroTexto(os.ObservacaoDaRequisicao, os.Servico, os.Ocorrencia, os.ObservacaoDaOS);
+}
+
 function formatarDataCurta(valor: string | null | undefined) {
   const data = parsePbiDate(valor);
   if (!data) return texto(valor) || "—";
@@ -106,12 +113,7 @@ export function montarOsDetalhe(
     }).etapa;
 
   const pendencia = primeiroTexto(os.PendenciaAberta, os.Pendencia);
-  const solicitacao = primeiroTexto(
-    os.ObservacaoDaRequisicao,
-    os.Servico,
-    os.Ocorrencia,
-    os.ObservacaoDaOS,
-  );
+  const solicitacao = textoSolicitacaoOs(os);
 
   return {
     os: texto(os.OS) || "—",

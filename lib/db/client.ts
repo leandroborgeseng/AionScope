@@ -23,6 +23,7 @@ import { aplicarMigration015BotUsuario } from "./migrations/015_bot_usuario";
 import { aplicarMigration016BotEntrega } from "./migrations/016_bot_entrega";
 import { aplicarMigration017BotConvite } from "./migrations/017_bot_convite";
 import { aplicarMigration018BotApiAuditoria } from "./migrations/018_bot_api_auditoria";
+import { aplicarMigration019BotSetorApelido } from "./migrations/019_bot_setor_apelido";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -268,6 +269,8 @@ function migrate(db: Database.Database) {
   aplicarMigration017BotConvite(db);
   // 018: auditoria da API do bot. Sem corpo, telefone completo, e-mail ou setor.
   aplicarMigration018BotApiAuditoria(db);
+  // 019: apelidos de setor (CC → Centro Cirúrgico). Não apaga apelido já gravado.
+  aplicarMigration019BotSetorApelido(db);
 }
 
 /** Fecha o singleton — só para testes isolados. */
