@@ -1,0 +1,69 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { decidirSetor, resolverSetor, catalogarNomes } from "./setor-match";
+
+const nomes = ["Centro Cirúrgico", "Centro Cirúrgico Ambulatorial", "Farmácia Satélite Centro Cirúrgico", "UTI ZZ"];
+
+test("setor casa exato e por apelido, sem substring", () => {
+  const catalogo = catalogarNomes(nomes);
+  const apelidos = [{ apelido: "CC", nome: "Centro Cirúrgico" }];
+  assert.equal(resolverSetor("centro   cirúrgico", catalogo, apelidos).tipo, "ok");
+  assert.equal(resolverSetor("cc", catalogo, apelidos).tipo, "ok");
+  const curto = resolverSetor("centro", catalogo, apelidos);
+  assert.equal(curto.tipo, "nao_encontrado");
+  const ambulatorio = resolverSetor("Centro Cirúrgico Ambulatorial", catalogo, apelidos);
+  assert.equal(ambulatorio.tipo, "ok");
+  if (ambulatorio.tipo === "ok") assert.equal(ambulatorio.nome, "CENTRO CIRÚRGICO AMBULATORIAL");
+});
+
+test("apelido com dois nomes devolve candidatos", () => {
+  const catalogo = catalogarNomes(nomes);
+  const resolvido = resolverSetor("zz", catalogo, [
+    { apelido: "ZZ", nome: "Centro Cirúrgico" },
+    { apelido: "ZZ", nome: "UTI ZZ" },
+  ]);
+  assert.equal(resolvido.tipo, "ambiguo");
+  if (resolvido.tipo === "ambiguo") {
+    assert.deepEqual(
+      resolvido.candidatos.map((item) => item.setor),
+      ["CENTRO CIRÚRGICO", "UTI ZZ"],
+    );
+  }
+});
+
+test("assistência ignora o parâmetro; gestão filtra qualquer setor", () => {
+  const travado = decidirSetor({
+    assistencial: true,
+    gestao: false,
+    vinculos: ["Centro Cirúrgico"],
+    consulta: "UTI ZZ",
+    nomesNaCopia: nomes,
+    modo: "lista",
+    apelidos: [],
+  });
+  assert.equal(travado.tipo, "chaves");
+  if (travado.tipo === "chaves") assert.deepEqual([...travado.chaves], ["CENTRO CIRURGICO"]);
+
+  const vazio = decidirSetor({
+    assistencial: true,
+    gestao: false,
+    vinculos: [],
+    consulta: "UTI ZZ",
+    nomesNaCopia: nomes,
+    modo: "lista",
+    apelidos: [],
+  });
+  assert.equal(vazio.tipo, "nao_cadastrado");
+
+  const gestao = decidirSetor({
+    assistencial: false,
+    gestao: true,
+    vinculos: ["Centro Cirúrgico"],
+    consulta: "UTI ZZ",
+    nomesNaCopia: nomes,
+    modo: "lista",
+    apelidos: [],
+  });
+  assert.equal(gestao.tipo, "chaves");
+  if (gestao.tipo === "chaves") assert.deepEqual([...gestao.chaves], ["UTI ZZ"]);
+});

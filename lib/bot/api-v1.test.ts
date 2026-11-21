@@ -6,6 +6,7 @@ import { after, before, beforeEach, test } from "node:test";
 import { closeDbForTests, getDb } from "@/lib/db/client";
 import { nowInSaoPaulo } from "@/lib/pbi/dates";
 import { AJUDA_CALIBRACAO_ENV } from "@/lib/bot/api/calibracao";
+import { consultarOsNumero, consultarOsPorSetor } from "@/lib/bot/api/os";
 import { BOT_LIMITE_ENV, BOT_LIMITE_MS_ENV, chaveLimite, consumirLimiteApi, resetLimiteApi } from "@/lib/bot/api/limite";
 import { contagemRecusaAuth, resetRecusaAuth } from "@/lib/bot/api/recusa";
 import { BOT_TOKEN_ENV } from "@/lib/bot/api/token";
@@ -17,6 +18,7 @@ import * as osLista from "../../app/api/bot/v1/os/route";
 import * as osItem from "../../app/api/bot/v1/os/[numero]/route";
 import * as equipamento from "../../app/api/bot/v1/equipamentos/[tag]/route";
 import * as calibracao from "../../app/api/bot/v1/calibracao/route";
+import * as porSetor from "../../app/api/bot/v1/os/por-setor/route";
 import * as usuario from "../../app/api/bot/v1/usuario/route";
 
 const TOKEN = "token-ficticio-zzteste-0123456789abcd";
@@ -48,7 +50,10 @@ beforeEach(() => {
   delete process.env[AJUDA_CALIBRACAO_ENV];
   resetLimiteApi();
   resetRecusaAuth();
-  getDb().exec("DELETE FROM bot_api_auditoria; DELETE FROM bot_usuario_setor; DELETE FROM bot_usuario; DELETE FROM pbi_cache;");
+  getDb().exec(
+    "DELETE FROM bot_api_auditoria; DELETE FROM bot_usuario_setor; DELETE FROM bot_usuario; DELETE FROM pbi_cache; DELETE FROM bot_setor_apelido;",
+  );
+  getDb().prepare("INSERT INTO bot_setor_apelido (apelido, nome) VALUES ('CC', 'Centro Cirúrgico')").run();
 });
 
 function pedido(rota: string, extra?: { token?: string | null; telefone?: string | null }) {
@@ -239,8 +244,6 @@ const CHAVES_OS = [
   "equipamento",
   "fabricante",
   "fechamento",
-  "matriculaResponsavel",
-  "matriculaTecnico",
   "modelo",
   "numero",
   "numeroSerie",
@@ -255,6 +258,19 @@ const CHAVES_OS = [
   "tecnico",
   "tipo",
   "tipoManutencao",
+];
+
+const CHAVES_ETAPA = [
+  ...CHAVES_OS,
+  "dias",
+  "diasNaEtapa",
+  "diasNaEtapaOrigem",
+  "etapa",
+  "horas",
+  "manutencaoExterna",
+  "pendenciaCompra",
+  "tempoAteAtendimento",
+  "textoEtapa",
 ];
 
 test("A1 sem token e token errado respondem 401 igual; variável ausente responde 503", async () => {
@@ -290,7 +306,9 @@ test("A2 A22 A25 A28 POST PUT PATCH DELETE respondem 405 e não gravam negócio"
     cache: (getDb().prepare("SELECT COUNT(*) n FROM pbi_cache").get() as { n: number }).n,
     pessoa: getDb().prepare("SELECT situacao, papel, telefone_e164 FROM bot_usuario WHERE id = ?").get(id),
   };
-  const rotas = [health, freshness, osLista, osItem, equipamento, calibracao];
+  const rotas = [health, freshness, osLista, osItem, porSetor, equipamento, calibracao];
+  const antesTrilha = (getDb().prepare("SELECT COUNT(*) n FROM bot_api_auditoria").get() as { n: number }).n;
+  const antesRecusa = contagemRecusaAuth();
   for (const rota of rotas) {
     for (const metodo of ["POST", "PUT", "PATCH", "DELETE"] as const) {
       const resposta = await rota[metodo](pedido("/api/bot/v1/health", { token: null, telefone: null }));
@@ -301,6 +319,8 @@ test("A2 A22 A25 A28 POST PUT PATCH DELETE respondem 405 e não gravam negócio"
   }
   assert.equal((getDb().prepare("SELECT COUNT(*) n FROM bot_usuario").get() as { n: number }).n, antes.usuarios);
   assert.equal((getDb().prepare("SELECT COUNT(*) n FROM pbi_cache").get() as { n: number }).n, antes.cache);
+  assert.equal((getDb().prepare("SELECT COUNT(*) n FROM bot_api_auditoria").get() as { n: number }).n, antesTrilha);
+  assert.equal(contagemRecusaAuth(), antesRecusa + rotas.length * 4);
   assert.deepEqual(getDb().prepare("SELECT situacao, papel, telefone_e164 FROM bot_usuario WHERE id = ?").get(id), antes.pessoa);
 });
 
@@ -324,15 +344,19 @@ test("A3 A15 A17 A23 allowlist omite dinheiro, endereço, texto livre, CPF e e-m
   const jsonFicha = await ficha.json();
   const jsonOutra = await outra.json();
   assert.deepEqual([...chaves(jsonLista.itens)].sort(), CHAVES_OS);
-  assert.deepEqual([...chaves(jsonDetalhe.os)].sort(), CHAVES_OS);
+  assert.deepEqual([...chaves(jsonDetalhe.os)].sort(), [...CHAVES_ETAPA].sort());
   assert.deepEqual([...chaves(jsonDetalhe.historico)].sort(), ["em", "tipo"]);
   assert.equal(jsonDetalhe.os.solicitante, "Solicitante ZZTESTE");
   assert.equal(jsonDetalhe.os.tecnico, "Tecnico ZZTESTE");
   assert.equal(jsonDetalhe.os.responsavel, "Responsavel ZZTESTE");
-  assert.equal(jsonDetalhe.os.matriculaResponsavel, "ZZMAT1");
+  assert.equal(Object.hasOwn(jsonDetalhe.os, "matriculaResponsavel"), false);
+  assert.equal(Object.hasOwn(jsonDetalhe.os, "matriculaTecnico"), false);
+  assert.equal(Object.hasOwn(jsonDetalhe.os, "solicitacao"), false);
+  assert.equal(jsonOutra.os.matriculaResponsavel, "ZZMAT1");
+  assert.equal(jsonOutra.os.matriculaTecnico, "ZZMAT2");
+  assert.equal(jsonOutra.os.solicitacao, "ZZSERVICO");
   assert.equal(jsonLista.itens.length, 1);
   assert.equal(jsonLista.itens[0].numero, "1001");
-  assert.deepEqual(jsonOutra.os, jsonDetalhe.os);
   assert.deepEqual(jsonOutra.historico, jsonDetalhe.historico);
   for (const corpo of [jsonLista, jsonDetalhe, jsonFicha]) {
     semVazamento(JSON.stringify(corpo));
@@ -441,7 +465,7 @@ test("A6 limit e pageSize acima de 100 respondem 400; cursor e offset paginam", 
     itens: Array<{ numero: string }>;
   };
   assert.deepEqual(filtro.itens.map((item) => item.numero), ["1002"]);
-  const setor = (await (await osLista.GET(pedido("/api/bot/v1/os?abertas=1&setor=centro&equipamento=outro"))).json()) as {
+  const setor = (await (await osLista.GET(pedido("/api/bot/v1/os?abertas=1&setor=Centro%20ZZ&equipamento=outro"))).json()) as {
     itens: Array<{ numero: string }>;
   };
   assert.deepEqual(setor.itens.map((item) => item.numero), ["1002"]);
@@ -494,8 +518,10 @@ test("A8 A14 A27 auditoria grava a chamada sem corpo, token, telefone completo, 
 
   const ruim = await health.GET(pedido("/api/bot/v1/health", { token: "token-errado-zzteste-0123456789abcd" }));
   assert.equal(ruim.status, 401);
-  const negado = await health.GET(pedido("/api/bot/v1/health", { telefone: "nao-e-telefone" }));
+  const negado = await osLista.GET(pedido("/api/bot/v1/os?abertas=1", { telefone: "nao-e-telefone" }));
   assert.equal(negado.status, 403);
+  const saudeSemFone = await health.GET(pedido("/api/bot/v1/health", { telefone: null }));
+  assert.equal(saudeSemFone.status, 200);
   delete process.env[BOT_TOKEN_ENV];
   const off = await health.GET(pedido("/api/bot/v1/health"));
   assert.equal(off.status, 503);
@@ -503,7 +529,7 @@ test("A8 A14 A27 auditoria grava a chamada sem corpo, token, telefone completo, 
     status: number;
     telefone_mascarado: string | null;
   }>;
-  assert.deepEqual(status.map((item) => item.status), [200, 403]);
+  assert.deepEqual(status.map((item) => item.status), [200, 403, 200]);
   assert.equal(JSON.stringify(status).includes("nao-e-telefone"), false);
   assert.equal(JSON.stringify(getDb().prepare("SELECT * FROM bot_api_auditoria").all()).includes(TOKEN), false);
   assert.equal(contagemRecusaAuth(), 2);
@@ -586,13 +612,15 @@ test("A12 A13 A20 A21 A24 A26 A29 telefone, identidade e nenhuma escrita de cada
   const antes = getDb().prepare("SELECT situacao, papel, telefone_e164 FROM bot_usuario WHERE id = ?").get(id);
   const grafia = await health.GET(pedido("/api/bot/v1/health", { telefone: "11 0000-0001" }));
   assert.equal(grafia.status, 200);
-  const fora = await health.GET(pedido("/api/bot/v1/health", { telefone: "+55 11 90000-0099" }));
+  const fora = await osLista.GET(pedido("/api/bot/v1/os?abertas=1", { telefone: "+55 11 90000-0099" }));
   pessoa(TEL_OUTRA, "inativo");
-  const inativo = await health.GET(pedido("/api/bot/v1/health", { telefone: TEL_OUTRA }));
+  const inativo = await osLista.GET(pedido("/api/bot/v1/os?abertas=1", { telefone: TEL_OUTRA }));
   pessoa("+55 11 90000-0003", "pendente");
-  const pendente = await health.GET(pedido("/api/bot/v1/health", { telefone: "+55 11 90000-0003" }));
-  const ruim = await health.GET(pedido("/api/bot/v1/health", { telefone: "abc<script>" }));
-  const semHeader = await health.GET(pedido("/api/bot/v1/health", { telefone: null }));
+  const pendente = await osLista.GET(pedido("/api/bot/v1/os?abertas=1", { telefone: "+55 11 90000-0003" }));
+  const ruim = await osLista.GET(pedido("/api/bot/v1/os?abertas=1", { telefone: "abc<script>" }));
+  const semHeader = await osLista.GET(pedido("/api/bot/v1/os?abertas=1", { telefone: null }));
+  assert.equal((await health.GET(pedido("/api/bot/v1/health", { telefone: null }))).status, 200);
+  assert.equal((await health.GET(pedido("/api/bot/v1/health", { telefone: "+55 11 90000-0099" }))).status, 200);
   const corpos = await Promise.all([fora, inativo, pendente, ruim, semHeader].map((item) => item.text()));
   for (const item of [fora, inativo, pendente, ruim, semHeader]) assert.equal(item.status, 403);
   assert.equal(new Set(corpos).size, 1);
@@ -679,23 +707,39 @@ test("A65 A66 A67 A68 A69 A70 calibração por setor, só do cache", async () =>
   assert.equal(acento.setor, "UNIDADE ZZ Á");
 
   const varios = await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=bloco%20zz&ano=2026"));
-  assert.equal(varios.status, 200);
-  const jsonVarios = (await varios.json()) as { status: string; candidatos: Array<{ ordem: number; setor: string }> };
-  assert.equal(jsonVarios.status, "ambiguo");
-  assert.deepEqual(jsonVarios.candidatos, [
+  assert.equal(varios.status, 404);
+  assert.equal(((await varios.json()) as { status: string }).status, "nao_encontrado");
+  const exatoBloco = (await (await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=bloco%20zz%20a&ano=2026"))).json()) as {
+    status: string;
+    setor: string;
+  };
+  assert.equal(exatoBloco.status, "ok");
+  assert.equal(exatoBloco.setor, "BLOCO ZZ A");
+
+  const inserirApelido = getDb().prepare("INSERT INTO bot_setor_apelido (apelido, nome) VALUES (?, ?)");
+  inserirApelido.run("BLOCO", "Bloco Zz A");
+  inserirApelido.run("BLOCO", "Bloco Zz B");
+  const alias = (await (await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=bloco&ano=2026"))).json()) as {
+    status: string;
+    candidatos: Array<{ ordem: number; setor: string }>;
+  };
+  assert.equal(alias.status, "ambiguo");
+  assert.deepEqual(alias.candidatos, [
     { ordem: 1, setor: "BLOCO ZZ A" },
     { ordem: 2, setor: "BLOCO ZZ B" },
   ]);
-  assert.equal(JSON.stringify(jsonVarios).includes("Equip ZZ"), false);
+  assert.equal(JSON.stringify(alias).includes("Equip ZZ"), false);
 
-  const cinco = (await (await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=navio%20zz&ano=2026"))).json()) as {
+  for (const nome of ["A", "B", "C", "D", "E"]) inserirApelido.run("NAVIO", `Navio Zz ${nome}`);
+  const cinco = (await (await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=navio&ano=2026"))).json()) as {
     status: string;
     candidatos: unknown[];
   };
   assert.equal(cinco.status, "ambiguo");
   assert.equal(cinco.candidatos.length, 5);
 
-  const muitos = await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=sala%20zz&ano=2026"));
+  for (let n = 1; n <= 6; n++) inserirApelido.run("SALA", `Sala Zz ${n}`);
+  const muitos = await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=sala&ano=2026"));
   assert.equal(muitos.status, 200);
   const textoMuitos = await muitos.text();
   const jsonMuitos = JSON.parse(textoMuitos) as { status: string; message: string };
@@ -729,7 +773,7 @@ test("A65 A66 A67 A68 A69 A70 calibração por setor, só do cache", async () =>
     )
     .run();
   getDb().prepare("INSERT INTO bot_usuario_setor (usuario_id, setor_codigo) VALUES (?, 'ZZA')").run(id);
-  const restrito = (await (await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=bloco%20zz&ano=2026"))).json()) as {
+  const restrito = (await (await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=bloco%20zz%20a&ano=2026"))).json()) as {
     status: string;
     setor?: string;
     meses?: Array<{ equipamentos: number }>;
@@ -862,7 +906,8 @@ test("usuario devolve a situacao real, sem dado pessoal, e as permissoes da v1",
       assert.equal(texto.includes("ZZ"), false);
     }
     if (caso.situacao !== "ativo") {
-      assert.equal((await health.GET(pedido("/api/bot/v1/health", { telefone: caso.telefone }))).status, 403);
+      assert.equal((await osLista.GET(pedido("/api/bot/v1/os?abertas=1", { telefone: caso.telefone }))).status, 403);
+      assert.equal((await health.GET(pedido("/api/bot/v1/health", { telefone: caso.telefone }))).status, 200);
     }
   }
 
@@ -917,4 +962,331 @@ test("usuario devolve a situacao real, sem dado pessoal, e as permissoes da v1",
   assert.equal(linhas.some((linha) => linha.status === 405), true);
   assert.equal(linhas.some((linha) => linha.status === 503), false);
   assert.equal(contagemRecusaAuth() >= 3, true);
+});
+
+function vincular(usuarioId: string, codigo: string, nome: string) {
+  getDb()
+    .prepare(
+      `INSERT INTO bot_setor (codigo, nome, unidade, ativo, exportado_em)
+       VALUES (?, ?, '', 1, '2026-01-01T00:00:00.000Z')
+       ON CONFLICT(codigo) DO UPDATE SET nome = excluded.nome`,
+    )
+    .run(codigo, nome);
+  getDb().prepare("INSERT OR IGNORE INTO bot_usuario_setor (usuario_id, setor_codigo) VALUES (?, ?)").run(usuarioId, codigo);
+}
+
+test("escopo EC, setor exato, resumo, privacidade, por setor e andamento", async () => {
+  const compras = pessoa();
+  const chefia = pessoa("+55 11 90000-0101", "ativo", "Chefia de Enfermagem");
+  const manutencao = pessoa("+55 11 90000-0102", "ativo", "Manutenção");
+  const solicitante = pessoa("+55 11 90000-0103", "ativo", "Solicitante assistencial");
+  const semSetor = pessoa("+55 11 90000-0104", "ativo", "Chefia de Enfermagem");
+  const diretoria = pessoa("+55 11 90000-0105", "ativo", "Diretoria/Gestão");
+  vincular(chefia, "ZZCC", "Centro Cirúrgico");
+  vincular(manutencao, "ZZCC", "Centro Cirúrgico");
+  vincular(solicitante, "ZZCC", "Centro Cirúrgico");
+  vincular(diretoria, "ZZCC", "Centro Cirúrgico");
+
+  const pedidoLongo = `Paciente Exemplo ZZ 123.456.789-09 zz@exemplo.invalid +55 11 98888-7777 ${"A".repeat(300)}`;
+  const agora = new Date("2026-03-12T15:00:00.000Z");
+  gravar("os-analitico", [
+    osBase({
+      OS: "2001",
+      CodigoSerialOS: 2001,
+      Oficina: "Engenharia Clínica",
+      TipoDeManutencao: "A - CORRETIVA",
+      Setor: "Centro Cirúrgico",
+      Tag: "ZZ-CC-1",
+      Equipamento: "Bomba ZZCC",
+      Abertura: "01/03/2026 10:00",
+      DataDoAtendimento: "03/03/2026 10:00",
+      Pendencia: "PECA ZZ",
+      PendenciaAbertaEm: "02/03/2026 10:00",
+      TecnicoResolvedor: "",
+      Prioridade: "Alta",
+      ObservacaoDaRequisicao: pedidoLongo,
+      Servico: "",
+      Ocorrencia: "",
+    }),
+    osBase({
+      OS: "2002",
+      CodigoSerialOS: 2002,
+      Oficina: "  engenharia   clínica ",
+      TipoDeManutencao: "Corretiva",
+      Setor: "Centro Cirúrgico",
+      Tag: "ZZ-CC-2",
+      Equipamento: "Monitor ZZCC",
+      Abertura: "12/03/2026 08:00",
+      DataDoAtendimento: "",
+      Pendencia: "",
+      TecnicoResolvedor: "Tec ZZ",
+      Prioridade: "Baixa",
+    }),
+    osBase({
+      OS: "2003",
+      CodigoSerialOS: 2003,
+      Oficina: "ENGENHARIA CLINICA",
+      TipoDeManutencao: "CORRETIVA",
+      Setor: "UTI ZZTESTE",
+      Tag: "ZZ-UTI",
+      Equipamento: "Bomba ZZUTI",
+    }),
+    osBase({
+      OS: "2004",
+      CodigoSerialOS: 2004,
+      Oficina: "REFRIGERAÇÃO",
+      TipoDeManutencao: "CORRETIVA",
+      Setor: "Centro Cirúrgico",
+      Tag: "ZZ-REFRI",
+      Equipamento: "Evaporadora ZZ",
+    }),
+    osBase({
+      OS: "2005",
+      CodigoSerialOS: 2005,
+      Oficina: "Engenharia Clínica",
+      TipoDeManutencao: "Preventiva",
+      Setor: "Centro Cirúrgico",
+      Tag: "ZZ-CC-3",
+      Equipamento: "Bomba ZZPREV",
+      Abertura: "10/03/2026 09:00",
+      Prioridade: "Média",
+    }),
+    osBase({
+      OS: "2006",
+      CodigoSerialOS: 2006,
+      Oficina: "Preventiva Equipamentos",
+      TipoDeManutencao: "Preventiva",
+      Setor: "Centro Cirúrgico",
+      Tag: "ZZ-CC-4",
+      Equipamento: "Bomba ZZPLANO",
+      Abertura: "11/03/2026 09:00",
+      Prioridade: "Média",
+    }),
+    osBase({
+      OS: "2007",
+      CodigoSerialOS: 2007,
+      Oficina: "Calibração de Equipamentos",
+      TipoDeManutencao: "Calibração",
+      Setor: "Centro Cirúrgico Ambulatorial",
+      Tag: "ZZ-AMB",
+      Equipamento: "Bomba ZZAMB",
+    }),
+    osBase({
+      OS: "2008",
+      CodigoSerialOS: 2008,
+      Oficina: "ENGENHARIA CLÍNICA",
+      TipoDeManutencao: "Corretiva",
+      Setor: "Farmácia Satélite Centro Cirúrgico",
+      Tag: "ZZ-FARM",
+      Equipamento: "Bomba ZZFARM",
+    }),
+    osBase({
+      OS: "2009",
+      CodigoSerialOS: 2009,
+      Oficina: "REFRIGERAÇÃO",
+      TipoDeManutencao: "CORRETIVA",
+      Setor: "Centro Cirúrgico",
+      Tag: "ZZ-CC-1",
+      Equipamento: "Evaporadora ZZ",
+    }),
+  ]);
+  gravar("equipamentos", [
+    equipBase({ Tag: "ZZ-CC-1", Setor: "Centro Cirúrgico", Equipamento: "Bomba ZZCC" }),
+    equipBase({ Tag: "ZZ-UTI", Setor: "UTI ZZTESTE", Equipamento: "Bomba ZZUTI" }),
+    equipBase({ Tag: "ZZ-REFRI", Setor: "Centro Cirúrgico", Equipamento: "Evaporadora ZZ" }),
+  ]);
+  gravar("cronograma", [
+    plano({ Setor: "Setor Plano ZZ", Tag: "ZZP1", TipoDeManutencao: "Calibração", Oficina: "REFRIGERAÇÃO" }),
+    plano({
+      Setor: "Setor Plano ZZ",
+      Tag: "ZZP2",
+      TipoDeManutencao: "Calibração",
+      Oficina: "Calibração de Equipamentos",
+      ProximaRealizacao: "15/06/2026",
+    }),
+    plano({ Setor: "Setor Plano ZZ", Tag: "ZZP3", TipoDeManutencao: "Calibração", ProximaRealizacao: "15/03/2026" }),
+  ]);
+
+  const lista = (await (await osLista.GET(pedido("/api/bot/v1/os?abertas=1&setor=Centro%20Cir%C3%BArgico", { telefone: "+55 11 90000-0102" }))).json()) as {
+    itens: Array<{ numero: string; matriculaTecnico?: string }>;
+    resumo: { total: number; porPrioridade: Record<string, number>; maisAntiga: { numero: string } | null; semTecnico: number };
+  };
+  assert.deepEqual(lista.itens.map((item) => item.numero).sort(), ["2001", "2002", "2005", "2006"]);
+  assert.equal(Object.hasOwn(lista.itens[0]!, "matriculaTecnico"), true);
+  assert.deepEqual(Object.keys(lista.resumo).sort(), ["maisAntiga", "porPrioridade", "semTecnico", "total"]);
+  assert.equal(lista.resumo.total, 4);
+  assert.equal(lista.resumo.maisAntiga?.numero, "2001");
+  assert.equal(lista.resumo.semTecnico, 1);
+  assert.equal(lista.resumo.porPrioridade.Alta, 1);
+  assert.equal(JSON.stringify(lista.resumo).includes("vencid"), false);
+  assert.equal(JSON.stringify(lista.resumo).includes("prazo"), false);
+  assert.equal(JSON.stringify(lista.resumo).includes("Limite"), false);
+
+  const curto = await osLista.GET(pedido("/api/bot/v1/os?abertas=1&setor=centro", { telefone: "+55 11 90000-0102" }));
+  assert.equal(curto.status, 404);
+  const jsonCurto = (await curto.json()) as { status: string; message: string };
+  assert.equal(jsonCurto.status, "nao_encontrado");
+  assert.equal(jsonCurto.message, "setor não encontrado");
+  assert.equal(Object.hasOwn(jsonCurto, "itens"), false);
+  assert.equal(JSON.stringify(jsonCurto).includes("2001"), false);
+
+  const espaco = (await (await osLista.GET(pedido("/api/bot/v1/os?abertas=1&setor=Centro%20%20Cirurgico", { telefone: "+55 11 90000-0102" }))).json()) as {
+    itens: Array<{ numero: string }>;
+  };
+  assert.deepEqual(espaco.itens.map((item) => item.numero).sort(), ["2001", "2002", "2005", "2006"]);
+  const apelido = (await (await osLista.GET(pedido("/api/bot/v1/os?abertas=1&setor=cc", { telefone: "+55 11 90000-0102" }))).json()) as {
+    itens: Array<{ numero: string }>;
+  };
+  assert.deepEqual(apelido.itens.map((item) => item.numero).sort(), ["2001", "2002", "2005", "2006"]);
+
+  getDb().prepare("INSERT INTO bot_setor_apelido (apelido, nome) VALUES ('ZZX', 'Centro Cirúrgico'), ('ZZX', 'UTI ZZTESTE')").run();
+  const ambiguo = await osLista.GET(pedido("/api/bot/v1/os?abertas=1&setor=zzx", { telefone: "+55 11 90000-0102" }));
+  assert.equal(ambiguo.status, 200);
+  const jsonAmbiguo = (await ambiguo.json()) as { status: string; candidatos: Array<{ setor: string }>; itens?: unknown };
+  assert.equal(jsonAmbiguo.status, "ambiguo");
+  assert.deepEqual(
+    jsonAmbiguo.candidatos.map((item) => item.setor),
+    ["CENTRO CIRÚRGICO", "UTI ZZTESTE"],
+  );
+  assert.equal(Object.hasOwn(jsonAmbiguo, "itens"), false);
+
+  const chefiaLista = (await (await osLista.GET(pedido("/api/bot/v1/os?abertas=1&setor=UTI%20ZZTESTE", { telefone: "+55 11 90000-0101" }))).json()) as {
+    itens: Array<{ numero: string }>;
+  };
+  assert.deepEqual(chefiaLista.itens.map((item) => item.numero).sort(), ["2001", "2002", "2005", "2006"]);
+  const solto = await osLista.GET(pedido("/api/bot/v1/os?abertas=1&setor=Centro%20Cir%C3%BArgico", { telefone: "+55 11 90000-0104" }));
+  assert.equal(solto.status, 200);
+  const jsonSolto = (await solto.json()) as { status: string; message: string };
+  assert.equal(jsonSolto.status, "setor_nao_cadastrado");
+  assert.match(jsonSolto.message, /Cadastre o setor/);
+  assert.equal(JSON.stringify(jsonSolto).includes("2001"), false);
+
+  const diretoriaUti = (await (await osLista.GET(pedido("/api/bot/v1/os?abertas=1&setor=UTI%20ZZTESTE", { telefone: "+55 11 90000-0105" }))).json()) as {
+    itens: Array<{ numero: string }>;
+  };
+  assert.deepEqual(diretoriaUti.itens.map((item) => item.numero), ["2003"]);
+
+  const sumida = await osItem.GET(pedido("/api/bot/v1/os/9999", { telefone: "+55 11 90000-0102" }), {
+    params: Promise.resolve({ numero: "9999" }),
+  });
+  const refrig = await osItem.GET(pedido("/api/bot/v1/os/2004", { telefone: "+55 11 90000-0102" }), {
+    params: Promise.resolve({ numero: "2004" }),
+  });
+  assert.equal(sumida.status, 404);
+  assert.equal(refrig.status, 404);
+  assert.equal(await refrig.text(), await sumida.text());
+
+  const detalheChefia = await osItem.GET(pedido("/api/bot/v1/os/2001", { telefone: "+55 11 90000-0101" }), {
+    params: Promise.resolve({ numero: "2001" }),
+  });
+  const jsonChefia = (await detalheChefia.json()) as { os: Record<string, unknown> };
+  assert.equal(Object.hasOwn(jsonChefia.os, "solicitacao"), false);
+  assert.equal(Object.hasOwn(jsonChefia.os, "matriculaTecnico"), false);
+  assert.equal(Object.hasOwn(jsonChefia.os, "matriculaResponsavel"), false);
+  assert.equal(JSON.stringify(jsonChefia).includes("123.456.789-09"), false);
+  const outraSetor = await osItem.GET(pedido("/api/bot/v1/os/2003", { telefone: "+55 11 90000-0101" }), {
+    params: Promise.resolve({ numero: "2003" }),
+  });
+  assert.equal(outraSetor.status, 404);
+  assert.equal(await outraSetor.text(), JSON.stringify({ ok: false, message: "Não encontrei." }));
+
+  const detalhe = await consultarOsNumero("2001", manutencao, agora);
+  const jsonDetalhe = (await detalhe.json()) as {
+    os: {
+      solicitacao: string;
+      etapa: string;
+      pendenciaCompra: boolean;
+      manutencaoExterna: boolean;
+      dataAtendimento: string;
+      tempoAteAtendimento: { horas: number; dias: number };
+      diasNaEtapa: number;
+      diasNaEtapaOrigem: string;
+      textoEtapa: string;
+      matriculaTecnico: string;
+    };
+  };
+  assert.equal(jsonDetalhe.os.matriculaTecnico, "ZZMAT2");
+  assert.equal(jsonDetalhe.os.etapa, "Aguarda peça/compra");
+  assert.equal(jsonDetalhe.os.pendenciaCompra, true);
+  assert.equal(jsonDetalhe.os.dataAtendimento, "03/03/2026 10:00");
+  assert.deepEqual(jsonDetalhe.os.tempoAteAtendimento, { horas: 48, dias: 2 });
+  assert.equal(jsonDetalhe.os.diasNaEtapaOrigem, "pendencia");
+  assert.equal(jsonDetalhe.os.diasNaEtapa, 10);
+  assert.equal(jsonDetalhe.os.textoEtapa, "Aguarda peça/compra há 10 dias");
+  assert.equal(jsonDetalhe.os.solicitacao.includes("Paciente Exemplo ZZ"), true);
+  assert.equal(jsonDetalhe.os.solicitacao.includes("123.456.789-09"), false);
+  assert.equal(jsonDetalhe.os.solicitacao.includes("@"), false);
+  assert.equal(jsonDetalhe.os.solicitacao.includes("98888"), false);
+  assert.equal(jsonDetalhe.os.solicitacao.length <= 280, true);
+  assert.equal(JSON.stringify(jsonDetalhe.os).includes("vencid"), false);
+
+  const semAtendimento = await consultarOsNumero("2002", manutencao, agora);
+  const jsonSem = (await semAtendimento.json()) as {
+    os: { dataAtendimento: null; tempoAteAtendimento: null; diasNaEtapa: number; diasNaEtapaOrigem: string; textoEtapa: string };
+  };
+  assert.equal(jsonSem.os.dataAtendimento, null);
+  assert.equal(jsonSem.os.tempoAteAtendimento, null);
+  assert.equal(jsonSem.os.diasNaEtapaOrigem, "abertura");
+  assert.equal(jsonSem.os.diasNaEtapa, 0);
+  assert.equal(jsonSem.os.textoEtapa, "Sem 1º atendimento desde hoje");
+
+  const negado = await porSetor.GET(pedido("/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva", { telefone: "+55 11 90000-0101" }));
+  const negadoSol = await porSetor.GET(pedido("/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva", { telefone: "+55 11 90000-0103" }));
+  const negadoCompras = await porSetor.GET(pedido("/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva", { telefone: TEL }));
+  assert.equal(negado.status, 403);
+  assert.equal(await negado.text(), JSON.stringify({ ok: false }));
+  assert.equal(negadoSol.status, 403);
+  assert.equal(negadoCompras.status, 403);
+  assert.equal(compras.length > 0, true);
+
+  const vista = await consultarOsPorSetor(
+    new Request("http://local/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva"),
+    manutencao,
+    agora,
+  );
+  const jsonVista = (await vista.json()) as {
+    tipo: string;
+    setores: Array<{ setor: string; quantidade: number; porEtapa: Array<{ etapa: string; quantidade: number; os: Array<{ numero: string; solicitacao?: string }> }> }>;
+  };
+  assert.equal(jsonVista.tipo, "corretiva");
+  const cc = jsonVista.setores.find((item) => item.setor === "CENTRO CIRÚRGICO");
+  assert.equal(cc?.quantidade, 2);
+  assert.deepEqual(cc?.porEtapa.map((item) => item.etapa), ["Sem 1º atendimento", "Aguarda peça/compra"]);
+  assert.deepEqual(cc?.porEtapa.map((item) => item.quantidade), [1, 1]);
+  assert.deepEqual(cc?.porEtapa[1]?.os.map((item) => item.numero), ["2001"]);
+  assert.equal(cc?.porEtapa[1]?.os[0]?.solicitacao?.includes("123.456.789-09"), false);
+  assert.equal(JSON.stringify(jsonVista).includes("2004"), false);
+  assert.equal(JSON.stringify(jsonVista).includes("2005"), false);
+  assert.equal(JSON.stringify(jsonVista).includes("2006"), false);
+  assert.equal(JSON.stringify(jsonVista).includes("2007"), false);
+  assert.equal(jsonVista.setores.some((item) => item.setor.includes("FARMÁCIA") || item.setor.includes("FARMACIA")), true);
+
+  const ficha = await equipamento.GET(pedido("/api/bot/v1/equipamentos/ZZ-CC-1", { telefone: "+55 11 90000-0102" }), {
+    params: Promise.resolve({ tag: "ZZ-CC-1" }),
+  });
+  assert.equal(ficha.status, 200);
+  const jsonFicha = (await ficha.json()) as { ultimasOs: Array<{ numero: string }> };
+  assert.deepEqual(jsonFicha.ultimasOs.map((item) => item.numero), ["2001"]);
+  const refri = await equipamento.GET(pedido("/api/bot/v1/equipamentos/ZZ-REFRI", { telefone: "+55 11 90000-0102" }), {
+    params: Promise.resolve({ tag: "ZZ-REFRI" }),
+  });
+  const nenhuma = await equipamento.GET(pedido("/api/bot/v1/equipamentos/NAOTEM", { telefone: "+55 11 90000-0102" }), {
+    params: Promise.resolve({ tag: "NAOTEM" }),
+  });
+  assert.equal(refri.status, 404);
+  assert.equal(await refri.text(), await nenhuma.text());
+  const utiChefia = await equipamento.GET(pedido("/api/bot/v1/equipamentos/ZZ-UTI", { telefone: "+55 11 90000-0101" }), {
+    params: Promise.resolve({ tag: "ZZ-UTI" }),
+  });
+  assert.equal(utiChefia.status, 404);
+
+  const planoZz = (await (await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=setor%20plano%20zz&ano=2026", { telefone: "+55 11 90000-0102" }))).json()) as {
+    status: string;
+    meses: Array<{ mes: string; equipamentos: number }>;
+  };
+  assert.equal(planoZz.status, "ok");
+  assert.deepEqual(planoZz.meses, [
+    { mes: "2026-03", equipamentos: 1 },
+    { mes: "2026-06", equipamentos: 1 },
+  ]);
 });
