@@ -29,6 +29,7 @@ import {
   painelConfigurado,
 } from "@/lib/auth/painel-sessao";
 import { TRUST_CF_CONNECTING_IP, consumirLimite } from "@/lib/bot/convite-limite";
+import { ORIGENS_PERMITIDAS_ENV } from "@/lib/bot/origem";
 import { closeDbForTests, getDb } from "@/lib/db/client";
 import { middleware } from "../../middleware";
 import { TelaLogin } from "../../app/login/tela-login";
@@ -70,7 +71,7 @@ beforeEach(() => {
   delete process.env.ORDENS_COMPRA_API_KEY;
   delete process.env[GERACAO_PAINEL_ENV];
   delete process.env[PAINEL_ORIGENS_ENV];
-  getDb().exec("DELETE FROM bot_convite_limite");
+  getDb().exec("DELETE FROM bot_convite_limite; DELETE FROM painel_sessao_revogacao;");
 });
 
 function pedido(rota: string, cookie?: string) {
@@ -544,6 +545,25 @@ test("logout limpa o cookie", async () => {
   assert.equal(depois.status, 302);
 });
 
+test("logout invalida o cookie do painel copiado antes da saída", async () => {
+  const token = await emitirSessaoPainel();
+  assert.ok(token);
+  const cookie = `${COOKIE_SESSAO_PAINEL}=${token}`;
+  assert.equal((await middleware(pedido("/sala", cookie))).status, 200);
+  const sair = await logoutRota.POST(
+    new Request("http://local/api/v1/painel/logout", { method: "POST", headers: { origin: "http://local" } }),
+  );
+  assert.equal(sair.status, 303);
+  assert.equal((await middleware(pedido("/sala", cookie))).status, 302);
+  assert.equal((await middleware(pedido("/api/cadastros/contratos", cookie))).status, 401);
+  const deNovo = await entrar({ usuario: USUARIO, senha: SENHA });
+  assert.equal(deNovo.status, 200);
+  const novo = (deNovo.headers.get("set-cookie") ?? "").split(";")[0] ?? "";
+  assert.match(novo, new RegExp(`^${COOKIE_SESSAO_PAINEL}=`));
+  assert.notEqual(novo, cookie);
+  assert.equal((await middleware(pedido("/sala", novo))).status, 200);
+});
+
 test("ordens de compra seguem sem cookie e exigem a chave própria", async () => {
   process.env.ORDENS_COMPRA_API_KEY = "chave-ordens-teste";
   const url = "http://local/api/v1/ordens-compra";
@@ -559,22 +579,30 @@ test("ordens de compra seguem sem cookie e exigem a chave própria", async () =>
   assert.equal((await middleware(pedido("/api/sala/ordens-compra"))).status, 401);
 });
 
-test("a sessão do painel autoriza a escrita administrativa", async () => {
+test("a sessão do painel autoriza a escrita administrativa e a origem estranha não", async () => {
+  process.env[ORIGENS_PERMITIDAS_ENV] = "http://local";
   const painel = await emitirSessaoPainel();
+  const headers = { "content-type": "application/json", cookie: `${COOKIE_SESSAO_PAINEL}=${painel}`, origin: "http://local" };
   const comPainel = await contratosRota.POST(
+    new Request("http://local/api/cadastros/contratos", { method: "POST", headers, body: "{}" }),
+  );
+  assert.equal(comPainel.status, 400);
+
+  const semOrigem = await contratosRota.POST(
     new Request("http://local/api/cadastros/contratos", {
       method: "POST",
       headers: { "content-type": "application/json", cookie: `${COOKIE_SESSAO_PAINEL}=${painel}` },
       body: "{}",
     }),
   );
-  assert.equal(comPainel.status, 400);
+  assert.equal(semOrigem.status, 403);
 
   const comAdmin = await contratosRota.POST(
     new Request("http://local/api/cadastros/contratos", {
       method: "POST",
       headers: {
         "content-type": "application/json",
+        origin: "http://local",
         cookie: `aion_contratos_sessao=${criarTokenSessao()}`,
       },
       body: "{}",

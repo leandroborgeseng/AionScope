@@ -1,9 +1,11 @@
 /**
  * Sessão do login único do site.
- * Só Web Crypto (middleware no Edge). Não importar `node:crypto` nem SQLite.
+ * A assinatura é Web Crypto. O middleware roda em Node para ler o corte do logout
+ * no SQLite (`painel-revogacao`): um cookie copiado deixa de valer na saída.
  * A senha não entra no cookie: o payload leva um HMAC da credencial, então
  * trocar usuário ou senha invalida sessões já emitidas.
  */
+import { instanteAposRevogacao } from "@/lib/auth/painel-revogacao";
 export const PAINEL_USUARIO_ENV = "AIONSCOPE_PAINEL_USUARIO";
 export const PAINEL_SENHA_ENV = "AIONSCOPE_PAINEL_SENHA";
 export const SESSION_SECRET_ENV = "SESSION_SECRET";
@@ -184,8 +186,9 @@ export async function emitirSessaoPainel(agoraMs = Date.now(), authTimeMs?: numb
   if (!painelConfigurado()) return null;
   const c = await impressaoCredencial();
   if (!c) return null;
-  const iat = Math.floor(agoraMs / 1000);
-  const auth_time = Math.floor((authTimeMs ?? agoraMs) / 1000);
+  const agora = instanteAposRevogacao(agoraMs);
+  const iat = Math.floor(agora / 1000);
+  const auth_time = Math.floor((authTimeMs ?? agora) / 1000);
   const exp = iat + SESSAO_PAINEL_S;
   const g = geracaoPainel();
   const json = JSON.stringify({ v: VERSAO, iat, exp, auth_time, g, c });

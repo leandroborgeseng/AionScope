@@ -1,7 +1,7 @@
 /**
  * 019 — Apelidos de setor da API do bot.
- * Aditiva: só CREATE TABLE IF NOT EXISTS e o apelido inicial, se ainda não existe.
- * CC aponta para o nome canônico Centro Cirúrgico. Outros apelidos entram na mesma tabela.
+ * Aditiva: só CREATE TABLE IF NOT EXISTS e, na primeira aplicação, o apelido inicial.
+ * CC aponta para o nome canônico Centro Cirúrgico. Apagar essa linha não a recria no próximo boot.
  */
 import type Database from "better-sqlite3";
 
@@ -16,15 +16,15 @@ export function aplicarMigration019BotSetorApelido(db: Database.Database, nome =
         PRIMARY KEY (apelido, nome)
       );
     `);
-    db.prepare(
-      `INSERT INTO bot_setor_apelido (apelido, nome)
-       SELECT 'CC', 'Centro Cirúrgico'
-       WHERE NOT EXISTS (
-         SELECT 1 FROM bot_setor_apelido WHERE apelido = 'CC' AND nome = 'Centro Cirúrgico'
-       )`,
-    ).run();
     const aplicada = db.prepare("SELECT id FROM schema_migrations WHERE name = ?").get(nome);
     if (!aplicada) {
+      db.prepare(
+        `INSERT INTO bot_setor_apelido (apelido, nome)
+         SELECT 'CC', 'Centro Cirúrgico'
+         WHERE NOT EXISTS (
+           SELECT 1 FROM bot_setor_apelido WHERE apelido = 'CC' AND nome = 'Centro Cirúrgico'
+         )`,
+      ).run();
       db.prepare("INSERT INTO schema_migrations (id, name, applied_at) VALUES (19, ?, ?)").run(
         nome,
         new Date().toISOString(),

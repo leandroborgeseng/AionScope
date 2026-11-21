@@ -40,7 +40,6 @@ type Compra = {
 
 type Pacote = {
   configurado: boolean;
-  sync: { ok?: boolean; novos?: number; erros?: string[]; processados?: number } | null;
   compras: Compra[];
 };
 
@@ -160,8 +159,8 @@ export default function SalaPedidosPage() {
   const [salvando, setSalvando] = useState(false);
   const formRef = useRef<HTMLDivElement>(null);
 
-  const carregar = useCallback(async (sync = false) => {
-    const resposta = await fetch(`/api/sala/compras${sync ? "?sync=1" : ""}`, { cache: "no-store" });
+  const carregar = useCallback(async () => {
+    const resposta = await fetch("/api/sala/compras", { cache: "no-store" });
     if (!resposta.ok) throw new Error(resposta.status === 401 ? MSG_SESSAO_EXPIRADA : `HTTP ${resposta.status}`);
     setDados((await resposta.json()) as Pacote);
   }, []);
@@ -308,7 +307,17 @@ export default function SalaPedidosPage() {
     setErro(null);
     setOk(null);
     try {
-      await carregar(true);
+      const resposta = await fetch("/api/sala/compras", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ acao: "sync" }),
+      });
+      const json = (await resposta.json().catch(() => ({}))) as { ok?: boolean; message?: string };
+      if (!resposta.ok || json.ok === false) {
+        setErro(mensagemErroEscrita(resposta.status, json.message, "Falha no sync."));
+        return;
+      }
+      await carregar();
       setOk("Sincronização com o Outlook concluída.");
     } catch (falha) {
       setErro(falha instanceof Error ? falha.message : "Falha no sync.");

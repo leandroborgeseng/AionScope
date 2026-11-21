@@ -1,5 +1,6 @@
 import { cookieSessao } from "@/lib/auth/contratos-sessao";
 import { origemPainelPermitida } from "@/lib/auth/painel-origem";
+import { revogarSessoesPainel } from "@/lib/auth/painel-revogacao";
 import { cookiePainelApagar } from "@/lib/auth/painel-sessao";
 
 export const dynamic = "force-dynamic";
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
       },
     });
   }
+  revogarSessoesPainel();
   const headers = new Headers({
     Location: "/login",
     "Cache-Control": "private, no-store",

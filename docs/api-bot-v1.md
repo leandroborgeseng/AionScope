@@ -64,7 +64,7 @@ HTTP 200. Vários vínculos: `/os` e o equipamento reúnem todos; a calibração
 | `GET /api/bot/v1/meta/freshness` | `fetchedAt` e `idadeSegundos` por recurso |
 | `GET /api/bot/v1/os?abertas=1` | OS abertas do recorte. Filtros `setor`, `tag`, `equipamento`. `limit` ou `pageSize` (1 a 100), `offset` ou `cursor`. Traz `resumo` |
 | `GET /api/bot/v1/os/{numero}` | Situação, histórico (só datas), etapa e tempos. Sem matrícula nem `solicitacao` para quem não é gestão ou manutenção |
-| `GET /api/bot/v1/os/por-setor?abertas=1&tipo=corretiva` | Corretivas abertas da EC, agrupadas por setor e, dentro do setor, por etapa. Só Diretoria/Gestão e Manutenção |
+| `GET /api/bot/v1/os/por-setor?abertas=1&tipo=corretiva` | Corretivas abertas da EC, agrupadas por setor e, dentro do setor, por etapa. Só Diretoria/Gestão e Manutenção. `setor` opcional (o mesmo match de `/os`). `limit` ou `pageSize`, `offset` ou `cursor`, iguais aos de `/os` |
 | `GET /api/bot/v1/equipamentos/{tag}` | Status, até 5 OS do recorte e a próxima preventiva. Tag fora do recorte é o mesmo 404 |
 | `GET /api/bot/v1/calibracao?setor=&ano=YYYY` | Meses e quantidade de equipamentos. `ano` é opcional; vazio, vale o ano corrente. Sem lista de equipamentos |
 | `GET /api/bot/v1/usuario` | Situação do telefone. Única rota que responde 200 para quem não está aprovado |
@@ -80,6 +80,8 @@ HTTP 200. Vários vínculos: `/os` e o equipamento reúnem todos; a calibração
 Não há `vencidas`, prazo, limite nem SLA nesse bloco. `maisAntiga` é a abertura mais antiga, não um vencimento.
 
 `/os/por-setor` devolve `setores[]` com `setor`, `quantidade` e `porEtapa[]`. Cada etapa tem `quantidade` e `os`. Cada OS traz `numero`, `equipamento`, `tag`, `solicitacao`, `etapa`, `manutencaoExterna`, `pendenciaCompra`, `abertura`, `dataAtendimento`, `tempoAteAtendimento` (`{ horas, dias }` inteiros, ou `null`), `diasNaEtapa`, `diasNaEtapaOrigem` e `textoEtapa`. Papel assistencial e Compras recebem 403 `{ "ok": false }`.
+
+`setor` é opcional e usa a mesma resolução de `/os` (igualdade normalizada, apelidos, ambíguo com candidatos, refinar, 404). Sem o parâmetro, entram todos os setores. A página usa os mesmos parâmetros de `/os`: `limit` ou `pageSize` de 1 a 100 (padrão 20) e `offset` ou `cursor`. O cursor é o offset seguinte em base64url. `total` conta as OS do filtro inteiro, antes da página. `quantidade` e a soma das etapas são só da página. A resposta também traz `limit`, `offset` e `proximoCursor` (`null` na última página).
 
 `etapa` sai de `etapaOs` (`lib/ec/etapas.ts`): Sem 1º atendimento, Em atendimento, Aguarda peça/compra, Reparo externo, Contrato/assistência, Teste e devolução. As flags vêm de `montarOsDetalhe`.
 
@@ -120,7 +122,7 @@ curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
 
 curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
   -H "X-Bot-Telefone: +55 11 90000-0001" \
-  "https://scope.aion.eng.br/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva"
+  "https://scope.aion.eng.br/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva&setor=Centro%20Cirurgico&limit=20"
 
 curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
   -H "X-Bot-Telefone: +55 11 90000-0001" \

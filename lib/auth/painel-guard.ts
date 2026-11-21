@@ -5,6 +5,7 @@
  */
 import { NextResponse } from "next/server";
 import { voltarSeguro } from "@/lib/auth/sessao-ui";
+import { sessaoDentroDaRevogacao } from "@/lib/auth/painel-revogacao";
 import {
   COOKIE_SESSAO_PAINEL,
   cookiePainel,
@@ -153,7 +154,7 @@ export async function decidirPainel(request: Request) {
   }
 
   const sessao = await lerSessaoPainel(lerCookie(request, COOKIE_SESSAO_PAINEL));
-  if (!sessao.ok) {
+  if (!sessao.ok || !sessaoDentroDaRevogacao(sessao.iat)) {
     if (api) return jsonFechado(401, MSG_401);
     return redirecionar(request, locationLogin(caminho, url.search));
   }

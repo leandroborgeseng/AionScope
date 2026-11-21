@@ -10,7 +10,7 @@ import {
   obterCompra,
   type CompraManualInput,
 } from "@/lib/compras/store";
-import { sincronizarCompras } from "@/lib/compras/sync";
+import { sincronizarCompras, type SyncResultado } from "@/lib/compras/sync";
 import { invalidarCacheSnapshot } from "@/lib/ec/montar-snapshot";
 
 export const dynamic = "force-dynamic";
@@ -32,23 +32,33 @@ function corpoManual(body: Record<string, unknown>): CompraManualInput {
   };
 }
 
+/** A lista de caixas configuradas não sai na resposta. O endereço fica só no sync interno. */
+function respostaSync(sync: SyncResultado) {
+  const caixas = new Set(sync.caixas.filter(Boolean));
+  return {
+    ok: true as const,
+    configurado: sync.configurado,
+    processados: sync.processados,
+    novosEnviados: sync.novosEnviados,
+    novasRespostas: sync.novasRespostas,
+    erros: sync.erros.map((erro) => {
+      for (const caixa of caixas) {
+        const prefixo = `${caixa}: `;
+        if (erro.startsWith(prefixo)) return erro.slice(prefixo.length);
+      }
+      return erro;
+    }),
+  };
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const sync = url.searchParams.get("sync") === "1";
-  if (sync) {
-    // ?sync=1 força sincronização (efeito colateral): só com sessão de admin. Sem sync, leitura aberta.
-    const recusa = await exigirSessaoEscritaSala(request);
-    if (recusa) return recusa;
-  }
-  let syncResult = null;
-  if (sync) {
-    syncResult = await sincronizarCompras({ forcar: true });
-    invalidarCacheSnapshot();
+  if (url.searchParams.get("sync") === "1") {
+    return NextResponse.json({ ok: false, message: "A sincronização é um POST." }, { status: 400 });
   }
   const compras = listarCompras();
   return NextResponse.json({
     configurado: m365Configurado(),
-    sync: syncResult,
     compras: compras.map((c) => ({
       ...c,
       emails: emailsDaCompra(c.id),
@@ -67,7 +77,7 @@ export async function POST(request: Request) {
     if (acao === "sync") {
       const sync = await sincronizarCompras({ forcar: true });
       invalidarCacheSnapshot();
-      return NextResponse.json(sync);
+      return NextResponse.json(respostaSync(sync));
     }
     if (acao === "criar") {
       const id = criarCompraManual(corpoManual(body));

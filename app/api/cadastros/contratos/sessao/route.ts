@@ -9,6 +9,9 @@ import {
   senhaConfere,
   sessaoContratosValida,
 } from "@/lib/auth/contratos-sessao";
+import { origemPainelPermitida } from "@/lib/auth/painel-origem";
+import { cookiePainelApagar } from "@/lib/auth/painel-sessao";
+import { revogarSessoesPainel } from "@/lib/auth/painel-revogacao";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -49,7 +52,23 @@ export async function POST(request: Request) {
   );
 }
 
-/** Logout. */
-export async function DELETE() {
-  return Response.json({ ok: true, data: { autenticado: false } }, { headers: { "Set-Cookie": cookieSessao("", 0) } });
+/**
+ * Sair do admin. Com a sessão única, apagar só o cookie antigo de contratos
+ * deixava o painel aberto. Encerra os dois cookies e revoga o que já foi emitido.
+ */
+export async function DELETE(request: Request) {
+  if (!origemPainelPermitida(request)) {
+    return Response.json(
+      { ok: false, message: "Origem não permitida." },
+      { status: 403, headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
+  revogarSessoesPainel();
+  const headers = new Headers({
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "private, no-store",
+  });
+  headers.append("Set-Cookie", cookiePainelApagar());
+  headers.append("Set-Cookie", cookieSessao("", 0));
+  return new Response(JSON.stringify({ ok: true, data: { autenticado: false } }), { status: 200, headers });
 }

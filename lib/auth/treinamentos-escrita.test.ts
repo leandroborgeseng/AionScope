@@ -3,6 +3,7 @@ import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, beforeEach, test } from "node:test";
+import { ORIGENS_PERMITIDAS_ENV } from "@/lib/bot/origem";
 import { COOKIE_SESSAO_CONTRATOS, criarTokenSessao } from "./contratos-sessao";
 import * as desbloquear from "../../app/api/treinamentos/evidencias/desbloquear/route";
 import * as upload from "../../app/api/treinamentos/evidencias/upload/route";
@@ -22,6 +23,7 @@ beforeEach(() => {
   process.env.SESSION_SECRET = "s".repeat(40);
   process.env.TREINAMENTOS_EVIDENCIAS_PATH = dir;
   process.env.TREINAMENTOS_EVIDENCIAS_TOKEN = "token-ficticio-de-teste";
+  process.env[ORIGENS_PERMITIDAS_ENV] = "http://local";
 });
 
 const B = "http://local/api/treinamentos/evidencias";
@@ -31,7 +33,7 @@ const PDF_FICTICIO = Buffer.concat([Buffer.from("%PDF-1.4\n% lista fictícia de 
 function reqDesbloquear(cookie?: string, token = "token-ficticio-de-teste") {
   return new Request(`${B}/desbloquear`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...(cookie ? { cookie } : {}) },
+    headers: { "Content-Type": "application/json", origin: "http://local", ...(cookie ? { cookie } : {}) },
     body: JSON.stringify({ token }),
   });
 }
@@ -61,6 +63,18 @@ test("POST desbloquear sem sessão e sem token configurado → 401 (antes libera
 
 test("POST desbloquear com sessão vencida/inválida → 401", async () => {
   await semDados(await desbloquear.POST(reqDesbloquear(`${COOKIE_SESSAO_CONTRATOS}=invalido.123`)));
+});
+
+test("POST desbloquear com sessão e origem estranha → 403, sem cookie de evidências", async () => {
+  const r = await desbloquear.POST(
+    new Request(`${B}/desbloquear`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", cookie: SESSAO(), origin: "https://evil.example" },
+      body: JSON.stringify({ token: "token-ficticio-de-teste" }),
+    }),
+  );
+  assert.equal(r.status, 403);
+  assert.equal(r.headers.get("set-cookie"), null);
 });
 
 test("POST desbloquear com sessão: token certo → 200 + cookie; token errado → 401 do token", async () => {
