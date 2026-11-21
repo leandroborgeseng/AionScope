@@ -13,7 +13,7 @@
  *    `DD NNNNN-NNNN`, `DD-NNNNN-NNNN`, `DD 9 NNNN-NNNN`, tronco `0DD`
  *    e `NNNNN-NNNN` / `NNNN-NNNN` sem DDD. O separador antes do número
  *    fica no texto (`tel 55…` continua `tel [telefone]`).
- *    `OS 3301-3302` não é telefone: `NNNN-NNNN` logo depois de `OS` permanece.
+ *    Não há exceção por contexto: `OS 3301-3302` sai `OS [telefone]`.
  * 3. Onze dígitos contínuos: DDD da Anatel e o assinante começando em `9`
  *    → `[telefone]`, mesmo se o dígito verificador de CPF também fechar.
  *    Sem esse formato, CPF com os dois dígitos verificadores válidos
@@ -38,7 +38,7 @@ const EMAIL = /[a-z0-9._%+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*/gi;
 const TEL_PAIS = /(?<!\d)(?:\+\s*)?55[\s.-]*\(?\s*\d{2}\s*\)?[\s.-]*(?:9[\s.-]+)?\d{4,5}[\s.-]?\d{4}(?!\d)/gi;
 const TEL_PAREN = /(?<!\d)\(\s*\d{2}\s*\)[\s.-]*(?:9[\s.-]+)?\d{4,5}[\s.-]?\d{4}(?!\d)/gi;
 const TEL_DDD = /(?<!\d)0?\d{2}[\s.-]+(?:9[\s.-]+)?\d{4,5}[\s.-]?\d{4}(?!\d)/gi;
-const TEL_SEM_DDD = /(?<!\bos\s)(?<!\d)\d{4,5}-\d{4}(?!\d)/gi;
+const TEL_SEM_DDD = /(?<!\d)\d{4,5}-\d{4}(?!\d)/g;
 const TEL_PAIS_SOLTO = /(?<!\d)\+?55\d{10,11}(?!\d)/g;
 const CPF_SEPARADO = /(?<!\d)\d{3}(?:[.\s]\d{3}){2}[-.\s]\d{2}(?!\d)|(?<!\d)\d{9}[-.]\d{2}(?!\d)/g;
 const ONZE = /(?<!\d)\d{11}(?!\d)/g;

@@ -60,16 +60,60 @@ test("celular de 11 dígitos é telefone; CPF válido sem esse formato continua 
   assert.equal(prepararSolicitacao(`doc ${ambos}`), "doc [telefone]");
 });
 
-test("fixo de 10 dígitos, CPF com ponto e faixa de OS", () => {
+test("fixo de 10 dígitos, CPF com ponto e telefone sem DDD", () => {
   assert.equal(prepararSolicitacao("tel 1633334444"), "tel [telefone]");
   assert.equal(prepararSolicitacao("cpf 123456789.09 fim"), "cpf [cpf] fim");
-  assert.equal(prepararSolicitacao("OS 3301-3302"), "OS 3301-3302");
-  assert.equal(prepararSolicitacao("os 3301-3302"), "os 3301-3302");
+  assert.equal(prepararSolicitacao("OS 3301-3302"), "OS [telefone]");
+  assert.equal(prepararSolicitacao("os 3301-3302"), "os [telefone]");
   assert.equal(prepararSolicitacao("tel 3333-4444"), "tel [telefone]");
   assert.equal(prepararSolicitacao("tel 99000-1111"), "tel [telefone]");
   assert.equal(prepararSolicitacao("tel 5516990001111"), "tel [telefone]");
   assert.equal(prepararSolicitacao("tel +5516990001111"), "tel [telefone]");
   assert.equal(prepararSolicitacao("nota 2033334444"), "nota 2033334444");
+});
+
+test("telefone sem DDD não vaza nos 66 contextos do ciclo 3", () => {
+  const contextos = (n: string) => [
+    `OS ${n}`,
+    `os ${n}`,
+    `Os ${n}`,
+    `O.S. ${n}`,
+    `OS: ${n}`,
+    `OS nº ${n}`,
+    `OS-${n}`,
+    `NS ${n}`,
+    `patrimônio ${n}`,
+    `tel ${n}`,
+    `ramal ${n}`,
+    `contato ${n}`,
+    `ligar ${n}`,
+    `ligar para os ${n}`,
+    `anotar os ${n} e ${n}`,
+    `${n} início`,
+    `fim ${n}`,
+    `(${n})`,
+    `( ${n} )`,
+    `OS 3301 contato ${n}`,
+    `OS 3301-3302 tel ${n}`,
+    `OS 3301-3302 ${n}`,
+    `tel ${n} OS 3301-3302`,
+    `abrir OS, ligar ${n}`,
+    `chamar a OS ${n} do ramal`,
+    `OS\t${n}`,
+    `OS  ${n}`,
+    `pos ${n}`,
+    `nos ${n}`,
+    `dos ${n}`,
+    `os números ${n} / ${n}`,
+    `OS ${n}.`,
+    `OS ${n},tel`,
+  ];
+  const numeros = ["3333-4444", "99000-1111"];
+  const frases = numeros.flatMap(contextos);
+  assert.equal(frases.length, 66);
+  const vaza = /3333.?4444|99000.?1111|33334444|990001111/;
+  const vazados = frases.filter((frase) => vaza.test(prepararSolicitacao(frase)));
+  assert.deepEqual(vazados, []);
 });
 
 test("máscara vem antes do corte e não parte marcador nem dígito", () => {
