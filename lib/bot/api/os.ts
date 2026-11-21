@@ -183,11 +183,11 @@ function agruparPagina(linhas: LinhaPorSetor[]) {
   }> = [];
   for (const linha of linhas) {
     let setor = setores[setores.length - 1];
-    if (!setor || setor.setor !== linha.setorNome) {
-      setor = { setor: linha.setorNome, quantidade: 0, porEtapa: [] };
+    const { setorNome, ...os } = linha;
+    if (!setor || setor.setor !== setorNome) {
+      setor = { setor: setorNome, quantidade: 0, porEtapa: [] };
       setores.push(setor);
     }
-    const { setorNome: _setorNome, ...os } = linha;
     let etapa = setor.porEtapa[setor.porEtapa.length - 1];
     if (!etapa || etapa.etapa !== os.etapa) {
       etapa = { etapa: os.etapa, quantidade: 0, os: [] };

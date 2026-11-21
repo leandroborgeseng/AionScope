@@ -9,9 +9,8 @@ import {
   senhaConfere,
   sessaoContratosValida,
 } from "@/lib/auth/contratos-sessao";
-import { origemPainelPermitida } from "@/lib/auth/painel-origem";
 import { cookiePainelApagar } from "@/lib/auth/painel-sessao";
-import { revogarSessoesPainel } from "@/lib/auth/painel-revogacao";
+import { prepararRevogacao } from "@/lib/auth/painel-revogacao";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -53,17 +52,17 @@ export async function POST(request: Request) {
 }
 
 /**
- * Sair do admin. Com a sessão única, apagar só o cookie antigo de contratos
- * deixava o painel aberto. Encerra os dois cookies e revoga o que já foi emitido.
+ * Sair do admin. Exige a sessão do painel apresentada e revoga só o jti dela.
+ * Sem sessão, 401 e os cookies dos outros ficam como estão.
  */
 export async function DELETE(request: Request) {
-  if (!origemPainelPermitida(request)) {
+  const pronto = await prepararRevogacao(request);
+  if (!pronto.ok) {
     return Response.json(
-      { ok: false, message: "Origem não permitida." },
-      { status: 403, headers: { "Cache-Control": "private, no-store" } },
+      { ok: false, message: pronto.message },
+      { status: pronto.status, headers: { "Cache-Control": "private, no-store" } },
     );
   }
-  revogarSessoesPainel();
   const headers = new Headers({
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "private, no-store",

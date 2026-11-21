@@ -1295,7 +1295,6 @@ test("por-setor filtra como /os e pagina com o mesmo cursor", async () => {
   const manutencao = pessoa("+55 11 90000-0102", "ativo", "Manutenção");
   const chefia = pessoa("+55 11 90000-0101", "ativo", "Chefia de Enfermagem");
   pessoa("+55 11 90000-0105", "ativo", "Diretoria/Gestão");
-  const agora = new Date("2026-03-12T15:00:00.000Z");
   gravar(
     "os-analitico",
     [1, 2, 3].map((n) =>

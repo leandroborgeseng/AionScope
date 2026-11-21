@@ -1,9 +1,9 @@
 /**
  * Papel na API do bot. O rótulo deixa de ser só etiqueta nestas rotas:
  * assistência fica no próprio setor; gestão e manutenção enxergam o parque.
+ * A permissão é o nome canônico, não a posição em `AIONSCOPE_BOT_PAPEIS`.
  */
 import { getDb } from "@/lib/db/client";
-import { PAPEIS_BOT_PADRAO, papeisBot } from "../papeis";
 import { normalizarChave } from "./chave";
 
 export type ContextoBot = {
@@ -28,35 +28,17 @@ export function contextoBot(usuarioId: string): ContextoBot {
   return { id: usuarioId, papel: linha?.papel ?? "", setores: setores.map((item) => item.nome) };
 }
 
-const IDX_GESTAO = [0, 3] as const;
-const IDX_COMPRAS = [2] as const;
-
-/**
- * A env pode renomear a lista inteira. Com o mesmo tamanho da lista padrão,
- * o lugar (0 gestão, 2 compras, 3 manutenção) acompanha o nome novo.
- * O que não é gestão nem compras fica assistência: chefia, solicitante e
- * qualquer rótulo desconhecido. Sem vínculo, esse papel não consulta.
- */
-function chavesNoLugar(indices: readonly number[]) {
-  const configurados = papeisBot();
-  const mesmaLista = configurados.length === PAPEIS_BOT_PADRAO.length;
-  const chaves = new Set<string>();
-  for (const indice of indices) {
-    const padrao = PAPEIS_BOT_PADRAO[indice];
-    if (padrao) chaves.add(normalizarChave(padrao));
-    if (mesmaLista && configurados[indice]) chaves.add(normalizarChave(configurados[indice]));
-  }
-  return chaves;
-}
+/** Nomes canônicos. Reordenar ou renomear a lista da env não promove ninguém. */
+const CHAVES_GESTAO = new Set(["Diretoria/Gestão", "Manutenção"].map((nome) => normalizarChave(nome)));
+const CHAVES_COMPRAS = new Set(["Compras"].map((nome) => normalizarChave(nome)));
 
 export function papelAssistencial(papel: string) {
   const chave = normalizarChave(papel);
-  if (chavesNoLugar(IDX_GESTAO).has(chave)) return false;
-  if (chavesNoLugar(IDX_COMPRAS).has(chave)) return false;
+  if (CHAVES_GESTAO.has(chave) || CHAVES_COMPRAS.has(chave)) return false;
   return true;
 }
 
 /** Diretoria/Gestão e Manutenção. Matrícula, solicitação e a visão por setor. */
 export function papelGestao(papel: string) {
-  return chavesNoLugar(IDX_GESTAO).has(normalizarChave(papel));
+  return CHAVES_GESTAO.has(normalizarChave(papel));
 }

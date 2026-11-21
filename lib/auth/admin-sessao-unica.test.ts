@@ -199,15 +199,32 @@ function atributosSemIdade(cookie: string) {
 }
 
 test("logout do painel limpa os dois cookies com path, domain e secure iguais", async () => {
-  const semOrigem = await logoutRota.POST(new Request("http://local/api/v1/painel/logout", { method: "POST" }));
+  const semSessao = await logoutRota.POST(new Request("http://local/api/v1/painel/logout", { method: "POST" }));
+  assert.equal(semSessao.status, 401);
+  assert.equal(semSessao.headers.getSetCookie().length, 0);
+
+  const tokenOrigem = await emitirSessaoPainel();
+  assert.ok(tokenOrigem);
+  const semOrigem = await logoutRota.POST(
+    new Request("http://local/api/v1/painel/logout", {
+      method: "POST",
+      headers: { cookie: cookiePainelDe(tokenOrigem) },
+    }),
+  );
   assert.equal(semOrigem.status, 403);
   assert.equal(semOrigem.headers.getSetCookie().length, 0);
 
   const antes = process.env.NODE_ENV;
-  const pedir = () =>
-    logoutRota.POST(
-      new Request("http://local/api/v1/painel/logout", { method: "POST", headers: { origin: "http://local" } }),
+  const pedir = async () => {
+    const token = await emitirSessaoPainel();
+    assert.ok(token);
+    return logoutRota.POST(
+      new Request("http://local/api/v1/painel/logout", {
+        method: "POST",
+        headers: { origin: "http://local", cookie: cookiePainelDe(token) },
+      }),
     );
+  };
 
   definirNodeEnv("production");
   const prod = await pedir();
@@ -235,6 +252,9 @@ test("logout do painel limpa os dois cookies com path, domain e secure iguais", 
 test("sair do admin e o logout invalidam o cookie do painel copiado", async () => {
   const { valida } = await emitirCenarios();
   const cookie = cookiePainelDe(valida);
+  const paralela = await emitirSessaoPainel();
+  assert.ok(paralela);
+  const cookieParalela = cookiePainelDe(paralela);
   assert.equal((await contratos.GET(new Request(URL_CONTRATOS, { headers: { cookie } }))).status, 200);
 
   const semOrigem = await sessao.DELETE(
@@ -260,14 +280,19 @@ test("sair do admin e o logout invalidam o cookie do painel copiado", async () =
     assert.equal(/Domain=/i.test(item), false);
   }
   assert.equal((await contratos.GET(new Request(URL_CONTRATOS, { headers: { cookie } }))).status, 401);
+  assert.equal((await contratos.GET(new Request(URL_CONTRATOS, { headers: { cookie: cookieParalela } }))).status, 200);
 
   const outra = await emitirSessaoPainel();
   assert.ok(outra);
   const cookieNova = cookiePainelDe(outra);
   assert.equal((await contratos.GET(new Request(URL_CONTRATOS, { headers: { cookie: cookieNova } }))).status, 200);
   const logout = await logoutRota.POST(
-    new Request("http://local/api/v1/painel/logout", { method: "POST", headers: { origin: "http://local" } }),
+    new Request("http://local/api/v1/painel/logout", {
+      method: "POST",
+      headers: { origin: "http://local", cookie: cookieNova },
+    }),
   );
   assert.equal(logout.status, 303);
   assert.equal((await contratos.GET(new Request(URL_CONTRATOS, { headers: { cookie: cookieNova } }))).status, 401);
+  assert.equal((await contratos.GET(new Request(URL_CONTRATOS, { headers: { cookie: cookieParalela } }))).status, 200);
 });
