@@ -35,7 +35,6 @@ function corpoManual(body: Record<string, unknown>): CompraManualInput {
 /** Leitura aberta. `sync` na query é ignorado: sincronizar é POST. A lista não traz as caixas configuradas. */
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  // Descarta `sync`: esta leitura não sincroniza, com ou sem o parâmetro.
   url.searchParams.delete("sync");
   const compras = listarCompras();
   return NextResponse.json({

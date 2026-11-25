@@ -9,9 +9,8 @@ import {
   senhaConfere,
   sessaoContratosValida,
 } from "@/lib/auth/contratos-sessao";
-import { exigirOrigemPermitida } from "@/lib/bot/origem";
-import { revogarSessaoPainelDoPedido } from "@/lib/auth/painel-revogacao";
 import { cookiePainelApagar } from "@/lib/auth/painel-sessao";
+import { prepararRevogacao } from "@/lib/auth/painel-revogacao";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -53,15 +52,23 @@ export async function POST(request: Request) {
 }
 
 /**
- * Sair do admin: revoga a sessão do painel (o mesmo efeito do logout)
- * e apaga os dois cookies. Origem estranha não revoga nem apaga.
+ * Sair do admin. `prepararRevogacao` exige a sessão apresentada e a origem
+ * do painel (host do pedido ou `AIONSCOPE_PAINEL_ORIGENS`) e revoga só o `j`.
+ * Sem sessão, 401 e os cookies dos outros ficam como estão.
  */
 export async function DELETE(request: Request) {
-  const origem = exigirOrigemPermitida(request);
-  if (origem) return origem;
-  await revogarSessaoPainelDoPedido(request);
-  const headers = new Headers();
+  const pronto = await prepararRevogacao(request);
+  if (!pronto.ok) {
+    return Response.json(
+      { ok: false, message: pronto.message },
+      { status: pronto.status, headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
+  const headers = new Headers({
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "private, no-store",
+  });
   headers.append("Set-Cookie", cookiePainelApagar());
   headers.append("Set-Cookie", cookieSessao("", 0));
-  return Response.json({ ok: true, data: { autenticado: false } }, { headers });
+  return new Response(JSON.stringify({ ok: true, data: { autenticado: false } }), { status: 200, headers });
 }

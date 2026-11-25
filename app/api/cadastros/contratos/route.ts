@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
-import { exigirEscritaContratos } from "@/lib/auth/escrita-origem";
-import { exigirSessaoAdmin } from "@/lib/auth/contratos-sessao";
+import { exigirSessaoAdmin, exigirSessaoContratos } from "@/lib/auth/contratos-sessao";
+import { exigirOrigemPermitida } from "@/lib/bot/origem";
 import { validarContrato } from "@/lib/cadastros/contratos-proprios";
 import { readContratos, upsertContrato } from "@/lib/cadastros/store";
 import type { ContratoInput } from "@/lib/cadastros/types";
@@ -16,8 +16,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const recusa = await exigirEscritaContratos(request);
+  const recusa = await exigirSessaoContratos(request);
   if (recusa) return recusa;
+  const origem = exigirOrigemPermitida(request);
+  if (origem) return origem;
 
   let body: ContratoInput;
   try {

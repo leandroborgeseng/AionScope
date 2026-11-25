@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { after, before, beforeEach, test } from "node:test";
+import { ORIGENS_PERMITIDAS_ENV } from "@/lib/bot/origem";
 import { closeDbForTests } from "../db/client";
 import {
   COOKIE_SESSAO_CONTRATOS,
@@ -33,7 +34,7 @@ after(() => {
 beforeEach(() => {
   process.env.CONTRATOS_ADMIN_PASSWORD = SENHA;
   process.env.SESSION_SECRET = SEGREDO;
-  process.env.AIONSCOPE_ORIGENS_PERMITIDAS = "https://painel.exemplo.test";
+  process.env[ORIGENS_PERMITIDAS_ENV] = "http://local";
   for (const ip of ["conexao", "9.9.9.9", "8.8.8.8", "7.7.7.7"]) limparFalhas(ip);
 });
 
@@ -41,11 +42,7 @@ const URL_BASE = "http://local/api/cadastros/contratos";
 const json = (method: string, body: unknown, cookie?: string) =>
   new Request(URL_BASE, {
     method,
-    headers: {
-      "content-type": "application/json",
-      origin: "https://painel.exemplo.test",
-      ...(cookie ? { cookie } : {}),
-    },
+    headers: { "content-type": "application/json", origin: "http://local", ...(cookie ? { cookie } : {}) },
     body: JSON.stringify(body),
   });
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -64,6 +61,19 @@ test("token: assinatura, expiração e adulteração", () => {
   assert.equal(tokenSessaoValido(t.replace(/.$/, (c) => (c === "A" ? "B" : "A")), 1000), false);
   process.env.SESSION_SECRET = "o".repeat(40);
   assert.equal(tokenSessaoValido(t, 1000), false, "outro segredo invalida");
+});
+
+test("POST de contrato com sessão e origem estranha → 403, sem gravar", async () => {
+  const { cookie } = await login();
+  const r = await rotaLista.POST(
+    new Request(URL_BASE, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie, origin: "https://evil.example" },
+      body: JSON.stringify(novo),
+    }),
+  );
+  assert.equal(r.status, 403);
+  assert.equal(((await r.json()) as { message?: string }).message, "Origem não permitida.");
 });
 
 test("escrita e leitura sem sessão = 401 (GET/POST/PATCH/DELETE)", async () => {

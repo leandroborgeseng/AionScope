@@ -1,40 +1,62 @@
 /**
- * Lista de sessões do painel revogadas. O cookie continua assinado;
- * o `jti` é que deixa de valer. A linha expira no mesmo teto de 8 h
- * da sessão, então a tabela não cresce além das sessões ainda vivas.
- * Logout e "sair do admin" revogam só o jti daquele cookie.
+ * Cada login do painel leva um jti. Logout e Sair gravam só esse jti.
+ * Outra sessão continua válida. O instante nunca passa de agora e repetir
+ * a saída não acumula segundo nenhum.
  */
 import { getDb } from "@/lib/db/client";
-import {
-  COOKIE_SESSAO_PAINEL,
-  TETO_ABSOLUTO_PAINEL_S,
-  lerCookie,
-  lerSessaoPainel,
-} from "@/lib/auth/painel-sessao";
+import { origemPainelPermitida } from "@/lib/auth/painel-origem";
+import { COOKIE_SESSAO_PAINEL, lerCookie, lerSessaoPainel } from "@/lib/auth/painel-sessao";
 
-const JTI = /^[A-Za-z0-9_-]{16,64}$/;
+const TABELA_NOVA = "painel_sessao_revogacao";
+const TABELA_LEGADA = "painel_sessao_jti";
 
-export function jtiRevogado(jti: string, agoraS = Math.floor(Date.now() / 1000)) {
-  if (!JTI.test(jti)) return true;
-  const db = getDb();
-  db.prepare("DELETE FROM painel_sessao_revogada WHERE expira_em <= ?").run(agoraS);
-  const row = db.prepare("SELECT 1 AS n FROM painel_sessao_revogada WHERE jti = ? AND expira_em > ?").get(jti, agoraS);
-  return Boolean(row);
+function tabela(): typeof TABELA_NOVA | typeof TABELA_LEGADA {
+  const cols = getDb().prepare(`PRAGMA table_info(${TABELA_NOVA})`).all() as Array<{ name: string }>;
+  return cols.some((coluna) => coluna.name === "jti") ? TABELA_NOVA : TABELA_LEGADA;
 }
 
-export function revogarJti(jti: string, expiraEm: number) {
-  if (!JTI.test(jti) || !Number.isSafeInteger(expiraEm)) return;
+export function sessaoPainelAtiva(jti: string) {
+  if (!jti) return false;
+  const linha = getDb().prepare(`SELECT 1 AS ok FROM ${tabela()} WHERE jti = ?`).get(jti);
+  return !linha;
+}
+
+/** Grava o jti uma vez. Conflito não atualiza o instante. Devolve o valor gravado. */
+export function revogarSessaoPainel(jti: string, agoraMs = Date.now()): number {
+  const em = Math.min(Math.floor(agoraMs), Date.now());
   getDb()
     .prepare(
-      `INSERT INTO painel_sessao_revogada (jti, expira_em) VALUES (?, ?)
-       ON CONFLICT(jti) DO UPDATE SET expira_em = excluded.expira_em`,
+      `INSERT INTO ${tabela()} (jti, revogada_em) VALUES (?, ?)
+       ON CONFLICT(jti) DO NOTHING`,
     )
-    .run(jti, expiraEm);
+    .run(jti, em);
+  const linha = getDb().prepare(`SELECT revogada_em AS em FROM ${tabela()} WHERE jti = ?`).get(jti) as {
+    em: number;
+  };
+  return linha.em;
 }
 
-/** Revoga a sessão do cookie atual, se a assinatura ainda confere. Não apaga o cookie. */
-export async function revogarSessaoPainelDoPedido(request: Request) {
+export function maiorRevogacaoMs(): number {
+  const linha = getDb().prepare(`SELECT MAX(revogada_em) AS em FROM ${tabela()}`).get() as {
+    em: number | null;
+  };
+  return linha.em ?? 0;
+}
+
+/**
+ * Sem sessão válida: 401 e nada é gravado. Origem estranha: 403 e a sessão segue.
+ * Com sessão e origem do painel, revoga só o jti apresentado.
+ */
+export async function prepararRevogacao(
+  request: Request,
+): Promise<{ ok: true } | { ok: false; status: 401 | 403; message: string }> {
   const sessao = await lerSessaoPainel(lerCookie(request, COOKIE_SESSAO_PAINEL));
-  if (!sessao.ok) return;
-  revogarJti(sessao.jti, sessao.auth_time + TETO_ABSOLUTO_PAINEL_S);
+  if (!sessao.ok || !sessaoPainelAtiva(sessao.jti)) {
+    return { ok: false, status: 401, message: "Não autenticado." };
+  }
+  if (!origemPainelPermitida(request)) {
+    return { ok: false, status: 403, message: "Origem não permitida." };
+  }
+  revogarSessaoPainel(sessao.jti);
+  return { ok: true };
 }

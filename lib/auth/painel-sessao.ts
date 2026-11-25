@@ -1,11 +1,9 @@
 /**
  * Sessão do login único do site.
- * Só Web Crypto (middleware no Edge). Não importar `node:crypto` nem SQLite.
+ * A assinatura é Web Crypto. O middleware roda em Node para ler, no SQLite,
+ * o jti revogado na saída (`painel-revogacao`). Só essa sessão cai.
  * A senha não entra no cookie: o payload leva um HMAC da credencial, então
  * trocar usuário ou senha invalida sessões já emitidas.
- * Cada emissão leva `jti`. A lista de revogados fica fora daqui (o Edge não
- * abre o SQLite). Quem aceita a sessão consulta essa lista. Trocar a geração
- * continua invalidando todas, com ou sem revogação.
  */
 export const PAINEL_USUARIO_ENV = "AIONSCOPE_PAINEL_USUARIO";
 export const PAINEL_SENHA_ENV = "AIONSCOPE_PAINEL_SENHA";
@@ -117,11 +115,11 @@ export function lerCookie(request: Request, nome: string) {
   return null;
 }
 
-type Payload = { v: number; iat: number; exp: number; auth_time: number; g: string; c: string; jti: string };
+type Payload = { v: number; iat: number; exp: number; auth_time: number; g: string; c: string; j: string };
 
 const JTI = /^[A-Za-z0-9_-]{16,64}$/;
 
-function novoJti() {
+function jtiNovo() {
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
   return bytesParaBase64Url(bytes);
@@ -144,15 +142,15 @@ function payloadDe(token: string): { corpo: string; payload: Payload } | null {
   }
   if (!json || typeof json !== "object" || Array.isArray(json)) return null;
   const bruto = json as Record<string, unknown>;
-  const { v, iat, exp, auth_time, g, c, jti } = bruto;
-  if (v !== VERSAO || typeof c !== "string" || typeof g !== "string" || typeof jti !== "string") return null;
+  const { v, iat, exp, auth_time, g, c, j } = bruto;
+  if (v !== VERSAO || typeof c !== "string" || typeof g !== "string" || typeof j !== "string") return null;
   if (!Number.isSafeInteger(iat) || !Number.isSafeInteger(exp) || !Number.isSafeInteger(auth_time)) return null;
   if (g.length > GERACAO_MAX) return null;
   if (!/^[A-Za-z0-9_-]{20,200}$/.test(c)) return null;
-  if (!JTI.test(jti)) return null;
+  if (!JTI.test(j)) return null;
   return {
     corpo: `${corpo}.${sig}`,
-    payload: { v, iat: iat as number, exp: exp as number, auth_time: auth_time as number, g, c, jti },
+    payload: { v, iat: iat as number, exp: exp as number, auth_time: auth_time as number, g, c, j },
   };
 }
 
@@ -177,7 +175,7 @@ export async function lerSessaoPainel(token: string | null | undefined, agoraMs 
   if (!lido) return negada;
   if (!(await assinaturaConfere(token))) return negada;
   const agoraS = Math.floor(agoraMs / 1000);
-  const { iat, exp, auth_time, g, c, jti } = lido.payload;
+  const { iat, exp, auth_time, g, c, j } = lido.payload;
   if (iat > agoraS + 60) return negada;
   if (exp <= agoraS) return negada;
   if (exp > iat + SESSAO_PAINEL_S) return negada;
@@ -189,11 +187,11 @@ export async function lerSessaoPainel(token: string | null | undefined, agoraMs 
   const informado = base64UrlParaBytes(c);
   const esperado = atual ? base64UrlParaBytes(atual) : null;
   if (!informado || !esperado || !iguais(informado, esperado)) return negada;
-  return { ok: true, renovar: agoraS - iat > RENOVACAO_PAINEL_S, iat, auth_time, jti };
+  return { ok: true, renovar: agoraS - iat > RENOVACAO_PAINEL_S, iat, auth_time, jti: j };
 }
 
-/** `jtiInformado` preserva a sessão na renovação. Sem ele, nasce outra sessão. */
-export async function emitirSessaoPainel(agoraMs = Date.now(), authTimeMs?: number, jtiInformado?: string) {
+/** `jti` reutilizado mantém a mesma sessão na renovação. Login novo recebe outro. */
+export async function emitirSessaoPainel(agoraMs = Date.now(), authTimeMs?: number, jti?: string) {
   if (!painelConfigurado()) return null;
   const c = await impressaoCredencial();
   if (!c) return null;
@@ -201,8 +199,8 @@ export async function emitirSessaoPainel(agoraMs = Date.now(), authTimeMs?: numb
   const auth_time = Math.floor((authTimeMs ?? agoraMs) / 1000);
   const exp = iat + SESSAO_PAINEL_S;
   const g = geracaoPainel();
-  const jti = jtiInformado && JTI.test(jtiInformado) ? jtiInformado : novoJti();
-  const json = JSON.stringify({ v: VERSAO, iat, exp, auth_time, g, c, jti });
+  const j = jti && JTI.test(jti) ? jti : jtiNovo();
+  const json = JSON.stringify({ v: VERSAO, iat, exp, auth_time, g, c, j });
   const corpo = bytesParaBase64Url(new TextEncoder().encode(json));
   const sig = bytesParaBase64Url(await hmac(segredoConfigurado(), corpo));
   return `${corpo}.${sig}`;

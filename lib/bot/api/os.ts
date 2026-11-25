@@ -12,6 +12,7 @@ import { normalizarChave } from "./chave";
 import { lerLista } from "./copia";
 import { oficinaEngenhariaClinicaExata, oficinaNoEscopoBot } from "./escopo";
 import { copiaIndisponivel, json } from "./http";
+import { cursorDaPagina, lerPaginacao } from "./paginacao";
 import { historicoOs, projetarOs } from "./projecao";
 import { catalogarNomes, decidirSetor, nomeExibicao, respostaDecisaoSetor } from "./setor-match";
 
@@ -28,34 +29,6 @@ function instante(valor: string | null | undefined) {
 function instanteResumo(valor: string | null | undefined) {
   const data = parsePbiDate(valor);
   return data ? data.getTime() : Number.POSITIVE_INFINITY;
-}
-
-function pagina(params: URLSearchParams): { ok: true; limit: number; offset: number } | { ok: false; message: string } {
-  const temLimit = params.has("limit");
-  const temPage = params.has("pageSize");
-  if (temLimit && temPage && params.get("limit") !== params.get("pageSize")) {
-    return { ok: false, message: "Parâmetros de página inválidos." };
-  }
-  const bruto = temLimit ? params.get("limit") : temPage ? params.get("pageSize") : null;
-  let limit = 20;
-  if (bruto != null) {
-    if (!/^\d+$/.test(bruto)) return { ok: false, message: "Parâmetros de página inválidos." };
-    limit = Number(bruto);
-    if (limit < 1 || limit > 100) return { ok: false, message: "Limite máximo é 100." };
-  }
-  if (params.has("offset") && params.has("cursor")) return { ok: false, message: "Parâmetros de página inválidos." };
-  let offset = 0;
-  if (params.has("cursor")) {
-    const textoCursor = Buffer.from(params.get("cursor") ?? "", "base64url").toString("utf8");
-    if (!/^\d+$/.test(textoCursor)) return { ok: false, message: "Parâmetros de página inválidos." };
-    offset = Number(textoCursor);
-  } else if (params.has("offset")) {
-    const brutoOffset = params.get("offset") ?? "";
-    if (!/^\d+$/.test(brutoOffset)) return { ok: false, message: "Parâmetros de página inválidos." };
-    offset = Number(brutoOffset);
-  }
-  if (!Number.isSafeInteger(offset)) return { ok: false, message: "Parâmetros de página inválidos." };
-  return { ok: true, limit, offset };
 }
 
 function inclui(campo: string | null | undefined, filtro: string) {
@@ -105,7 +78,7 @@ function naoEncontrei() {
 export function consultarOsAbertas(request: Request, usuarioId: string, agora = new Date()) {
   const params = new URL(request.url).searchParams;
   if (params.get("abertas") !== "1") return json(400, { ok: false, message: "Use abertas=1." });
-  const paginacao = pagina(params);
+  const paginacao = lerPaginacao(params);
   if (!paginacao.ok) return json(400, { ok: false, message: paginacao.message });
   const ctx = contextoBot(usuarioId);
   if (papelAssistencial(ctx.papel) && ctx.setores.length === 0) {
@@ -144,7 +117,7 @@ export function consultarOsAbertas(request: Request, usuarioId: string, agora = 
     resumo: resumoOs(itens),
     limit: paginacao.limit,
     offset: paginacao.offset,
-    proximoCursor: proximo == null ? null : Buffer.from(String(proximo), "utf8").toString("base64url"),
+    proximoCursor: proximo == null ? null : cursorDaPagina(proximo),
     ...meta,
   });
 }

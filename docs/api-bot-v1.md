@@ -122,7 +122,7 @@ curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
 
 curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
   -H "X-Bot-Telefone: +55 11 90000-0001" \
-  "https://scope.aion.eng.br/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva&limite=20"
+  "https://scope.aion.eng.br/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva&setor=Centro%20Cirurgico&limite=20"
 
 curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
   -H "X-Bot-Telefone: +55 11 90000-0001" \

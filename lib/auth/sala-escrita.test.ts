@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, beforeEach, test } from "node:test";
 import { NextRequest } from "next/server";
+import { ORIGENS_PERMITIDAS_ENV } from "@/lib/bot/origem";
 import { closeDbForTests } from "../db/client";
 import { COOKIE_SESSAO_CONTRATOS, criarTokenSessao } from "./contratos-sessao";
 import { MSG_LOGIN_SALA } from "./sala-escrita";
@@ -30,11 +31,10 @@ after(() => {
   process.env = envAntes;
   rmSync(dir, { recursive: true, force: true });
 });
-const ORIGEM = "https://painel.exemplo.test";
 beforeEach(() => {
   process.env.CONTRATOS_ADMIN_PASSWORD = "senha-ficticia-de-teste";
   process.env.SESSION_SECRET = "s".repeat(40);
-  process.env.AIONSCOPE_ORIGENS_PERMITIDAS = ORIGEM;
+  process.env[ORIGENS_PERMITIDAS_ENV] = "http://local";
 });
 
 const B = "http://local/api/sala";
@@ -42,7 +42,7 @@ const COOKIE = () => `${COOKIE_SESSAO_CONTRATOS}=${criarTokenSessao()}`;
 const req = (url: string, method: string, body?: unknown, cookie?: string) =>
   new Request(url, {
     method,
-    headers: { "Content-Type": "application/json", origin: ORIGEM, ...(cookie ? { cookie } : {}) },
+    headers: { "Content-Type": "application/json", origin: "http://local", ...(cookie ? { cookie } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 const ctxOc = { params: Promise.resolve({ numero_ordem: "DEMO-1" }) };
@@ -69,6 +69,7 @@ for (const [nome, chamar] of escritas) {
   test(`${nome} com sessão → passa do guard (não 401)`, async () => {
     const r = await chamar(COOKIE());
     assert.notEqual(r.status, 401);
+    assert.notEqual(r.status, 403);
   });
   test(`${nome} com cookie forjado → 401`, async () => {
     const r = await chamar(`${COOKIE_SESSAO_CONTRATOS}=9999999999.forjadoforjadoforjadoforjado`);
@@ -106,13 +107,58 @@ test("D4: /api/v1/health mantém persistencia_ok e ephemeral, sem caminho do ban
 });
 
 test("GET /api/sala/compras ignora sync=1 e não lista caixas", async () => {
+  process.env.M365_CAIXAS = "caixa.ficticia@exemplo.invalid";
   const r = await compras.GET(new Request(`${B}/compras?sync=1`));
   assert.equal(r.status, 200);
-  const body = (await r.json()) as { sync: unknown; caixas?: unknown };
+  const texto = await r.text();
+  assert.equal(texto.includes("caixa.ficticia"), false);
+  assert.equal(texto.includes("\"caixas\""), false);
+  assert.equal(texto.includes("@"), false);
+  const body = JSON.parse(texto) as { sync: unknown };
   assert.equal(body.sync, null);
-  assert.equal("caixas" in body, false);
-  assert.equal(JSON.stringify(body).includes("@"), false);
   assert.equal((await compras.GET(new Request(`${B}/compras`))).status, 200);
+});
+
+test("POST /api/sala/compras sync exige sessão e origem e não devolve caixas", async () => {
+  process.env.M365_CAIXAS = "caixa.ficticia@exemplo.invalid";
+  const semSessao = await compras.POST(req(`${B}/compras`, "POST", { acao: "sync" }));
+  assert.equal(semSessao.status, 401);
+  const origemRuim = await compras.POST(
+    new Request(`${B}/compras`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: COOKIE(), origin: "https://evil.example" },
+      body: JSON.stringify({ acao: "sync" }),
+    }),
+  );
+  assert.equal(origemRuim.status, 403);
+  const ok = await compras.POST(req(`${B}/compras`, "POST", { acao: "sync" }, COOKIE()));
+  assert.equal(ok.status, 200);
+  const texto = await ok.text();
+  assert.equal(texto.includes("caixa.ficticia"), false);
+  assert.equal(texto.includes("\"caixas\""), false);
+  assert.equal(texto.includes("@"), false);
+  const json = JSON.parse(texto) as { ok: boolean; configurado: boolean };
+  assert.equal(json.ok, true);
+  assert.equal(json.configurado, false);
+});
+
+test("escrita da sala sem origem ou com origem estranha → 403", async () => {
+  const sem = await registros.POST(
+    new Request(`${B}/registros`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: COOKIE() },
+      body: JSON.stringify({ tipo: "feriado", data: "2026-12-25", nome: "Feriado DEMO" }),
+    }),
+  );
+  assert.equal(sem.status, 403);
+  const estranha = await compras.POST(
+    new Request(`${B}/compras`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: COOKIE(), origin: "https://evil.example" },
+      body: JSON.stringify({ acao: "criar" }),
+    }),
+  );
+  assert.equal(estranha.status, 403);
 });
 
 test("POST sync não devolve as caixas configuradas", async () => {

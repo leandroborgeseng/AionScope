@@ -315,7 +315,9 @@ export function ContratosCadastroForm() {
   });
   const sair = useMutation({
     mutationFn: () => chamar(`${API}/sessao`, { method: "DELETE" }),
-    onSettled: () => qc.invalidateQueries({ queryKey: QK_SESSAO }),
+    onSuccess: () => {
+      window.location.assign("/login");
+    },
   });
 
   const todos = useMemo(() => listaQ.data ?? [], [listaQ.data]);

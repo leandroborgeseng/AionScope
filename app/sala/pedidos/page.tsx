@@ -40,7 +40,6 @@ type Compra = {
 
 type Pacote = {
   configurado: boolean;
-  sync: { ok?: boolean; novos?: number; erros?: string[]; processados?: number } | null;
   compras: Compra[];
 };
 

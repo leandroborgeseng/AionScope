@@ -32,7 +32,7 @@ Cinco falhas em 15 minutos, por IP, respondem 429 com `Retry-After`. O contador 
 
 ## Allowlist do proxy
 
-O arquivo é `proxy.ts` (runtime Node). A lista abaixo é a mesma de antes.
+O arquivo é `middleware.ts` com `runtime` Node. A lista abaixo é a mesma de antes.
 
 Tudo o que não está aqui exige o cookie. Página sem cookie: 302 para `/login?next=<caminho interno>`. API (`/api/...`) sem cookie: 401 JSON. `next` só aceita caminho relativo interno.
 
