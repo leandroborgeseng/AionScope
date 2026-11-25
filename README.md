@@ -87,7 +87,7 @@ As API Routes guardam respostas em memória por 15 minutos (`PBI_CACHE_SECONDS=9
 
 O site inteiro pede um usuário e uma senha (`AIONSCOPE_PAINEL_USUARIO`, `AIONSCOPE_PAINEL_SENHA`) assinados com `SESSION_SECRET` (mínimo 32 caracteres). Sem qualquer uma dessas variáveis, nada protegido abre. A sessão de administrador dos contratos (`CONTRATOS_ADMIN_PASSWORD`) continua obrigatória nas escritas, por cima desse login.
 
-O cookie leva um `jti`. O logout do painel e o "sair do admin" revogam só essa sessão até o teto de 8 horas. Outra sessão segue válida. A rotação de `AIONSCOPE_PAINEL_GERACAO` continua invalidando todas. Detalhe em `docs/ops/login-painel.md`.
+O cookie leva um `j`. O logout do painel e o "sair do admin" revogam só essa sessão até o teto de 8 horas. Outra sessão segue válida. A rotação de `AIONSCOPE_PAINEL_GERACAO` continua invalidando todas. Detalhe em `docs/ops/login-painel.md`.
 
 As escritas autenticadas pelo cookie (Sala, contratos, parque, evidências e o cadastro do bot) exigem `Origin` em `AIONSCOPE_ORIGENS_PERMITIDAS`. Sem a lista, essas mutações respondem 403. O GET não usa a lista.
 
