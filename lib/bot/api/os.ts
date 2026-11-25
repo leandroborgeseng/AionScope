@@ -152,52 +152,73 @@ function corretivaEc(item: OsAnaliticoItem) {
   return aberta(item) && oficinaEngenhariaClinicaExata(item.Oficina) && normalizarChave(item.TipoDeManutencao).includes("CORRETIVA");
 }
 
-type LinhaPorSetor = {
-  setorNome: string;
-  numero: string;
-  equipamento: string;
-  tag: string;
-  etapa: string;
-  manutencaoExterna: boolean;
-  pendenciaCompra: boolean;
-  abertura: string;
-  dataAtendimento: string | null;
-  tempoAteAtendimento: { horas: number; dias: number } | null;
-  diasNaEtapa: number;
-  diasNaEtapaOrigem: string;
-  textoEtapa: string;
-  solicitacao?: string;
-};
+const LIMITE_POR_SETOR = 20;
+const LIMITE_POR_SETOR_MAX = 100;
 
-function nomeDoSetor(item: OsAnaliticoItem, nomes: ReturnType<typeof catalogarNomes>) {
-  const chave = normalizarChave(item.Setor);
-  if (!chave) return "SEM SETOR";
-  return nomes.has(chave) ? nomeExibicao(nomes.get(chave)!) : "SEM SETOR";
+function paginarPorSetor(params: URLSearchParams): { ok: true; limite: number; offset: number } | { ok: false; message: string } {
+  const bruto = params.get("limite");
+  let limite = LIMITE_POR_SETOR;
+  if (bruto != null) {
+    if (!/^\d+$/.test(bruto)) return { ok: false, message: "Parâmetros de página inválidos." };
+    limite = Number(bruto);
+    if (limite < 1 || limite > LIMITE_POR_SETOR_MAX) return { ok: false, message: "Limite máximo é 100." };
+  }
+  if (params.has("cursor") && params.has("pagina")) return { ok: false, message: "Parâmetros de página inválidos." };
+  let offset = 0;
+  if (params.has("cursor")) {
+    const cru = params.get("cursor") ?? "";
+    if (!/^[A-Za-z0-9_-]+$/.test(cru)) return { ok: false, message: "Parâmetros de página inválidos." };
+    const textoCursor = Buffer.from(cru, "base64url").toString("utf8");
+    if (!/^\d+$/.test(textoCursor)) return { ok: false, message: "Parâmetros de página inválidos." };
+    offset = Number(textoCursor);
+  } else if (params.has("pagina")) {
+    const brutoPagina = params.get("pagina") ?? "";
+    if (!/^\d+$/.test(brutoPagina)) return { ok: false, message: "Parâmetros de página inválidos." };
+    const pagina = Number(brutoPagina);
+    if (!Number.isSafeInteger(pagina) || pagina < 1) return { ok: false, message: "Parâmetros de página inválidos." };
+    offset = (pagina - 1) * limite;
+  }
+  if (!Number.isSafeInteger(offset)) return { ok: false, message: "Parâmetros de página inválidos." };
+  return { ok: true, limite, offset };
 }
 
-function agruparPagina(linhas: LinhaPorSetor[]) {
-  const setores: Array<{
-    setor: string;
-    quantidade: number;
-    porEtapa: Array<{ etapa: string; quantidade: number; os: Array<Omit<LinhaPorSetor, "setorNome">> }>;
-  }> = [];
-  for (const linha of linhas) {
-    let setor = setores[setores.length - 1];
-    const { setorNome, ...os } = linha;
-    if (!setor || setor.setor !== setorNome) {
-      setor = { setor: setorNome, quantidade: 0, porEtapa: [] };
-      setores.push(setor);
-    }
-    let etapa = setor.porEtapa[setor.porEtapa.length - 1];
-    if (!etapa || etapa.etapa !== os.etapa) {
-      etapa = { etapa: os.etapa, quantidade: 0, os: [] };
-      setor.porEtapa.push(etapa);
-    }
-    etapa.os.push(os);
-    etapa.quantidade += 1;
-    setor.quantidade += 1;
+function agruparPorSetor(linhas: OsAnaliticoItem[], agora: Date) {
+  const grupos = new Map<string, OsAnaliticoItem[]>();
+  for (const item of linhas) {
+    const chave = normalizarChave(item.Setor) || "SEM SETOR";
+    const lista = grupos.get(chave) ?? [];
+    lista.push(item);
+    grupos.set(chave, lista);
   }
-  return setores;
+  return [...grupos.entries()]
+    .map(([, grupo]) => {
+      const nomes = catalogarNomes(grupo.map((item) => item.Setor));
+      const chave = normalizarChave(grupo[0]?.Setor) || "SEM SETOR";
+      const os = grupo
+        .map((item) => ({
+          numero: texto(item.OS),
+          equipamento: texto(item.Equipamento),
+          tag: texto(item.Tag),
+          ...camposEtapa(item, agora, { solicitacao: true }),
+        }))
+        .sort((a, b) => String(a.numero).localeCompare(String(b.numero), "pt-BR"));
+      const porEtapaMap = new Map<string, typeof os>();
+      for (const linha of os) {
+        const etapa = String(linha.etapa);
+        const fatia = porEtapaMap.get(etapa) ?? [];
+        fatia.push(linha);
+        porEtapaMap.set(etapa, fatia);
+      }
+      const porEtapa = [...porEtapaMap.entries()]
+        .sort((a, b) => indiceEtapa(a[0]) - indiceEtapa(b[0]) || a[0].localeCompare(b[0], "pt-BR"))
+        .map(([etapa, linhasEtapa]) => ({ etapa, quantidade: linhasEtapa.length, os: linhasEtapa }));
+      return {
+        setor: nomes.has(chave) ? nomeExibicao(nomes.get(chave)!) : "SEM SETOR",
+        quantidade: os.length,
+        porEtapa,
+      };
+    })
+    .sort((a, b) => a.setor.localeCompare(b.setor, "pt-BR"));
 }
 
 export function consultarOsPorSetor(request: Request, usuarioId: string, agora = new Date()) {
@@ -206,17 +227,17 @@ export function consultarOsPorSetor(request: Request, usuarioId: string, agora =
   const params = new URL(request.url).searchParams;
   if (params.get("abertas") !== "1") return json(400, { ok: false, message: "Use abertas=1." });
   if (normalizarChave(params.get("tipo")) !== "CORRETIVA") return json(400, { ok: false, message: "Use tipo=corretiva." });
-  const paginacao = lerPaginacao(params);
+  const paginacao = paginarPorSetor(params);
   if (!paginacao.ok) return json(400, { ok: false, message: paginacao.message });
   const copia = lerLista("os-analitico", agora.getTime());
   if (!copia.ok) return copiaIndisponivel(copia.motivo, copia.motivo === "expirada" ? copia : undefined);
-  const noEscopo = (copia.itens as OsAnaliticoItem[]).filter((item) => oficinaNoEscopoBot(item.Oficina));
+  const itens = (copia.itens as OsAnaliticoItem[]).filter(corretivaEc);
   const decisao = decidirSetor({
-    assistencial: false,
-    gestao: true,
+    assistencial: papelAssistencial(ctx.papel),
+    gestao: papelGestao(ctx.papel),
     vinculos: ctx.setores,
     consulta: params.get("setor")?.trim() ?? "",
-    nomesNaCopia: noEscopo.map((item) => item.Setor),
+    nomesNaCopia: itens.map((item) => item.Setor),
     modo: "lista",
     apelidos: listarApelidos(),
   });
@@ -224,46 +245,22 @@ export function consultarOsPorSetor(request: Request, usuarioId: string, agora =
   const especial = respostaDecisaoSetor(decisao, meta);
   if (especial) return especial;
   const chaves = decisao.tipo === "chaves" ? decisao.chaves : null;
-  const filtrados = noEscopo.filter(corretivaEc).filter((item) => (chaves ? chaves.has(normalizarChave(item.Setor)) : true));
-  const nomes = catalogarNomes(filtrados.map((item) => item.Setor));
-  const linhas = filtrados
-    .map((item) => {
-      const campos = camposEtapa(item, agora, { solicitacao: true });
-      const linha: LinhaPorSetor = {
-        setorNome: nomeDoSetor(item, nomes),
-        numero: texto(item.OS),
-        equipamento: texto(item.Equipamento),
-        tag: texto(item.Tag),
-        etapa: campos.etapa,
-        manutencaoExterna: campos.manutencaoExterna,
-        pendenciaCompra: campos.pendenciaCompra,
-        abertura: campos.abertura,
-        dataAtendimento: campos.dataAtendimento,
-        tempoAteAtendimento: campos.tempoAteAtendimento,
-        diasNaEtapa: campos.diasNaEtapa,
-        diasNaEtapaOrigem: campos.diasNaEtapaOrigem,
-        textoEtapa: campos.textoEtapa,
-        solicitacao: campos.solicitacao,
-      };
-      return linha;
-    })
+  const filtrados = itens
+    .filter((item) => (chaves ? chaves.has(normalizarChave(item.Setor)) : true))
     .sort(
       (a, b) =>
-        a.setorNome.localeCompare(b.setorNome, "pt-BR") ||
-        indiceEtapa(a.etapa) - indiceEtapa(b.etapa) ||
-        a.etapa.localeCompare(b.etapa, "pt-BR") ||
-        a.numero.localeCompare(b.numero, "pt-BR"),
+        (normalizarChave(a.Setor) || "SEM SETOR").localeCompare(normalizarChave(b.Setor) || "SEM SETOR", "pt-BR") ||
+        texto(a.OS).localeCompare(texto(b.OS), "pt-BR"),
     );
-  const fatia = linhas.slice(paginacao.offset, paginacao.offset + paginacao.limit);
-  const proximo = paginacao.offset + paginacao.limit < linhas.length ? paginacao.offset + paginacao.limit : null;
+  const fatia = filtrados.slice(paginacao.offset, paginacao.offset + paginacao.limite);
+  const proximo = paginacao.offset + paginacao.limite < filtrados.length ? paginacao.offset + paginacao.limite : null;
   return json(200, {
     ok: true,
     tipo: "corretiva",
-    total: linhas.length,
-    setores: agruparPagina(fatia),
-    limit: paginacao.limit,
-    offset: paginacao.offset,
-    proximoCursor: proximo == null ? null : cursorDaPagina(proximo),
+    setores: agruparPorSetor(fatia, agora),
+    total: filtrados.length,
+    limite: paginacao.limite,
+    proximoCursor: proximo == null ? null : Buffer.from(String(proximo), "utf8").toString("base64url"),
     ...meta,
   });
 }

@@ -1,6 +1,7 @@
 /**
  * Escritas da Sala (/api/sala/*, métodos != GET) exigem a sessão de administrador
- * (`sessaoContratosValida`: contratos ou painel). As leituras (GET) seguem abertas: a TV só lê.
+ * (`sessaoContratosValida`: contratos ou painel) e a origem de `exigirOrigemPermitida`.
+ * As leituras (GET) seguem abertas: a TV só lê. 401 vem antes da checagem de origem.
  */
 import { sessaoContratosValida } from "@/lib/auth/contratos-sessao";
 import { exigirOrigemPermitida } from "@/lib/bot/origem";

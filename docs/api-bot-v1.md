@@ -64,7 +64,7 @@ HTTP 200. Vários vínculos: `/os` e o equipamento reúnem todos; a calibração
 | `GET /api/bot/v1/meta/freshness` | `fetchedAt` e `idadeSegundos` por recurso |
 | `GET /api/bot/v1/os?abertas=1` | OS abertas do recorte. Filtros `setor`, `tag`, `equipamento`. `limit` ou `pageSize` (1 a 100), `offset` ou `cursor`. Traz `resumo` |
 | `GET /api/bot/v1/os/{numero}` | Situação, histórico (só datas), etapa e tempos. Sem matrícula nem `solicitacao` para quem não é gestão ou manutenção |
-| `GET /api/bot/v1/os/por-setor?abertas=1&tipo=corretiva` | Corretivas abertas da EC, agrupadas por setor e, dentro do setor, por etapa. Só Diretoria/Gestão e Manutenção. `setor` opcional (o mesmo match de `/os`). `limit` ou `pageSize`, `offset` ou `cursor`, iguais aos de `/os` |
+| `GET /api/bot/v1/os/por-setor?abertas=1&tipo=corretiva` | Corretivas abertas da EC, agrupadas por setor e, dentro do setor, por etapa. Só Diretoria/Gestão e Manutenção. `setor` opcional para esses papéis. `limite` (padrão 20, teto 100) e `cursor` ou `pagina`. Devolve `total` e `proximoCursor` |
 | `GET /api/bot/v1/equipamentos/{tag}` | Status, até 5 OS do recorte e a próxima preventiva. Tag fora do recorte é o mesmo 404 |
 | `GET /api/bot/v1/calibracao?setor=&ano=YYYY` | Meses e quantidade de equipamentos. `ano` é opcional; vazio, vale o ano corrente. Sem lista de equipamentos |
 | `GET /api/bot/v1/usuario` | Situação do telefone. Única rota que responde 200 para quem não está aprovado |
@@ -79,15 +79,15 @@ HTTP 200. Vários vínculos: `/os` e o equipamento reúnem todos; a calibração
 
 Não há `vencidas`, prazo, limite nem SLA nesse bloco. `maisAntiga` é a abertura mais antiga, não um vencimento.
 
-`/os/por-setor` devolve `setores[]` com `setor`, `quantidade` e `porEtapa[]`. Cada etapa tem `quantidade` e `os`. Cada OS traz `numero`, `equipamento`, `tag`, `solicitacao`, `etapa`, `manutencaoExterna`, `pendenciaCompra`, `abertura`, `dataAtendimento`, `tempoAteAtendimento` (`{ horas, dias }` inteiros, ou `null`), `diasNaEtapa`, `diasNaEtapaOrigem` e `textoEtapa`. Papel assistencial e Compras recebem 403 `{ "ok": false }`.
+`/os/por-setor` devolve `setores[]` com `setor`, `quantidade` e `porEtapa[]`, mais `total` (OS do filtro, antes da página), `limite` e `proximoCursor` (`null` na última página). `quantidade` conta as OS daquela página no setor. Cada etapa tem `quantidade` e `os`. Cada OS traz `numero`, `equipamento`, `tag`, `solicitacao`, `etapa`, `manutencaoExterna`, `pendenciaCompra`, `abertura`, `dataAtendimento`, `tempoAteAtendimento` (`{ horas, dias }` inteiros, ou `null`), `diasNaEtapa`, `diasNaEtapaOrigem` e `textoEtapa`.
 
-`setor` é opcional e usa a mesma resolução de `/os` (igualdade normalizada, apelidos, ambíguo com candidatos, refinar, 404). Sem o parâmetro, entram todos os setores. A página usa os mesmos parâmetros de `/os`: `limit` ou `pageSize` de 1 a 100 (padrão 20) e `offset` ou `cursor`. O cursor é o offset seguinte em base64url. `total` conta as OS do filtro inteiro, antes da página. `quantidade` e a soma das etapas são só da página. A resposta também traz `limit`, `offset` e `proximoCursor` (`null` na última página).
+`setor` usa a mesma decisão das outras rotas (`decidirSetor`). Diretoria/Gestão e Manutenção podem filtrar qualquer setor da cópia. Os outros papéis continuam 403 `{ "ok": false }`, com ou sem `setor`. `limite` padrão 20, máximo 100. `cursor` é opaco; `pagina` começa em 1. Os dois juntos, ou limite fora da faixa, respondem 400.
 
 `etapa` sai de `etapaOs` (`lib/ec/etapas.ts`): Sem 1º atendimento, Em atendimento, Aguarda peça/compra, Reparo externo, Contrato/assistência, Teste e devolução. As flags vêm de `montarOsDetalhe`.
 
 `solicitacao` reutiliza `textoSolicitacaoOs` (`lib/ec/os-detalhe.ts`): o primeiro texto entre `ObservacaoDaRequisicao`, `Servico`, `Ocorrencia` e `ObservacaoDaOS`. Espaços colapsados. A máscara roda antes do corte de 280: o corte não parte `[cpf]`, `[telefone]` nem `[e-mail]`, e não termina no meio de uma sequência de dígitos. Só Diretoria/Gestão e Manutenção recebem o campo, na visão por setor e em `/os/{numero}`. Papel assistencial não recebe a chave.
 
-A máscara, nesta ordem: e-mail `local@domínio` com ou sem TLD (`nome@intranet` inclusive); telefone com `+55` ou `55`, DDD entre parênteses, `DD NNNNN-NNNN`, `DD-NNNNN-NNNN`, `DD 9 NNNN-NNNN`, tronco `0DD` e número sem DDD (`NNNNN-NNNN` ou `NNNN-NNNN`). O separador antes do número permanece (`tel 55…` fica `tel [telefone]`). Não há exceção de contexto: `OS 3301-3302` sai `OS [telefone]`. Onze dígitos contínuos com DDD válido (Anatel) e assinante começando em `9` saem `[telefone]`, mesmo quando o dígito verificador de CPF também fecha. Sem esse formato de celular, CPF com os dois dígitos verificadores válidos sai `[cpf]`. Dez dígitos contínuos com DDD válido e 3º dígito de 2 a 5 (fixo, ex. `1633334444`) saem `[telefone]`. CPF desenhado com separador (`NNN.NNN.NNN-NN`, `NNN NNN NNN NN`, `NNN.NNN.NNN.NN`, `NNNNNNNNN-NN`, `NNNNNNNNN.NN`) sai `[cpf]`.
+A máscara, nesta ordem: e-mail `local@domínio` com ou sem TLD (`nome@intranet` inclusive); telefone com `+55` ou `55`, DDD entre parênteses, `DD NNNNN-NNNN`, `DD-NNNNN-NNNN`, `DD 9 NNNN-NNNN`, tronco `0DD` e número sem DDD. Sem DDD, só vira `[telefone]` o de 9 dígitos que começa em `9` (celular) ou o de 8 dígitos que começa em `2`–`5` (fixo). `horario 0800-1200` e `NS 1234-5678` ficam. O separador antes do número permanece (`tel 55…` fica `tel [telefone]`). Não há exceção de contexto: `OS 3333-4444` sai `OS [telefone]`. Onze dígitos contínuos com DDD válido (Anatel) e assinante começando em `9` saem `[telefone]`, mesmo quando o dígito verificador de CPF também fecha. Sem esse formato de celular, CPF com os dois dígitos verificadores válidos sai `[cpf]`. Dez dígitos contínuos com DDD válido e 3º dígito de 2 a 5 (fixo, ex. `1633334444`) saem `[telefone]`. CPF desenhado com separador (`NNN.NNN.NNN-NN`, `NNN NNN NNN NN`, `NNN.NNN.NNN.NN`, `NNNNNNNNN-NN`, `NNNNNNNNN.NN`) sai `[cpf]`.
 
 **Ressalva para o DPO:** nome de paciente em texto livre não é detectável por essa máscara. O campo pode continuar com nome próprio. A máscara cobre CPF, telefone e e-mail, não anamnese.
 
@@ -122,7 +122,7 @@ curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
 
 curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
   -H "X-Bot-Telefone: +55 11 90000-0001" \
-  "https://scope.aion.eng.br/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva&setor=Centro%20Cirurgico&limit=20"
+  "https://scope.aion.eng.br/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva&setor=Centro%20Cirurgico&limite=20"
 
 curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
   -H "X-Bot-Telefone: +55 11 90000-0001" \
@@ -136,7 +136,7 @@ Cada resposta de dado traz `fetchedAt` (ISO) e `idadeSegundos`, exceto o pedido 
 | Código | Quando |
 | --- | --- |
 | 200 | Consulta aceita. Calibração ou OS ambígua, a refinar, ou setor não cadastrado (`ok: false`) também. |
-| 400 | Página inválida, `limit` ou `pageSize` acima de 100, `abertas` diferente de 1, `tipo` diferente de `corretiva` na visão por setor, setor ausente na calibração (fora da assistência) ou ano fora de 2000–2100. |
+| 400 | Página inválida, `limit` ou `pageSize` acima de 100, `limite` da visão por setor fora de 1–100, `cursor` e `pagina` juntos, `abertas` diferente de 1, `tipo` diferente de `corretiva` na visão por setor, setor ausente na calibração (fora da assistência) ou ano fora de 2000–2100. |
 | 401 | Sem Bearer ou Bearer errado. Corpo só `{ "ok": false }`. |
 | 403 | Nas rotas de dado: telefone ausente, mal formatado, fora do cadastro, pendente, inativo ou recusado. O corpo não diz o motivo. Em `/usuario`, só o telefone ausente ou mal formatado. Em `/os/por-setor`, também quem não é Diretoria/Gestão nem Manutenção. `/health` não usa este código por causa do telefone. |
 | 404 | OS, tag ou setor não encontrado. A mensagem da OS e da tag é "Não encontrei.", também quando existem e estão fora do recorte ou do setor da assistência. A do setor é "setor não encontrado". |

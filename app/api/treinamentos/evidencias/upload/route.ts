@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { exigirSessaoAdmin } from "@/lib/auth/contratos-sessao";
+import { exigirEscritaAdmin } from "@/lib/auth/escrita-origem";
 import {
   anosEvidenciaConhecidos,
   LIMITE_EVIDENCIA_BYTES,
@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(request: Request) {
   // Grava PDF no volume: exige a sessão de administrador (#13) além do token de evidências.
-  const negado = await exigirSessaoAdmin(request);
+  const negado = await exigirEscritaAdmin(request);
   if (negado) return negado;
   if (!tokenEvidenciaValido(request)) {
     return recusarEvidencia();

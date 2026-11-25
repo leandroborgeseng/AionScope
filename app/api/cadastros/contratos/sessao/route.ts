@@ -52,7 +52,8 @@ export async function POST(request: Request) {
 }
 
 /**
- * Sair do admin. Exige a sessão do painel apresentada e revoga só o jti dela.
+ * Sair do admin. `prepararRevogacao` exige a sessão apresentada e a origem
+ * do painel (host do pedido ou `AIONSCOPE_PAINEL_ORIGENS`) e revoga só o `j`.
  * Sem sessão, 401 e os cookies dos outros ficam como estão.
  */
 export async function DELETE(request: Request) {

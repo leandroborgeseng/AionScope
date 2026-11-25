@@ -106,19 +106,17 @@ test("D4: /api/v1/health mantém persistencia_ok e ephemeral, sem caminho do ban
   assert.match(corpoV, /"ephemeral":(true|false)/);
 });
 
-test("GET /api/sala/compras?sync=1 não sincroniza e não lista caixas", async () => {
+test("GET /api/sala/compras ignora sync=1 e não lista caixas", async () => {
   process.env.M365_CAIXAS = "caixa.ficticia@exemplo.invalid";
   const r = await compras.GET(new Request(`${B}/compras?sync=1`));
-  assert.equal(r.status, 400);
+  assert.equal(r.status, 200);
   const texto = await r.text();
-  assert.match(texto, /POST/);
   assert.equal(texto.includes("caixa.ficticia"), false);
-  assert.equal(texto.includes("caixas"), false);
-  const lista = await compras.GET(new Request(`${B}/compras`));
-  assert.equal(lista.status, 200);
-  const corpo = await lista.text();
-  assert.equal(corpo.includes("caixa.ficticia"), false);
-  assert.equal(corpo.includes("\"caixas\""), false);
+  assert.equal(texto.includes("\"caixas\""), false);
+  assert.equal(texto.includes("@"), false);
+  const body = JSON.parse(texto) as { sync: unknown };
+  assert.equal(body.sync, null);
+  assert.equal((await compras.GET(new Request(`${B}/compras`))).status, 200);
 });
 
 test("POST /api/sala/compras sync exige sessão e origem e não devolve caixas", async () => {
@@ -138,6 +136,7 @@ test("POST /api/sala/compras sync exige sessão e origem e não devolve caixas",
   const texto = await ok.text();
   assert.equal(texto.includes("caixa.ficticia"), false);
   assert.equal(texto.includes("\"caixas\""), false);
+  assert.equal(texto.includes("@"), false);
   const json = JSON.parse(texto) as { ok: boolean; configurado: boolean };
   assert.equal(json.ok, true);
   assert.equal(json.configurado, false);
@@ -160,4 +159,14 @@ test("escrita da sala sem origem ou com origem estranha → 403", async () => {
     }),
   );
   assert.equal(estranha.status, 403);
+});
+
+test("POST sync não devolve as caixas configuradas", async () => {
+  process.env.M365_CAIXAS = "caixa.ficticia@exemplo.invalid";
+  const r = await compras.POST(req(`${B}/compras`, "POST", { acao: "sync" }, COOKIE()));
+  assert.equal(r.status, 200);
+  const texto = await r.text();
+  assert.equal(texto.includes("caixas"), false);
+  assert.equal(texto.includes("@"), false);
+  assert.equal(texto.includes("caixa.ficticia"), false);
 });

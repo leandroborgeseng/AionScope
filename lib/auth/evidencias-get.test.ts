@@ -22,11 +22,13 @@ after(() => {
   process.env = envAntes;
   rmSync(dir, { recursive: true, force: true });
 });
+const ORIGEM = "https://painel.exemplo.test";
 beforeEach(() => {
   process.env.CONTRATOS_ADMIN_PASSWORD = "senha-ficticia-de-teste";
   process.env.SESSION_SECRET = "s".repeat(40);
   process.env.TREINAMENTOS_EVIDENCIAS_PATH = dir;
   process.env.TREINAMENTOS_EVIDENCIAS_TOKEN = TOKEN;
+  process.env.AIONSCOPE_ORIGENS_PERMITIDAS = ORIGEM;
 });
 
 const SESSAO = () => `${COOKIE_SESSAO_CONTRATOS}=${criarTokenSessao()}`;
@@ -82,7 +84,7 @@ function reqUpload(bytes: Buffer, extra: Record<string, string> = {}) {
   form.set("arquivo", new File([new Uint8Array(bytes)], "lista-ficticia.pdf", { type: "application/pdf" }));
   return new Request("http://local/api/treinamentos/evidencias/upload", {
     method: "POST",
-    headers: { cookie: `${SESSAO()}; treinamentos_evidencias=${TOKEN}`, ...extra },
+    headers: { cookie: `${SESSAO()}; treinamentos_evidencias=${TOKEN}`, origin: ORIGEM, ...extra },
     body: form,
   });
 }
@@ -102,7 +104,11 @@ test("A1 Content-Length declarado acima do limite → 413 antes de ler o corpo",
   const r = await upload.POST(
     new Request("http://local/api/treinamentos/evidencias/upload", {
       method: "POST",
-      headers: { cookie: `${SESSAO()}; treinamentos_evidencias=${TOKEN}`, "content-length": String(60 * 1024 * 1024) },
+      headers: {
+        cookie: `${SESSAO()}; treinamentos_evidencias=${TOKEN}`,
+        origin: ORIGEM,
+        "content-length": String(60 * 1024 * 1024),
+      },
       body: "x",
     }),
   );

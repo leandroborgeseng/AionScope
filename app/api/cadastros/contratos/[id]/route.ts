@@ -1,4 +1,4 @@
-import { exigirSessaoContratos } from "@/lib/auth/contratos-sessao";
+import { exigirEscritaContratos } from "@/lib/auth/escrita-origem";
 import { isoDiaValido, validarContrato, validarSuspensao } from "@/lib/cadastros/contratos-proprios";
 import {
   readContrato,
@@ -24,7 +24,7 @@ const naoEncontrado = () => Response.json({ ok: false, message: "Contrato não e
  * Qualquer outra edição valida o contrato inteiro — tipo obrigatório (D3).
  */
 export async function PATCH(request: Request, context: Ctx) {
-  const recusa = await exigirSessaoContratos(request);
+  const recusa = await exigirEscritaContratos(request);
   if (recusa) return recusa;
 
   const { id } = await context.params;
@@ -93,7 +93,7 @@ export async function PATCH(request: Request, context: Ctx) {
 
 /** DELETE = inativar. Não há exclusão física. */
 export async function DELETE(request: Request, context: Ctx) {
-  const recusa = await exigirSessaoContratos(request);
+  const recusa = await exigirEscritaContratos(request);
   if (recusa) return recusa;
   const { id } = await context.params;
   const data = setContratoAtivo(id, false);

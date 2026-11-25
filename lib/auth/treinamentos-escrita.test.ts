@@ -41,7 +41,7 @@ function reqUpload(cookie?: string) {
   const form = new FormData();
   form.set("ano", "2026");
   form.set("arquivo", new File([PDF_FICTICIO], "lista-ficticia.pdf", { type: "application/pdf" }));
-  return new Request(`${B}/upload`, { method: "POST", headers: cookie ? { cookie } : {}, body: form });
+  return new Request(`${B}/upload`, { method: "POST", headers: { origin: "http://local", ...(cookie ? { cookie } : {}) }, body: form });
 }
 
 async function semDados(r: Response) {

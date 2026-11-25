@@ -16,6 +16,8 @@ import { closeDbForTests } from "@/lib/db/client";
 import { __setFetchForTests, invalidarCachePbi } from "./client";
 import { COOKIE_SESSAO_CONTRATOS, criarTokenSessao } from "@/lib/auth/contratos-sessao";
 import * as proxy from "../../app/api/pbi/[resource]/route";
+import * as lookups from "../../app/api/pbi/lookups/route";
+import { PBI_TOKEN_ENV } from "./token-acesso";
 
 // Fixture fictícia (HSJ-9xxxx, fabricante/setor DEMO, valores inventados).
 const EQUIP = [
@@ -38,6 +40,7 @@ after(() => {
 beforeEach(() => {
   process.env.CONTRATOS_ADMIN_PASSWORD = "senha-ficticia-de-teste";
   process.env.SESSION_SECRET = "s".repeat(40);
+  delete process.env[PBI_TOKEN_ENV];
   invalidarCachePbi();
   chamadas = 0;
 });
@@ -93,6 +96,50 @@ test("sessão inválida/forjada conta como sem sessão", async () => {
   const { txt } = await chamar("equipamentos", `${COOKIE_SESSAO_CONTRATOS}=forjado.123`);
   assert.equal(txt.includes("1.234,56"), false);
   assert.equal((JSON.parse(txt) as { data: Record<string, unknown>[] }).data.some((e) => "ValorDeSubstituicao" in e), false);
+});
+
+test("AIONSCOPE_PBI_TOKEN exige Bearer ou X-PBI-Token além da sessão", async () => {
+  process.env[PBI_TOKEN_ENV] = "token-pbi-ficticio-de-teste";
+  const sem = await chamar("equipamentos", SESSAO());
+  assert.equal(sem.r.status, 401);
+  assert.equal(sem.txt.includes("1.234,56"), false);
+  assert.equal(chamadas, 0);
+
+  const bearer = await proxy.GET(
+    new NextRequest(`http://local/api/pbi/equipamentos?${QS}`, {
+      headers: { cookie: SESSAO(), authorization: "Bearer token-pbi-ficticio-de-teste" },
+    }),
+    { params: Promise.resolve({ resource: "equipamentos" }) },
+  );
+  assert.equal(bearer.status, 200);
+  assert.ok((await bearer.text()).includes("1.234,56"));
+
+  const header = await proxy.GET(
+    new NextRequest(`http://local/api/pbi/equipamentos?${QS}`, {
+      headers: { cookie: SESSAO(), "x-pbi-token": "token-pbi-ficticio-de-teste" },
+    }),
+    { params: Promise.resolve({ resource: "equipamentos" }) },
+  );
+  assert.equal(header.status, 200);
+
+  const curto = await proxy.GET(
+    new NextRequest(`http://local/api/pbi/equipamentos?${QS}`, {
+      headers: { cookie: SESSAO(), authorization: "Bearer a" },
+    }),
+    { params: Promise.resolve({ resource: "equipamentos" }) },
+  );
+  assert.equal(curto.status, 401);
+  assert.equal((await curto.text()).includes("1.234,56"), false);
+
+  const antes = chamadas;
+  const lista = await lookups.GET(new Request("http://local/api/pbi/lookups"));
+  assert.equal(lista.status, 401);
+  assert.equal(chamadas, antes);
+
+  delete process.env[PBI_TOKEN_ENV];
+  const livre = await chamar("equipamentos", SESSAO());
+  assert.equal(livre.r.status, 200);
+  assert.ok(livre.txt.includes("1.234,56"));
 });
 
 test("cronograma sem sessão: mesmo corte (ciclo 2: vale para todos os resources)", async () => {

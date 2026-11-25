@@ -52,7 +52,11 @@ export async function POST(request: Request) {
   return response;
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
+  const negado = await exigirSessaoAdmin(request);
+  if (negado) return negado;
+  const origem = exigirOrigemPermitida(request);
+  if (origem) return origem;
   const response = NextResponse.json({ ok: true });
   response.cookies.set("treinamentos_evidencias", "", {
     httpOnly: true,

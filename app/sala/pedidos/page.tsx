@@ -312,9 +312,9 @@ export default function SalaPedidosPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ acao: "sync" }),
       });
-      const json = (await resposta.json().catch(() => ({}))) as { ok?: boolean; message?: string };
-      if (!resposta.ok || json.ok === false) {
-        setErro(mensagemErroEscrita(resposta.status, json.message, "Falha no sync."));
+      const json = (await resposta.json().catch(() => null)) as { ok?: boolean; message?: string } | null;
+      if (!resposta.ok || json?.ok === false) {
+        setErro(mensagemErroEscrita(resposta.status, json?.message, "Falha no sync."));
         return;
       }
       await carregar();

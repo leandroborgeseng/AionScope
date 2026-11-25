@@ -32,39 +32,31 @@ function corpoManual(body: Record<string, unknown>): CompraManualInput {
   };
 }
 
-/** A lista de caixas configuradas não sai na resposta. O endereço fica só no sync interno. */
-function respostaSync(sync: SyncResultado) {
-  const caixas = new Set(sync.caixas.filter(Boolean));
-  return {
-    ok: true as const,
-    configurado: sync.configurado,
-    processados: sync.processados,
-    novosEnviados: sync.novosEnviados,
-    novasRespostas: sync.novasRespostas,
-    erros: sync.erros.map((erro) => {
-      for (const caixa of caixas) {
-        const prefixo = `${caixa}: `;
-        if (erro.startsWith(prefixo)) return erro.slice(prefixo.length);
-      }
-      return erro;
-    }),
-  };
-}
-
+/** Leitura aberta. `sync` na query é ignorado: sincronizar é POST. A lista não traz as caixas configuradas. */
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  if (url.searchParams.get("sync") === "1") {
-    return NextResponse.json({ ok: false, message: "A sincronização é um POST." }, { status: 400 });
-  }
+  url.searchParams.delete("sync");
   const compras = listarCompras();
   return NextResponse.json({
     configurado: m365Configurado(),
+    sync: null,
     compras: compras.map((c) => ({
       ...c,
       emails: emailsDaCompra(c.id),
       origem: c.conversation_id?.startsWith("manual:") ? "manual" : c.conversation_id ? "email" : "manual",
     })),
   });
+}
+
+function respostaSync(sync: SyncResultado) {
+  return {
+    ok: true,
+    configurado: sync.configurado,
+    processados: sync.processados,
+    novosEnviados: sync.novosEnviados,
+    novasRespostas: sync.novasRespostas,
+    erros: sync.erros.map((erro) => (erro.includes("@") ? "Falha ao sincronizar uma caixa." : erro)),
+  };
 }
 
 export async function POST(request: Request) {

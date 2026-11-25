@@ -1260,6 +1260,86 @@ test("escopo EC, setor exato, resumo, privacidade, por setor e andamento", async
   assert.equal(JSON.stringify(jsonVista).includes("2006"), false);
   assert.equal(JSON.stringify(jsonVista).includes("2007"), false);
   assert.equal(jsonVista.setores.some((item) => item.setor.includes("FARMÁCIA") || item.setor.includes("FARMACIA")), true);
+  const paginaCheia = jsonVista as typeof jsonVista & { total: number; limite: number; proximoCursor: string | null };
+  assert.equal(paginaCheia.total, 4);
+  assert.equal(paginaCheia.limite, 20);
+  assert.equal(paginaCheia.proximoCursor, null);
+
+  const chefiaComSetor = await porSetor.GET(
+    pedido("/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva&setor=UTI%20ZZTESTE", { telefone: "+55 11 90000-0101" }),
+  );
+  assert.equal(chefiaComSetor.status, 403);
+  assert.equal(await chefiaComSetor.text(), JSON.stringify({ ok: false }));
+
+  const soCc = (await (
+    await consultarOsPorSetor(
+      new Request("http://local/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva&setor=Centro%20Cir%C3%BArgico"),
+      manutencao,
+      agora,
+    )
+  ).json()) as { total: number; setores: Array<{ setor: string; quantidade: number }> };
+  assert.equal(soCc.total, 2);
+  assert.deepEqual(
+    soCc.setores.map((item) => item.setor),
+    ["CENTRO CIRÚRGICO"],
+  );
+  assert.equal(JSON.stringify(soCc).includes("2003"), false);
+  assert.equal(JSON.stringify(soCc).includes("2008"), false);
+
+  const apelidoCc = (await (
+    await consultarOsPorSetor(
+      new Request("http://local/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva&setor=cc"),
+      diretoria,
+      agora,
+    )
+  ).json()) as { total: number };
+  assert.equal(apelidoCc.total, 2);
+
+  const inexistente = await consultarOsPorSetor(
+    new Request("http://local/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva&setor=setor%20que%20nao%20existe"),
+    manutencao,
+    agora,
+  );
+  assert.equal(inexistente.status, 404);
+
+  const primeira = (await (
+    await consultarOsPorSetor(
+      new Request("http://local/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva&limite=1"),
+      manutencao,
+      agora,
+    )
+  ).json()) as { total: number; limite: number; proximoCursor: string | null; setores: Array<{ quantidade: number; porEtapa: Array<{ os: Array<{ numero: string }> }> }> };
+  assert.equal(primeira.total, 4);
+  assert.equal(primeira.limite, 1);
+  assert.equal(primeira.proximoCursor, Buffer.from("1", "utf8").toString("base64url"));
+  assert.equal(primeira.setores.reduce((n, setor) => n + setor.quantidade, 0), 1);
+  const segunda = (await (
+    await consultarOsPorSetor(
+      new Request(`http://local/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva&limite=1&cursor=${primeira.proximoCursor}`),
+      manutencao,
+      agora,
+    )
+  ).json()) as { proximoCursor: string | null; setores: Array<{ porEtapa: Array<{ os: Array<{ numero: string }> }> }> };
+  const numeros = (corpo: { setores: Array<{ porEtapa: Array<{ os: Array<{ numero: string }> }> }> }) =>
+    corpo.setores.flatMap((setor) => setor.porEtapa.flatMap((etapa) => etapa.os.map((os) => os.numero)));
+  assert.equal(numeros(primeira).join(","), "2001");
+  assert.notEqual(numeros(segunda).join(","), numeros(primeira).join(","));
+  assert.equal(segunda.proximoCursor, Buffer.from("2", "utf8").toString("base64url"));
+  const porPagina = await consultarOsPorSetor(
+    new Request("http://local/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva&limite=1&pagina=2"),
+    manutencao,
+    agora,
+  );
+  const jsonPagina = (await porPagina.json()) as { setores: Array<{ porEtapa: Array<{ os: Array<{ numero: string }> }> }> };
+  assert.deepEqual(numeros(jsonPagina), numeros(segunda));
+  for (const consulta of ["limite=0", "limite=101", "limite=abc", "cursor=!!!", "limite=1&cursor=MQ&pagina=2"]) {
+    const ruim = await consultarOsPorSetor(
+      new Request(`http://local/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva&${consulta}`),
+      manutencao,
+      agora,
+    );
+    assert.equal(ruim.status, 400, consulta);
+  }
 
   const ficha = await equipamento.GET(pedido("/api/bot/v1/equipamentos/ZZ-CC-1", { telefone: "+55 11 90000-0102" }), {
     params: Promise.resolve({ tag: "ZZ-CC-1" }),
@@ -1332,12 +1412,12 @@ test("por-setor filtra como /os e pagina com o mesmo cursor", async () => {
   assert.equal(negado.status, 403);
   assert.equal(chefia.length > 0, true);
 
-  const limite = await porSetor.GET(pedido(`${base}&limit=101`, { telefone: "+55 11 90000-0102" }));
+  const limite = await porSetor.GET(pedido(`${base}&limite=101`, { telefone: "+55 11 90000-0102" }));
   assert.equal(limite.status, 400);
   assert.match(await limite.text(), /100/);
-  const conflito = await porSetor.GET(pedido(`${base}&limit=1&pageSize=2`, { telefone: "+55 11 90000-0102" }));
+  const conflito = await porSetor.GET(pedido(`${base}&limite=1&pagina=2&cursor=MQ`, { telefone: "+55 11 90000-0102" }));
   assert.equal(conflito.status, 400);
-  const duplo = await porSetor.GET(pedido(`${base}&offset=1&cursor=MQ`, { telefone: "+55 11 90000-0102" }));
+  const duplo = await porSetor.GET(pedido(`${base}&pagina=2&cursor=MQ`, { telefone: "+55 11 90000-0102" }));
   assert.equal(duplo.status, 400);
 
   const curto = await porSetor.GET(pedido(`${base}&setor=UTI`, { telefone: "+55 11 90000-0102" }));
@@ -1356,17 +1436,15 @@ test("por-setor filtra como /os e pagina com o mesmo cursor", async () => {
   assert.equal(Object.hasOwn(jsonAmbiguo, "setores"), false);
 
   const pagina = (await (
-    await porSetor.GET(pedido(`${base}&setor=cc&limit=1`, { telefone: "+55 11 90000-0102" }))
+    await porSetor.GET(pedido(`${base}&setor=cc&limite=1`, { telefone: "+55 11 90000-0102" }))
   ).json()) as {
     total: number;
-    limit: number;
-    offset: number;
+    limite: number;
     proximoCursor: string;
     setores: Array<{ setor: string; quantidade: number; porEtapa: Array<{ quantidade: number; os: Array<{ numero: string }> }> }>;
   };
   assert.equal(pagina.total, 3);
-  assert.equal(pagina.limit, 1);
-  assert.equal(pagina.offset, 0);
+  assert.equal(pagina.limite, 1);
   assert.equal(pagina.setores.length, 1);
   assert.equal(pagina.setores[0]?.setor, "CENTRO CIRÚRGICO");
   assert.equal(pagina.setores[0]?.quantidade, 1);
@@ -1375,14 +1453,13 @@ test("por-setor filtra como /os e pagina com o mesmo cursor", async () => {
   assert.equal(primeira, "311");
 
   const segunda = (await (
-    await porSetor.GET(pedido(`${base}&setor=cc&pageSize=1&cursor=${pagina.proximoCursor}`, { telefone: "+55 11 90000-0102" }))
-  ).json()) as { offset: number; setores: Array<{ porEtapa: Array<{ os: Array<{ numero: string }> }> }>; proximoCursor: string };
-  assert.equal(segunda.offset, 1);
+    await porSetor.GET(pedido(`${base}&setor=cc&limite=1&cursor=${pagina.proximoCursor}`, { telefone: "+55 11 90000-0102" }))
+  ).json()) as { setores: Array<{ porEtapa: Array<{ os: Array<{ numero: string }> }> }>; proximoCursor: string };
   assert.equal(segunda.setores[0]?.porEtapa[0]?.os[0]?.numero, "312");
   assert.equal(pagina.proximoCursor, Buffer.from("1", "utf8").toString("base64url"));
 
   const uti = (await (
-    await porSetor.GET(pedido(`${base}&setor=uti%20zzteste&limit=20`, { telefone: "+55 11 90000-0105" }))
+    await porSetor.GET(pedido(`${base}&setor=uti%20zzteste&limite=20`, { telefone: "+55 11 90000-0105" }))
   ).json()) as { total: number; setores: Array<{ setor: string }> };
   assert.equal(uti.total, 1);
   assert.deepEqual(uti.setores.map((item) => item.setor), ["UTI ZZTESTE"]);
