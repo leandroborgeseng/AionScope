@@ -9,6 +9,8 @@ import {
   senhaConfere,
   sessaoContratosValida,
 } from "@/lib/auth/contratos-sessao";
+import { cookiePainelApagar } from "@/lib/auth/painel-sessao";
+import { prepararRevogacao } from "@/lib/auth/painel-revogacao";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -49,7 +51,23 @@ export async function POST(request: Request) {
   );
 }
 
-/** Logout. */
-export async function DELETE() {
-  return Response.json({ ok: true, data: { autenticado: false } }, { headers: { "Set-Cookie": cookieSessao("", 0) } });
+/**
+ * Sair do admin. Exige a sessão do painel apresentada e revoga só o jti dela.
+ * Sem sessão, 401 e os cookies dos outros ficam como estão.
+ */
+export async function DELETE(request: Request) {
+  const pronto = await prepararRevogacao(request);
+  if (!pronto.ok) {
+    return Response.json(
+      { ok: false, message: pronto.message },
+      { status: pronto.status, headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
+  const headers = new Headers({
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "private, no-store",
+  });
+  headers.append("Set-Cookie", cookiePainelApagar());
+  headers.append("Set-Cookie", cookieSessao("", 0));
+  return new Response(JSON.stringify({ ok: true, data: { autenticado: false } }), { status: 200, headers });
 }

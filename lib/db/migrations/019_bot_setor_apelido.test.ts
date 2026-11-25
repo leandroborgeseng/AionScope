@@ -23,5 +23,9 @@ test("019 duas vezes grava o apelido CC e não duplica a migration", () => {
   assert.equal(n.n, 1);
   const linhas = db.prepare("SELECT apelido, nome FROM bot_setor_apelido").all() as Array<{ apelido: string; nome: string }>;
   assert.deepEqual(linhas, [{ apelido: "CC", nome: "Centro Cirúrgico" }]);
+  db.prepare("DELETE FROM bot_setor_apelido").run();
+  aplicarMigration019BotSetorApelido(db);
+  const depois = db.prepare("SELECT apelido, nome FROM bot_setor_apelido").all();
+  assert.deepEqual(depois, []);
   db.close();
 });

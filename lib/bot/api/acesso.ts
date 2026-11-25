@@ -1,6 +1,7 @@
 /**
  * Papel na API do bot. O rótulo deixa de ser só etiqueta nestas rotas:
  * assistência fica no próprio setor; gestão e manutenção enxergam o parque.
+ * A permissão é o nome canônico, não a posição em `AIONSCOPE_BOT_PAPEIS`.
  */
 import { getDb } from "@/lib/db/client";
 import { normalizarChave } from "./chave";
@@ -27,13 +28,17 @@ export function contextoBot(usuarioId: string): ContextoBot {
   return { id: usuarioId, papel: linha?.papel ?? "", setores: setores.map((item) => item.nome) };
 }
 
+/** Nomes canônicos. Reordenar ou renomear a lista da env não promove ninguém. */
+const CHAVES_GESTAO = new Set(["Diretoria/Gestão", "Manutenção"].map((nome) => normalizarChave(nome)));
+const CHAVES_COMPRAS = new Set(["Compras"].map((nome) => normalizarChave(nome)));
+
 export function papelAssistencial(papel: string) {
   const chave = normalizarChave(papel);
-  return chave === "CHEFIA DE ENFERMAGEM" || chave === "SOLICITANTE ASSISTENCIAL";
+  if (CHAVES_GESTAO.has(chave) || CHAVES_COMPRAS.has(chave)) return false;
+  return true;
 }
 
 /** Diretoria/Gestão e Manutenção. Matrícula, solicitação e a visão por setor. */
 export function papelGestao(papel: string) {
-  const chave = normalizarChave(papel);
-  return chave === "DIRETORIA/GESTAO" || chave === "MANUTENCAO";
+  return CHAVES_GESTAO.has(normalizarChave(papel));
 }

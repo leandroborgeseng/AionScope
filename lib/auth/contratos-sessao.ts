@@ -6,6 +6,7 @@
  * - A senha nunca é registrada em log nem devolvida em resposta.
  */
 import { createHash, createHmac, timingSafeEqual } from "crypto";
+import { sessaoPainelAtiva } from "@/lib/auth/painel-revogacao";
 import { COOKIE_SESSAO_PAINEL, lerCookie as lerCookiePainel, lerSessaoPainel } from "@/lib/auth/painel-sessao";
 
 export const CONTRATOS_ADMIN_PASSWORD_ENV = "CONTRATOS_ADMIN_PASSWORD";
@@ -71,7 +72,7 @@ export function lerCookie(request: Request, nome: string) {
 export async function sessaoContratosValida(request: Request) {
   if (tokenSessaoValido(lerCookie(request, COOKIE_SESSAO_CONTRATOS))) return true;
   const painel = await lerSessaoPainel(lerCookiePainel(request, COOKIE_SESSAO_PAINEL));
-  return painel.ok;
+  return painel.ok && sessaoPainelAtiva(painel.jti);
 }
 
 export function cookieSessao(token: string, maxAge = SESSAO_DURACAO_S) {

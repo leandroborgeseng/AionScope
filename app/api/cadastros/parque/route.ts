@@ -4,6 +4,7 @@ import { atualizarParqueDaApi } from "@/lib/cadastros/parque-api";
 import { readParqueMeta, resolveValorParque } from "@/lib/cadastros/store";
 import type { ParqueMeta } from "@/lib/cadastros/types";
 import { exigirSessaoAdmin } from "@/lib/auth/contratos-sessao";
+import { exigirOrigemPermitida } from "@/lib/bot/origem";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -37,6 +38,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const recusa = await exigirSessaoAdmin(request);
   if (recusa) return recusa;
+  const origem = exigirOrigemPermitida(request);
+  if (origem) return origem;
   let atualizadoPor: string | null = null;
   try {
     const body = (await request.json()) as { atualizadoPor?: string };

@@ -980,7 +980,7 @@ test("escopo EC, setor exato, resumo, privacidade, por setor e andamento", async
   const chefia = pessoa("+55 11 90000-0101", "ativo", "Chefia de Enfermagem");
   const manutencao = pessoa("+55 11 90000-0102", "ativo", "Manutenção");
   const solicitante = pessoa("+55 11 90000-0103", "ativo", "Solicitante assistencial");
-  const semSetor = pessoa("+55 11 90000-0104", "ativo", "Chefia de Enfermagem");
+  pessoa("+55 11 90000-0104", "ativo", "Chefia de Enfermagem");
   const diretoria = pessoa("+55 11 90000-0105", "ativo", "Diretoria/Gestão");
   vincular(chefia, "ZZCC", "Centro Cirúrgico");
   vincular(manutencao, "ZZCC", "Centro Cirúrgico");
@@ -1289,4 +1289,102 @@ test("escopo EC, setor exato, resumo, privacidade, por setor e andamento", async
     { mes: "2026-03", equipamentos: 1 },
     { mes: "2026-06", equipamentos: 1 },
   ]);
+});
+
+test("por-setor filtra como /os e pagina com o mesmo cursor", async () => {
+  const manutencao = pessoa("+55 11 90000-0102", "ativo", "Manutenção");
+  const chefia = pessoa("+55 11 90000-0101", "ativo", "Chefia de Enfermagem");
+  pessoa("+55 11 90000-0105", "ativo", "Diretoria/Gestão");
+  gravar(
+    "os-analitico",
+    [1, 2, 3].map((n) =>
+      osBase({
+        OS: `31${n}`,
+        CodigoSerialOS: 3100 + n,
+        Oficina: "Engenharia Clínica",
+        TipoDeManutencao: "Corretiva",
+        Setor: "Centro Cirúrgico",
+        Tag: `ZZ-PS-${n}`,
+        Equipamento: "Bomba ZZPS",
+        Abertura: `0${n}/03/2026 08:00`,
+        DataDoAtendimento: "",
+        Pendencia: "",
+      }),
+    ).concat([
+      osBase({
+        OS: "3201",
+        CodigoSerialOS: 3201,
+        Oficina: "Engenharia Clínica",
+        TipoDeManutencao: "Corretiva",
+        Setor: "UTI ZZTESTE",
+        Tag: "ZZ-PS-U",
+        Equipamento: "Monitor ZZPS",
+        Abertura: "04/03/2026 08:00",
+        DataDoAtendimento: "",
+        Pendencia: "",
+      }),
+    ]),
+  );
+  getDb().prepare("INSERT INTO bot_setor_apelido (apelido, nome) VALUES ('ZZX', 'Centro Cirúrgico'), ('ZZX', 'UTI ZZTESTE')").run();
+
+  const base = "/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva";
+  const negado = await porSetor.GET(pedido(`${base}&setor=cc`, { telefone: "+55 11 90000-0101" }));
+  assert.equal(negado.status, 403);
+  assert.equal(chefia.length > 0, true);
+
+  const limite = await porSetor.GET(pedido(`${base}&limit=101`, { telefone: "+55 11 90000-0102" }));
+  assert.equal(limite.status, 400);
+  assert.match(await limite.text(), /100/);
+  const conflito = await porSetor.GET(pedido(`${base}&limit=1&pageSize=2`, { telefone: "+55 11 90000-0102" }));
+  assert.equal(conflito.status, 400);
+  const duplo = await porSetor.GET(pedido(`${base}&offset=1&cursor=MQ`, { telefone: "+55 11 90000-0102" }));
+  assert.equal(duplo.status, 400);
+
+  const curto = await porSetor.GET(pedido(`${base}&setor=UTI`, { telefone: "+55 11 90000-0102" }));
+  assert.equal(curto.status, 404);
+  const jsonCurto = (await curto.json()) as { status: string };
+  assert.equal(jsonCurto.status, "nao_encontrado");
+
+  const ambiguo = await porSetor.GET(pedido(`${base}&setor=zzx`, { telefone: "+55 11 90000-0102" }));
+  assert.equal(ambiguo.status, 200);
+  const jsonAmbiguo = (await ambiguo.json()) as { status: string; candidatos: Array<{ setor: string }>; setores?: unknown };
+  assert.equal(jsonAmbiguo.status, "ambiguo");
+  assert.deepEqual(
+    jsonAmbiguo.candidatos.map((item) => item.setor),
+    ["CENTRO CIRÚRGICO", "UTI ZZTESTE"],
+  );
+  assert.equal(Object.hasOwn(jsonAmbiguo, "setores"), false);
+
+  const pagina = (await (
+    await porSetor.GET(pedido(`${base}&setor=cc&limit=1`, { telefone: "+55 11 90000-0102" }))
+  ).json()) as {
+    total: number;
+    limit: number;
+    offset: number;
+    proximoCursor: string;
+    setores: Array<{ setor: string; quantidade: number; porEtapa: Array<{ quantidade: number; os: Array<{ numero: string }> }> }>;
+  };
+  assert.equal(pagina.total, 3);
+  assert.equal(pagina.limit, 1);
+  assert.equal(pagina.offset, 0);
+  assert.equal(pagina.setores.length, 1);
+  assert.equal(pagina.setores[0]?.setor, "CENTRO CIRÚRGICO");
+  assert.equal(pagina.setores[0]?.quantidade, 1);
+  assert.equal(pagina.setores[0]?.porEtapa[0]?.quantidade, pagina.setores[0]?.porEtapa[0]?.os.length);
+  const primeira = pagina.setores[0]?.porEtapa[0]?.os[0]?.numero;
+  assert.equal(primeira, "311");
+
+  const segunda = (await (
+    await porSetor.GET(pedido(`${base}&setor=cc&pageSize=1&cursor=${pagina.proximoCursor}`, { telefone: "+55 11 90000-0102" }))
+  ).json()) as { offset: number; setores: Array<{ porEtapa: Array<{ os: Array<{ numero: string }> }> }>; proximoCursor: string };
+  assert.equal(segunda.offset, 1);
+  assert.equal(segunda.setores[0]?.porEtapa[0]?.os[0]?.numero, "312");
+  assert.equal(pagina.proximoCursor, Buffer.from("1", "utf8").toString("base64url"));
+
+  const uti = (await (
+    await porSetor.GET(pedido(`${base}&setor=uti%20zzteste&limit=20`, { telefone: "+55 11 90000-0105" }))
+  ).json()) as { total: number; setores: Array<{ setor: string }> };
+  assert.equal(uti.total, 1);
+  assert.deepEqual(uti.setores.map((item) => item.setor), ["UTI ZZTESTE"]);
+  assert.equal(manutencao.length > 0, true);
 });

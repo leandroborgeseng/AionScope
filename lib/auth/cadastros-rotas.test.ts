@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, beforeEach, test } from "node:test";
 import { NextRequest } from "next/server";
+import { MSG_ORIGEM_NEGADA, ORIGENS_PERMITIDAS_ENV } from "@/lib/bot/origem";
 import { closeDbForTests } from "../db/client";
 import { COOKIE_SESSAO_CONTRATOS, criarTokenSessao } from "./contratos-sessao";
 import * as parque from "../../app/api/cadastros/parque/route";
@@ -46,6 +47,19 @@ test("A1: GET /api/cadastros/parque sem sessão → 401 sem valores", async () =
 
 test("A1: POST /api/cadastros/parque sem sessão → 401 (não consulta a API)", async () => {
   await semValores(await parque.POST(new Request(URL_P, { method: "POST", body: "{}" })));
+});
+
+test("POST /api/cadastros/parque com sessão e origem estranha → 403", async () => {
+  process.env[ORIGENS_PERMITIDAS_ENV] = "http://local";
+  const r = await parque.POST(
+    new Request(URL_P, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: logado().cookie, origin: "https://evil.example" },
+      body: "{}",
+    }),
+  );
+  assert.equal(r.status, 403);
+  assert.equal(((await r.json()) as { message?: string }).message, MSG_ORIGEM_NEGADA);
 });
 
 test("A1: cookie forjado → 401", async () => {

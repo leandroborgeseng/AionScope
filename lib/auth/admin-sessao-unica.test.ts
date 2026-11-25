@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { after, before, beforeEach, test } from "node:test";
 import { ORIGENS_PERMITIDAS_ENV } from "@/lib/bot/origem";
-import { closeDbForTests } from "../db/client";
+import { closeDbForTests, getDb } from "../db/client";
 import * as bot from "../../app/api/cadastros/bot-usuarios/route";
 import * as contratos from "../../app/api/cadastros/contratos/route";
 import * as sessao from "../../app/api/cadastros/contratos/sessao/route";
@@ -54,6 +54,7 @@ beforeEach(() => {
   process.env[GERACAO_PAINEL_ENV] = GERACAO;
   process.env[ORIGENS_PERMITIDAS_ENV] = ORIGEM;
   process.env.TREINAMENTOS_EVIDENCIAS_TOKEN = "token-ficticio-de-teste";
+  getDb().exec("DELETE FROM painel_sessao_revogacao");
 });
 
 function definirNodeEnv(valor: string | undefined) {
@@ -113,7 +114,7 @@ test("cadastros, sala, treinamentos e bot aceitam o painel e mantêm o cookie an
     contratos.POST(
       new Request(URL_CONTRATOS, {
         method: "POST",
-        headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}) },
+        headers: { "content-type": "application/json", origin: ORIGEM, ...(cookie ? { cookie } : {}) },
         body: JSON.stringify({ ...novo, equipamento }),
       }),
     );
@@ -140,7 +141,7 @@ test("cadastros, sala, treinamentos e bot aceitam o painel e mantêm o cookie an
     registros.POST(
       new Request("http://local/api/sala/registros", {
         method: "POST",
-        headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}) },
+        headers: { "content-type": "application/json", origin: ORIGEM, ...(cookie ? { cookie } : {}) },
         body: JSON.stringify({ tipo: "feriado", data: "2026-12-25", nome: "Feriado DEMO" }),
       }),
     );
@@ -154,7 +155,7 @@ test("cadastros, sala, treinamentos e bot aceitam o painel e mantêm o cookie an
     desbloquear.POST(
       new Request("http://local/api/treinamentos/evidencias/desbloquear", {
         method: "POST",
-        headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}) },
+        headers: { "content-type": "application/json", origin: ORIGEM, ...(cookie ? { cookie } : {}) },
         body: JSON.stringify({ token: "token-ficticio-de-teste" }),
       }),
     );
@@ -198,15 +199,32 @@ function atributosSemIdade(cookie: string) {
 }
 
 test("logout do painel limpa os dois cookies com path, domain e secure iguais", async () => {
-  const semOrigem = await logoutRota.POST(new Request("http://local/api/v1/painel/logout", { method: "POST" }));
+  const semSessao = await logoutRota.POST(new Request("http://local/api/v1/painel/logout", { method: "POST" }));
+  assert.equal(semSessao.status, 401);
+  assert.equal(semSessao.headers.getSetCookie().length, 0);
+
+  const tokenOrigem = await emitirSessaoPainel();
+  assert.ok(tokenOrigem);
+  const semOrigem = await logoutRota.POST(
+    new Request("http://local/api/v1/painel/logout", {
+      method: "POST",
+      headers: { cookie: cookiePainelDe(tokenOrigem) },
+    }),
+  );
   assert.equal(semOrigem.status, 403);
   assert.equal(semOrigem.headers.getSetCookie().length, 0);
 
   const antes = process.env.NODE_ENV;
-  const pedir = () =>
-    logoutRota.POST(
-      new Request("http://local/api/v1/painel/logout", { method: "POST", headers: { origin: "http://local" } }),
+  const pedir = async () => {
+    const token = await emitirSessaoPainel();
+    assert.ok(token);
+    return logoutRota.POST(
+      new Request("http://local/api/v1/painel/logout", {
+        method: "POST",
+        headers: { origin: "http://local", cookie: cookiePainelDe(token) },
+      }),
     );
+  };
 
   definirNodeEnv("production");
   const prod = await pedir();
@@ -229,4 +247,52 @@ test("logout do painel limpa os dois cookies com path, domain e secure iguais", 
   assert.deepEqual(cookiesTeste, [cookiePainelApagar(), cookieSessao("", 0)]);
   for (const cookie of cookiesTeste) assert.equal(cookie.includes("Secure"), false);
   definirNodeEnv(antes);
+});
+
+test("sair do admin e o logout invalidam o cookie do painel copiado", async () => {
+  const { valida } = await emitirCenarios();
+  const cookie = cookiePainelDe(valida);
+  const paralela = await emitirSessaoPainel();
+  assert.ok(paralela);
+  const cookieParalela = cookiePainelDe(paralela);
+  assert.equal((await contratos.GET(new Request(URL_CONTRATOS, { headers: { cookie } }))).status, 200);
+
+  const semOrigem = await sessao.DELETE(
+    new Request(`${URL_CONTRATOS}/sessao`, { method: "DELETE", headers: { cookie } }),
+  );
+  assert.equal(semOrigem.status, 403);
+  assert.equal(semOrigem.headers.getSetCookie().length, 0);
+  assert.equal((await contratos.GET(new Request(URL_CONTRATOS, { headers: { cookie } }))).status, 200);
+
+  const sair = await sessao.DELETE(
+    new Request(`${URL_CONTRATOS}/sessao`, { method: "DELETE", headers: { cookie, origin: "http://local" } }),
+  );
+  assert.equal(sair.status, 200);
+  const cookies = sair.headers.getSetCookie();
+  assert.equal(cookies.length, 2);
+  assert.match(cookies[0] ?? "", new RegExp(`^${COOKIE_SESSAO_PAINEL}=;`));
+  assert.match(cookies[1] ?? "", new RegExp(`^${COOKIE_SESSAO_CONTRATOS}=;`));
+  for (const item of cookies) {
+    assert.match(item, /Path=\//);
+    assert.match(item, /HttpOnly/);
+    assert.match(item, /SameSite=Lax/);
+    assert.match(item, /Max-Age=0/);
+    assert.equal(/Domain=/i.test(item), false);
+  }
+  assert.equal((await contratos.GET(new Request(URL_CONTRATOS, { headers: { cookie } }))).status, 401);
+  assert.equal((await contratos.GET(new Request(URL_CONTRATOS, { headers: { cookie: cookieParalela } }))).status, 200);
+
+  const outra = await emitirSessaoPainel();
+  assert.ok(outra);
+  const cookieNova = cookiePainelDe(outra);
+  assert.equal((await contratos.GET(new Request(URL_CONTRATOS, { headers: { cookie: cookieNova } }))).status, 200);
+  const logout = await logoutRota.POST(
+    new Request("http://local/api/v1/painel/logout", {
+      method: "POST",
+      headers: { origin: "http://local", cookie: cookieNova },
+    }),
+  );
+  assert.equal(logout.status, 303);
+  assert.equal((await contratos.GET(new Request(URL_CONTRATOS, { headers: { cookie: cookieNova } }))).status, 401);
+  assert.equal((await contratos.GET(new Request(URL_CONTRATOS, { headers: { cookie: cookieParalela } }))).status, 200);
 });

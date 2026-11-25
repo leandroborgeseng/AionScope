@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
 import { exigirSessaoAdmin } from "@/lib/auth/contratos-sessao";
+import { exigirOrigemPermitida } from "@/lib/bot/origem";
 import {
   evidenciasTokenConfigurado,
   TREINAMENTOS_EVIDENCIAS_TOKEN_ENV,
@@ -20,6 +21,8 @@ export async function POST(request: Request) {
   // Escrita (grava cookie de acesso às listas): exige a sessão de administrador (#13). 401 sem dados.
   const negado = await exigirSessaoAdmin(request);
   if (negado) return negado;
+  const origem = exigirOrigemPermitida(request);
+  if (origem) return origem;
   if (!evidenciasTokenConfigurado()) {
     // Ambiente sem token: PDFs liberados se existirem no volume.
     return NextResponse.json({ ok: true, liberado: true, tokenObrigatorio: false });
