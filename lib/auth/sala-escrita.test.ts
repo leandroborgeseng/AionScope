@@ -30,9 +30,11 @@ after(() => {
   process.env = envAntes;
   rmSync(dir, { recursive: true, force: true });
 });
+const ORIGEM = "https://painel.exemplo.test";
 beforeEach(() => {
   process.env.CONTRATOS_ADMIN_PASSWORD = "senha-ficticia-de-teste";
   process.env.SESSION_SECRET = "s".repeat(40);
+  process.env.AIONSCOPE_ORIGENS_PERMITIDAS = ORIGEM;
 });
 
 const B = "http://local/api/sala";
@@ -40,7 +42,7 @@ const COOKIE = () => `${COOKIE_SESSAO_CONTRATOS}=${criarTokenSessao()}`;
 const req = (url: string, method: string, body?: unknown, cookie?: string) =>
   new Request(url, {
     method,
-    headers: { "Content-Type": "application/json", ...(cookie ? { cookie } : {}) },
+    headers: { "Content-Type": "application/json", origin: ORIGEM, ...(cookie ? { cookie } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
 const ctxOc = { params: Promise.resolve({ numero_ordem: "DEMO-1" }) };
@@ -103,9 +105,22 @@ test("D4: /api/v1/health mantém persistencia_ok e ephemeral, sem caminho do ban
   assert.match(corpoV, /"ephemeral":(true|false)/);
 });
 
-test("GET /api/sala/compras?sync=1 sem sessão → 401; sem sync segue aberto", async () => {
+test("GET /api/sala/compras ignora sync=1 e não lista caixas", async () => {
   const r = await compras.GET(new Request(`${B}/compras?sync=1`));
-  assert.equal(r.status, 401);
-  assert.deepEqual(await r.json(), { ok: false, message: MSG_LOGIN_SALA });
+  assert.equal(r.status, 200);
+  const body = (await r.json()) as { sync: unknown; caixas?: unknown };
+  assert.equal(body.sync, null);
+  assert.equal("caixas" in body, false);
+  assert.equal(JSON.stringify(body).includes("@"), false);
   assert.equal((await compras.GET(new Request(`${B}/compras`))).status, 200);
+});
+
+test("POST sync não devolve as caixas configuradas", async () => {
+  process.env.M365_CAIXAS = "caixa.ficticia@exemplo.invalid";
+  const r = await compras.POST(req(`${B}/compras`, "POST", { acao: "sync" }, COOKIE()));
+  assert.equal(r.status, 200);
+  const texto = await r.text();
+  assert.equal(texto.includes("caixas"), false);
+  assert.equal(texto.includes("@"), false);
+  assert.equal(texto.includes("caixa.ficticia"), false);
 });

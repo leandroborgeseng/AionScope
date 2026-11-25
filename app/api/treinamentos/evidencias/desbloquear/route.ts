@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "crypto";
 import { NextResponse } from "next/server";
-import { exigirSessaoAdmin } from "@/lib/auth/contratos-sessao";
+import { exigirEscritaAdmin } from "@/lib/auth/escrita-origem";
 import {
   evidenciasTokenConfigurado,
   TREINAMENTOS_EVIDENCIAS_TOKEN_ENV,
@@ -18,7 +18,7 @@ function iguais(a: string, b: string) {
 /** Grava cookie HttpOnly com o token para abrir os PDFs na mesma sessão. */
 export async function POST(request: Request) {
   // Escrita (grava cookie de acesso às listas): exige a sessão de administrador (#13). 401 sem dados.
-  const negado = await exigirSessaoAdmin(request);
+  const negado = await exigirEscritaAdmin(request);
   if (negado) return negado;
   if (!evidenciasTokenConfigurado()) {
     // Ambiente sem token: PDFs liberados se existirem no volume.
@@ -49,7 +49,9 @@ export async function POST(request: Request) {
   return response;
 }
 
-export async function DELETE() {
+export async function DELETE(request: Request) {
+  const negado = await exigirEscritaAdmin(request);
+  if (negado) return negado;
   const response = NextResponse.json({ ok: true });
   response.cookies.set("treinamentos_evidencias", "", {
     httpOnly: true,

@@ -30,7 +30,7 @@ import {
 } from "@/lib/auth/painel-sessao";
 import { TRUST_CF_CONNECTING_IP, consumirLimite } from "@/lib/bot/convite-limite";
 import { closeDbForTests, getDb } from "@/lib/db/client";
-import { middleware } from "../../middleware";
+import { proxy as middleware } from "../../proxy";
 import { TelaLogin } from "../../app/login/tela-login";
 import * as loginRota from "../../app/api/v1/painel/login/route";
 import * as logoutRota from "../../app/api/v1/painel/logout/route";
@@ -38,6 +38,7 @@ import * as healthRota from "../../app/api/v1/health/route";
 import * as ordensRota from "../../app/api/v1/ordens-compra/route";
 import * as conviteRota from "../../app/convite/[token]/route";
 import * as contratosRota from "../../app/api/cadastros/contratos/route";
+import * as sessaoContratosRota from "../../app/api/cadastros/contratos/sessao/route";
 
 const USUARIO = "painel-teste";
 const SENHA = "senha-painel-teste-xyz";
@@ -448,11 +449,14 @@ test("renovação não estende o teto de 8 h", async () => {
   assert.equal(dentro.renovar, false);
   assert.equal(dentro.auth_time, Math.floor(base / 1000));
 
-  const renovado = await emitirSessaoPainel(base + 2 * 60 * 60 * 1000, dentro.auth_time * 1000);
+  const renovado = await emitirSessaoPainel(base + 2 * 60 * 60 * 1000, dentro.auth_time * 1000, dentro.jti);
   assert.ok(renovado);
   const ainda = await lerSessaoPainel(renovado, base + 7 * 60 * 60 * 1000);
   assert.equal(ainda.ok, true);
-  if (ainda.ok) assert.equal(ainda.auth_time, dentro.auth_time);
+  if (ainda.ok) {
+    assert.equal(ainda.auth_time, dentro.auth_time);
+    assert.equal(ainda.jti, dentro.jti);
+  }
   assert.equal((await lerSessaoPainel(renovado, base + TETO_ABSOLUTO_PAINEL_S * 1000)).ok, true);
   assert.equal((await lerSessaoPainel(renovado, base + (TETO_ABSOLUTO_PAINEL_S + 60) * 1000)).ok, false);
 
@@ -560,11 +564,16 @@ test("ordens de compra seguem sem cookie e exigem a chave própria", async () =>
 });
 
 test("a sessão do painel autoriza a escrita administrativa", async () => {
+  process.env.AIONSCOPE_ORIGENS_PERMITIDAS = "https://painel.exemplo.test";
   const painel = await emitirSessaoPainel();
   const comPainel = await contratosRota.POST(
     new Request("http://local/api/cadastros/contratos", {
       method: "POST",
-      headers: { "content-type": "application/json", cookie: `${COOKIE_SESSAO_PAINEL}=${painel}` },
+      headers: {
+        "content-type": "application/json",
+        origin: "https://painel.exemplo.test",
+        cookie: `${COOKIE_SESSAO_PAINEL}=${painel}`,
+      },
       body: "{}",
     }),
   );
@@ -575,6 +584,7 @@ test("a sessão do painel autoriza a escrita administrativa", async () => {
       method: "POST",
       headers: {
         "content-type": "application/json",
+        origin: "https://painel.exemplo.test",
         cookie: `aion_contratos_sessao=${criarTokenSessao()}`,
       },
       body: "{}",
@@ -667,6 +677,70 @@ test("login e logout recusam origem de outro host e não mexem no cookie", async
   );
   assert.equal(logoutOk.status, 303);
   assert.match(cookieDe(logoutOk), /Max-Age=0/);
+});
+
+test("logout revoga só o jti daquele cookie", async () => {
+  const uma = await emitirSessaoPainel();
+  const outra = await emitirSessaoPainel();
+  assert.ok(uma);
+  assert.ok(outra);
+  assert.notEqual(uma, outra);
+  const cookieUma = `${COOKIE_SESSAO_PAINEL}=${uma}`;
+  const cookieOutra = `${COOKIE_SESSAO_PAINEL}=${outra}`;
+  assert.equal((await middleware(pedido("/api/sala/snapshot", cookieUma))).status, 200);
+  assert.equal((await middleware(pedido("/api/sala/snapshot", cookieOutra))).status, 200);
+
+  const origemRuim = await logoutRota.POST(
+    new Request("http://local/api/v1/painel/logout", {
+      method: "POST",
+      headers: { origin: "https://evil.example", cookie: cookieUma },
+    }),
+  );
+  assert.equal(origemRuim.status, 403);
+  assert.equal((await middleware(pedido("/api/sala/snapshot", cookieUma))).status, 200);
+
+  const logout = await logoutRota.POST(
+    new Request("http://local/api/v1/painel/logout", {
+      method: "POST",
+      headers: { origin: "http://local", cookie: cookieUma },
+    }),
+  );
+  assert.equal(logout.status, 303);
+  assert.equal((await middleware(pedido("/api/sala/snapshot", cookieUma))).status, 401);
+  assert.equal((await middleware(pedido("/api/sala/snapshot", cookieOutra))).status, 200);
+});
+
+test("sair do admin revoga a sessão do painel e apaga os dois cookies", async () => {
+  process.env.AIONSCOPE_ORIGENS_PERMITIDAS = "https://painel.exemplo.test";
+  const uma = await emitirSessaoPainel();
+  const outra = await emitirSessaoPainel();
+  assert.ok(uma);
+  assert.ok(outra);
+  const cookieUma = `${COOKIE_SESSAO_PAINEL}=${uma}`;
+  const cookieOutra = `${COOKIE_SESSAO_PAINEL}=${outra}`;
+
+  const ruim = await sessaoContratosRota.DELETE(
+    new Request("http://local/api/cadastros/contratos/sessao", {
+      method: "DELETE",
+      headers: { origin: "https://evil.example", cookie: cookieUma },
+    }),
+  );
+  assert.equal(ruim.status, 403);
+  assert.equal((await middleware(pedido("/api/sala/snapshot", cookieUma))).status, 200);
+
+  const sair = await sessaoContratosRota.DELETE(
+    new Request("http://local/api/cadastros/contratos/sessao", {
+      method: "DELETE",
+      headers: { origin: "https://painel.exemplo.test", cookie: cookieUma },
+    }),
+  );
+  assert.equal(sair.status, 200);
+  const cookies = sair.headers.getSetCookie();
+  assert.ok(cookies.some((cookie) => cookie.startsWith(`${COOKIE_SESSAO_PAINEL}=`) && cookie.includes("Max-Age=0")));
+  assert.ok(cookies.some((cookie) => cookie.startsWith("aion_contratos_sessao=") && cookie.includes("Max-Age=0")));
+  assert.equal((await middleware(pedido("/api/sala/snapshot", cookieUma))).status, 401);
+  assert.equal((await middleware(pedido("/api/cadastros/contratos", cookieUma))).status, 401);
+  assert.equal((await middleware(pedido("/api/sala/snapshot", cookieOutra))).status, 200);
 });
 
 test("cookie helper de produção leva Secure e o de teste não", () => {

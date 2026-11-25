@@ -17,9 +17,11 @@ after(() => {
   process.env = envAntes;
   rmSync(dir, { recursive: true, force: true });
 });
+const ORIGEM = "https://painel.exemplo.test";
 beforeEach(() => {
   process.env.CONTRATOS_ADMIN_PASSWORD = "senha-ficticia-de-teste";
   process.env.SESSION_SECRET = "s".repeat(40);
+  process.env.AIONSCOPE_ORIGENS_PERMITIDAS = ORIGEM;
   process.env.TREINAMENTOS_EVIDENCIAS_PATH = dir;
   process.env.TREINAMENTOS_EVIDENCIAS_TOKEN = "token-ficticio-de-teste";
 });
@@ -31,7 +33,7 @@ const PDF_FICTICIO = Buffer.concat([Buffer.from("%PDF-1.4\n% lista fictícia de 
 function reqDesbloquear(cookie?: string, token = "token-ficticio-de-teste") {
   return new Request(`${B}/desbloquear`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...(cookie ? { cookie } : {}) },
+    headers: { "Content-Type": "application/json", origin: ORIGEM, ...(cookie ? { cookie } : {}) },
     body: JSON.stringify({ token }),
   });
 }
@@ -39,7 +41,7 @@ function reqUpload(cookie?: string) {
   const form = new FormData();
   form.set("ano", "2026");
   form.set("arquivo", new File([PDF_FICTICIO], "lista-ficticia.pdf", { type: "application/pdf" }));
-  return new Request(`${B}/upload`, { method: "POST", headers: cookie ? { cookie } : {}, body: form });
+  return new Request(`${B}/upload`, { method: "POST", headers: { origin: ORIGEM, ...(cookie ? { cookie } : {}) }, body: form });
 }
 
 async function semDados(r: Response) {

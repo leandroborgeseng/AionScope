@@ -1,10 +1,12 @@
 import { fetchPbi } from "@/lib/pbi/client";
+import { pbiTokenConfere, pbiTokenExigido, recusarPbiToken } from "@/lib/pbi/token-acesso";
 import { uniqueSorted } from "@/lib/utils";
 import type { EquipamentoItem, Lookups, OsResumidaItem, TipoManutencaoItem } from "@/lib/pbi/types";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  if (pbiTokenExigido() && !pbiTokenConfere(request)) return recusarPbiToken();
   const [equipamentos, os, tipos, oficina] = await Promise.all([
     fetchPbi<EquipamentoItem[]>(
       "equipamentos",

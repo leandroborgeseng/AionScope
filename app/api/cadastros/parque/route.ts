@@ -3,6 +3,7 @@ import { lerHistoricoParque, lerParqueMensal } from "@/lib/cadastros/parque-hist
 import { atualizarParqueDaApi } from "@/lib/cadastros/parque-api";
 import { readParqueMeta, resolveValorParque } from "@/lib/cadastros/store";
 import type { ParqueMeta } from "@/lib/cadastros/types";
+import { exigirEscritaAdmin } from "@/lib/auth/escrita-origem";
 import { exigirSessaoAdmin } from "@/lib/auth/contratos-sessao";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +36,7 @@ export async function GET(request: Request) {
 
 /** Atualiza valorApi a partir da soma de substituição (todos os equipamentos). */
 export async function POST(request: Request) {
-  const recusa = await exigirSessaoAdmin(request);
+  const recusa = await exigirEscritaAdmin(request);
   if (recusa) return recusa;
   let atualizadoPor: string | null = null;
   try {

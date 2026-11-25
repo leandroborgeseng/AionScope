@@ -95,7 +95,7 @@ npx tsx scripts/compras-amostra.ts
 npx tsx scripts/compras-sync.ts
 ```
 
-Ou `POST /api/sala/compras/sync` (sem body). Resposta `configurado: false` = faltam variáveis; `401/403` do Graph = permissão ou policy.
+Ou `POST /api/sala/compras` com `{ "acao": "sync" }`, sessão de admin e `Origin` em `AIONSCOPE_ORIGENS_PERMITIDAS`. O GET ignora `sync`. A resposta não lista as caixas configuradas. `configurado: false` = faltam variáveis; erro genérico = falha numa caixa (o endereço não volta).
 
 ## 7. O que o app faz depois
 

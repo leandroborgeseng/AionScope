@@ -33,6 +33,7 @@ after(() => {
 beforeEach(() => {
   process.env.CONTRATOS_ADMIN_PASSWORD = SENHA;
   process.env.SESSION_SECRET = SEGREDO;
+  process.env.AIONSCOPE_ORIGENS_PERMITIDAS = "https://painel.exemplo.test";
   for (const ip of ["conexao", "9.9.9.9", "8.8.8.8", "7.7.7.7"]) limparFalhas(ip);
 });
 
@@ -40,7 +41,11 @@ const URL_BASE = "http://local/api/cadastros/contratos";
 const json = (method: string, body: unknown, cookie?: string) =>
   new Request(URL_BASE, {
     method,
-    headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}) },
+    headers: {
+      "content-type": "application/json",
+      origin: "https://painel.exemplo.test",
+      ...(cookie ? { cookie } : {}),
+    },
     body: JSON.stringify(body),
   });
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });

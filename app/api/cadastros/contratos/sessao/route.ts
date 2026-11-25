@@ -9,6 +9,9 @@ import {
   senhaConfere,
   sessaoContratosValida,
 } from "@/lib/auth/contratos-sessao";
+import { exigirOrigemPermitida } from "@/lib/bot/origem";
+import { revogarSessaoPainelDoPedido } from "@/lib/auth/painel-revogacao";
+import { cookiePainelApagar } from "@/lib/auth/painel-sessao";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -49,7 +52,16 @@ export async function POST(request: Request) {
   );
 }
 
-/** Logout. */
-export async function DELETE() {
-  return Response.json({ ok: true, data: { autenticado: false } }, { headers: { "Set-Cookie": cookieSessao("", 0) } });
+/**
+ * Sair do admin: revoga a sessão do painel (o mesmo efeito do logout)
+ * e apaga os dois cookies. Origem estranha não revoga nem apaga.
+ */
+export async function DELETE(request: Request) {
+  const origem = exigirOrigemPermitida(request);
+  if (origem) return origem;
+  await revogarSessaoPainelDoPedido(request);
+  const headers = new Headers();
+  headers.append("Set-Cookie", cookiePainelApagar());
+  headers.append("Set-Cookie", cookieSessao("", 0));
+  return Response.json({ ok: true, data: { autenticado: false } }, { headers });
 }

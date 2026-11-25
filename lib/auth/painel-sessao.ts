@@ -3,6 +3,9 @@
  * Só Web Crypto (middleware no Edge). Não importar `node:crypto` nem SQLite.
  * A senha não entra no cookie: o payload leva um HMAC da credencial, então
  * trocar usuário ou senha invalida sessões já emitidas.
+ * Cada emissão leva `jti`. A lista de revogados fica fora daqui (o Edge não
+ * abre o SQLite). Quem aceita a sessão consulta essa lista. Trocar a geração
+ * continua invalidando todas, com ou sem revogação.
  */
 export const PAINEL_USUARIO_ENV = "AIONSCOPE_PAINEL_USUARIO";
 export const PAINEL_SENHA_ENV = "AIONSCOPE_PAINEL_SENHA";
@@ -114,7 +117,15 @@ export function lerCookie(request: Request, nome: string) {
   return null;
 }
 
-type Payload = { v: number; iat: number; exp: number; auth_time: number; g: string; c: string };
+type Payload = { v: number; iat: number; exp: number; auth_time: number; g: string; c: string; jti: string };
+
+const JTI = /^[A-Za-z0-9_-]{16,64}$/;
+
+function novoJti() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return bytesParaBase64Url(bytes);
+}
 
 function payloadDe(token: string): { corpo: string; payload: Payload } | null {
   if (token.length > 4096) return null;
@@ -133,14 +144,15 @@ function payloadDe(token: string): { corpo: string; payload: Payload } | null {
   }
   if (!json || typeof json !== "object" || Array.isArray(json)) return null;
   const bruto = json as Record<string, unknown>;
-  const { v, iat, exp, auth_time, g, c } = bruto;
-  if (v !== VERSAO || typeof c !== "string" || typeof g !== "string") return null;
+  const { v, iat, exp, auth_time, g, c, jti } = bruto;
+  if (v !== VERSAO || typeof c !== "string" || typeof g !== "string" || typeof jti !== "string") return null;
   if (!Number.isSafeInteger(iat) || !Number.isSafeInteger(exp) || !Number.isSafeInteger(auth_time)) return null;
   if (g.length > GERACAO_MAX) return null;
   if (!/^[A-Za-z0-9_-]{20,200}$/.test(c)) return null;
+  if (!JTI.test(jti)) return null;
   return {
     corpo: `${corpo}.${sig}`,
-    payload: { v, iat: iat as number, exp: exp as number, auth_time: auth_time as number, g, c },
+    payload: { v, iat: iat as number, exp: exp as number, auth_time: auth_time as number, g, c, jti },
   };
 }
 
@@ -155,17 +167,17 @@ async function assinaturaConfere(token: string) {
 }
 
 export type SessaoPainel =
-  | { ok: true; renovar: boolean; iat: number; auth_time: number }
-  | { ok: false; renovar: false; iat: null; auth_time: null };
+  | { ok: true; renovar: boolean; iat: number; auth_time: number; jti: string }
+  | { ok: false; renovar: false; iat: null; auth_time: null; jti: null };
 
 export async function lerSessaoPainel(token: string | null | undefined, agoraMs = Date.now()): Promise<SessaoPainel> {
-  const negada: SessaoPainel = { ok: false, renovar: false, iat: null, auth_time: null };
+  const negada: SessaoPainel = { ok: false, renovar: false, iat: null, auth_time: null, jti: null };
   if (!painelConfigurado() || !token) return negada;
   const lido = payloadDe(token);
   if (!lido) return negada;
   if (!(await assinaturaConfere(token))) return negada;
   const agoraS = Math.floor(agoraMs / 1000);
-  const { iat, exp, auth_time, g, c } = lido.payload;
+  const { iat, exp, auth_time, g, c, jti } = lido.payload;
   if (iat > agoraS + 60) return negada;
   if (exp <= agoraS) return negada;
   if (exp > iat + SESSAO_PAINEL_S) return negada;
@@ -177,10 +189,11 @@ export async function lerSessaoPainel(token: string | null | undefined, agoraMs 
   const informado = base64UrlParaBytes(c);
   const esperado = atual ? base64UrlParaBytes(atual) : null;
   if (!informado || !esperado || !iguais(informado, esperado)) return negada;
-  return { ok: true, renovar: agoraS - iat > RENOVACAO_PAINEL_S, iat, auth_time };
+  return { ok: true, renovar: agoraS - iat > RENOVACAO_PAINEL_S, iat, auth_time, jti };
 }
 
-export async function emitirSessaoPainel(agoraMs = Date.now(), authTimeMs?: number) {
+/** `jtiInformado` preserva a sessão na renovação. Sem ele, nasce outra sessão. */
+export async function emitirSessaoPainel(agoraMs = Date.now(), authTimeMs?: number, jtiInformado?: string) {
   if (!painelConfigurado()) return null;
   const c = await impressaoCredencial();
   if (!c) return null;
@@ -188,7 +201,8 @@ export async function emitirSessaoPainel(agoraMs = Date.now(), authTimeMs?: numb
   const auth_time = Math.floor((authTimeMs ?? agoraMs) / 1000);
   const exp = iat + SESSAO_PAINEL_S;
   const g = geracaoPainel();
-  const json = JSON.stringify({ v: VERSAO, iat, exp, auth_time, g, c });
+  const jti = jtiInformado && JTI.test(jtiInformado) ? jtiInformado : novoJti();
+  const json = JSON.stringify({ v: VERSAO, iat, exp, auth_time, g, c, jti });
   const corpo = bytesParaBase64Url(new TextEncoder().encode(json));
   const sig = bytesParaBase64Url(await hmac(segredoConfigurado(), corpo));
   return `${corpo}.${sig}`;

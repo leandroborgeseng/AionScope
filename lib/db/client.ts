@@ -24,6 +24,7 @@ import { aplicarMigration016BotEntrega } from "./migrations/016_bot_entrega";
 import { aplicarMigration017BotConvite } from "./migrations/017_bot_convite";
 import { aplicarMigration018BotApiAuditoria } from "./migrations/018_bot_api_auditoria";
 import { aplicarMigration019BotSetorApelido } from "./migrations/019_bot_setor_apelido";
+import { aplicarMigration020PainelSessaoRevogada } from "./migrations/020_painel_sessao_revogada";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -271,6 +272,8 @@ function migrate(db: Database.Database) {
   aplicarMigration018BotApiAuditoria(db);
   // 019: apelidos de setor (CC → Centro Cirúrgico). Não apaga apelido já gravado.
   aplicarMigration019BotSetorApelido(db);
+  // 020: jti revogado da sessão do painel. Não apaga revogação já gravada.
+  aplicarMigration020PainelSessaoRevogada(db);
 }
 
 /** Fecha o singleton — só para testes isolados. */

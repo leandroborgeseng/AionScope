@@ -20,7 +20,9 @@ Se faltar usuário, senha ou `SESSION_SECRET`, o painel fica fechado: páginas v
 
 ## Sessão
 
-Cookie `aion_painel_sessao`: `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` em produção. O navegador guarda o cookie por 90 dias. O servidor impõe um teto absoluto de 8 horas desde o login: o payload assinado leva `auth_time` (o instante do login) junto com `iat`, `exp` e a geração. A renovação, se ocorrer, reemite `iat` e `exp` e preserva `auth_time`. Passadas 8 horas, a página volta para `/login` e a API responde 401, mesmo com uso contínuo. Cookie antigo, sem `auth_time`, não abre. Assinatura inválida, geração diferente ou cookie vencido também não.
+Cookie `aion_painel_sessao`: `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` em produção. O navegador guarda o cookie por 90 dias. O servidor impõe um teto absoluto de 8 horas desde o login: o payload assinado leva `auth_time` (o instante do login) junto com `iat`, `exp`, `jti` e a geração. A renovação, se ocorrer, reemite `iat` e `exp` e preserva `auth_time` e `jti`. Passadas 8 horas, a página volta para `/login` e a API responde 401, mesmo com uso contínuo. Cookie antigo, sem `auth_time` ou sem `jti`, não abre. Assinatura inválida, geração diferente ou cookie vencido também não.
+
+`jti` identifica aquela sessão. `POST /api/v1/painel/logout` e `DELETE /api/cadastros/contratos/sessao` gravam o jti em `painel_sessao_revogada` até o teto de 8 horas (migration 020, só cria a tabela). Um cookie copiado antes do logout recebe 401. Outra sessão, com outro jti, continua válida. Trocar `AIONSCOPE_PAINEL_GERACAO` continua derrubando todas, sem precisar da lista.
 
 `POST /api/v1/painel/login` e `POST /api/v1/painel/logout` exigem `Origin` com o mesmo host do pedido. Sem o header `Origin`, vale o `Referer`. A lista `AIONSCOPE_PAINEL_ORIGENS` soma origens permitidas. Origem ausente ou de outro host: 403, sem `Set-Cookie`.
 
@@ -28,7 +30,9 @@ Cookie `aion_painel_sessao`: `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` em p
 
 Cinco falhas em 15 minutos, por IP, respondem 429 com `Retry-After`. O contador usa a tabela `bot_convite_limite` com outra chave, e não mistura com a cota do convite.
 
-## Allowlist do middleware
+## Allowlist do proxy
+
+O arquivo é `proxy.ts` (runtime Node). A lista abaixo é a mesma de antes.
 
 Tudo o que não está aqui exige o cookie. Página sem cookie: 302 para `/login?next=<caminho interno>`. API (`/api/...`) sem cookie: 401 JSON. `next` só aceita caminho relativo interno.
 

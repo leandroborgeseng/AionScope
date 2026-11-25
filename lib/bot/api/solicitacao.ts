@@ -11,9 +11,11 @@
  * 1. E-mail `local@domínio`, com ou sem TLD (`nome@intranet` inclusive).
  * 2. Telefone com formato: `+55` ou `55` + DDD, DDD entre parênteses,
  *    `DD NNNNN-NNNN`, `DD-NNNNN-NNNN`, `DD 9 NNNN-NNNN`, tronco `0DD`
- *    e `NNNNN-NNNN` / `NNNN-NNNN` sem DDD. O separador antes do número
+ *    e `NNNNN-NNNN` / `NNNN-NNNN` sem DDD só quando o de 9 dígitos começa
+ *    em `9` (celular) ou o de 8 dígitos começa em `2`–`5` (fixo).
+ *    `0800-1200` e `1234-5678` ficam. O separador antes do número
  *    fica no texto (`tel 55…` continua `tel [telefone]`).
- *    Não há exceção por contexto: `OS 3301-3302` sai `OS [telefone]`.
+ *    Não há exceção por contexto: `OS 3333-4444` sai `OS [telefone]`.
  * 3. Onze dígitos contínuos: DDD da Anatel e o assinante começando em `9`
  *    → `[telefone]`, mesmo se o dígito verificador de CPF também fechar.
  *    Sem esse formato, CPF com os dois dígitos verificadores válidos
@@ -62,6 +64,14 @@ function rotuloDezDigitos(d: string) {
   return d;
 }
 
+/** Sem DDD: celular de 9 dígitos começa em 9; fixo de 8 dígitos começa em 2–5. */
+function rotuloSemDdd(m: string) {
+  const digitos = m.replace("-", "");
+  if (digitos.length === 8 && "2345".includes(digitos[0] ?? "")) return "[telefone]";
+  if (digitos.length === 9 && digitos.startsWith("9")) return "[telefone]";
+  return m;
+}
+
 /** 11 dígitos contínuos. Celular (DDD válido + 9) ganha do CPF. */
 export function rotuloOnzeDigitos(d: string): "[telefone]" | "[cpf]" {
   if (DDDS.has(d.slice(0, 2)) && d[2] === "9") return "[telefone]";
@@ -76,7 +86,7 @@ function mascarar(texto: string) {
     .replace(TEL_PAIS, "[telefone]")
     .replace(TEL_PAREN, "[telefone]")
     .replace(TEL_DDD, "[telefone]")
-    .replace(TEL_SEM_DDD, "[telefone]")
+    .replace(TEL_SEM_DDD, rotuloSemDdd)
     .replace(TEL_PAIS_SOLTO, "[telefone]")
     .replace(CPF_SEPARADO, "[cpf]")
     .replace(ONZE, (m) => rotuloOnzeDigitos(m))

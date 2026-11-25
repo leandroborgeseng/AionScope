@@ -5,6 +5,7 @@
  */
 import { NextResponse } from "next/server";
 import { voltarSeguro } from "@/lib/auth/sessao-ui";
+import { jtiRevogado } from "@/lib/auth/painel-revogacao";
 import {
   COOKIE_SESSAO_PAINEL,
   cookiePainel,
@@ -153,7 +154,7 @@ export async function decidirPainel(request: Request) {
   }
 
   const sessao = await lerSessaoPainel(lerCookie(request, COOKIE_SESSAO_PAINEL));
-  if (!sessao.ok) {
+  if (!sessao.ok || jtiRevogado(sessao.jti)) {
     if (api) return jsonFechado(401, MSG_401);
     return redirecionar(request, locationLogin(caminho, url.search));
   }
@@ -161,7 +162,7 @@ export async function decidirPainel(request: Request) {
   const resposta = NextResponse.next();
   resposta.headers.set("Cache-Control", "private, no-store");
   if (sessao.renovar) {
-    const novo = await emitirSessaoPainel(Date.now(), sessao.auth_time * 1000);
+    const novo = await emitirSessaoPainel(Date.now(), sessao.auth_time * 1000, sessao.jti);
     if (novo) resposta.headers.append("Set-Cookie", cookiePainel(novo));
   }
   return resposta;

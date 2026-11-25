@@ -3,6 +3,7 @@ import { PBI_ENDPOINTS } from "@/lib/pbi/catalog";
 import { fetchPbi } from "@/lib/pbi/client";
 import { sessaoContratosValida } from "@/lib/auth/contratos-sessao";
 import { RESOURCES_SO_COM_SESSAO, resourceExato, somenteAllowlist } from "@/lib/pbi/proxy-publico";
+import { pbiTokenConfere, pbiTokenExigido, recusarPbiToken } from "@/lib/pbi/token-acesso";
 
 export const dynamic = "force-dynamic";
 // Nunca reaproveitar fetch/route cache do Next entre requisições (a resposta depende do cookie).
@@ -16,6 +17,7 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ resource: string }> },
 ) {
+  if (pbiTokenExigido() && !pbiTokenConfere(request)) return recusarPbiToken();
   const { resource: bruto } = await context.params;
   // Nome CRU idêntico a uma chave da lista (param e segmento da URL ainda codificado); senão 404 sem chamar o PBI (e sem ecoar o nome).
   const segmentoCru = request.nextUrl.pathname.split("/").pop();

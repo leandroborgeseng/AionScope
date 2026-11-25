@@ -72,6 +72,25 @@ test("fixo de 10 dígitos, CPF com ponto e telefone sem DDD", () => {
   assert.equal(prepararSolicitacao("nota 2033334444"), "nota 2033334444");
 });
 
+test("telefone sem DDD só mascara fixo 2–5 e celular 9, sem exceção de contexto", () => {
+  const mascarados = [
+    "ligar para os 99000-1111",
+    "OS 3333-4444",
+    "OS\t3333-4444",
+    "OS  3333-4444",
+    "tel 3333-4444",
+    "(3333-4444)",
+  ];
+  for (const frase of mascarados) {
+    const saida = prepararSolicitacao(frase);
+    assert.equal(saida.includes("[telefone]"), true, saida);
+    assert.equal(/3333.?4444|99000.?1111|33334444|990001111/.test(saida), false, saida);
+  }
+  assert.equal(prepararSolicitacao("horario 0800-1200"), "horario 0800-1200");
+  assert.equal(prepararSolicitacao("NS 1234-5678"), "NS 1234-5678");
+  assert.equal(prepararSolicitacao("patrimônio 12345-6789"), "patrimônio 12345-6789");
+});
+
 test("telefone sem DDD não vaza nos 66 contextos do ciclo 3", () => {
   const contextos = (n: string) => [
     `OS ${n}`,

@@ -1,11 +1,12 @@
 import { cookieSessao } from "@/lib/auth/contratos-sessao";
 import { origemPainelPermitida } from "@/lib/auth/painel-origem";
+import { revogarSessaoPainelDoPedido } from "@/lib/auth/painel-revogacao";
 import { cookiePainelApagar } from "@/lib/auth/painel-sessao";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-/** Apaga o cookie do painel e o da sessão antiga de contratos. Não exige sessão válida. */
+/** Revoga só o jti deste cookie, apaga o cookie do painel e o da sessão antiga de contratos. */
 export async function POST(request: Request) {
   if (!origemPainelPermitida(request)) {
     return new Response(JSON.stringify({ ok: false, message: "Origem não permitida." }), {
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
       },
     });
   }
+  await revogarSessaoPainelDoPedido(request);
   const headers = new Headers({
     Location: "/login",
     "Cache-Control": "private, no-store",

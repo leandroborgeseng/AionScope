@@ -113,7 +113,7 @@ test("cadastros, sala, treinamentos e bot aceitam o painel e mantêm o cookie an
     contratos.POST(
       new Request(URL_CONTRATOS, {
         method: "POST",
-        headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}) },
+        headers: { "content-type": "application/json", origin: ORIGEM, ...(cookie ? { cookie } : {}) },
         body: JSON.stringify({ ...novo, equipamento }),
       }),
     );
@@ -140,7 +140,7 @@ test("cadastros, sala, treinamentos e bot aceitam o painel e mantêm o cookie an
     registros.POST(
       new Request("http://local/api/sala/registros", {
         method: "POST",
-        headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}) },
+        headers: { "content-type": "application/json", origin: ORIGEM, ...(cookie ? { cookie } : {}) },
         body: JSON.stringify({ tipo: "feriado", data: "2026-12-25", nome: "Feriado DEMO" }),
       }),
     );
@@ -154,7 +154,7 @@ test("cadastros, sala, treinamentos e bot aceitam o painel e mantêm o cookie an
     desbloquear.POST(
       new Request("http://local/api/treinamentos/evidencias/desbloquear", {
         method: "POST",
-        headers: { "content-type": "application/json", ...(cookie ? { cookie } : {}) },
+        headers: { "content-type": "application/json", origin: ORIGEM, ...(cookie ? { cookie } : {}) },
         body: JSON.stringify({ token: "token-ficticio-de-teste" }),
       }),
     );
