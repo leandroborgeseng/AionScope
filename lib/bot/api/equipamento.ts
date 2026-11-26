@@ -1,10 +1,9 @@
 /**
  * Ficha do equipamento, últimas OS e próxima preventiva. Só o cache.
  */
-import { semAcento, texto } from "@/lib/ec/texto";
 import { parsePbiDate } from "@/lib/pbi/dates";
-import { classifyPlanoEc } from "@/lib/pbi/indicadores-os";
-import { keepCronogramaPlano, parsePeriodicidadeMeses, plannedMonthsInYear } from "@/lib/pbi/cronograma-anual";
+import { classifyCronogramaPlanoLoose } from "@/lib/pbi/gap-preventiva";
+import { chaveTag, datasPorTipo, datasPublicas } from "@/lib/pbi/cronograma-datas";
 import type { CronogramaItem, EquipamentoItem, OsAnaliticoItem } from "@/lib/pbi/types";
 import { contextoBot, papelAssistencial, papelGestao } from "./acesso";
 import { normalizarChave } from "./chave";
@@ -14,40 +13,22 @@ import { copiaIndisponivel, json } from "./http";
 import { projetarEquipamento, projetarOs } from "./projecao";
 import { respostaDecisaoSetor } from "./setor-match";
 
-function proximaPreventiva(itens: CronogramaItem[], tag: string, agora: Date) {
-  const chave = semAcento(tag);
-  const anoAtual = agora.getFullYear();
-  const mesAtual = agora.getMonth();
-  let melhor: { ano: number; mes: number; plano: string } | null = null;
-  for (const item of itens) {
-    if (semAcento(item.Tag) !== chave) continue;
-    if (!cronogramaNoEscopoBot(item)) continue;
-    if (!keepCronogramaPlano(item.TipoDeManutencao, false)) continue;
-    if (classifyPlanoEc(item.TipoDeManutencao) !== "Preventiva") continue;
-    const proxima = parsePbiDate(item.ProximaRealizacao);
-    const ultima = parsePbiDate(item.DataDaUltima);
-    const interval = parsePeriodicidadeMeses(item.Perioridicade);
-    const plano = texto(item.PlanoDeManutencao);
-    for (const ano of [anoAtual, anoAtual + 1]) {
-      for (const mes of plannedMonthsInYear({ proxima, ultima, intervalMonths: interval, year: ano })) {
-        if (ano === anoAtual && mes < mesAtual) continue;
-        if (!melhor || ano < melhor.ano || (ano === melhor.ano && mes < melhor.mes)) {
-          melhor = { ano, mes, plano: plano.length <= 80 ? plano : "" };
-        }
-      }
-    }
-  }
-  if (!melhor) return null;
-  return { mes: `${melhor.ano}-${String(melhor.mes + 1).padStart(2, "0")}`, plano: melhor.plano };
+function setorDoVinculo(vinculos: string[], setor: string | null | undefined) {
+  const chave = normalizarChave(setor);
+  return vinculos.some((nome) => {
+    const vinculo = normalizarChave(nome);
+    return vinculo === chave || (vinculo.length >= 3 && chave.includes(vinculo));
+  });
 }
 
 function tagNoEscopo(tagChave: string, osItens: OsAnaliticoItem[], planos: CronogramaItem[]) {
-  if (osItens.some((linha) => semAcento(linha.Tag) === tagChave && oficinaNoEscopoBot(linha.Oficina))) return true;
+  if (!tagChave) return false;
+  if (osItens.some((linha) => chaveTag(linha.Tag) === tagChave && oficinaNoEscopoBot(linha.Oficina))) return true;
   return planos.some((linha) => {
-    if (semAcento(linha.Tag) !== tagChave) return false;
+    if (chaveTag(linha.Tag) !== tagChave) return false;
     if (!cronogramaNoEscopoBot(linha)) return false;
-    const plano = classifyPlanoEc(linha.TipoDeManutencao);
-    return plano === "Preventiva" || plano === "Calibração";
+    const plano = classifyCronogramaPlanoLoose(linha);
+    return plano === "Preventiva" || plano === "Calibração" || plano === "TSE";
   });
 }
 
@@ -60,8 +41,8 @@ export function consultarEquipamento(tag: string, usuarioId: string, agora = new
   if (!equipamentos.ok) {
     return copiaIndisponivel(equipamentos.motivo, equipamentos.motivo === "expirada" ? equipamentos : undefined);
   }
-  const chave = semAcento(tag);
-  const item = (equipamentos.itens as EquipamentoItem[]).find((eq) => semAcento(eq.Tag) === chave);
+  const chave = chaveTag(tag);
+  const item = (equipamentos.itens as EquipamentoItem[]).find((eq) => chaveTag(eq.Tag) === chave);
   if (!item) return json(404, { ok: false, message: "Não encontrei." });
 
   const os = lerLista("os-analitico", agora.getTime());
@@ -73,23 +54,26 @@ export function consultarEquipamento(tag: string, usuarioId: string, agora = new
   }
   const planos = cronograma.ok ? (cronograma.itens as CronogramaItem[]) : [];
   if (!tagNoEscopo(chave, osItens, planos)) return json(404, { ok: false, message: "Não encontrei." });
-  if (papelAssistencial(ctx.papel)) {
-    const permitidos = new Set(ctx.setores.map((nome) => normalizarChave(nome)));
-    if (!permitidos.has(normalizarChave(item.Setor))) return json(404, { ok: false, message: "Não encontrei." });
+  if (papelAssistencial(ctx.papel) && !setorDoVinculo(ctx.setores, item.Setor)) {
+    return json(404, { ok: false, message: "Não encontrei." });
   }
 
   const matriculas = papelGestao(ctx.papel);
-  const setores = papelAssistencial(ctx.papel) ? new Set(ctx.setores.map((nome) => normalizarChave(nome))) : null;
+  const assistencial = papelAssistencial(ctx.papel);
   const ultimasOs = os.ok
     ? osItens
-        .filter((linha) => semAcento(linha.Tag) === chave && oficinaNoEscopoBot(linha.Oficina))
-        .filter((linha) => (setores ? setores.has(normalizarChave(linha.Setor)) : true))
+        .filter((linha) => chaveTag(linha.Tag) === chave && oficinaNoEscopoBot(linha.Oficina))
+        .filter((linha) => (assistencial ? setorDoVinculo(ctx.setores, linha.Setor) : true))
         .sort((a, b) => (parsePbiDate(b.Abertura)?.getTime() ?? 0) - (parsePbiDate(a.Abertura)?.getTime() ?? 0))
         .slice(0, 5)
         .map((linha) => projetarOs(linha, { matriculas }))
     : null;
 
-  const preventiva = cronograma.ok ? proximaPreventiva(planos, tag, agora) : null;
+  const daTag = planos.filter((linha) => chaveTag(linha.Tag) === chave && cronogramaNoEscopoBot(linha));
+  const datas = datasPorTipo(daTag, agora);
+  const preventiva = datas.preventiva.mes
+    ? { mes: datas.preventiva.mes, plano: datas.preventiva.plano }
+    : null;
 
   let fetchedAt = equipamentos.fetchedAt;
   let idadeSegundos = equipamentos.idadeSegundos;
@@ -103,6 +87,9 @@ export function consultarEquipamento(tag: string, usuarioId: string, agora = new
     ok: true,
     equipamento: projetarEquipamento(item),
     ultimasOs,
+    preventiva: datasPublicas(datas.preventiva),
+    tse: datasPublicas(datas.tse),
+    calibracao: datasPublicas(datas.calibracao),
     proximaPreventiva: preventiva,
     fetchedAt,
     idadeSegundos,
