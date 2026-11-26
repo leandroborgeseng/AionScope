@@ -86,20 +86,25 @@ export function consultarOsAbertas(request: Request, usuarioId: string, agora = 
   if (!paginacao.ok) return json(400, { ok: false, message: paginacao.message });
   const ctx = contextoBot(usuarioId);
   const assistencial = papelAssistencial(ctx.papel);
+  const gestao = papelGestao(ctx.papel);
+  const restrito = !gestao && ctx.vinculos.length > 0;
   if (assistencial && ctx.vinculos.length === 0) {
     return respostaDecisaoSetor({ tipo: "nao_cadastrado" })!;
   }
   const copia = lerLista("os-analitico", agora.getTime());
   if (!copia.ok) return copiaIndisponivel(copia.motivo, copia.motivo === "expirada" ? copia : undefined);
   const noEscopo = (copia.itens as OsAnaliticoItem[]).filter((item) => oficinaNoEscopoBot(item.Oficina));
+  const nomesBusca = restrito
+    ? noEscopo.filter((item) => casaRegistroComVinculo(item, ctx.vinculos)).map((item) => item.Setor)
+    : noEscopo.map((item) => item.Setor);
   const decisao = assistencial
     ? ({ tipo: "chaves", chaves: new Set<string>() } as const)
     : decidirSetor({
         assistencial: false,
-        gestao: papelGestao(ctx.papel),
-        vinculos: ctx.setores,
+        gestao,
+        vinculos: restrito ? [] : ctx.setores,
         consulta: params.get("setor")?.trim() ?? "",
-        nomesNaCopia: noEscopo.map((item) => item.Setor),
+        nomesNaCopia: nomesBusca,
         modo: "lista",
         apelidos: listarApelidos(),
       });
@@ -114,7 +119,11 @@ export function consultarOsAbertas(request: Request, usuarioId: string, agora = 
     .filter((item) => (soCorretiva ? ehCorretivaOs(item) : true))
     .filter((item) => (filtroTag ? semAcento(item.Tag) === semAcento(filtroTag) : true))
     .filter((item) => inclui(item.Equipamento, filtroEquipamento))
-    .filter((item) => (assistencial ? casaRegistroComVinculo(item, ctx.vinculos) : chaves ? chaves.has(normalizarChave(item.Setor)) : true))
+    .filter((item) => {
+      if (restrito && !casaRegistroComVinculo(item, ctx.vinculos)) return false;
+      if (chaves && !chaves.has(normalizarChave(item.Setor))) return false;
+      return true;
+    })
     .sort((a, b) => instante(b.Abertura) - instante(a.Abertura) || texto(a.OS).localeCompare(texto(b.OS), "pt-BR"));
   const fatia = itens.slice(paginacao.offset, paginacao.offset + paginacao.limit);
   const proximo = paginacao.offset + paginacao.limit < itens.length ? paginacao.offset + paginacao.limit : null;
@@ -142,7 +151,9 @@ export function consultarOsNumero(numero: string, usuarioId: string, agora = new
     (os) => semAcento(os.OS) === chave || semAcento(String(os.CodigoSerialOS ?? "")) === chave,
   );
   if (!item || !oficinaNoEscopoBot(item.Oficina)) return naoEncontrei();
-  if (papelAssistencial(ctx.papel) && !casaRegistroComVinculo(item, ctx.vinculos)) return naoEncontrei();
+  if (!papelGestao(ctx.papel) && ctx.vinculos.length > 0 && !casaRegistroComVinculo(item, ctx.vinculos)) {
+    return naoEncontrei();
+  }
   const gestao = papelGestao(ctx.papel);
   return json(200, {
     ok: true,

@@ -31,6 +31,8 @@ const TEL_SEM = "+55 11 90000-0202";
 const TEL_GEST = "+55 11 90000-0203";
 const TEL_ENDO = "+55 11 90000-0204";
 const TEL_LIVRE = "+55 11 90000-0205";
+const TEL_COMPRAS = "+55 11 90000-0206";
+const FARMACIA = "FARMÁCIA SATÉLITE CENTRO CIRÚRGICO - 17B";
 
 let dir = "";
 const envAntes = { ...process.env };
@@ -193,7 +195,7 @@ test("Centro Cirúrgico: corretiva, parque e datas de preventiva, TSE e calibra�
       Tag: "ZZ02932",
       Equipamento: "Bomba ZZ2932",
       TipoDeManutencao: "A - MANUTENÇÃO DE EQUIPAMENTOS",
-      PlanoDeManutencao: "PREVENTIVA ANUAL ZZ",
+      PlanoDeManutencao: "MONITOR MULTIPARAMETRO SEMESTRAL ZZ",
       ProximaRealizacao: "209909735",
       Perioridicade: "6 Mês(Es)",
     }),
@@ -456,4 +458,63 @@ test("vínculo casa OS por código no fim e por nome normalizado; texto livre n�
   const jsonLivre = (await semVinculo.json()) as { status: string; itens?: unknown };
   assert.equal(jsonLivre.status, "setor_nao_cadastrado");
   assert.equal(Object.hasOwn(jsonLivre, "itens"), false);
+});
+
+test("compras com vínculo 10A não recebe OS do Ambulatorial nem da Farmácia", async () => {
+  const compras = pessoa(TEL_COMPRAS, "Compras");
+  vincular(compras, COD_CC, NOME_CC);
+  pessoa(TEL_GEST, "Manutenção");
+  gravar("os-analitico", [
+    osBase({ OS: "501", CodigoSerialOS: 501, TipoDeManutencao: "Corretiva", Tag: "ZZ-501", Equipamento: "Bomba ZZ501" }),
+    osBase({ OS: "506", CodigoSerialOS: 506, Setor: AMB, TipoDeManutencao: "Corretiva", Tag: "ZZ-506", Equipamento: "Bomba ZZ506" }),
+    osBase({ OS: "507", CodigoSerialOS: 507, Setor: FARMACIA, TipoDeManutencao: "Corretiva", Tag: "ZZ-507", Equipamento: "Bomba ZZ507" }),
+  ]);
+  gravar("equipamentos", [
+    { Tag: "ZZ-501", Equipamento: "Bomba ZZ501", Setor: SETOR, Modelo: "", Fabricante: "", Patrimonio: "" },
+    { Tag: "ZZ-506", Equipamento: "Bomba ZZ506", Setor: AMB, Modelo: "", Fabricante: "", Patrimonio: "" },
+    { Tag: "ZZ-507", Equipamento: "Bomba ZZ507", Setor: FARMACIA, Modelo: "", Fabricante: "", Patrimonio: "" },
+  ]);
+  gravar("cronograma", [
+    plano({ Tag: "ZZ-501", Equipamento: "Bomba ZZ501", TipoDeManutencao: "Calibração", ProximaRealizacao: "15/06/2027" }),
+    plano({ Tag: "ZZ-506", Equipamento: "Bomba ZZ506", Setor: AMB, TipoDeManutencao: "Calibração", ProximaRealizacao: "15/06/2027" }),
+    plano({ Tag: "ZZ-507", Equipamento: "Bomba ZZ507", Setor: FARMACIA, TipoDeManutencao: "Calibração", ProximaRealizacao: "15/06/2027" }),
+  ]);
+
+  const abertas = (await (await osLista.GET(pedido("/api/bot/v1/os?abertas=1", TEL_COMPRAS))).json()) as {
+    itens: Array<{ numero: string }>;
+  };
+  assert.deepEqual(abertas.itens.map((item) => item.numero), ["501"]);
+
+  const busca = (await (await osLista.GET(pedido("/api/bot/v1/os?abertas=1&setor=Centro%20Cir%C3%BArgico", TEL_COMPRAS))).json()) as {
+    ok: boolean;
+    status?: string;
+    itens: Array<{ numero: string }>;
+  };
+  assert.equal(busca.ok, true);
+  assert.equal(busca.status, undefined);
+  assert.deepEqual(busca.itens.map((item) => item.numero), ["501"]);
+
+  const planoCompras = (await (
+    await cronograma.GET(pedido("/api/bot/v1/cronograma?setor=Centro%20Cir%C3%BArgico", TEL_COMPRAS))
+  ).json()) as { ok: boolean; equipamentos: Array<{ tag: string }> };
+  assert.equal(planoCompras.ok, true);
+  assert.deepEqual(planoCompras.equipamentos.map((item) => item.tag).sort(), ["ZZ-501"]);
+
+  const calib = (await (await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=Centro%20Cir%C3%BArgico&ano=2027", TEL_COMPRAS))).json()) as {
+    status: string;
+    equipamentos: Array<{ tag: string }>;
+  };
+  assert.equal(calib.status, "ok");
+  assert.deepEqual(calib.equipamentos.map((item) => item.tag), ["ZZ-501"]);
+
+  const fichaVizinha = await equipamento.GET(pedido("/api/bot/v1/equipamentos/ZZ-506", TEL_COMPRAS), {
+    params: Promise.resolve({ tag: "ZZ-506" }),
+  });
+  assert.equal(fichaVizinha.status, 404);
+
+  const gestao = (await (
+    await porSetor.GET(pedido("/api/bot/v1/os/por-setor?abertas=1&tipo=corretiva&setor=Centro%20Cir%C3%BArgico", TEL_GEST))
+  ).json()) as { status: string; candidatos: Array<{ setor: string }> };
+  assert.equal(gestao.status, "ambiguo");
+  assert.deepEqual(gestao.candidatos.map((item) => item.setor).sort(), [AMB, FARMACIA, SETOR].sort());
 });

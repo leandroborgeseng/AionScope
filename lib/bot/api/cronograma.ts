@@ -164,34 +164,30 @@ export function consultarCronograma(request: Request, usuarioId: string, agora =
       setorNome = (unico.nome || unico.codigo).toLocaleUpperCase("pt-BR");
     }
   } else if (consulta) {
+    const restrito = !gestao && ctx.vinculos.length > 0;
+    const nomesBusca = restrito
+      ? nomes.filter((nome) => casaRegistroComVinculo({ Setor: nome ?? "" }, ctx.vinculos))
+      : nomes;
     const decisao: DecisaoSetor = decidirSetor({
       assistencial: false,
       gestao,
-      vinculos: ctx.setores,
+      vinculos: restrito ? [] : ctx.setores,
       consulta,
-      nomesNaCopia: nomes,
+      nomesNaCopia: nomesBusca,
       modo: "unico",
       apelidos,
     });
     const especial = respostaDecisaoSetor(decisao, meta);
     if (especial) return especial;
     if (decisao.tipo === "chaves") {
-      aceita = (item) => decisao.chaves.has(normalizarChave(item.Setor));
+      aceita = (item) => {
+        if (restrito && !casaRegistroComVinculo(item, ctx.vinculos)) return false;
+        return decisao.chaves.has(normalizarChave(item.Setor));
+      };
       if (decisao.chaves.size === 1) setorNome = nomeDaChave([...decisao.chaves][0]!, nomes);
     }
-  } else if (!gestao && ctx.setores.length > 0) {
-    const decisao = decidirSetor({
-      assistencial: false,
-      gestao: false,
-      vinculos: ctx.setores,
-      consulta: "",
-      nomesNaCopia: nomes,
-      modo: "lista",
-      apelidos,
-    });
-    if (decisao.tipo === "chaves") {
-      aceita = (item) => decisao.chaves.has(normalizarChave(item.Setor));
-    }
+  } else if (!gestao && ctx.vinculos.length > 0) {
+    aceita = (item) => casaRegistroComVinculo(item, ctx.vinculos);
   }
 
   const equipamentos = listar(aceita, tag, parqueOk ? (parqueOk.itens as EquipamentoItem[]) : [], cronograma.itens as CronogramaItem[], agora);

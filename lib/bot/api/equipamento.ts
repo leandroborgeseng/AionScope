@@ -2,8 +2,7 @@
  * Ficha do equipamento, últimas OS e próxima preventiva. Só o cache.
  */
 import { parsePbiDate } from "@/lib/pbi/dates";
-import { classifyCronogramaPlanoLoose } from "@/lib/pbi/gap-preventiva";
-import { chaveTag, datasPorTipo, datasPublicas } from "@/lib/pbi/cronograma-datas";
+import { chaveTag, classeCronogramaBot, datasPorTipo, datasPublicas } from "@/lib/pbi/cronograma-datas";
 import type { CronogramaItem, EquipamentoItem, OsAnaliticoItem } from "@/lib/pbi/types";
 import { contextoBot, papelAssistencial, papelGestao } from "./acesso";
 import { lerLista } from "./copia";
@@ -19,7 +18,7 @@ function tagNoEscopo(tagChave: string, osItens: OsAnaliticoItem[], planos: Crono
   return planos.some((linha) => {
     if (chaveTag(linha.Tag) !== tagChave) return false;
     if (!cronogramaNoEscopoBot(linha)) return false;
-    const plano = classifyCronogramaPlanoLoose(linha);
+    const plano = classeCronogramaBot(linha);
     return plano === "Preventiva" || plano === "Calibração" || plano === "TSE";
   });
 }
@@ -46,7 +45,7 @@ export function consultarEquipamento(tag: string, usuarioId: string, agora = new
   }
   const planos = cronograma.ok ? (cronograma.itens as CronogramaItem[]) : [];
   if (!tagNoEscopo(chave, osItens, planos)) return json(404, { ok: false, message: "Não encontrei." });
-  if (papelAssistencial(ctx.papel) && !casaRegistroComVinculo(item, ctx.vinculos)) {
+  if (!papelGestao(ctx.papel) && ctx.vinculos.length > 0 && !casaRegistroComVinculo(item, ctx.vinculos)) {
     return json(404, { ok: false, message: "Não encontrei." });
   }
 

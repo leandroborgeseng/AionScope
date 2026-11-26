@@ -54,7 +54,7 @@ Papéis assistenciais (`Chefia de Enfermagem` e `Solicitante assistencial`): o s
 
 HTTP 200. A OS, o equipamento, o cronograma e a calibração casam o registro com o vínculo pelo código quando a linha traz `SetorCodigo`, `CodigoSetor` ou `CodigoDoSetor`, quando o texto do setor é o código, ou quando o código está no começo ou no fim, separado por espaço ou hífen. O código vale numérico ou alfanumérico: `ENDOSCOPIA TERCEIRIZADA - 67` casa o vínculo `67` e não casa `670` nem `167`; `CENTRO CIRÚRGICO - 10A` casa `10A` e não casa `10AB`. O nome também casa depois de tirar esse código (`CENTRO CIRÚRGICO - 10A` = catálogo `CENTRO CIRÚRGICO`). Sem código, o nome passa por `normalizarChave` (sem acento, sem caixa, espaços colapsados). A cópia da OS só tem o texto `Setor`, e o smoke de 21/11 mostra o código sempre no fim (`NOME - CÓDIGO`). `ENDOSCOPIA` não é `ENDOSCOPIA TERCEIRIZADA`, e a substring da busca não inverte essa ordem — por isso o total ia a zero quando o filtro só comparava o nome. Código de outro setor não cai no nome: `CENTRO CIRÚRGICO AMBULATORIAL - 97` não casa o vínculo `10A`. `/usuario` mostra os nomes do vínculo; sem vínculo, o texto livre; senão `null`. Vários vínculos: `/os`, o equipamento e o cronograma reúnem todos; a calibração devolve `ambiguo` com esses nomes, porque o plano é de um setor só.
 
-`Diretoria/Gestão` e `Manutenção` filtram qualquer setor. O vínculo não restringe. Os demais papéis (Compras) continuam como antes: com vínculo, só esses setores; sem vínculo, o parâmetro escolhe qualquer um.
+`Diretoria/Gestão` e `Manutenção` filtram qualquer setor. O vínculo não restringe. Os demais papéis (Compras), com vínculo, só veem o registro que casa o código ou o nome normalizado igual (já sem o código). A substring não entra nesse filtro: `Centro Cirúrgico` como busca textual ainda lista candidatos, mas o vínculo `10A` não traz `CENTRO CIRÚRGICO AMBULATORIAL - 97` nem `FARMÁCIA SATÉLITE CENTRO CIRÚRGICO - 17B`. Sem vínculo, o parâmetro escolhe qualquer setor.
 
 ## Rotas (só GET)
 
@@ -137,6 +137,8 @@ curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
   -H "X-Bot-Telefone: +55 11 90000-0001" \
   "https://scope.aion.eng.br/api/bot/v1/cronograma?tag=ZZ-02932"
 ```
+
+No cronograma, preventiva é toda linha cujo `TipoDeManutencao` não é TSE nem calibração. Não depende da palavra "prevent" nem do nome do plano: `A - MANUTENÇÃO DE EQUIPAMENTOS` entra em preventiva. TSE e calibração continuam saindo do texto do tipo. A OS corretiva não muda: continua tudo que não é preventiva, TSE nem calibração pela regra da OS.
 
 `/cronograma` devolve `equipamentos[]` com `tag`, `equipamento`, `setor`, `preventiva`, `tse` e `calibracao`. Cada uma tem `ultima`, `proxima` e `motivo`. A data sai `dd/MM/yyyy`, ou `MM/yyyy` quando a próxima é um mês projetado pela periodicidade. O código `ProximaRealizacao` de 9 dígitos (`2099…`) não é data: com periodicidade, a próxima é o mês projetado na janela do ano corrente e do seguinte; sem periodicidade, `proxima` fica `null` e `motivo` é `código de mês sem periodicidade`. O ano 2099 e o dia lido do código não aparecem. A lista junta o parque e o cronograma do setor, também o equipamento sem OS aberta. Teto de 500; `total` é o tamanho antes do corte. `proximaPreventiva` na ficha da TAG continua, com o mês dessa próxima (`yyyy-mm`), e fica `null` quando não há próxima.
 

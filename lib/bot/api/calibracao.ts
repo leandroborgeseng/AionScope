@@ -145,12 +145,17 @@ export function consultarCalibracao(request: Request, usuarioId: string) {
       ...base,
     });
   }
+  const gestao = papelGestao(ctx.papel);
+  const restrito = !gestao && ctx.vinculos.length > 0;
+  const nomesBusca = restrito
+    ? nomes.filter((nome) => casaRegistroComVinculo({ Setor: nome ?? "" }, ctx.vinculos))
+    : nomes;
   const decisao = decidirSetor({
     assistencial: false,
-    gestao: papelGestao(ctx.papel),
-    vinculos: ctx.setores,
+    gestao,
+    vinculos: restrito ? [] : ctx.setores,
     consulta: setor,
-    nomesNaCopia: nomes,
+    nomesNaCopia: nomesBusca,
     modo: "unico",
     apelidos: listarApelidos(),
   });
