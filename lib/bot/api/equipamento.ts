@@ -44,7 +44,6 @@ export function consultarEquipamento(tag: string, usuarioId: string, agora = new
     return copiaIndisponivel(cronograma.motivo, cronograma);
   }
   const planos = cronograma.ok ? (cronograma.itens as CronogramaItem[]) : [];
-  if (!tagNoEscopo(chave, osItens, planos)) return json(404, { ok: false, message: "Não encontrei." });
   if (!papelGestao(ctx.papel) && ctx.vinculos.length > 0 && !casaRegistroComVinculo(item, ctx.vinculos)) {
     return json(404, { ok: false, message: "Não encontrei." });
   }

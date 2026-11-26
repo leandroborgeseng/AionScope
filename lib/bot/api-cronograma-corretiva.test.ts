@@ -460,6 +460,34 @@ test("vínculo casa OS por código no fim e por nome normalizado; texto livre n�
   assert.equal(Object.hasOwn(jsonLivre, "itens"), false);
 });
 
+test("ficha acha equipamento que só existe no parque", async () => {
+  const cc = pessoa(TEL_CC, "Chefia de Enfermagem");
+  vincular(cc, COD_CC, NOME_CC);
+  gravar("os-analitico", [
+    osBase({ OS: "9108", CodigoSerialOS: 9108, Oficina: "REFRIGERAÇÃO", TipoDeManutencao: "Compra", Tag: "ZZ-REFRI", Equipamento: "Evaporadora ZZ" }),
+  ]);
+  gravar("equipamentos", [
+    { Tag: "ZZ-PARQUE", Equipamento: "Mesa ZZPARQUE", Setor: SETOR, Modelo: "", Fabricante: "", Patrimonio: "" },
+    { Tag: "ZZ-FORA", Equipamento: "Mesa ZZFORA", Setor: AMB, Modelo: "", Fabricante: "", Patrimonio: "" },
+  ]);
+  gravar("cronograma", []);
+  const ficha = await equipamento.GET(pedido("/api/bot/v1/equipamentos/ZZ-PARQUE", TEL_CC), {
+    params: Promise.resolve({ tag: "ZZ-PARQUE" }),
+  });
+  assert.equal(ficha.status, 200);
+  const json = (await ficha.json()) as { preventiva: { proxima: string | null }; equipamento: { tag: string } };
+  assert.equal(json.equipamento.tag, "ZZ-PARQUE");
+  assert.equal(json.preventiva.proxima, null);
+  const fora = await equipamento.GET(pedido("/api/bot/v1/equipamentos/ZZ-FORA", TEL_CC), {
+    params: Promise.resolve({ tag: "ZZ-FORA" }),
+  });
+  assert.equal(fora.status, 404);
+  const refri = await equipamento.GET(pedido("/api/bot/v1/equipamentos/ZZ-REFRI", TEL_CC), {
+    params: Promise.resolve({ tag: "ZZ-REFRI" }),
+  });
+  assert.equal(refri.status, 404);
+});
+
 test("filtro de tag da OS ignora hífen e zero à esquerda, como a ficha", async () => {
   pessoa(TEL_GEST, "Manutenção");
   gravar("os-analitico", [
