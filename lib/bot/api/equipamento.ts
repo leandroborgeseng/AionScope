@@ -6,20 +6,12 @@ import { classifyCronogramaPlanoLoose } from "@/lib/pbi/gap-preventiva";
 import { chaveTag, datasPorTipo, datasPublicas } from "@/lib/pbi/cronograma-datas";
 import type { CronogramaItem, EquipamentoItem, OsAnaliticoItem } from "@/lib/pbi/types";
 import { contextoBot, papelAssistencial, papelGestao } from "./acesso";
-import { normalizarChave } from "./chave";
 import { lerLista } from "./copia";
+import { casaRegistroComVinculo } from "./setor-usuario";
 import { cronogramaNoEscopoBot, oficinaNoEscopoBot } from "./escopo";
 import { copiaIndisponivel, json } from "./http";
 import { projetarEquipamento, projetarOs } from "./projecao";
 import { respostaDecisaoSetor } from "./setor-match";
-
-function setorDoVinculo(vinculos: string[], setor: string | null | undefined) {
-  const chave = normalizarChave(setor);
-  return vinculos.some((nome) => {
-    const vinculo = normalizarChave(nome);
-    return vinculo === chave || (vinculo.length >= 3 && chave.includes(vinculo));
-  });
-}
 
 function tagNoEscopo(tagChave: string, osItens: OsAnaliticoItem[], planos: CronogramaItem[]) {
   if (!tagChave) return false;
@@ -34,7 +26,7 @@ function tagNoEscopo(tagChave: string, osItens: OsAnaliticoItem[], planos: Crono
 
 export function consultarEquipamento(tag: string, usuarioId: string, agora = new Date()) {
   const ctx = contextoBot(usuarioId);
-  if (papelAssistencial(ctx.papel) && ctx.setores.length === 0) {
+  if (papelAssistencial(ctx.papel) && ctx.vinculos.length === 0) {
     return respostaDecisaoSetor({ tipo: "nao_cadastrado" })!;
   }
   const equipamentos = lerLista("equipamentos", agora.getTime());
@@ -54,7 +46,7 @@ export function consultarEquipamento(tag: string, usuarioId: string, agora = new
   }
   const planos = cronograma.ok ? (cronograma.itens as CronogramaItem[]) : [];
   if (!tagNoEscopo(chave, osItens, planos)) return json(404, { ok: false, message: "Não encontrei." });
-  if (papelAssistencial(ctx.papel) && !setorDoVinculo(ctx.setores, item.Setor)) {
+  if (papelAssistencial(ctx.papel) && !casaRegistroComVinculo(item, ctx.vinculos)) {
     return json(404, { ok: false, message: "Não encontrei." });
   }
 
@@ -63,7 +55,7 @@ export function consultarEquipamento(tag: string, usuarioId: string, agora = new
   const ultimasOs = os.ok
     ? osItens
         .filter((linha) => chaveTag(linha.Tag) === chave && oficinaNoEscopoBot(linha.Oficina))
-        .filter((linha) => (assistencial ? setorDoVinculo(ctx.setores, linha.Setor) : true))
+        .filter((linha) => (assistencial ? casaRegistroComVinculo(linha, ctx.vinculos) : true))
         .sort((a, b) => (parsePbiDate(b.Abertura)?.getTime() ?? 0) - (parsePbiDate(a.Abertura)?.getTime() ?? 0))
         .slice(0, 5)
         .map((linha) => projetarOs(linha, { matriculas }))

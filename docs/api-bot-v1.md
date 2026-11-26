@@ -46,13 +46,13 @@ Apelidos ficam na tabela `bot_setor_apelido` (`apelido`, `nome`). A migration 01
 
 Zero nomes: HTTP 404, `status: "nao_encontrado"`, mensagem `setor não encontrado`, sem lista. Dois a cinco: HTTP 200, `status: "ambiguo"` e a lista numerada, com o nome em maiúsculas. Mais de cinco: HTTP 200, `status: "refinar"`, sem a lista. Setor que casou e não tem dado no ano ou nas abertas devolve a lista vazia (ou `meses: []` e `equipamentos: []`), com o resumo no caso das OS. Calibração e cronograma resolvem o setor também pelos nomes da OS e do parque, não só pelas linhas do cronograma: o nome que funciona em `/os` não volta 404 na calibração.
 
-Papéis assistenciais (`Chefia de Enfermagem` e `Solicitante assistencial`): o setor é o vínculo pessoa-setor de `bot_usuario_setor`. O parâmetro `setor` é ignorado. O nome do vínculo casa por igualdade ou, se não houver igualdade, por substring, no mesmo critério acima. Sem vínculo (coluna `bot_usuario.setor` nula e nenhuma linha em `bot_usuario_setor`), `/os?abertas=1` não devolve lista vazia. A resposta pede o cadastro:
+Papéis assistenciais (`Chefia de Enfermagem` e `Solicitante assistencial`): o setor é o vínculo `bot_usuario_setor` → `bot_setor` (`resolverSetoresDoUsuario`). O parâmetro `setor` é ignorado. A coluna `bot_usuario.setor` é texto livre e pode divergir do vínculo: o vínculo manda. Sem vínculo, `/os?abertas=1` não usa esse texto e não devolve lista vazia. A resposta pede o cadastro:
 
 ```json
 { "ok": false, "status": "setor_nao_cadastrado", "message": "Cadastre o setor deste usuário para consultar." }
 ```
 
-HTTP 200. Vários vínculos: `/os` e o equipamento reúnem todos; a calibração devolve `ambiguo` com esses nomes, porque o plano é de um setor só.
+HTTP 200. A OS, o equipamento, o cronograma e a calibração casam o registro com o vínculo pelo código quando a linha traz `SetorCodigo`, `CodigoSetor` ou `CodigoDoSetor`, quando o texto do setor é o código, ou quando começa com `67 -`. Sem código, o nome passa por `normalizarChave` (sem acento, sem caixa, espaços colapsados). A cópia documentada só tem o texto `Setor`; `ENDOSCOPIA` não é `ENDOSCOPIA TERCEIRIZADA`, e a substring da busca não inverte essa ordem — por isso o total ia a zero. Código de outro setor não cai no nome. `/usuario` mostra os nomes do vínculo; sem vínculo, o texto livre; senão `null`. Vários vínculos: `/os`, o equipamento e o cronograma reúnem todos; a calibração devolve `ambiguo` com esses nomes, porque o plano é de um setor só.
 
 `Diretoria/Gestão` e `Manutenção` filtram qualquer setor. O vínculo não restringe. Os demais papéis (Compras) continuam como antes: com vínculo, só esses setores; sem vínculo, o parâmetro escolhe qualquer um.
 

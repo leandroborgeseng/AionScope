@@ -25,6 +25,8 @@ const AMB = "CENTRO CIRÚRGICO AMBULATORIAL - 97";
 const TEL_CC = "+55 11 90000-0201";
 const TEL_SEM = "+55 11 90000-0202";
 const TEL_GEST = "+55 11 90000-0203";
+const TEL_ENDO = "+55 11 90000-0204";
+const TEL_LIVRE = "+55 11 90000-0205";
 
 let dir = "";
 const envAntes = { ...process.env };
@@ -321,4 +323,79 @@ test("Centro Cirúrgico: corretiva, parque e datas de preventiva, TSE e calibra�
   assert.equal(jsonSoOs.status, "ok");
   assert.deepEqual(jsonSoOs.meses, []);
   assert.deepEqual(jsonSoOs.equipamentos, []);
+});
+
+test("vínculo casa OS por código e por nome normalizado; texto livre não filtra", async () => {
+  const id = pessoa(TEL_ENDO, "Chefia de Enfermagem");
+  getDb().prepare("UPDATE bot_usuario SET setor = ? WHERE id = ?").run("SETOR LIVRE ZZ", id);
+  vincular(id, "67", "ENDOSCOPIA TERCEIRIZADA ZZ");
+  gravar("os-analitico", [
+    osBase({
+      OS: "6701",
+      CodigoSerialOS: 6701,
+      Setor: "ENDOSCOPIA ZZ",
+      SetorCodigo: "67",
+      TipoDeManutencao: "Corretiva",
+      Tag: "ZZ-ENDO",
+      Equipamento: "Endoscopio ZZ",
+    }),
+    osBase({
+      OS: "6702",
+      CodigoSerialOS: 6702,
+      Setor: "endoscopia   terceirizada zz",
+      TipoDeManutencao: "Corretiva",
+      Tag: "ZZ-ENDO2",
+      Equipamento: "Endoscopio ZZ2",
+    }),
+    osBase({
+      OS: "6703",
+      CodigoSerialOS: 6703,
+      Setor: "67 - ENDOSCOPIA ZZ",
+      TipoDeManutencao: "Corretiva",
+      Tag: "ZZ-ENDO3",
+      Equipamento: "Endoscopio ZZ3",
+    }),
+    osBase({
+      OS: "6704",
+      CodigoSerialOS: 6704,
+      Setor: "RAIO-X ZZ",
+      SetorCodigo: "30",
+      TipoDeManutencao: "Corretiva",
+      Tag: "ZZ-RAIO",
+      Equipamento: "Raio ZZ",
+    }),
+    osBase({
+      OS: "6705",
+      CodigoSerialOS: 6705,
+      Setor: "ENDOSCOPIA TERCEIRIZADA ZZ",
+      SetorCodigo: "99",
+      TipoDeManutencao: "Corretiva",
+      Tag: "ZZ-OUTRO",
+      Equipamento: "Outro ZZ",
+    }),
+  ]);
+  gravar("equipamentos", [
+    { Tag: "ZZ-ENDO", Equipamento: "Endoscopio ZZ", Setor: "ENDOSCOPIA ZZ", SetorCodigo: "67", Modelo: "", Fabricante: "", Patrimonio: "" },
+  ]);
+
+  const fichaUsuario = (await (await usuario.GET(pedido("/api/bot/v1/usuario", TEL_ENDO))).json()) as { setor: string | null };
+  assert.equal(fichaUsuario.setor, "ENDOSCOPIA TERCEIRIZADA ZZ");
+
+  const abertas = await osLista.GET(pedido("/api/bot/v1/os?abertas=1", TEL_ENDO));
+  assert.equal(abertas.status, 200);
+  const json = (await abertas.json()) as { ok: boolean; total?: number; itens: Array<{ numero: string }> };
+  assert.equal(json.ok, true);
+  assert.deepEqual(json.itens.map((item) => item.numero).sort(), ["6701", "6702", "6703"]);
+
+  const ficha = await equipamento.GET(pedido("/api/bot/v1/equipamentos/ZZ-ENDO", TEL_ENDO), {
+    params: Promise.resolve({ tag: "ZZ-ENDO" }),
+  });
+  assert.equal(ficha.status, 200);
+
+  const livre = pessoa(TEL_LIVRE, "Chefia de Enfermagem");
+  getDb().prepare("UPDATE bot_usuario SET setor = ? WHERE id = ?").run("ENDOSCOPIA TERCEIRIZADA ZZ", livre);
+  const semVinculo = await osLista.GET(pedido("/api/bot/v1/os?abertas=1", TEL_LIVRE));
+  const jsonLivre = (await semVinculo.json()) as { status: string; itens?: unknown };
+  assert.equal(jsonLivre.status, "setor_nao_cadastrado");
+  assert.equal(Object.hasOwn(jsonLivre, "itens"), false);
 });

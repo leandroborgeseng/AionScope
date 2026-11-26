@@ -3,30 +3,27 @@
  * assistência fica no próprio setor; gestão e manutenção enxergam o parque.
  * A permissão é o nome canônico, não a posição em `AIONSCOPE_BOT_PAPEIS`.
  */
-import { getDb } from "@/lib/db/client";
 import { normalizarChave } from "./chave";
+import { resolverSetoresDoUsuario, type VinculoSetor } from "./setor-usuario";
 
 export type ContextoBot = {
   id: string;
   papel: string;
+  /** Nomes do vínculo. O texto livre de `bot_usuario.setor` não entra aqui. */
   setores: string[];
+  vinculos: VinculoSetor[];
+  textoLivre: string | null;
 };
 
 export function contextoBot(usuarioId: string): ContextoBot {
-  const linha = getDb().prepare("SELECT papel FROM bot_usuario WHERE id = ?").get(usuarioId) as
-    | { papel: string }
-    | undefined;
-  const setores = getDb()
-    .prepare(
-      `SELECT t.nome AS nome
-       FROM bot_usuario_setor s
-       JOIN bot_setor t ON t.codigo = s.setor_codigo
-       WHERE s.usuario_id = ?
-       ORDER BY t.nome`,
-    )
-    .all(usuarioId) as Array<{ nome: string }>;
-  const nomes = setores.map((item) => item.nome).filter((nome) => normalizarChave(nome));
-  return { id: usuarioId, papel: linha?.papel ?? "", setores: nomes };
+  const resolvido = resolverSetoresDoUsuario(usuarioId);
+  return {
+    id: usuarioId,
+    papel: resolvido.papel,
+    setores: resolvido.vinculos.map((item) => item.nome).filter((nome) => normalizarChave(nome)),
+    vinculos: resolvido.vinculos,
+    textoLivre: resolvido.textoLivre,
+  };
 }
 
 /** Nomes canônicos. Reordenar ou renomear a lista da env não promove ninguém. */

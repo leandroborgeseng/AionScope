@@ -10,6 +10,7 @@ import { parsePeriodicidadeMeses, plannedMonthsInYear } from "@/lib/pbi/cronogra
 import { datasPorTipo, datasPublicas, chaveTag } from "@/lib/pbi/cronograma-datas";
 import type { CronogramaItem, EquipamentoItem, OsAnaliticoItem } from "@/lib/pbi/types";
 import { contextoBot, papelAssistencial, papelGestao } from "./acesso";
+import { casaRegistroComVinculo } from "./setor-usuario";
 import { listarApelidos } from "./apelidos";
 import { normalizarChave } from "./chave";
 import { lerLista } from "./copia";
@@ -37,11 +38,11 @@ function ehCalibracao(item: CronogramaItem) {
   return classifyCronogramaPlanoLoose(item) === "Calibração";
 }
 
-function equipamentosDoSetor(itens: CronogramaItem[], chaveSetor: string, agora: Date) {
+function equipamentosDoSetor(itens: CronogramaItem[], aceita: (item: CronogramaItem) => boolean, agora: Date) {
   const grupos = new Map<string, CronogramaItem[]>();
   const nomes = new Map<string, { tag: string; equipamento: string }>();
   itens.forEach((item, indice) => {
-    if (normalizarChave(item.Setor) !== chaveSetor) return;
+    if (!aceita(item)) return;
     if (!cronogramaNoEscopoBot(item) || !ehCalibracao(item)) return;
     const tag = texto(item.Tag);
     const chave = chaveTag(tag) || `linha:${indice}`;
@@ -63,10 +64,10 @@ function equipamentosDoSetor(itens: CronogramaItem[], chaveSetor: string, agora:
     .sort((a, b) => a.tag.localeCompare(b.tag, "pt-BR") || a.equipamento.localeCompare(b.equipamento, "pt-BR"));
 }
 
-function mesesDoSetor(itens: CronogramaItem[], chaveSetor: string, ano: number) {
+function mesesDoSetor(itens: CronogramaItem[], aceita: (item: CronogramaItem) => boolean, ano: number) {
   const porMes = new Map<number, Set<string>>();
   itens.forEach((item, indice) => {
-    if (normalizarChave(item.Setor) !== chaveSetor) return;
+    if (!aceita(item)) return;
     if (!cronogramaNoEscopoBot(item)) return;
     if (!ehCalibracao(item)) return;
     const meses = plannedMonthsInYear({
@@ -101,7 +102,8 @@ export function consultarCalibracao(request: Request, usuarioId: string) {
   }
 
   const ctx = contextoBot(usuarioId);
-  if (papelAssistencial(ctx.papel) && ctx.setores.length === 0) {
+  const assistencial = papelAssistencial(ctx.papel);
+  if (assistencial && ctx.vinculos.length === 0) {
     return respostaDecisaoSetor({ tipo: "nao_cadastrado" })!;
   }
   if (!setor && !papelAssistencial(ctx.papel)) return json(400, { ok: false, message: "Informe o setor." });
@@ -122,8 +124,29 @@ export function consultarCalibracao(request: Request, usuarioId: string) {
   }
   const ajuda = ajudaCalibracao();
   const base = { fetchedAt: copia.fetchedAt, idadeSegundos: copia.idadeSegundos, comoConsultarNoEffort: ajuda };
+  const noSetor = itens.filter(cronogramaNoEscopoBot);
+  if (assistencial) {
+    if (ctx.vinculos.length > 1) {
+      const candidatos = ctx.vinculos
+        .map((item) => (item.nome || item.codigo).toLocaleUpperCase("pt-BR"))
+        .sort((a, b) => a.localeCompare(b, "pt-BR"))
+        .map((nome, indice) => ({ ordem: indice + 1, setor: nome }));
+      return json(200, { ok: true, status: "ambiguo", candidatos, ...base });
+    }
+    const aceita = (item: CronogramaItem) => casaRegistroComVinculo(item, ctx.vinculos);
+    const nome = ctx.vinculos[0]!;
+    return json(200, {
+      ok: true,
+      status: "ok",
+      setor: (nome.nome || nome.codigo).toLocaleUpperCase("pt-BR"),
+      ano,
+      meses: mesesDoSetor(noSetor, aceita, ano),
+      equipamentos: equipamentosDoSetor(noSetor, aceita, nowInSaoPaulo()),
+      ...base,
+    });
+  }
   const decisao = decidirSetor({
-    assistencial: papelAssistencial(ctx.papel),
+    assistencial: false,
     gestao: papelGestao(ctx.papel),
     vinculos: ctx.setores,
     consulta: setor,
@@ -137,14 +160,14 @@ export function consultarCalibracao(request: Request, usuarioId: string) {
     return json(400, { ok: false, message: "Informe o setor." });
   }
   const chave = [...decisao.chaves][0]!;
-  const noSetor = itens.filter(cronogramaNoEscopoBot);
+  const aceita = (item: CronogramaItem) => normalizarChave(item.Setor) === chave;
   return json(200, {
     ok: true,
     status: "ok",
     setor: nomeDaChave(chave, nomes),
     ano,
-    meses: mesesDoSetor(noSetor, chave, ano),
-    equipamentos: equipamentosDoSetor(noSetor, chave, nowInSaoPaulo()),
+    meses: mesesDoSetor(noSetor, aceita, ano),
+    equipamentos: equipamentosDoSetor(noSetor, aceita, nowInSaoPaulo()),
     ...base,
   });
 }

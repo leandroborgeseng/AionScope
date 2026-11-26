@@ -13,6 +13,7 @@ import { lerLista } from "./copia";
 import { cronogramaNoEscopoBot, oficinaNoEscopoBot } from "./escopo";
 import { copiaIndisponivel, json } from "./http";
 import { decidirSetor, nomeDaChave, respostaDecisaoSetor, type DecisaoSetor } from "./setor-match";
+import { casaRegistroComVinculo } from "./setor-usuario";
 
 const LIMITE_EQUIPAMENTOS = 500;
 
@@ -69,7 +70,7 @@ function garantir(mapa: Map<string, Acum>, chave: string, base: Omit<Acum, "plan
 }
 
 function listar(
-  chaves: Set<string> | null,
+  aceita: (item: { Setor?: string | null }) => boolean,
   tagFiltro: string,
   parque: EquipamentoItem[],
   planos: CronogramaItem[],
@@ -77,11 +78,10 @@ function listar(
 ) {
   const mapa = new Map<string, Acum>();
   const tagChave = chaveTag(tagFiltro);
-  const noSetor = (setor: string | null | undefined) => (chaves ? chaves.has(normalizarChave(setor)) : true);
   const naTag = (tag: string | null | undefined) => (tagChave ? chaveTag(tag) === tagChave : true);
 
   for (const item of parque) {
-    if (!noSetor(item.Setor) || !naTag(item.Tag)) continue;
+    if (!aceita(item) || !naTag(item.Tag)) continue;
     const tag = texto(item.Tag);
     const equipamento = texto(item.Equipamento);
     const setor = texto(item.Setor);
@@ -93,7 +93,7 @@ function listar(
     });
   }
   for (const item of planos) {
-    if (!cronogramaNoEscopoBot(item) || !noSetor(item.Setor) || !naTag(item.Tag)) continue;
+    if (!cronogramaNoEscopoBot(item) || !aceita(item) || !naTag(item.Tag)) continue;
     const tag = texto(item.Tag);
     const equipamento = texto(item.Equipamento);
     const setor = texto(item.Setor);
@@ -136,7 +136,8 @@ export function consultarCronograma(request: Request, usuarioId: string, agora =
   const consulta = params.get("setor")?.trim() ?? "";
   const tag = params.get("tag")?.trim() ?? "";
   const ctx = contextoBot(usuarioId);
-  if (papelAssistencial(ctx.papel) && ctx.setores.length === 0) {
+  const assistencial = papelAssistencial(ctx.papel);
+  if (assistencial && ctx.vinculos.length === 0) {
     return respostaDecisaoSetor({ tipo: "nao_cadastrado" })!;
   }
 
@@ -149,28 +150,33 @@ export function consultarCronograma(request: Request, usuarioId: string, agora =
   const osOk = os.ok ? os : null;
   const nomes = nomesSetor(osOk, parqueOk, cronograma);
   const meta = maisVelha(cronograma, parqueOk);
-  const assistencial = papelAssistencial(ctx.papel);
   const gestao = papelGestao(ctx.papel);
   const apelidos = listarApelidos();
 
   if (!tag && !consulta && !assistencial) return json(400, { ok: false, message: "Informe o setor ou a tag." });
 
-  let chaves: Set<string> | null = null;
+  let aceita: (item: { Setor?: string | null }) => boolean = () => true;
   let setorNome: string | null = null;
-  if (consulta || assistencial) {
+  if (assistencial) {
+    aceita = (item) => casaRegistroComVinculo(item, ctx.vinculos);
+    if (ctx.vinculos.length === 1) {
+      const unico = ctx.vinculos[0]!;
+      setorNome = (unico.nome || unico.codigo).toLocaleUpperCase("pt-BR");
+    }
+  } else if (consulta) {
     const decisao: DecisaoSetor = decidirSetor({
-      assistencial,
+      assistencial: false,
       gestao,
       vinculos: ctx.setores,
-      consulta: assistencial ? "" : consulta,
+      consulta,
       nomesNaCopia: nomes,
-      modo: consulta && !assistencial ? "unico" : "lista",
+      modo: "unico",
       apelidos,
     });
     const especial = respostaDecisaoSetor(decisao, meta);
     if (especial) return especial;
     if (decisao.tipo === "chaves") {
-      chaves = decisao.chaves;
+      aceita = (item) => decisao.chaves.has(normalizarChave(item.Setor));
       if (decisao.chaves.size === 1) setorNome = nomeDaChave([...decisao.chaves][0]!, nomes);
     }
   } else if (!gestao && ctx.setores.length > 0) {
@@ -183,10 +189,12 @@ export function consultarCronograma(request: Request, usuarioId: string, agora =
       modo: "lista",
       apelidos,
     });
-    if (decisao.tipo === "chaves") chaves = decisao.chaves;
+    if (decisao.tipo === "chaves") {
+      aceita = (item) => decisao.chaves.has(normalizarChave(item.Setor));
+    }
   }
 
-  const equipamentos = listar(chaves, tag, parqueOk ? (parqueOk.itens as EquipamentoItem[]) : [], cronograma.itens as CronogramaItem[], agora);
+  const equipamentos = listar(aceita, tag, parqueOk ? (parqueOk.itens as EquipamentoItem[]) : [], cronograma.itens as CronogramaItem[], agora);
   if (tag && equipamentos.length === 0) return naoEncontrei();
   const fatia = equipamentos.slice(0, LIMITE_EQUIPAMENTOS);
   return json(200, {
