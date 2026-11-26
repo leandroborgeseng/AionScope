@@ -20,6 +20,10 @@ import * as cronograma from "../../app/api/bot/v1/cronograma/route";
 import * as usuario from "../../app/api/bot/v1/usuario/route";
 
 const TOKEN = "token-ficticio-zzteste-0123456789abcd";
+/** Linha real do catálogo (`data/setores-effort-20261111.csv`): 10A = CENTRO CIRÚRGICO. */
+const COD_CC = "10A";
+const NOME_CC = "CENTRO CIRÚRGICO";
+/** Formato da OS no Effort (smoke 21/11): código no fim. */
 const SETOR = "CENTRO CIRÚRGICO - 10A";
 const AMB = "CENTRO CIRÚRGICO AMBULATORIAL - 97";
 const TEL_CC = "+55 11 90000-0201";
@@ -159,7 +163,7 @@ test("usuário assistencial com setor null recebe setor_nao_cadastrado", async (
 
 test("Centro Cirúrgico: corretiva, parque e datas de preventiva, TSE e calibração", async () => {
   const cc = pessoa(TEL_CC, "Chefia de Enfermagem");
-  vincular(cc, "ZZCC10A", SETOR);
+  vincular(cc, COD_CC, NOME_CC);
   const gestao = pessoa(TEL_GEST, "Manutenção");
   assert.equal(gestao.length > 0, true);
 
@@ -218,7 +222,7 @@ test("Centro Cirúrgico: corretiva, parque e datas de preventiva, TSE e calibra�
   ]);
 
   const fichaCc = (await (await usuario.GET(pedido("/api/bot/v1/usuario", TEL_CC))).json()) as { setor: string };
-  assert.equal(fichaCc.setor, SETOR);
+  assert.equal(fichaCc.setor, NOME_CC);
 
   const abertas = (await (await osLista.GET(pedido("/api/bot/v1/os?abertas=1&tipo=corretiva", TEL_CC))).json()) as {
     itens: Array<{ numero: string; tag: string }>;
@@ -267,7 +271,7 @@ test("Centro Cirúrgico: corretiva, parque e datas de preventiva, TSE e calibra�
     }>;
   };
   assert.equal(planoSetor.ok, true);
-  assert.equal(planoSetor.setor, SETOR);
+  assert.equal(planoSetor.setor, NOME_CC);
   const tags = planoSetor.equipamentos.map((item) => item.tag).sort();
   assert.equal(tags.includes("ZZ-PARQUE"), true);
   assert.equal(tags.includes("ZZ-02932"), true);
@@ -306,7 +310,7 @@ test("Centro Cirúrgico: corretiva, parque e datas de preventiva, TSE e calibra�
     equipamentos: Array<{ tag: string; proxima: string | null }>;
   };
   assert.equal(calib.status, "ok");
-  assert.equal(calib.setor, SETOR);
+  assert.equal(calib.setor, NOME_CC);
   assert.equal(calib.equipamentos.some((item) => item.tag === "ZZ-02932"), true);
   assert.equal(calib.equipamentos.some((item) => item.tag === "ZZ-CAL"), true);
   assert.equal(calib.equipamentos.some((item) => item.tag === "ZZ-AMB"), false);
@@ -325,10 +329,12 @@ test("Centro Cirúrgico: corretiva, parque e datas de preventiva, TSE e calibra�
   assert.deepEqual(jsonSoOs.equipamentos, []);
 });
 
-test("vínculo casa OS por código e por nome normalizado; texto livre não filtra", async () => {
+test("vínculo casa OS por código no fim e por nome normalizado; texto livre não filtra", async () => {
   const id = pessoa(TEL_ENDO, "Chefia de Enfermagem");
   getDb().prepare("UPDATE bot_usuario SET setor = ? WHERE id = ?").run("SETOR LIVRE ZZ", id);
-  vincular(id, "67", "ENDOSCOPIA TERCEIRIZADA ZZ");
+  vincular(id, "67", "ENDOSCOPIA TERCEIRIZADA");
+  const cc = pessoa(TEL_CC, "Chefia de Enfermagem");
+  vincular(cc, COD_CC, NOME_CC);
   gravar("os-analitico", [
     osBase({
       OS: "6701",
@@ -342,7 +348,7 @@ test("vínculo casa OS por código e por nome normalizado; texto livre não filt
     osBase({
       OS: "6702",
       CodigoSerialOS: 6702,
-      Setor: "endoscopia   terceirizada zz",
+      Setor: "endoscopia   terceirizada",
       TipoDeManutencao: "Corretiva",
       Tag: "ZZ-ENDO2",
       Equipamento: "Endoscopio ZZ2",
@@ -367,11 +373,59 @@ test("vínculo casa OS por código e por nome normalizado; texto livre não filt
     osBase({
       OS: "6705",
       CodigoSerialOS: 6705,
-      Setor: "ENDOSCOPIA TERCEIRIZADA ZZ",
+      Setor: "ENDOSCOPIA TERCEIRIZADA",
       SetorCodigo: "99",
       TipoDeManutencao: "Corretiva",
       Tag: "ZZ-OUTRO",
       Equipamento: "Outro ZZ",
+    }),
+    osBase({
+      OS: "6706",
+      CodigoSerialOS: 6706,
+      Setor: "ENDOSCOPIA TERCEIRIZADA - 67",
+      TipoDeManutencao: "Corretiva",
+      Tag: "ZZ-ENDO67",
+      Equipamento: "Endoscopio ZZ67",
+    }),
+    osBase({
+      OS: "6707",
+      CodigoSerialOS: 6707,
+      Setor: "OUTRO ZZ - 670",
+      TipoDeManutencao: "Corretiva",
+      Tag: "ZZ-670",
+      Equipamento: "Outro ZZ670",
+    }),
+    osBase({
+      OS: "6708",
+      CodigoSerialOS: 6708,
+      Setor: "OUTRO ZZ - 167",
+      TipoDeManutencao: "Corretiva",
+      Tag: "ZZ-167",
+      Equipamento: "Outro ZZ167",
+    }),
+    osBase({
+      OS: "1001",
+      CodigoSerialOS: 1001,
+      Setor: SETOR,
+      TipoDeManutencao: "Corretiva",
+      Tag: "ZZ-10A",
+      Equipamento: "Bomba ZZ10A",
+    }),
+    osBase({
+      OS: "1002",
+      CodigoSerialOS: 1002,
+      Setor: "CENTRO CIRÚRGICO - 10AB",
+      TipoDeManutencao: "Corretiva",
+      Tag: "ZZ-10AB",
+      Equipamento: "Bomba ZZ10AB",
+    }),
+    osBase({
+      OS: "1003",
+      CodigoSerialOS: 1003,
+      Setor: AMB,
+      TipoDeManutencao: "Corretiva",
+      Tag: "ZZ-97",
+      Equipamento: "Bomba ZZ97",
     }),
   ]);
   gravar("equipamentos", [
@@ -379,13 +433,17 @@ test("vínculo casa OS por código e por nome normalizado; texto livre não filt
   ]);
 
   const fichaUsuario = (await (await usuario.GET(pedido("/api/bot/v1/usuario", TEL_ENDO))).json()) as { setor: string | null };
-  assert.equal(fichaUsuario.setor, "ENDOSCOPIA TERCEIRIZADA ZZ");
+  assert.equal(fichaUsuario.setor, "ENDOSCOPIA TERCEIRIZADA");
 
   const abertas = await osLista.GET(pedido("/api/bot/v1/os?abertas=1", TEL_ENDO));
   assert.equal(abertas.status, 200);
   const json = (await abertas.json()) as { ok: boolean; total?: number; itens: Array<{ numero: string }> };
   assert.equal(json.ok, true);
-  assert.deepEqual(json.itens.map((item) => item.numero).sort(), ["6701", "6702", "6703"]);
+  assert.deepEqual(json.itens.map((item) => item.numero).sort(), ["6701", "6702", "6703", "6706"]);
+
+  const doCc = await osLista.GET(pedido("/api/bot/v1/os?abertas=1", TEL_CC));
+  const jsonCc = (await doCc.json()) as { itens: Array<{ numero: string }> };
+  assert.deepEqual(jsonCc.itens.map((item) => item.numero), ["1001"]);
 
   const ficha = await equipamento.GET(pedido("/api/bot/v1/equipamentos/ZZ-ENDO", TEL_ENDO), {
     params: Promise.resolve({ tag: "ZZ-ENDO" }),

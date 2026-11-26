@@ -12,8 +12,10 @@
  * é `ENDOSCOPIA TERCEIRIZADA` e a substring do item 3 só aceita o nome da OS
  * que contém o nome inteiro do vínculo — o contrário do que o Effort manda.
  * Com código na linha (`SetorCodigo`, `CodigoSetor`, `CodigoDoSetor`, o
- * próprio texto igual ao código, ou prefixo `67 - …`), casa o código do
- * vínculo. Sem código, casa `normalizarChave` (sem acento, sem caixa,
+ * próprio texto igual ao código, ou o código no começo ou no fim separado
+ * por espaço ou hífen — `NOME - 67`, `10A - NOME`), casa o código do
+ * vínculo, numérico ou alfanumérico. O nome também casa depois de tirar
+ * esse código. Sem código, casa `normalizarChave` (sem acento, sem caixa,
  * espaços colapsados).
  */
 import { getDb } from "@/lib/db/client";
@@ -84,15 +86,40 @@ function codigoExplicito(registro: RegistroSetor) {
   return null;
 }
 
+/**
+ * Código no texto já normalizado: o setor inteiro, ou o código no começo
+ * ou no fim, com espaço ou hífen no meio. `67` não casa `670` nem `167`;
+ * `10A` não casa `10AB`.
+ */
 function codigoNoTexto(setor: string, codigo: string) {
-  if (!codigo) return false;
+  if (!codigo || !setor) return false;
   if (setor === codigo) return true;
-  return setor.startsWith(`${codigo} `) || setor.startsWith(`${codigo}-`);
+  const separador = /[\s-]/;
+  if (setor.startsWith(codigo) && separador.test(setor[codigo.length] ?? "")) return true;
+  if (setor.length > codigo.length && setor.endsWith(codigo)) {
+    const antes = setor[setor.length - codigo.length - 1] ?? "";
+    if (separador.test(antes)) return true;
+  }
+  return false;
+}
+
+/** Nome da linha sem o código deste vínculo. */
+function nomeSemCodigo(setor: string, codigo: string) {
+  if (!codigoNoTexto(setor, codigo) || setor === codigo) return setor;
+  let resto = setor;
+  if (resto.endsWith(codigo)) {
+    resto = resto.slice(0, resto.length - codigo.length).replace(/[\s-]+$/, "");
+  }
+  if (resto.startsWith(codigo)) {
+    resto = resto.slice(codigo.length).replace(/^[\s-]+/, "");
+  }
+  return resto.trim();
 }
 
 /**
  * Código explícito que não é do vínculo não cai no nome.
- * Sem código, vale a igualdade normalizada ou o código escrito no texto do setor.
+ * Sem código, vale a igualdade normalizada, o código no começo ou no fim,
+ * ou o nome já sem esse código.
  */
 export function casaRegistroComVinculo(registro: RegistroSetor, vinculos: VinculoSetor[]) {
   if (!vinculos.length) return false;
@@ -104,7 +131,10 @@ export function casaRegistroComVinculo(registro: RegistroSetor, vinculos: Vincul
   const setor = normalizarChave(registro.Setor);
   if (!setor) return false;
   return vinculos.some((vinculo) => {
-    if (normalizarChave(vinculo.nome) === setor) return true;
-    return codigoNoTexto(setor, normalizarChave(vinculo.codigo));
+    const nome = normalizarChave(vinculo.nome);
+    const codigo = normalizarChave(vinculo.codigo);
+    if (nome && nome === setor) return true;
+    if (codigo && codigoNoTexto(setor, codigo)) return true;
+    return Boolean(nome && codigo && nomeSemCodigo(setor, codigo) === nome);
   });
 }
