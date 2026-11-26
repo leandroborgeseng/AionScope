@@ -138,7 +138,7 @@ curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
   "https://scope.aion.eng.br/api/bot/v1/cronograma?tag=ZZ-02932"
 ```
 
-`/cronograma` devolve `equipamentos[]` com `tag`, `equipamento`, `setor`, `preventiva`, `tse` e `calibracao`. Cada uma tem `ultima` e `proxima` (`dd/MM/yyyy`, ou `MM/yyyy` quando o campo é código de mês). A lista junta o parque e o cronograma do setor, também o equipamento sem OS aberta. Teto de 500; `total` é o tamanho antes do corte. `proximaPreventiva` na ficha da TAG continua, agora com o mês dessa próxima (`yyyy-mm`), e não fica `null` quando o plano existe.
+`/cronograma` devolve `equipamentos[]` com `tag`, `equipamento`, `setor`, `preventiva`, `tse` e `calibracao`. Cada uma tem `ultima`, `proxima` e `motivo`. A data sai `dd/MM/yyyy`, ou `MM/yyyy` quando a próxima é um mês projetado pela periodicidade. O código `ProximaRealizacao` de 9 dígitos (`2099…`) não é data: com periodicidade, a próxima é o mês projetado na janela do ano corrente e do seguinte; sem periodicidade, `proxima` fica `null` e `motivo` é `código de mês sem periodicidade`. O ano 2099 e o dia lido do código não aparecem. A lista junta o parque e o cronograma do setor, também o equipamento sem OS aberta. Teto de 500; `total` é o tamanho antes do corte. `proximaPreventiva` na ficha da TAG continua, com o mês dessa próxima (`yyyy-mm`), e fica `null` quando não há próxima.
 
 `/calibracao` mantém `meses[]` (`mes`, `equipamentos` como quantidade) e acrescenta `equipamentos[]` com `tag`, `equipamento`, `ultima` e `proxima`.
 

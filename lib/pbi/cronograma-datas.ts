@@ -10,6 +10,10 @@
  * palavra no `TipoDeManutencao`. Plano classificado só pelo nome, TAG
  * `HSJ02932` contra `HSJ-02932`, ou âncora em 2099 sem mês ainda futuro na
  * janela de dois anos devolvia `proximaPreventiva: null`.
+ *
+ * Código de 9 dígitos (`20` + 7 dígitos) não é data. Com periodicidade, a próxima
+ * é o mês projetado (`MM/yyyy`). Sem periodicidade, a próxima fica null e
+ * `motivo` explica; o ano 2099 e o dia embutido no código não saem.
  */
 import { semAcento, texto } from "@/lib/ec/texto";
 import { parsePbiDate } from "./dates";
@@ -21,6 +25,7 @@ import type { CronogramaItem } from "./types";
 export type DatasTipo = {
   ultima: string | null;
   proxima: string | null;
+  motivo: string | null;
 };
 
 export type DatasTipoInterna = DatasTipo & {
@@ -34,9 +39,12 @@ export type DatasTag = {
   calibracao: DatasTipoInterna;
 };
 
-type Ancora = { date: Date; mesSomente: boolean };
+type Ancora = { date: Date; mesSomente: boolean; codigo: boolean };
 
-const VAZIO: DatasTipoInterna = { ultima: null, proxima: null, mes: null, plano: "" };
+const MOTIVO_CODIGO = "código de mês sem periodicidade";
+const MOTIVO_INVALIDA = "sem data válida";
+
+const VAZIO: DatasTipoInterna = { ultima: null, proxima: null, motivo: null, mes: null, plano: "" };
 
 export function chaveTag(tag: string | null | undefined) {
   const limpa = semAcento(tag).replace(/[^A-Z0-9]/g, "");
@@ -50,10 +58,10 @@ export function interpretarDataCronograma(raw: string | null | undefined): Ancor
   if (!valor) return null;
   const date = parsePbiDate(valor);
   if (!date) return null;
-  if (/^20\d{7}$/.test(valor) && Number(valor.slice(6, 8)) !== date.getDate()) {
-    return { date, mesSomente: true };
+  if (/^20\d{7}$/.test(valor)) {
+    return { date, mesSomente: true, codigo: true };
   }
-  return { date, mesSomente: false };
+  return { date, mesSomente: false, codigo: false };
 }
 
 function textoData(date: Date, mesSomente: boolean) {
@@ -71,13 +79,14 @@ function dataNoMes(ano: number, mes: number, ancora: Ancora | null): Ancora {
   if (ancora && !ancora.mesSomente) {
     const dia = ancora.date.getDate();
     const candidata = new Date(ano, mes, dia);
-    if (candidata.getMonth() === mes) return { date: candidata, mesSomente: false };
+    if (candidata.getMonth() === mes) return { date: candidata, mesSomente: false, codigo: false };
   }
-  return { date: new Date(ano, mes, 1), mesSomente: true };
+  return { date: new Date(ano, mes, 1), mesSomente: true, codigo: false };
 }
 
-function escolherProxima(item: CronogramaItem, agora: Date): Ancora | null {
-  const proxima = interpretarDataCronograma(item.ProximaRealizacao);
+function escolherProxima(item: CronogramaItem, agora: Date): { ancora: Ancora | null; motivo: string | null } {
+  const raw = (item.ProximaRealizacao ?? "").trim();
+  const proxima = interpretarDataCronograma(raw);
   const ultima = interpretarDataCronograma(item.DataDaUltima);
   const interval = parsePeriodicidadeMeses(item.Perioridicade);
   const anoAtual = agora.getFullYear();
@@ -96,7 +105,11 @@ function escolherProxima(item: CronogramaItem, agora: Date): Ancora | null {
       if (!melhor || candidata.date < melhor.date) melhor = candidata;
     }
   }
-  return melhor ?? proxima;
+  if (melhor) return { ancora: melhor, motivo: null };
+  if (proxima?.codigo) return { ancora: null, motivo: MOTIVO_CODIGO };
+  if (proxima) return { ancora: proxima, motivo: null };
+  if (raw) return { ancora: null, motivo: MOTIVO_INVALIDA };
+  return { ancora: null, motivo: null };
 }
 
 function linhasDoTipo(itens: CronogramaItem[], tipo: PlanoEcTipo) {
@@ -114,14 +127,18 @@ function resumir(itens: CronogramaItem[], agora: Date): DatasTipoInterna {
   let ultima: Ancora | null = null;
   let proxima: Ancora | null = null;
   let plano = "";
+  let motivo: string | null = null;
   const inicioMes = new Date(agora.getFullYear(), agora.getMonth(), 1);
   const candidatos: Array<{ ancora: Ancora; plano: string }> = [];
   for (const item of itens) {
     const u = interpretarDataCronograma(item.DataDaUltima);
     if (u && (!ultima || u.date > ultima.date)) ultima = u;
-    const p = escolherProxima(item, agora);
-    if (!p) continue;
-    candidatos.push({ ancora: p, plano: texto(item.PlanoDeManutencao) });
+    const escolha = escolherProxima(item, agora);
+    if (!escolha.ancora) {
+      if (!motivo && escolha.motivo) motivo = escolha.motivo;
+      continue;
+    }
+    candidatos.push({ ancora: escolha.ancora, plano: texto(item.PlanoDeManutencao) });
   }
   const futuros = candidatos.filter((item) => item.ancora.date >= inicioMes);
   const pool = futuros.length ? futuros : candidatos;
@@ -130,10 +147,12 @@ function resumir(itens: CronogramaItem[], agora: Date): DatasTipoInterna {
   if (escolhida) {
     proxima = escolhida.ancora;
     plano = escolhida.plano.length <= 80 ? escolhida.plano : "";
+    motivo = null;
   }
   return {
     ultima: ultima ? textoData(ultima.date, ultima.mesSomente) : null,
     proxima: proxima ? textoData(proxima.date, proxima.mesSomente) : null,
+    motivo,
     mes: proxima ? mesChave(proxima.date) : null,
     plano,
   };
@@ -148,5 +167,5 @@ export function datasPorTipo(itens: CronogramaItem[], agora = new Date()): Datas
 }
 
 export function datasPublicas(datas: DatasTipoInterna): DatasTipo {
-  return { ultima: datas.ultima, proxima: datas.proxima };
+  return { ultima: datas.ultima, proxima: datas.proxima, motivo: datas.motivo };
 }
