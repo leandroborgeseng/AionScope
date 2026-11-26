@@ -4,16 +4,40 @@ import { decidirSetor, resolverSetor, catalogarNomes } from "./setor-match";
 
 const nomes = ["Centro Cirúrgico", "Centro Cirúrgico Ambulatorial", "Farmácia Satélite Centro Cirúrgico", "UTI ZZ"];
 
-test("setor casa exato e por apelido, sem substring", () => {
+test("setor casa exato, por substring e por apelido", () => {
   const catalogo = catalogarNomes(nomes);
   const apelidos = [{ apelido: "CC", nome: "Centro Cirúrgico" }];
   assert.equal(resolverSetor("centro   cirúrgico", catalogo, apelidos).tipo, "ok");
   assert.equal(resolverSetor("cc", catalogo, apelidos).tipo, "ok");
   const curto = resolverSetor("centro", catalogo, apelidos);
-  assert.equal(curto.tipo, "nao_encontrado");
+  assert.equal(curto.tipo, "ambiguo");
+  if (curto.tipo === "ambiguo") {
+    assert.deepEqual(
+      curto.candidatos.map((item) => item.setor),
+      ["CENTRO CIRÚRGICO", "CENTRO CIRÚRGICO AMBULATORIAL", "FARMÁCIA SATÉLITE CENTRO CIRÚRGICO"],
+    );
+  }
   const ambulatorio = resolverSetor("Centro Cirúrgico Ambulatorial", catalogo, apelidos);
   assert.equal(ambulatorio.tipo, "ok");
   if (ambulatorio.tipo === "ok") assert.equal(ambulatorio.nome, "CENTRO CIRÚRGICO AMBULATORIAL");
+});
+
+test("CC casa o sufixo do Effort quando o nome curto não existe", () => {
+  const catalogo = catalogarNomes(["CENTRO CIRÚRGICO - 10A", "CENTRO CIRÚRGICO AMBULATORIAL - 97", "UTI ZZ"]);
+  const apelidos = [{ apelido: "CC", nome: "Centro Cirúrgico" }];
+  for (const consulta of ["Centro Cirúrgico", "cc", "CC"]) {
+    const resolvido = resolverSetor(consulta, catalogo, apelidos);
+    assert.equal(resolvido.tipo, "ambiguo", consulta);
+    if (resolvido.tipo === "ambiguo") {
+      assert.deepEqual(
+        resolvido.candidatos.map((item) => item.setor),
+        ["CENTRO CIRÚRGICO - 10A", "CENTRO CIRÚRGICO AMBULATORIAL - 97"],
+      );
+    }
+  }
+  const exato = resolverSetor("CENTRO CIRÚRGICO - 10A", catalogo, apelidos);
+  assert.equal(exato.tipo, "ok");
+  if (exato.tipo === "ok") assert.equal(exato.nome, "CENTRO CIRÚRGICO - 10A");
 });
 
 test("apelido com dois nomes devolve candidatos", () => {
