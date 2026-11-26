@@ -17,15 +17,15 @@
  */
 import { semAcento, texto } from "@/lib/ec/texto";
 import { parsePbiDate } from "./dates";
-import { classifyCronogramaPlanoLoose } from "./gap-preventiva";
 import { parsePeriodicidadeMeses, plannedMonthsInYear } from "./cronograma-anual";
-import type { PlanoEcTipo } from "./indicadores-os";
+import { classifyPlanoEc, type PlanoEcTipo } from "./indicadores-os";
 import type { CronogramaItem } from "./types";
 
 export type DatasTipo = {
   ultima: string | null;
   proxima: string | null;
   motivo: string | null;
+  vencida: boolean;
 };
 
 export type DatasTipoInterna = DatasTipo & {
@@ -44,7 +44,7 @@ type Ancora = { date: Date; mesSomente: boolean; codigo: boolean };
 const MOTIVO_CODIGO = "código de mês sem periodicidade";
 const MOTIVO_INVALIDA = "sem data válida";
 
-const VAZIO: DatasTipoInterna = { ultima: null, proxima: null, motivo: null, mes: null, plano: "" };
+const VAZIO: DatasTipoInterna = { ultima: null, proxima: null, motivo: null, vencida: false, mes: null, plano: "" };
 
 export function chaveTag(tag: string | null | undefined) {
   const limpa = semAcento(tag).replace(/[^A-Z0-9]/g, "");
@@ -69,6 +69,16 @@ function textoData(date: Date, mesSomente: boolean) {
   const yyyy = String(date.getFullYear());
   if (mesSomente) return `${mm}/${yyyy}`;
   return `${String(date.getDate()).padStart(2, "0")}/${mm}/${yyyy}`;
+}
+
+function jaPassou(ancora: Ancora, agora: Date) {
+  const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
+  if (ancora.mesSomente) {
+    const depoisDoMes = new Date(ancora.date.getFullYear(), ancora.date.getMonth() + 1, 1);
+    return depoisDoMes <= hoje;
+  }
+  const dia = new Date(ancora.date.getFullYear(), ancora.date.getMonth(), ancora.date.getDate());
+  return dia < hoje;
 }
 
 function mesChave(date: Date) {
@@ -112,14 +122,19 @@ function escolherProxima(item: CronogramaItem, agora: Date): { ancora: Ancora | 
   return { ancora: null, motivo: null };
 }
 
+/**
+ * No cronograma do bot, o tipo de manutenção manda: TSE e calibração saem
+ * do texto do tipo; o resto é preventiva. Não depende da palavra "prevent"
+ * nem do nome do plano.
+ */
+export function classeCronogramaBot(item: CronogramaItem): PlanoEcTipo {
+  const tipo = classifyPlanoEc(item.TipoDeManutencao);
+  if (tipo === "TSE" || tipo === "Calibração") return tipo;
+  return "Preventiva";
+}
+
 function linhasDoTipo(itens: CronogramaItem[], tipo: PlanoEcTipo) {
-  const doTipo = itens.filter((item) => classifyCronogramaPlanoLoose(item) === tipo);
-  if (tipo !== "Preventiva") return doTipo;
-  const preferidas = doTipo.filter((item) => semAcento(item.TipoDeManutencao).startsWith("A -"));
-  const comData = preferidas.filter(
-    (item) => interpretarDataCronograma(item.ProximaRealizacao) || interpretarDataCronograma(item.DataDaUltima),
-  );
-  return comData.length ? preferidas : doTipo;
+  return itens.filter((item) => classeCronogramaBot(item) === tipo);
 }
 
 function resumir(itens: CronogramaItem[], agora: Date): DatasTipoInterna {
@@ -153,6 +168,7 @@ function resumir(itens: CronogramaItem[], agora: Date): DatasTipoInterna {
     ultima: ultima ? textoData(ultima.date, ultima.mesSomente) : null,
     proxima: proxima ? textoData(proxima.date, proxima.mesSomente) : null,
     motivo,
+    vencida: proxima ? jaPassou(proxima, agora) : false,
     mes: proxima ? mesChave(proxima.date) : null,
     plano,
   };
@@ -167,5 +183,5 @@ export function datasPorTipo(itens: CronogramaItem[], agora = new Date()): Datas
 }
 
 export function datasPublicas(datas: DatasTipoInterna): DatasTipo {
-  return { ultima: datas.ultima, proxima: datas.proxima, motivo: datas.motivo };
+  return { ultima: datas.ultima, proxima: datas.proxima, motivo: datas.motivo, vencida: datas.vencida };
 }

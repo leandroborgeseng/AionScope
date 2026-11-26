@@ -39,13 +39,13 @@ test("código 2099MM ancora no mês e não vira dia", () => {
   assert.equal(ancora?.date.getMonth(), 8);
 });
 
-test("preventiva sai do nome do plano e da TAG sem hífen; código 2099 não zera a próxima", () => {
+test("preventiva é o tipo que não é TSE nem calibração; código 2099 com periodicidade projeta o mês", () => {
   const datas = datasPorTipo(
     [
       linha({
         Tag: "ZZ02932",
         TipoDeManutencao: "A - MANUTENÇÃO DE EQUIPAMENTOS",
-        PlanoDeManutencao: "PREVENTIVA ANUAL ZZ",
+        PlanoDeManutencao: "MONITOR MULTIPARAMETRO SEMESTRAL ZZ",
         ProximaRealizacao: "209909735",
         Perioridicade: "6 Mês(Es)",
       }),
@@ -81,6 +81,8 @@ test("sem periodicidade o código 2099 não vira próxima, e TSE guarda o dia", 
   );
   assert.equal(datas.tse.ultima, "01/02/2026");
   assert.equal(datas.tse.proxima, "15/08/2027");
+  assert.equal(datas.tse.vencida, false);
+  assert.equal(datas.calibracao.vencida, false);
   assert.equal(datas.calibracao.ultima, null);
   assert.equal(datas.calibracao.proxima, null);
   assert.equal(datas.calibracao.motivo, "código de mês sem periodicidade");
@@ -106,4 +108,21 @@ test("código 2099 com dia válido não publica o dia nem o ano", () => {
   assert.equal(datas.calibracao.motivo, "código de mês sem periodicidade");
   assert.equal(JSON.stringify(datas).includes("27/07"), false);
   assert.equal(JSON.stringify(datas).includes("2099"), false);
+  assert.equal(datas.calibracao.vencida, false);
+});
+
+test("próxima que já passou marca vencida", () => {
+  const datas = datasPorTipo(
+    [
+      linha({
+        TipoDeManutencao: "A - MANUTENÇÃO DE EQUIPAMENTOS",
+        PlanoDeManutencao: "MONITOR ZZ",
+        ProximaRealizacao: "20/05/2025",
+      }),
+    ],
+    AGORA,
+  );
+  assert.equal(datas.preventiva.proxima, "20/05/2025");
+  assert.equal(datas.preventiva.vencida, true);
+  assert.equal(datas.preventiva.motivo, null);
 });
