@@ -460,6 +460,22 @@ test("vínculo casa OS por código no fim e por nome normalizado; texto livre n�
   assert.equal(Object.hasOwn(jsonLivre, "itens"), false);
 });
 
+test("filtro de tag da OS ignora hífen e zero à esquerda, como a ficha", async () => {
+  pessoa(TEL_GEST, "Manutenção");
+  gravar("os-analitico", [
+    osBase({ OS: "801", CodigoSerialOS: 801, Tag: "HSJ-02932", TipoDeManutencao: "Corretiva", Equipamento: "Bomba ZZ801" }),
+    osBase({ OS: "802", CodigoSerialOS: 802, Tag: "HSJ-29320", TipoDeManutencao: "Corretiva", Equipamento: "Bomba ZZ802" }),
+  ]);
+  const semHifen = (await (await osLista.GET(pedido("/api/bot/v1/os?abertas=1&tag=HSJ02932", TEL_GEST))).json()) as {
+    itens: Array<{ numero: string }>;
+  };
+  assert.deepEqual(semHifen.itens.map((item) => item.numero), ["801"]);
+  const zero = (await (await osLista.GET(pedido("/api/bot/v1/os?abertas=1&tag=HSJ-2932", TEL_GEST))).json()) as {
+    itens: Array<{ numero: string }>;
+  };
+  assert.deepEqual(zero.itens.map((item) => item.numero), ["801"]);
+});
+
 test("compras com vínculo 10A não recebe OS do Ambulatorial nem da Farmácia", async () => {
   const compras = pessoa(TEL_COMPRAS, "Compras");
   vincular(compras, COD_CC, NOME_CC);

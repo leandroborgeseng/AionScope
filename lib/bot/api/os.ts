@@ -4,6 +4,7 @@
  */
 import { semAcento, texto } from "@/lib/ec/texto";
 import { parsePbiDate } from "@/lib/pbi/dates";
+import { chaveTag } from "@/lib/pbi/cronograma-datas";
 import type { OsAnaliticoItem } from "@/lib/pbi/types";
 import { isOsCancelada, osFechamentoDate } from "@/lib/pbi/volume-ec";
 import { contextoBot, papelAssistencial, papelGestao } from "./acesso";
@@ -117,7 +118,7 @@ export function consultarOsAbertas(request: Request, usuarioId: string, agora = 
   const itens = noEscopo
     .filter((item) => aberta(item))
     .filter((item) => (soCorretiva ? ehCorretivaOs(item) : true))
-    .filter((item) => (filtroTag ? semAcento(item.Tag) === semAcento(filtroTag) : true))
+    .filter((item) => (filtroTag ? chaveTag(item.Tag) === chaveTag(filtroTag) : true))
     .filter((item) => inclui(item.Equipamento, filtroEquipamento))
     .filter((item) => {
       if (restrito && !casaRegistroComVinculo(item, ctx.vinculos)) return false;

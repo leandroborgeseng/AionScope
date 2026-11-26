@@ -62,7 +62,7 @@ HTTP 200. A OS, o equipamento, o cronograma e a calibração casam o registro co
 | --- | --- |
 | `GET /api/bot/v1/health` | `{ "ok": true }`. Só o Bearer |
 | `GET /api/bot/v1/meta/freshness` | `fetchedAt` e `idadeSegundos` por recurso |
-| `GET /api/bot/v1/os?abertas=1` | OS abertas do recorte. Filtros `setor`, `tag`, `equipamento`. `tipo=corretiva` fica só com a regra acima. `limit` ou `pageSize` (1 a 100), `offset` ou `cursor`. Traz `resumo` |
+| `GET /api/bot/v1/os?abertas=1` | OS abertas do recorte. Filtros `setor`, `tag`, `equipamento`. `tag` usa a mesma chave da ficha: ignora hífen, espaço e zero à esquerda. `tipo=corretiva` fica só com a regra acima. `limit` ou `pageSize` (1 a 100), `offset` ou `cursor`. Traz `resumo` |
 | `GET /api/bot/v1/os/{numero}` | Situação, histórico (só datas), etapa e tempos. Sem matrícula nem `solicitacao` para quem não é gestão ou manutenção |
 | `GET /api/bot/v1/os/por-setor?abertas=1&tipo=corretiva` | Corretivas abertas da EC (a regra acima), agrupadas por setor e, dentro do setor, por etapa. Só Diretoria/Gestão e Manutenção. `setor` opcional para esses papéis. `limite` (padrão 20, teto 100) e `cursor` ou `pagina`. Devolve `total` e `proximoCursor` |
 | `GET /api/bot/v1/equipamentos/{tag}` | Status, até 5 OS do recorte e última/próxima de preventiva, TSE e calibração. A TAG ignora hífen, espaço e zero à esquerda. Tag fora do recorte é o mesmo 404 |
