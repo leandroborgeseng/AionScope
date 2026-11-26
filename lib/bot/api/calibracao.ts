@@ -5,14 +5,15 @@
  */
 import { semAcento, texto } from "@/lib/ec/texto";
 import { nowInSaoPaulo, parsePbiDate } from "@/lib/pbi/dates";
-import { classifyPlanoEc } from "@/lib/pbi/indicadores-os";
-import { keepCronogramaPlano, parsePeriodicidadeMeses, plannedMonthsInYear } from "@/lib/pbi/cronograma-anual";
-import type { CronogramaItem } from "@/lib/pbi/types";
+import { classifyCronogramaPlanoLoose } from "@/lib/pbi/gap-preventiva";
+import { parsePeriodicidadeMeses, plannedMonthsInYear } from "@/lib/pbi/cronograma-anual";
+import { datasPorTipo, datasPublicas, chaveTag } from "@/lib/pbi/cronograma-datas";
+import type { CronogramaItem, EquipamentoItem, OsAnaliticoItem } from "@/lib/pbi/types";
 import { contextoBot, papelAssistencial, papelGestao } from "./acesso";
 import { listarApelidos } from "./apelidos";
 import { normalizarChave } from "./chave";
 import { lerLista } from "./copia";
-import { cronogramaNoEscopoBot } from "./escopo";
+import { cronogramaNoEscopoBot, oficinaNoEscopoBot } from "./escopo";
 import { copiaIndisponivel, json } from "./http";
 import { decidirSetor, nomeDaChave, respostaDecisaoSetor } from "./setor-match";
 
@@ -32,13 +33,42 @@ function chaveEquipamento(item: CronogramaItem, indice: number) {
   return `eq:${semAcento(equipamento)}|${semAcento(item.Modelo)}|${semAcento(item.Fabricante)}`;
 }
 
+function ehCalibracao(item: CronogramaItem) {
+  return classifyCronogramaPlanoLoose(item) === "Calibração";
+}
+
+function equipamentosDoSetor(itens: CronogramaItem[], chaveSetor: string, agora: Date) {
+  const grupos = new Map<string, CronogramaItem[]>();
+  const nomes = new Map<string, { tag: string; equipamento: string }>();
+  itens.forEach((item, indice) => {
+    if (normalizarChave(item.Setor) !== chaveSetor) return;
+    if (!cronogramaNoEscopoBot(item) || !ehCalibracao(item)) return;
+    const tag = texto(item.Tag);
+    const chave = chaveTag(tag) || `linha:${indice}`;
+    const grupo = grupos.get(chave) ?? [];
+    grupo.push(item);
+    grupos.set(chave, grupo);
+    if (!nomes.has(chave)) nomes.set(chave, { tag, equipamento: texto(item.Equipamento) });
+  });
+  return [...grupos.entries()]
+    .map(([chave, linhas]) => {
+      const datas = datasPorTipo(linhas, agora);
+      const nome = nomes.get(chave)!;
+      return {
+        tag: nome.tag,
+        equipamento: nome.equipamento,
+        ...datasPublicas(datas.calibracao),
+      };
+    })
+    .sort((a, b) => a.tag.localeCompare(b.tag, "pt-BR") || a.equipamento.localeCompare(b.equipamento, "pt-BR"));
+}
+
 function mesesDoSetor(itens: CronogramaItem[], chaveSetor: string, ano: number) {
   const porMes = new Map<number, Set<string>>();
   itens.forEach((item, indice) => {
     if (normalizarChave(item.Setor) !== chaveSetor) return;
     if (!cronogramaNoEscopoBot(item)) return;
-    if (!keepCronogramaPlano(item.TipoDeManutencao, false)) return;
-    if (classifyPlanoEc(item.TipoDeManutencao) !== "Calibração") return;
+    if (!ehCalibracao(item)) return;
     const meses = plannedMonthsInYear({
       proxima: parsePbiDate(item.ProximaRealizacao),
       ultima: parsePbiDate(item.DataDaUltima),
@@ -77,7 +107,19 @@ export function consultarCalibracao(request: Request, usuarioId: string) {
   if (!setor && !papelAssistencial(ctx.papel)) return json(400, { ok: false, message: "Informe o setor." });
   const copia = lerLista("cronograma");
   if (!copia.ok) return copiaIndisponivel(copia.motivo, copia.motivo === "expirada" ? copia : undefined);
-  const itens = (copia.itens as CronogramaItem[]).filter(cronogramaNoEscopoBot);
+  const os = lerLista("os-analitico");
+  const parque = lerLista("equipamentos");
+  const itens = copia.itens as CronogramaItem[];
+  const nomes: Array<string | null | undefined> = [];
+  if (os.ok) {
+    for (const item of os.itens as OsAnaliticoItem[]) {
+      if (oficinaNoEscopoBot(item.Oficina)) nomes.push(item.Setor);
+    }
+  }
+  if (parque.ok) for (const item of parque.itens as EquipamentoItem[]) nomes.push(item.Setor);
+  for (const item of itens) {
+    if (cronogramaNoEscopoBot(item)) nomes.push(item.Setor);
+  }
   const ajuda = ajudaCalibracao();
   const base = { fetchedAt: copia.fetchedAt, idadeSegundos: copia.idadeSegundos, comoConsultarNoEffort: ajuda };
   const decisao = decidirSetor({
@@ -85,7 +127,7 @@ export function consultarCalibracao(request: Request, usuarioId: string) {
     gestao: papelGestao(ctx.papel),
     vinculos: ctx.setores,
     consulta: setor,
-    nomesNaCopia: itens.map((item) => item.Setor),
+    nomesNaCopia: nomes,
     modo: "unico",
     apelidos: listarApelidos(),
   });
@@ -95,12 +137,14 @@ export function consultarCalibracao(request: Request, usuarioId: string) {
     return json(400, { ok: false, message: "Informe o setor." });
   }
   const chave = [...decisao.chaves][0]!;
+  const noSetor = itens.filter(cronogramaNoEscopoBot);
   return json(200, {
     ok: true,
     status: "ok",
-    setor: nomeDaChave(chave, itens.map((item) => item.Setor)),
+    setor: nomeDaChave(chave, nomes),
     ano,
-    meses: mesesDoSetor(itens, chave, ano),
+    meses: mesesDoSetor(noSetor, chave, ano),
+    equipamentos: equipamentosDoSetor(noSetor, chave, nowInSaoPaulo()),
     ...base,
   });
 }
