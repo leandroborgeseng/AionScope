@@ -67,7 +67,18 @@ export function consultarSituacao(telefone: unknown): FichaUsuario | null {
       corpo: { situacao: escolhida.situacao, podeResponder: false, permissoes },
     };
   }
-  const setor = escolhida.setor?.trim() ? escolhida.setor.trim() : null;
+  const vinculos = getDb()
+    .prepare(
+      `SELECT t.nome AS nome
+       FROM bot_usuario_setor s
+       JOIN bot_setor t ON t.codigo = s.setor_codigo
+       WHERE s.usuario_id = ?
+       ORDER BY t.nome`,
+    )
+    .all(escolhida.id) as Array<{ nome: string | null }>;
+  const doVinculo = vinculos.map((item) => (item.nome ?? "").trim()).filter(Boolean);
+  const coluna = escolhida.setor?.trim() ? escolhida.setor.trim() : "";
+  const setor = coluna || (doVinculo.length ? doVinculo.join(", ") : null);
   return {
     usuarioId: escolhida.id,
     corpo: {

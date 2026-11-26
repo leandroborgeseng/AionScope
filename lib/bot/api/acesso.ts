@@ -25,7 +25,8 @@ export function contextoBot(usuarioId: string): ContextoBot {
        ORDER BY t.nome`,
     )
     .all(usuarioId) as Array<{ nome: string }>;
-  return { id: usuarioId, papel: linha?.papel ?? "", setores: setores.map((item) => item.nome) };
+  const nomes = setores.map((item) => item.nome).filter((nome) => normalizarChave(nome));
+  return { id: usuarioId, papel: linha?.papel ?? "", setores: nomes };
 }
 
 /** Nomes canônicos. Reordenar ou renomear a lista da env não promove ninguém. */
