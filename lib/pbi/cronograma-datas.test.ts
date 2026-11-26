@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { buildCronogramaAnual } from "./cronograma-anual";
 import { chaveTag, datasPorTipo, interpretarDataCronograma } from "./cronograma-datas";
 import type { CronogramaItem } from "./types";
 
@@ -125,4 +126,82 @@ test("próxima que já passou marca vencida", () => {
   assert.equal(datas.preventiva.proxima, "20/05/2025");
   assert.equal(datas.preventiva.vencida, true);
   assert.equal(datas.preventiva.motivo, null);
+});
+
+test("tipo vazio com plano de calibração é calibração; corretiva não vira preventiva", () => {
+  const calibracao = datasPorTipo(
+    [
+      linha({
+        TipoDeManutencao: "",
+        PlanoDeManutencao: "CALIBRAÇÃO ANUAL",
+        ProximaRealizacao: "15/03/2027",
+      }),
+    ],
+    AGORA,
+  );
+  assert.equal(calibracao.calibracao.proxima, "15/03/2027");
+  assert.equal(calibracao.preventiva.proxima, null);
+  assert.equal(calibracao.tse.proxima, null);
+
+  const tse = datasPorTipo(
+    [
+      linha({
+        TipoDeManutencao: "Corretiva",
+        PlanoDeManutencao: "SEGURANÇA ELÉTRICA",
+        ProximaRealizacao: "15/04/2027",
+      }),
+    ],
+    AGORA,
+  );
+  assert.equal(tse.tse.proxima, "15/04/2027");
+  assert.equal(tse.preventiva.proxima, null);
+  assert.equal(tse.calibracao.proxima, null);
+
+  const corretiva = datasPorTipo(
+    [
+      linha({
+        TipoDeManutencao: "Corretiva",
+        PlanoDeManutencao: "PLANO GENERICO ZZ",
+        ProximaRealizacao: "15/05/2027",
+      }),
+    ],
+    AGORA,
+  );
+  assert.equal(corretiva.preventiva.proxima, null);
+  assert.equal(corretiva.tse.proxima, null);
+  assert.equal(corretiva.calibracao.proxima, null);
+});
+
+test("painel /api/pbi/cronograma não classifica pelo nome do plano", () => {
+  const vazio = buildCronogramaAnual({
+    cronograma: [
+      linha({
+        TipoDeManutencao: "",
+        PlanoDeManutencao: "CALIBRAÇÃO ANUAL",
+        ProximaRealizacao: "15/03/2027",
+      }),
+    ],
+    os: [],
+    equipamentos: [],
+    year: 2027,
+    somenteMedicos: true,
+    today: AGORA,
+  });
+  assert.equal(vazio.groups.length, 0);
+  const peloTipo = buildCronogramaAnual({
+    cronograma: [
+      linha({
+        TipoDeManutencao: "Calibração",
+        PlanoDeManutencao: "CALIBRAÇÃO ANUAL",
+        ProximaRealizacao: "15/03/2027",
+      }),
+    ],
+    os: [],
+    equipamentos: [],
+    year: 2027,
+    somenteMedicos: true,
+    today: AGORA,
+  });
+  assert.equal(peloTipo.groups.length, 1);
+  assert.equal(peloTipo.groups[0]?.equipamentos[0]?.plans[0]?.tipo, "Calibração");
 });

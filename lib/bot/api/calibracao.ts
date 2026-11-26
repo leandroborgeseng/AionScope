@@ -5,9 +5,8 @@
  */
 import { semAcento, texto } from "@/lib/ec/texto";
 import { nowInSaoPaulo, parsePbiDate } from "@/lib/pbi/dates";
-import { classifyCronogramaPlanoLoose } from "@/lib/pbi/gap-preventiva";
 import { parsePeriodicidadeMeses, plannedMonthsInYear } from "@/lib/pbi/cronograma-anual";
-import { datasPorTipo, datasPublicas, chaveTag } from "@/lib/pbi/cronograma-datas";
+import { classeCronogramaBot, datasPorTipo, datasPublicas, chaveTag } from "@/lib/pbi/cronograma-datas";
 import type { CronogramaItem, EquipamentoItem, OsAnaliticoItem } from "@/lib/pbi/types";
 import { contextoBot, papelAssistencial, papelGestao } from "./acesso";
 import { casaRegistroComVinculo } from "./setor-usuario";
@@ -35,7 +34,7 @@ function chaveEquipamento(item: CronogramaItem, indice: number) {
 }
 
 function ehCalibracao(item: CronogramaItem) {
-  return classifyCronogramaPlanoLoose(item) === "Calibração";
+  return classeCronogramaBot(item) === "Calibração";
 }
 
 function equipamentosDoSetor(itens: CronogramaItem[], aceita: (item: CronogramaItem) => boolean, agora: Date) {
@@ -66,24 +65,33 @@ function equipamentosDoSetor(itens: CronogramaItem[], aceita: (item: CronogramaI
 
 function mesesDoSetor(itens: CronogramaItem[], aceita: (item: CronogramaItem) => boolean, ano: number) {
   const porMes = new Map<number, Set<string>>();
+  const grupos = new Map<string, CronogramaItem[]>();
   itens.forEach((item, indice) => {
-    if (!aceita(item)) return;
-    if (!cronogramaNoEscopoBot(item)) return;
-    if (!ehCalibracao(item)) return;
-    const meses = plannedMonthsInYear({
-      proxima: parsePbiDate(item.ProximaRealizacao),
-      ultima: parsePbiDate(item.DataDaUltima),
-      intervalMonths: parsePeriodicidadeMeses(item.Perioridicade),
-      year: ano,
-    });
-    const chave = chaveEquipamento(item, indice);
-    for (const mes of meses) {
-      if (mes < 0 || mes > 11) continue;
-      const grupo = porMes.get(mes) ?? new Set<string>();
-      grupo.add(chave);
-      porMes.set(mes, grupo);
-    }
+    if (!aceita(item) || !cronogramaNoEscopoBot(item) || !ehCalibracao(item)) return;
+    const chave = chaveTag(texto(item.Tag)) || `linha:${indice}`;
+    const grupo = grupos.get(chave) ?? [];
+    grupo.push(item);
+    grupos.set(chave, grupo);
   });
+  const agora = nowInSaoPaulo();
+  for (const linhas of grupos.values()) {
+    if (!datasPorTipo(linhas, agora).calibracao.proxima) continue;
+    linhas.forEach((item, indice) => {
+      const meses = plannedMonthsInYear({
+        proxima: parsePbiDate(item.ProximaRealizacao),
+        ultima: parsePbiDate(item.DataDaUltima),
+        intervalMonths: parsePeriodicidadeMeses(item.Perioridicade),
+        year: ano,
+      });
+      const chave = chaveEquipamento(item, indice);
+      for (const mes of meses) {
+        if (mes < 0 || mes > 11) continue;
+        const grupo = porMes.get(mes) ?? new Set<string>();
+        grupo.add(chave);
+        porMes.set(mes, grupo);
+      }
+    });
+  }
   return [...porMes.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([mes, equipamentos]) => ({

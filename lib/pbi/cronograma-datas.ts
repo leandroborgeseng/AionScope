@@ -122,14 +122,27 @@ function escolherProxima(item: CronogramaItem, agora: Date): { ancora: Ancora | 
   return { ancora: null, motivo: null };
 }
 
+function classePeloPlano(nome: string | null | undefined): "TSE" | "Calibração" | null {
+  const v = semAcento(nome);
+  if (!v) return null;
+  if (v.includes("SEGURANCA ELETRICA") || v.includes("TSE")) return "TSE";
+  if (v.includes("CALIBRA")) return "Calibração";
+  return null;
+}
+
 /**
- * No cronograma do bot, o tipo de manutenção manda: TSE e calibração saem
- * do texto do tipo; o resto é preventiva. Não depende da palavra "prevent"
- * nem do nome do plano.
+ * Classificação única do cronograma, da ficha e da calibração do bot.
+ * O tipo manda quando reconhece TSE, calibração ou preventiva. Tipo vazio
+ * ou não reconhecido tenta TSE e calibração no nome do plano. Só então o
+ * resto é preventiva. Tipo corretiva não vira preventiva: sem TSE ou
+ * calibração no plano, a linha fica de fora.
  */
-export function classeCronogramaBot(item: CronogramaItem): PlanoEcTipo {
+export function classeCronogramaBot(item: CronogramaItem): PlanoEcTipo | null {
   const tipo = classifyPlanoEc(item.TipoDeManutencao);
-  if (tipo === "TSE" || tipo === "Calibração") return tipo;
+  if (tipo) return tipo;
+  const peloPlano = classePeloPlano(item.PlanoDeManutencao);
+  if (peloPlano) return peloPlano;
+  if (semAcento(item.TipoDeManutencao).includes("CORRETIV")) return null;
   return "Preventiva";
 }
 

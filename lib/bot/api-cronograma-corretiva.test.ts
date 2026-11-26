@@ -618,3 +618,78 @@ test("compras com vínculo 10A não recebe OS do Ambulatorial nem da Farmácia",
   assert.equal(gestao.status, "ambiguo");
   assert.deepEqual(gestao.candidatos.map((item) => item.setor).sort(), [AMB, FARMACIA, SETOR].sort());
 });
+
+test("calibração pelo nome do plano lista a data e o mês juntos", async () => {
+  pessoa(TEL_GEST, "Manutenção");
+  const setor = "SETOR CLASS ZZ";
+  gravar("cronograma", [
+    plano({
+      Setor: setor,
+      Tag: "ZZ-CALV",
+      Equipamento: "Bomba ZZCALV",
+      TipoDeManutencao: "",
+      PlanoDeManutencao: "CALIBRAÇÃO ANUAL",
+      ProximaRealizacao: "15/03/2027",
+      Perioridicade: "",
+    }),
+    plano({
+      Setor: setor,
+      Tag: "ZZ-TSEV",
+      Equipamento: "Bomba ZZTSEV",
+      TipoDeManutencao: "Corretiva",
+      PlanoDeManutencao: "SEGURANÇA ELÉTRICA",
+      ProximaRealizacao: "15/04/2027",
+    }),
+    plano({
+      Setor: setor,
+      Tag: "ZZ-GEN",
+      Equipamento: "Bomba ZZGEN",
+      TipoDeManutencao: "Corretiva",
+      PlanoDeManutencao: "PLANO GENERICO ZZ",
+      ProximaRealizacao: "15/05/2027",
+    }),
+    plano({
+      Setor: setor,
+      Tag: "ZZ-SEMDATA",
+      Equipamento: "Bomba ZZSEM",
+      TipoDeManutencao: "",
+      PlanoDeManutencao: "CALIBRAÇÃO ANUAL",
+      ProximaRealizacao: "209909735",
+      Perioridicade: "",
+    }),
+  ]);
+
+  const cron = (await (await cronograma.GET(pedido(`/api/bot/v1/cronograma?setor=${encodeURIComponent(setor)}`, TEL_GEST))).json()) as {
+    equipamentos: Array<{
+      tag: string;
+      preventiva: { proxima: string | null };
+      tse: { proxima: string | null };
+      calibracao: { proxima: string | null };
+    }>;
+  };
+  const porTag = new Map(cron.equipamentos.map((item) => [item.tag, item]));
+  assert.equal(porTag.get("ZZ-CALV")?.calibracao.proxima, "15/03/2027");
+  assert.equal(porTag.get("ZZ-CALV")?.preventiva.proxima, null);
+  assert.equal(porTag.get("ZZ-TSEV")?.tse.proxima, "15/04/2027");
+  assert.equal(porTag.get("ZZ-TSEV")?.preventiva.proxima, null);
+  assert.equal(porTag.get("ZZ-GEN")?.preventiva.proxima, null);
+  assert.equal(porTag.get("ZZ-GEN")?.tse.proxima, null);
+  assert.equal(porTag.get("ZZ-GEN")?.calibracao.proxima, null);
+  assert.equal(porTag.get("ZZ-SEMDATA")?.calibracao.proxima, null);
+
+  const calib = (await (
+    await calibracao.GET(pedido(`/api/bot/v1/calibracao?setor=${encodeURIComponent(setor)}&ano=2027`, TEL_GEST))
+  ).json()) as {
+    status: string;
+    meses: Array<{ mes: string; equipamentos: number }>;
+    equipamentos: Array<{ tag: string; proxima: string | null }>;
+  };
+  assert.equal(calib.status, "ok");
+  assert.deepEqual(
+    calib.equipamentos.map((item) => item.tag).sort(),
+    ["ZZ-CALV", "ZZ-SEMDATA"],
+  );
+  assert.equal(calib.equipamentos.find((item) => item.tag === "ZZ-CALV")?.proxima, "15/03/2027");
+  assert.equal(calib.equipamentos.find((item) => item.tag === "ZZ-SEMDATA")?.proxima, null);
+  assert.deepEqual(calib.meses, [{ mes: "2027-03", equipamentos: 1 }]);
+});
