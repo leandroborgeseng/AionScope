@@ -469,6 +469,7 @@ test("ficha acha equipamento que só existe no parque", async () => {
   gravar("equipamentos", [
     { Tag: "ZZ-PARQUE", Equipamento: "Mesa ZZPARQUE", Setor: SETOR, Modelo: "", Fabricante: "", Patrimonio: "" },
     { Tag: "ZZ-FORA", Equipamento: "Mesa ZZFORA", Setor: AMB, Modelo: "", Fabricante: "", Patrimonio: "" },
+    { Tag: "ZZ-REFRI", Equipamento: "Evaporadora ZZ", Setor: SETOR, Modelo: "", Fabricante: "", Patrimonio: "" },
   ]);
   gravar("cronograma", []);
   const ficha = await equipamento.GET(pedido("/api/bot/v1/equipamentos/ZZ-PARQUE", TEL_CC), {
