@@ -32,6 +32,7 @@ const TEL_GEST = "+55 11 90000-0203";
 const TEL_ENDO = "+55 11 90000-0204";
 const TEL_LIVRE = "+55 11 90000-0205";
 const TEL_COMPRAS = "+55 11 90000-0206";
+const TEL_ALA = "+55 11 90000-0207";
 const FARMACIA = "FARMÁCIA SATÉLITE CENTRO CIRÚRGICO - 17B";
 
 let dir = "";
@@ -429,6 +430,54 @@ test("vínculo casa OS por código no fim e por nome normalizado; texto livre n�
       Tag: "ZZ-97",
       Equipamento: "Bomba ZZ97",
     }),
+    osBase({
+      OS: "1004",
+      CodigoSerialOS: 1004,
+      Setor: "SALA 10A REUNIAO",
+      TipoDeManutencao: "Corretiva",
+      Tag: "ZZ-SALA10A",
+      Equipamento: "Bomba ZZSALA",
+    }),
+    osBase({
+      OS: "1005",
+      CodigoSerialOS: 1005,
+      Setor: "FARMÁCIA SATÉLITE CENTRO CIRÚRGICO - 17B",
+      TipoDeManutencao: "Corretiva",
+      Tag: "ZZ-17B",
+      Equipamento: "Bomba ZZ17B",
+    }),
+    osBase({
+      OS: "2001",
+      CodigoSerialOS: 2001,
+      Setor: "UTI 2",
+      TipoDeManutencao: "Corretiva",
+      Tag: "ZZ-UTI2",
+      Equipamento: "Bomba ZZUTI2",
+    }),
+    osBase({
+      OS: "2002",
+      CodigoSerialOS: 2002,
+      Setor: "UNIDADE INTERNAÇÃO ALA 2",
+      TipoDeManutencao: "Corretiva",
+      Tag: "ZZ-ALA2",
+      Equipamento: "Bomba ZZALA2",
+    }),
+    osBase({
+      OS: "2003",
+      CodigoSerialOS: 2003,
+      Setor: "UNIDADE INTERNAÇÃO ALA 1 - 2",
+      TipoDeManutencao: "Corretiva",
+      Tag: "ZZ-ALA1",
+      Equipamento: "Bomba ZZALA1",
+    }),
+    osBase({
+      OS: "2004",
+      CodigoSerialOS: 2004,
+      Setor: "unidade   internação ala 1",
+      TipoDeManutencao: "Corretiva",
+      Tag: "ZZ-ALA1B",
+      Equipamento: "Bomba ZZALA1B",
+    }),
   ]);
   gravar("equipamentos", [
     { Tag: "ZZ-ENDO", Equipamento: "Endoscopio ZZ", Setor: "ENDOSCOPIA ZZ", SetorCodigo: "67", Modelo: "", Fabricante: "", Patrimonio: "" },
@@ -446,6 +495,12 @@ test("vínculo casa OS por código no fim e por nome normalizado; texto livre n�
   const doCc = await osLista.GET(pedido("/api/bot/v1/os?abertas=1", TEL_CC));
   const jsonCc = (await doCc.json()) as { itens: Array<{ numero: string }> };
   assert.deepEqual(jsonCc.itens.map((item) => item.numero), ["1001"]);
+
+  const ala = pessoa(TEL_ALA, "Chefia de Enfermagem");
+  vincular(ala, "2", "UNIDADE INTERNAÇÃO ALA 1");
+  const daAla = await osLista.GET(pedido("/api/bot/v1/os?abertas=1", TEL_ALA));
+  const jsonAla = (await daAla.json()) as { itens: Array<{ numero: string }> };
+  assert.deepEqual(jsonAla.itens.map((item) => item.numero).sort(), ["2003", "2004"]);
 
   const ficha = await equipamento.GET(pedido("/api/bot/v1/equipamentos/ZZ-ENDO", TEL_ENDO), {
     params: Promise.resolve({ tag: "ZZ-ENDO" }),

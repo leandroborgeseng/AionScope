@@ -13,10 +13,11 @@
  * que contém o nome inteiro do vínculo — o contrário do que o Effort manda.
  * Com código na linha (`SetorCodigo`, `CodigoSetor`, `CodigoDoSetor`, o
  * próprio texto igual ao código, ou o código no começo ou no fim separado
- * por espaço ou hífen — `NOME - 67`, `10A - NOME`), casa o código do
- * vínculo, numérico ou alfanumérico. O nome também casa depois de tirar
- * esse código. Sem código, casa `normalizarChave` (sem acento, sem caixa,
- * espaços colapsados).
+ * por hífen — `NOME - 67`, `10A - NOME`), casa o código do vínculo,
+ * numérico ou alfanumérico. Espaço simples não separa: o código `2` não
+ * casa `UTI 2` nem `UNIDADE INTERNAÇÃO ALA 2`. O nome também casa depois
+ * de tirar esse código. Sem código, casa `normalizarChave` (sem acento,
+ * sem caixa, espaços colapsados).
  */
 import { getDb } from "@/lib/db/client";
 import { normalizarChave } from "./chave";
@@ -87,18 +88,17 @@ function codigoExplicito(registro: RegistroSetor) {
 }
 
 /**
- * Código no texto já normalizado: o setor inteiro, ou o código no começo
- * ou no fim, com espaço ou hífen no meio. `67` não casa `670` nem `167`;
- * `10A` não casa `10AB`.
+ * Código no texto já normalizado: o setor inteiro, ou `COD - NOME` /
+ * `NOME - COD`, com espaços opcionais ao redor do hífen. `2` não casa
+ * `UTI 2`; `67` não casa `670` nem `167`; `10A` não casa `10AB`.
  */
 function codigoNoTexto(setor: string, codigo: string) {
   if (!codigo || !setor) return false;
   if (setor === codigo) return true;
-  const separador = /[\s-]/;
-  if (setor.startsWith(codigo) && separador.test(setor[codigo.length] ?? "")) return true;
+  if (setor.startsWith(codigo) && /^\s*[-\u2013\u2014]/.test(setor.slice(codigo.length))) return true;
   if (setor.length > codigo.length && setor.endsWith(codigo)) {
-    const antes = setor[setor.length - codigo.length - 1] ?? "";
-    if (separador.test(antes)) return true;
+    const antes = setor.slice(0, setor.length - codigo.length);
+    if (/[-\u2013\u2014]\s*$/.test(antes)) return true;
   }
   return false;
 }
@@ -108,10 +108,10 @@ function nomeSemCodigo(setor: string, codigo: string) {
   if (!codigoNoTexto(setor, codigo) || setor === codigo) return setor;
   let resto = setor;
   if (resto.endsWith(codigo)) {
-    resto = resto.slice(0, resto.length - codigo.length).replace(/[\s-]+$/, "");
+    resto = resto.slice(0, resto.length - codigo.length).replace(/(?:\s*[-\u2013\u2014]\s*)+$/, "");
   }
   if (resto.startsWith(codigo)) {
-    resto = resto.slice(codigo.length).replace(/^[\s-]+/, "");
+    resto = resto.slice(codigo.length).replace(/^(?:\s*[-\u2013\u2014]\s*)+/, "");
   }
   return resto.trim();
 }
