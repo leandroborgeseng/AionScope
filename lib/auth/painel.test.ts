@@ -135,6 +135,7 @@ test("allowlist literal: rotas exatas e arquivos públicos", () => {
   assert.equal(existsSync("app/favicon.ico"), true);
   assert.deepEqual(rotasSob("app/api/bot"), [
     "/api/bot/v1/calibracao",
+    "/api/bot/v1/cronograma",
     "/api/bot/v1/equipamentos/[tag]",
     "/api/bot/v1/health",
     "/api/bot/v1/meta/freshness",

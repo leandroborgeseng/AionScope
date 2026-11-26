@@ -34,19 +34,19 @@ Entra a oficina exatamente `ENGENHARIA CLÍNICA`.
 
 Também entram duas oficinas em que a cópia registra preventiva e calibração de equipamento médico fora desse nome (as mesmas do volume de plano): `PREVENTIVA EQUIPAMENTOS` e `CALIBRAÇÃO DE EQUIPAMENTOS`. Refrigeração, predial, obras e preventiva de manutenção predial ficam de fora.
 
-A visão `/os/por-setor` é mais estreita: só corretiva (`tipoManutencao` contém `CORRETIVA`, na mesma normalização) e só a oficina `ENGENHARIA CLÍNICA`.
+A visão `/os/por-setor` é mais estreita na oficina: só `ENGENHARIA CLÍNICA`. No tipo, corretiva é toda OS que não é calibração, preventiva nem TSE (segurança elétrica). Compra, manutenção externa, tipo vazio e OS sem equipamento entram. O mesmo vale para `resumo.corretivas` e para `/os?abertas=1&tipo=corretiva`.
 
 O cronograma da cópia não traz oficina no tipo. Linha sem `Oficina` permanece. Se o campo vier preenchido e a oficina estiver fora do recorte, a linha sai. OS e tag fora do recorte respondem o mesmo 404 de quem não existe (`Não encontrei.`), sem dizer que o registro existe.
 
 ## Setor
 
-A busca é igualdade normalizada (sem acento, sem caixa, espaços extras colapsados). Não é mais substring: `Centro Cirúrgico` não traz Ambulatorial nem Farmácia Satélite, e um pedaço curto que não fecha um nome não devolve lista vazia.
+A busca ignora acento, caixa e espaços extras. Igualdade fecha um nome só: `CENTRO CIRÚRGICO - 10A` não traz o Ambulatorial. Sem igualdade, a consulta entra como substring a partir de 3 caracteres. `Centro Cirúrgico` casa `CENTRO CIRÚRGICO - 10A` e `CENTRO CIRÚRGICO AMBULATORIAL - 97`. Um pedaço de 1 ou 2 letras não varre o catálogo.
 
-Apelidos ficam na tabela `bot_setor_apelido` (`apelido`, `nome`). A migration 019 grava `CC` → `Centro Cirúrgico`. Um apelido com mais de um nome, ou um nome que também existe à parte, devolve candidatos. Novo apelido é um `INSERT` nessa tabela; esta versão não tem tela para isso.
+Apelidos ficam na tabela `bot_setor_apelido` (`apelido`, `nome`). A migration 019 grava `CC` → `Centro Cirúrgico`. O alvo usa a mesma regra da busca: se `Centro Cirúrgico` não existe como nome inteiro na cópia, entram os setores que contêm esse texto. Por isso `CC` deixa de responder 404 quando o Effort só tem o nome com sufixo. Um apelido com mais de um nome, ou um nome que casa vários setores, devolve candidatos. Novo apelido é um `INSERT` nessa tabela; esta versão não tem tela para isso.
 
-Zero nomes: HTTP 404, `status: "nao_encontrado"`, mensagem `setor não encontrado`, sem lista. Dois a cinco: HTTP 200, `status: "ambiguo"` e a lista numerada, com o nome em maiúsculas. Mais de cinco: HTTP 200, `status: "refinar"`, sem a lista. Setor que casou e não tem dado no ano ou nas abertas devolve a lista vazia (ou `meses: []`), com o resumo no caso das OS.
+Zero nomes: HTTP 404, `status: "nao_encontrado"`, mensagem `setor não encontrado`, sem lista. Dois a cinco: HTTP 200, `status: "ambiguo"` e a lista numerada, com o nome em maiúsculas. Mais de cinco: HTTP 200, `status: "refinar"`, sem a lista. Setor que casou e não tem dado no ano ou nas abertas devolve a lista vazia (ou `meses: []` e `equipamentos: []`), com o resumo no caso das OS. Calibração e cronograma resolvem o setor também pelos nomes da OS e do parque, não só pelas linhas do cronograma: o nome que funciona em `/os` não volta 404 na calibração.
 
-Papéis assistenciais (`Chefia de Enfermagem` e `Solicitante assistencial`): o setor é o vínculo pessoa-setor de `bot_usuario_setor`. O parâmetro `setor` é ignorado. Sem vínculo, a resposta não traz dado e pede o cadastro:
+Papéis assistenciais (`Chefia de Enfermagem` e `Solicitante assistencial`): o setor é o vínculo pessoa-setor de `bot_usuario_setor`. O parâmetro `setor` é ignorado. O nome do vínculo casa por igualdade ou, se não houver igualdade, por substring, no mesmo critério acima. Sem vínculo (coluna `bot_usuario.setor` nula e nenhuma linha em `bot_usuario_setor`), `/os?abertas=1` não devolve lista vazia. A resposta pede o cadastro:
 
 ```json
 { "ok": false, "status": "setor_nao_cadastrado", "message": "Cadastre o setor deste usuário para consultar." }
@@ -62,19 +62,20 @@ HTTP 200. Vários vínculos: `/os` e o equipamento reúnem todos; a calibração
 | --- | --- |
 | `GET /api/bot/v1/health` | `{ "ok": true }`. Só o Bearer |
 | `GET /api/bot/v1/meta/freshness` | `fetchedAt` e `idadeSegundos` por recurso |
-| `GET /api/bot/v1/os?abertas=1` | OS abertas do recorte. Filtros `setor`, `tag`, `equipamento`. `limit` ou `pageSize` (1 a 100), `offset` ou `cursor`. Traz `resumo` |
+| `GET /api/bot/v1/os?abertas=1` | OS abertas do recorte. Filtros `setor`, `tag`, `equipamento`. `tipo=corretiva` fica só com a regra acima. `limit` ou `pageSize` (1 a 100), `offset` ou `cursor`. Traz `resumo` |
 | `GET /api/bot/v1/os/{numero}` | Situação, histórico (só datas), etapa e tempos. Sem matrícula nem `solicitacao` para quem não é gestão ou manutenção |
-| `GET /api/bot/v1/os/por-setor?abertas=1&tipo=corretiva` | Corretivas abertas da EC, agrupadas por setor e, dentro do setor, por etapa. Só Diretoria/Gestão e Manutenção. `setor` opcional para esses papéis. `limite` (padrão 20, teto 100) e `cursor` ou `pagina`. Devolve `total` e `proximoCursor` |
-| `GET /api/bot/v1/equipamentos/{tag}` | Status, até 5 OS do recorte e a próxima preventiva. Tag fora do recorte é o mesmo 404 |
-| `GET /api/bot/v1/calibracao?setor=&ano=YYYY` | Meses e quantidade de equipamentos. `ano` é opcional; vazio, vale o ano corrente. Sem lista de equipamentos |
+| `GET /api/bot/v1/os/por-setor?abertas=1&tipo=corretiva` | Corretivas abertas da EC (a regra acima), agrupadas por setor e, dentro do setor, por etapa. Só Diretoria/Gestão e Manutenção. `setor` opcional para esses papéis. `limite` (padrão 20, teto 100) e `cursor` ou `pagina`. Devolve `total` e `proximoCursor` |
+| `GET /api/bot/v1/equipamentos/{tag}` | Status, até 5 OS do recorte e última/próxima de preventiva, TSE e calibração. A TAG ignora hífen, espaço e zero à esquerda. Tag fora do recorte é o mesmo 404 |
+| `GET /api/bot/v1/cronograma?setor=` | Equipamentos do setor no parque e no cronograma, com última e próxima de preventiva, TSE e calibração. Também aceita `tag`. Quem é assistência usa o vínculo e pode omitir `setor` |
+| `GET /api/bot/v1/calibracao?setor=&ano=YYYY` | Meses, quantidade e a lista de equipamentos com última e próxima. `ano` é opcional; vazio, vale o ano corrente |
 | `GET /api/bot/v1/usuario` | Situação do telefone. Única rota que responde 200 para quem não está aprovado |
 
 `indicadores/resumo` não entra: o resumo que já existe é o card de custo do parque, com valor em R$ na versão interna. Não dá para reaproveitar sem montar outro indicador.
 
-`resumo` de `/os?abertas=1` é calculado no conjunto já filtrado (recorte e setor), antes da página:
+`resumo` de `/os?abertas=1` é calculado no conjunto já filtrado (recorte, setor e `tipo`, se veio), antes da página. `corretivas` usa a mesma regra de `/os/por-setor`:
 
 ```json
-{ "total": 2, "porPrioridade": { "Alta": 1 }, "maisAntiga": { "numero": "1001", "abertura": "01/03/2026 10:00" }, "semTecnico": 1 }
+{ "total": 2, "corretivas": 1, "porPrioridade": { "Alta": 1 }, "maisAntiga": { "numero": "1001", "abertura": "01/03/2026 10:00" }, "semTecnico": 1 }
 ```
 
 Não há `vencidas`, prazo, limite nem SLA nesse bloco. `maisAntiga` é a abertura mais antiga, não um vencimento.
@@ -99,7 +100,7 @@ A máscara, nesta ordem: e-mail `local@domínio` com ou sem TLD (`nome@intranet`
 
 `tempoAteAtendimento` é a duração da abertura até o primeiro atendimento, em horas e dias inteiros (o resto fica de fora). Não é SLA. `textoEtapa` é curto: `Aguarda peça/compra há 12 dias`, `Em atendimento há 1 dia`, `Sem 1º atendimento desde hoje`.
 
-Quem está ativo recebe `situacao`, `podeResponder: true`, `primeiroNome`, `papel`, `setor` e `permissoes`. Na v1 o papel deixa de ser só rótulo nestas rotas: assistência fica no próprio setor; gestão e manutenção enxergam matrícula, solicitação e a visão por setor. Todo ativo continua recebendo `os`, `equipamentos` e `calibracao` na lista de permissões. `indicadores` não entra, porque essa rota não existe. Pendente, inativo e recusado recebem só `situacao`, `podeResponder: false` e `permissoes: []`. Fora do cadastro:
+Quem está ativo recebe `situacao`, `podeResponder: true`, `primeiroNome`, `papel`, `setor` e `permissoes`. `setor` é a coluna do cadastro; se ela está vazia, saem os nomes do vínculo. Sem coluna e sem vínculo, `setor` é `null`. Na v1 o papel deixa de ser só rótulo nestas rotas: assistência fica no próprio setor; gestão e manutenção enxergam matrícula, solicitação e a visão por setor. Todo ativo recebe `os`, `equipamentos`, `calibracao` e `cronograma` na lista de permissões. `indicadores` não entra, porque essa rota não existe. Pendente, inativo e recusado recebem só `situacao`, `podeResponder: false` e `permissoes: []`. Fora do cadastro:
 
 ```json
 { "situacao": "nao_cadastrado", "podeResponder": false, "permissoes": [] }
@@ -127,7 +128,19 @@ curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
 curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
   -H "X-Bot-Telefone: +55 11 90000-0001" \
   "https://scope.aion.eng.br/api/bot/v1/calibracao?setor=Centro%20Cirurgico&ano=2026"
+
+curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
+  -H "X-Bot-Telefone: +55 11 90000-0001" \
+  "https://scope.aion.eng.br/api/bot/v1/cronograma?setor=Centro%20Cirurgico"
+
+curl -sS -H "Authorization: Bearer token-ficticio-zzteste-0123456789abcd" \
+  -H "X-Bot-Telefone: +55 11 90000-0001" \
+  "https://scope.aion.eng.br/api/bot/v1/cronograma?tag=ZZ-02932"
 ```
+
+`/cronograma` devolve `equipamentos[]` com `tag`, `equipamento`, `setor`, `preventiva`, `tse` e `calibracao`. Cada uma tem `ultima` e `proxima` (`dd/MM/yyyy`, ou `MM/yyyy` quando o campo é código de mês). A lista junta o parque e o cronograma do setor, também o equipamento sem OS aberta. Teto de 500; `total` é o tamanho antes do corte. `proximaPreventiva` na ficha da TAG continua, agora com o mês dessa próxima (`yyyy-mm`), e não fica `null` quando o plano existe.
+
+`/calibracao` mantém `meses[]` (`mes`, `equipamentos` como quantidade) e acrescenta `equipamentos[]` com `tag`, `equipamento`, `ultima` e `proxima`.
 
 Cada resposta de dado traz `fetchedAt` (ISO) e `idadeSegundos`, exceto o pedido de cadastro de setor, que não abre a cópia. Cópia com mais de 7 dias e atualização falha responde 503, com a data da cópia, e não devolve lista vazia no lugar do erro.
 
@@ -136,7 +149,7 @@ Cada resposta de dado traz `fetchedAt` (ISO) e `idadeSegundos`, exceto o pedido 
 | Código | Quando |
 | --- | --- |
 | 200 | Consulta aceita. Calibração ou OS ambígua, a refinar, ou setor não cadastrado (`ok: false`) também. |
-| 400 | Página inválida, `limit` ou `pageSize` acima de 100, `limite` da visão por setor fora de 1–100, `cursor` e `pagina` juntos, `abertas` diferente de 1, `tipo` diferente de `corretiva` na visão por setor, setor ausente na calibração (fora da assistência) ou ano fora de 2000–2100. |
+| 400 | Página inválida, `limit` ou `pageSize` acima de 100, `limite` da visão por setor fora de 1–100, `cursor` e `pagina` juntos, `abertas` diferente de 1, `tipo` diferente de `corretiva` em `/os` ou na visão por setor, setor ausente na calibração (fora da assistência), setor e tag ausentes no cronograma (fora da assistência) ou ano fora de 2000–2100. |
 | 401 | Sem Bearer ou Bearer errado. Corpo só `{ "ok": false }`. |
 | 403 | Nas rotas de dado: telefone ausente, mal formatado, fora do cadastro, pendente, inativo ou recusado. O corpo não diz o motivo. Em `/usuario`, só o telefone ausente ou mal formatado. Em `/os/por-setor`, também quem não é Diretoria/Gestão nem Manutenção. `/health` não usa este código por causa do telefone. |
 | 404 | OS, tag ou setor não encontrado. A mensagem da OS e da tag é "Não encontrei.", também quando existem e estão fora do recorte ou do setor da assistência. A do setor é "setor não encontrado". |
