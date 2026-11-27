@@ -5,14 +5,15 @@
  */
 import { semAcento, texto } from "@/lib/ec/texto";
 import { nowInSaoPaulo, parsePbiDate } from "@/lib/pbi/dates";
-import { classifyPlanoEc } from "@/lib/pbi/indicadores-os";
-import { keepCronogramaPlano, parsePeriodicidadeMeses, plannedMonthsInYear } from "@/lib/pbi/cronograma-anual";
-import type { CronogramaItem } from "@/lib/pbi/types";
+import { parsePeriodicidadeMeses, plannedMonthsInYear } from "@/lib/pbi/cronograma-anual";
+import { classeCronogramaBot, datasPorTipo, datasPublicas, chaveTag } from "@/lib/pbi/cronograma-datas";
+import type { CronogramaItem, EquipamentoItem, OsAnaliticoItem } from "@/lib/pbi/types";
 import { contextoBot, papelAssistencial, papelGestao } from "./acesso";
+import { casaRegistroComVinculo } from "./setor-usuario";
 import { listarApelidos } from "./apelidos";
 import { normalizarChave } from "./chave";
 import { lerLista } from "./copia";
-import { cronogramaNoEscopoBot } from "./escopo";
+import { cronogramaNoEscopoBot, oficinaNoEscopoBot } from "./escopo";
 import { copiaIndisponivel, json } from "./http";
 import { decidirSetor, nomeDaChave, respostaDecisaoSetor } from "./setor-match";
 
@@ -32,27 +33,65 @@ function chaveEquipamento(item: CronogramaItem, indice: number) {
   return `eq:${semAcento(equipamento)}|${semAcento(item.Modelo)}|${semAcento(item.Fabricante)}`;
 }
 
-function mesesDoSetor(itens: CronogramaItem[], chaveSetor: string, ano: number) {
-  const porMes = new Map<number, Set<string>>();
+function ehCalibracao(item: CronogramaItem) {
+  return classeCronogramaBot(item) === "Calibração";
+}
+
+function equipamentosDoSetor(itens: CronogramaItem[], aceita: (item: CronogramaItem) => boolean, agora: Date) {
+  const grupos = new Map<string, CronogramaItem[]>();
+  const nomes = new Map<string, { tag: string; equipamento: string }>();
   itens.forEach((item, indice) => {
-    if (normalizarChave(item.Setor) !== chaveSetor) return;
-    if (!cronogramaNoEscopoBot(item)) return;
-    if (!keepCronogramaPlano(item.TipoDeManutencao, false)) return;
-    if (classifyPlanoEc(item.TipoDeManutencao) !== "Calibração") return;
-    const meses = plannedMonthsInYear({
-      proxima: parsePbiDate(item.ProximaRealizacao),
-      ultima: parsePbiDate(item.DataDaUltima),
-      intervalMonths: parsePeriodicidadeMeses(item.Perioridicade),
-      year: ano,
-    });
-    const chave = chaveEquipamento(item, indice);
-    for (const mes of meses) {
-      if (mes < 0 || mes > 11) continue;
-      const grupo = porMes.get(mes) ?? new Set<string>();
-      grupo.add(chave);
-      porMes.set(mes, grupo);
-    }
+    if (!aceita(item)) return;
+    if (!cronogramaNoEscopoBot(item) || !ehCalibracao(item)) return;
+    const tag = texto(item.Tag);
+    const chave = chaveTag(tag) || `linha:${indice}`;
+    const grupo = grupos.get(chave) ?? [];
+    grupo.push(item);
+    grupos.set(chave, grupo);
+    if (!nomes.has(chave)) nomes.set(chave, { tag, equipamento: texto(item.Equipamento) });
   });
+  return [...grupos.entries()]
+    .map(([chave, linhas]) => {
+      const datas = datasPorTipo(linhas, agora);
+      const nome = nomes.get(chave)!;
+      return {
+        tag: nome.tag,
+        equipamento: nome.equipamento,
+        ...datasPublicas(datas.calibracao),
+      };
+    })
+    .sort((a, b) => a.tag.localeCompare(b.tag, "pt-BR") || a.equipamento.localeCompare(b.equipamento, "pt-BR"));
+}
+
+function mesesDoSetor(itens: CronogramaItem[], aceita: (item: CronogramaItem) => boolean, ano: number) {
+  const porMes = new Map<number, Set<string>>();
+  const grupos = new Map<string, CronogramaItem[]>();
+  itens.forEach((item, indice) => {
+    if (!aceita(item) || !cronogramaNoEscopoBot(item) || !ehCalibracao(item)) return;
+    const chave = chaveTag(texto(item.Tag)) || `linha:${indice}`;
+    const grupo = grupos.get(chave) ?? [];
+    grupo.push(item);
+    grupos.set(chave, grupo);
+  });
+  const agora = nowInSaoPaulo();
+  for (const linhas of grupos.values()) {
+    if (!datasPorTipo(linhas, agora).calibracao.proxima) continue;
+    linhas.forEach((item, indice) => {
+      const meses = plannedMonthsInYear({
+        proxima: parsePbiDate(item.ProximaRealizacao),
+        ultima: parsePbiDate(item.DataDaUltima),
+        intervalMonths: parsePeriodicidadeMeses(item.Perioridicade),
+        year: ano,
+      });
+      const chave = chaveEquipamento(item, indice);
+      for (const mes of meses) {
+        if (mes < 0 || mes > 11) continue;
+        const grupo = porMes.get(mes) ?? new Set<string>();
+        grupo.add(chave);
+        porMes.set(mes, grupo);
+      }
+    });
+  }
   return [...porMes.entries()]
     .sort((a, b) => a[0] - b[0])
     .map(([mes, equipamentos]) => ({
@@ -71,21 +110,60 @@ export function consultarCalibracao(request: Request, usuarioId: string) {
   }
 
   const ctx = contextoBot(usuarioId);
-  if (papelAssistencial(ctx.papel) && ctx.setores.length === 0) {
+  const assistencial = papelAssistencial(ctx.papel);
+  if (assistencial && ctx.vinculos.length === 0) {
     return respostaDecisaoSetor({ tipo: "nao_cadastrado" })!;
   }
   if (!setor && !papelAssistencial(ctx.papel)) return json(400, { ok: false, message: "Informe o setor." });
   const copia = lerLista("cronograma");
   if (!copia.ok) return copiaIndisponivel(copia.motivo, copia.motivo === "expirada" ? copia : undefined);
-  const itens = (copia.itens as CronogramaItem[]).filter(cronogramaNoEscopoBot);
+  const os = lerLista("os-analitico");
+  const parque = lerLista("equipamentos");
+  const itens = copia.itens as CronogramaItem[];
+  const nomes: Array<string | null | undefined> = [];
+  if (os.ok) {
+    for (const item of os.itens as OsAnaliticoItem[]) {
+      if (oficinaNoEscopoBot(item.Oficina)) nomes.push(item.Setor);
+    }
+  }
+  if (parque.ok) for (const item of parque.itens as EquipamentoItem[]) nomes.push(item.Setor);
+  for (const item of itens) {
+    if (cronogramaNoEscopoBot(item)) nomes.push(item.Setor);
+  }
   const ajuda = ajudaCalibracao();
   const base = { fetchedAt: copia.fetchedAt, idadeSegundos: copia.idadeSegundos, comoConsultarNoEffort: ajuda };
+  const noSetor = itens.filter(cronogramaNoEscopoBot);
+  if (assistencial) {
+    if (ctx.vinculos.length > 1) {
+      const candidatos = ctx.vinculos
+        .map((item) => (item.nome || item.codigo).toLocaleUpperCase("pt-BR"))
+        .sort((a, b) => a.localeCompare(b, "pt-BR"))
+        .map((nome, indice) => ({ ordem: indice + 1, setor: nome }));
+      return json(200, { ok: true, status: "ambiguo", candidatos, ...base });
+    }
+    const aceita = (item: CronogramaItem) => casaRegistroComVinculo(item, ctx.vinculos);
+    const nome = ctx.vinculos[0]!;
+    return json(200, {
+      ok: true,
+      status: "ok",
+      setor: (nome.nome || nome.codigo).toLocaleUpperCase("pt-BR"),
+      ano,
+      meses: mesesDoSetor(noSetor, aceita, ano),
+      equipamentos: equipamentosDoSetor(noSetor, aceita, nowInSaoPaulo()),
+      ...base,
+    });
+  }
+  const gestao = papelGestao(ctx.papel);
+  const restrito = !gestao && ctx.vinculos.length > 0;
+  const nomesBusca = restrito
+    ? nomes.filter((nome) => casaRegistroComVinculo({ Setor: nome ?? "" }, ctx.vinculos))
+    : nomes;
   const decisao = decidirSetor({
-    assistencial: papelAssistencial(ctx.papel),
-    gestao: papelGestao(ctx.papel),
-    vinculos: ctx.setores,
+    assistencial: false,
+    gestao,
+    vinculos: restrito ? [] : ctx.setores,
     consulta: setor,
-    nomesNaCopia: itens.map((item) => item.Setor),
+    nomesNaCopia: nomesBusca,
     modo: "unico",
     apelidos: listarApelidos(),
   });
@@ -95,12 +173,14 @@ export function consultarCalibracao(request: Request, usuarioId: string) {
     return json(400, { ok: false, message: "Informe o setor." });
   }
   const chave = [...decisao.chaves][0]!;
+  const aceita = (item: CronogramaItem) => normalizarChave(item.Setor) === chave;
   return json(200, {
     ok: true,
     status: "ok",
-    setor: nomeDaChave(chave, itens.map((item) => item.Setor)),
+    setor: nomeDaChave(chave, nomes),
     ano,
-    meses: mesesDoSetor(itens, chave, ano),
+    meses: mesesDoSetor(noSetor, aceita, ano),
+    equipamentos: equipamentosDoSetor(noSetor, aceita, nowInSaoPaulo()),
     ...base,
   });
 }

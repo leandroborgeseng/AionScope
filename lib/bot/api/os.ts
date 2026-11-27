@@ -1,11 +1,14 @@
 /**
  * OS abertas, detalhe e corretivas da EC por setor. Só a cópia de os-analitico.
+ * Corretiva: tudo que não é preventiva, calibração ou TSE.
  */
 import { semAcento, texto } from "@/lib/ec/texto";
 import { parsePbiDate } from "@/lib/pbi/dates";
+import { chaveTag } from "@/lib/pbi/cronograma-datas";
 import type { OsAnaliticoItem } from "@/lib/pbi/types";
 import { isOsCancelada, osFechamentoDate } from "@/lib/pbi/volume-ec";
 import { contextoBot, papelAssistencial, papelGestao } from "./acesso";
+import { casaRegistroComVinculo } from "./setor-usuario";
 import { listarApelidos } from "./apelidos";
 import { camposEtapa, indiceEtapa } from "./andamento";
 import { normalizarChave } from "./chave";
@@ -14,6 +17,7 @@ import { oficinaEngenhariaClinicaExata, oficinaNoEscopoBot } from "./escopo";
 import { copiaIndisponivel, json } from "./http";
 import { cursorDaPagina, lerPaginacao } from "./paginacao";
 import { historicoOs, projetarOs } from "./projecao";
+import { ehCorretivaOs } from "./corretiva";
 import { catalogarNomes, decidirSetor, nomeExibicao, respostaDecisaoSetor } from "./setor-match";
 
 function aberta(item: OsAnaliticoItem) {
@@ -63,12 +67,8 @@ function resumoOs(itens: OsAnaliticoItem[]) {
     porPrioridade: ordenado,
     maisAntiga: maisAntiga ? { numero: texto(maisAntiga.OS), abertura: texto(maisAntiga.Abertura) } : null,
     semTecnico,
+    corretivas: itens.filter((item) => ehCorretivaOs(item)).length,
   };
-}
-
-function foraDoSetorAssistencial(setores: string[], setor: string | null | undefined) {
-  const permitidos = new Set(setores.map((nome) => normalizarChave(nome)));
-  return !permitidos.has(normalizarChave(setor));
 }
 
 function naoEncontrei() {
@@ -78,35 +78,53 @@ function naoEncontrei() {
 export function consultarOsAbertas(request: Request, usuarioId: string, agora = new Date()) {
   const params = new URL(request.url).searchParams;
   if (params.get("abertas") !== "1") return json(400, { ok: false, message: "Use abertas=1." });
+  const tipo = params.get("tipo");
+  if (tipo != null && tipo.trim() !== "" && normalizarChave(tipo) !== "CORRETIVA") {
+    return json(400, { ok: false, message: "Use tipo=corretiva." });
+  }
+  const soCorretiva = tipo != null && tipo.trim() !== "";
   const paginacao = lerPaginacao(params);
   if (!paginacao.ok) return json(400, { ok: false, message: paginacao.message });
   const ctx = contextoBot(usuarioId);
-  if (papelAssistencial(ctx.papel) && ctx.setores.length === 0) {
+  const assistencial = papelAssistencial(ctx.papel);
+  const gestao = papelGestao(ctx.papel);
+  const restrito = !gestao && ctx.vinculos.length > 0;
+  if (assistencial && ctx.vinculos.length === 0) {
     return respostaDecisaoSetor({ tipo: "nao_cadastrado" })!;
   }
   const copia = lerLista("os-analitico", agora.getTime());
   if (!copia.ok) return copiaIndisponivel(copia.motivo, copia.motivo === "expirada" ? copia : undefined);
   const noEscopo = (copia.itens as OsAnaliticoItem[]).filter((item) => oficinaNoEscopoBot(item.Oficina));
-  const decisao = decidirSetor({
-    assistencial: papelAssistencial(ctx.papel),
-    gestao: papelGestao(ctx.papel),
-    vinculos: ctx.setores,
-    consulta: params.get("setor")?.trim() ?? "",
-    nomesNaCopia: noEscopo.map((item) => item.Setor),
-    modo: "lista",
-    apelidos: listarApelidos(),
-  });
+  const nomesBusca = restrito
+    ? noEscopo.filter((item) => casaRegistroComVinculo(item, ctx.vinculos)).map((item) => item.Setor)
+    : noEscopo.map((item) => item.Setor);
+  const decisao = assistencial
+    ? ({ tipo: "chaves", chaves: new Set<string>() } as const)
+    : decidirSetor({
+        assistencial: false,
+        gestao,
+        vinculos: restrito ? [] : ctx.setores,
+        consulta: params.get("setor")?.trim() ?? "",
+        nomesNaCopia: nomesBusca,
+        modo: "lista",
+        apelidos: listarApelidos(),
+      });
   const meta = { fetchedAt: copia.fetchedAt, idadeSegundos: copia.idadeSegundos };
   const especial = respostaDecisaoSetor(decisao, meta);
   if (especial) return especial;
-  const chaves = decisao.tipo === "chaves" ? decisao.chaves : null;
+  const chaves = decisao.tipo === "chaves" && !assistencial ? decisao.chaves : null;
   const filtroTag = params.get("tag")?.trim() ?? "";
   const filtroEquipamento = params.get("equipamento")?.trim() ?? "";
   const itens = noEscopo
     .filter((item) => aberta(item))
-    .filter((item) => (filtroTag ? semAcento(item.Tag) === semAcento(filtroTag) : true))
+    .filter((item) => (soCorretiva ? ehCorretivaOs(item) : true))
+    .filter((item) => (filtroTag ? chaveTag(item.Tag) === chaveTag(filtroTag) : true))
     .filter((item) => inclui(item.Equipamento, filtroEquipamento))
-    .filter((item) => (chaves ? chaves.has(normalizarChave(item.Setor)) : true))
+    .filter((item) => {
+      if (restrito && !casaRegistroComVinculo(item, ctx.vinculos)) return false;
+      if (chaves && !chaves.has(normalizarChave(item.Setor))) return false;
+      return true;
+    })
     .sort((a, b) => instante(b.Abertura) - instante(a.Abertura) || texto(a.OS).localeCompare(texto(b.OS), "pt-BR"));
   const fatia = itens.slice(paginacao.offset, paginacao.offset + paginacao.limit);
   const proximo = paginacao.offset + paginacao.limit < itens.length ? paginacao.offset + paginacao.limit : null;
@@ -124,7 +142,7 @@ export function consultarOsAbertas(request: Request, usuarioId: string, agora = 
 
 export function consultarOsNumero(numero: string, usuarioId: string, agora = new Date()) {
   const ctx = contextoBot(usuarioId);
-  if (papelAssistencial(ctx.papel) && ctx.setores.length === 0) {
+  if (papelAssistencial(ctx.papel) && ctx.vinculos.length === 0) {
     return respostaDecisaoSetor({ tipo: "nao_cadastrado" })!;
   }
   const copia = lerLista("os-analitico", agora.getTime());
@@ -134,7 +152,9 @@ export function consultarOsNumero(numero: string, usuarioId: string, agora = new
     (os) => semAcento(os.OS) === chave || semAcento(String(os.CodigoSerialOS ?? "")) === chave,
   );
   if (!item || !oficinaNoEscopoBot(item.Oficina)) return naoEncontrei();
-  if (papelAssistencial(ctx.papel) && foraDoSetorAssistencial(ctx.setores, item.Setor)) return naoEncontrei();
+  if (!papelGestao(ctx.papel) && ctx.vinculos.length > 0 && !casaRegistroComVinculo(item, ctx.vinculos)) {
+    return naoEncontrei();
+  }
   const gestao = papelGestao(ctx.papel);
   return json(200, {
     ok: true,
@@ -149,7 +169,7 @@ export function consultarOsNumero(numero: string, usuarioId: string, agora = new
 }
 
 function corretivaEc(item: OsAnaliticoItem) {
-  return aberta(item) && oficinaEngenhariaClinicaExata(item.Oficina) && normalizarChave(item.TipoDeManutencao).includes("CORRETIVA");
+  return aberta(item) && oficinaEngenhariaClinicaExata(item.Oficina) && ehCorretivaOs(item);
 }
 
 const LIMITE_POR_SETOR = 20;

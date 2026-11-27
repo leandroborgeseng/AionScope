@@ -1,5 +1,8 @@
 /**
- * Setor por igualdade normalizada, mais apelidos. Sem substring.
+ * Setor sem acento e sem caixa. Igualdade fecha um nome só.
+ * Sem igualdade, a consulta entra como substring (a partir de 3 caracteres).
+ * Apelido (`bot_setor_apelido`) usa o nome-alvo com a mesma regra: `CC` →
+ * `Centro Cirúrgico` casa `CENTRO CIRÚRGICO - 10A`, não só o nome exato.
  * Vários alvos devolvem candidatos (até cinco) ou pedem um nome mais longo.
  */
 import { json } from "./http";
@@ -43,15 +46,34 @@ export type ResolvidoSetor =
   | { tipo: "refinar" }
   | { tipo: "nao_encontrado" };
 
+const SUBSTRING_MIN = 3;
+
+/**
+ * Igualdade normalizada, senão substring. Consulta curta (CC) não varre o
+ * catálogo: o apelido é que expande o nome.
+ */
+export function chavesQueCasam(consulta: string, catalogo: CatalogoSetor) {
+  const q = normalizarChave(consulta);
+  const hits = new Set<string>();
+  if (!q) return hits;
+  if (catalogo.has(q)) {
+    hits.add(q);
+    return hits;
+  }
+  if (q.length < SUBSTRING_MIN) return hits;
+  for (const chave of catalogo.keys()) {
+    if (chave.includes(q)) hits.add(chave);
+  }
+  return hits;
+}
+
 export function resolverSetor(consulta: string, catalogo: CatalogoSetor, apelidos: ApelidoSetor[]): ResolvidoSetor {
   const q = normalizarChave(consulta);
   if (!q) return { tipo: "nao_encontrado" };
-  const hits = new Set<string>();
-  if (catalogo.has(q)) hits.add(q);
+  const hits = chavesQueCasam(consulta, catalogo);
   for (const apelido of apelidos) {
     if (normalizarChave(apelido.apelido) !== q) continue;
-    const alvo = normalizarChave(apelido.nome);
-    if (alvo && catalogo.has(alvo)) hits.add(alvo);
+    for (const chave of chavesQueCasam(apelido.nome, catalogo)) hits.add(chave);
   }
   if (hits.size === 0) return { tipo: "nao_encontrado" };
   if (hits.size > 5) return { tipo: "refinar" };
@@ -64,6 +86,16 @@ export function resolverSetor(consulta: string, catalogo: CatalogoSetor, apelido
     .sort((a, b) => a.setor.localeCompare(b.setor, "pt-BR"))
     .map((item, indice) => ({ ordem: indice + 1, setor: item.setor }));
   return { tipo: "ambiguo", candidatos };
+}
+
+function expandirVinculos(vinculos: string[], catalogo: CatalogoSetor) {
+  const hits = new Set<string>();
+  for (const vinculo of vinculos) {
+    const casou = chavesQueCasam(vinculo, catalogo);
+    if (casou.size === 0) hits.add(vinculo);
+    else for (const chave of casou) hits.add(chave);
+  }
+  return hits;
 }
 
 export type DecisaoSetor =
@@ -94,21 +126,24 @@ export function decidirSetor(opts: {
 
   if (opts.assistencial) {
     if (vinculos.length === 0) return { tipo: "nao_cadastrado" };
-    if (opts.modo === "unico" && vinculos.length > 1) {
-      if (vinculos.length > 5) return { tipo: "refinar" };
-      const candidatos = vinculos
+    const hits = expandirVinculos(vinculos, catalogo);
+    if (hits.size === 0) return { tipo: "nao_cadastrado" };
+    if (opts.modo === "unico" && hits.size > 1) {
+      if (hits.size > 5) return { tipo: "refinar" };
+      const candidatos = [...hits]
         .map((chave) => (catalogo.has(chave) ? nomeExibicao(catalogo.get(chave)!) : chave))
         .sort((a, b) => a.localeCompare(b, "pt-BR"))
         .map((setor, indice) => ({ ordem: indice + 1, setor }));
       return { tipo: "ambiguo", candidatos };
     }
-    return { tipo: "chaves", chaves: new Set(vinculos) };
+    return { tipo: "chaves", chaves: hits };
   }
 
   const restringir = !opts.gestao && vinculos.length > 0;
+  const ampliado = restringir ? expandirVinculos(vinculos, catalogo) : null;
   const efetivo: CatalogoSetor = new Map();
-  if (restringir) {
-    for (const chave of vinculos) {
+  if (ampliado) {
+    for (const chave of ampliado) {
       const item = catalogo.get(chave);
       if (item) efetivo.set(chave, item);
     }
@@ -119,7 +154,7 @@ export function decidirSetor(opts: {
   const consulta = opts.consulta.trim();
   if (!consulta) {
     if (opts.modo === "unico") return { tipo: "informe" };
-    if (restringir) return { tipo: "chaves", chaves: new Set(vinculos) };
+    if (ampliado) return { tipo: "chaves", chaves: ampliado };
     return { tipo: "todos" };
   }
 

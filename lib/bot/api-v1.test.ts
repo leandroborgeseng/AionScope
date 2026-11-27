@@ -18,6 +18,7 @@ import * as osLista from "../../app/api/bot/v1/os/route";
 import * as osItem from "../../app/api/bot/v1/os/[numero]/route";
 import * as equipamento from "../../app/api/bot/v1/equipamentos/[tag]/route";
 import * as calibracao from "../../app/api/bot/v1/calibracao/route";
+import * as cronograma from "../../app/api/bot/v1/cronograma/route";
 import * as porSetor from "../../app/api/bot/v1/os/por-setor/route";
 import * as usuario from "../../app/api/bot/v1/usuario/route";
 
@@ -306,7 +307,7 @@ test("A2 A22 A25 A28 POST PUT PATCH DELETE respondem 405 e não gravam negócio"
     cache: (getDb().prepare("SELECT COUNT(*) n FROM pbi_cache").get() as { n: number }).n,
     pessoa: getDb().prepare("SELECT situacao, papel, telefone_e164 FROM bot_usuario WHERE id = ?").get(id),
   };
-  const rotas = [health, freshness, osLista, osItem, porSetor, equipamento, calibracao];
+  const rotas = [health, freshness, osLista, osItem, porSetor, equipamento, calibracao, cronograma];
   const antesTrilha = (getDb().prepare("SELECT COUNT(*) n FROM bot_api_auditoria").get() as { n: number }).n;
   const antesRecusa = contagemRecusaAuth();
   for (const rota of rotas) {
@@ -676,12 +677,16 @@ test("A65 A66 A67 A68 A69 A70 calibração por setor, só do cache", async () =>
   assert.equal(typeof uti.idadeSegundos, "number");
   assert.equal(uti.comoConsultarNoEffort, null);
   const textoUti = JSON.stringify(uti);
-  assert.equal(chaves(uti).has("tag"), false);
+  const listaUti = uti as typeof uti & { equipamentos: Array<{ tag: string; equipamento: string; ultima: string | null; proxima: string | null }> };
+  assert.deepEqual(
+    listaUti.equipamentos.map((item) => item.tag),
+    ["ZZTAG", "ZZTAG2"],
+  );
+  assert.equal(listaUti.equipamentos[0]?.equipamento, "Bomba ZZEQUIP");
+  assert.equal(listaUti.equipamentos[0]?.ultima, null);
+  assert.equal(listaUti.equipamentos[0]?.proxima, "15/03/2026");
   assert.equal(chaves(uti).has("patrimonio"), false);
   assert.equal(chaves(uti).has("modelo"), false);
-  assert.equal(chaves(uti).has("equipamento"), false);
-  assert.equal(textoUti.includes("ZZEQUIP"), false);
-  assert.equal(textoUti.includes("ZZTAG"), false);
   assert.equal(textoUti.includes("ZZMOD"), false);
   assert.equal(textoUti.includes("PAT-ZZ"), false);
   semVazamento(textoUti);
@@ -707,8 +712,13 @@ test("A65 A66 A67 A68 A69 A70 calibração por setor, só do cache", async () =>
   assert.equal(acento.setor, "UNIDADE ZZ Á");
 
   const varios = await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=bloco%20zz&ano=2026"));
-  assert.equal(varios.status, 404);
-  assert.equal(((await varios.json()) as { status: string }).status, "nao_encontrado");
+  assert.equal(varios.status, 200);
+  const jsonVarios = (await varios.json()) as { status: string; candidatos: Array<{ setor: string }> };
+  assert.equal(jsonVarios.status, "ambiguo");
+  assert.deepEqual(
+    jsonVarios.candidatos.map((item) => item.setor),
+    ["BLOCO ZZ A", "BLOCO ZZ B"],
+  );
   const exatoBloco = (await (await calibracao.GET(pedido("/api/bot/v1/calibracao?setor=bloco%20zz%20a&ano=2026"))).json()) as {
     status: string;
     setor: string;
@@ -859,7 +869,7 @@ test("F1 R1 plano vencido conta só meses de 1 a 12 e ano vazio é o corrente", 
 });
 
 test("usuario devolve a situacao real, sem dado pessoal, e as permissoes da v1", async () => {
-  const ativos = ["os", "equipamentos", "calibracao"];
+  const ativos = ["os", "equipamentos", "calibracao", "cronograma"];
   assert.deepEqual(permissoesPorPapel("Diretoria/Gestão", "ativo"), ativos);
   assert.deepEqual(permissoesPorPapel("Compras", "ativo"), ativos);
   assert.equal(ativos.includes("indicadores"), false);
@@ -1109,12 +1119,13 @@ test("escopo EC, setor exato, resumo, privacidade, por setor e andamento", async
 
   const lista = (await (await osLista.GET(pedido("/api/bot/v1/os?abertas=1&setor=Centro%20Cir%C3%BArgico", { telefone: "+55 11 90000-0102" }))).json()) as {
     itens: Array<{ numero: string; matriculaTecnico?: string }>;
-    resumo: { total: number; porPrioridade: Record<string, number>; maisAntiga: { numero: string } | null; semTecnico: number };
+    resumo: { total: number; corretivas: number; porPrioridade: Record<string, number>; maisAntiga: { numero: string } | null; semTecnico: number };
   };
   assert.deepEqual(lista.itens.map((item) => item.numero).sort(), ["2001", "2002", "2005", "2006"]);
   assert.equal(Object.hasOwn(lista.itens[0]!, "matriculaTecnico"), true);
-  assert.deepEqual(Object.keys(lista.resumo).sort(), ["maisAntiga", "porPrioridade", "semTecnico", "total"]);
+  assert.deepEqual(Object.keys(lista.resumo).sort(), ["corretivas", "maisAntiga", "porPrioridade", "semTecnico", "total"]);
   assert.equal(lista.resumo.total, 4);
+  assert.equal(lista.resumo.corretivas, 2);
   assert.equal(lista.resumo.maisAntiga?.numero, "2001");
   assert.equal(lista.resumo.semTecnico, 1);
   assert.equal(lista.resumo.porPrioridade.Alta, 1);
@@ -1123,10 +1134,13 @@ test("escopo EC, setor exato, resumo, privacidade, por setor e andamento", async
   assert.equal(JSON.stringify(lista.resumo).includes("Limite"), false);
 
   const curto = await osLista.GET(pedido("/api/bot/v1/os?abertas=1&setor=centro", { telefone: "+55 11 90000-0102" }));
-  assert.equal(curto.status, 404);
-  const jsonCurto = (await curto.json()) as { status: string; message: string };
-  assert.equal(jsonCurto.status, "nao_encontrado");
-  assert.equal(jsonCurto.message, "setor não encontrado");
+  assert.equal(curto.status, 200);
+  const jsonCurto = (await curto.json()) as { status: string; candidatos: Array<{ setor: string }>; itens?: unknown };
+  assert.equal(jsonCurto.status, "ambiguo");
+  assert.deepEqual(
+    jsonCurto.candidatos.map((item) => item.setor),
+    ["CENTRO CIRÚRGICO", "CENTRO CIRÚRGICO AMBULATORIAL", "FARMÁCIA SATÉLITE CENTRO CIRÚRGICO"],
+  );
   assert.equal(Object.hasOwn(jsonCurto, "itens"), false);
   assert.equal(JSON.stringify(jsonCurto).includes("2001"), false);
 
@@ -1421,9 +1435,10 @@ test("por-setor filtra como /os e pagina com o mesmo cursor", async () => {
   assert.equal(duplo.status, 400);
 
   const curto = await porSetor.GET(pedido(`${base}&setor=UTI`, { telefone: "+55 11 90000-0102" }));
-  assert.equal(curto.status, 404);
-  const jsonCurto = (await curto.json()) as { status: string };
-  assert.equal(jsonCurto.status, "nao_encontrado");
+  assert.equal(curto.status, 200);
+  const jsonCurto = (await curto.json()) as { total: number; setores: Array<{ setor: string }> };
+  assert.equal(jsonCurto.total, 1);
+  assert.equal(jsonCurto.setores[0]?.setor, "UTI ZZTESTE");
 
   const ambiguo = await porSetor.GET(pedido(`${base}&setor=zzx`, { telefone: "+55 11 90000-0102" }));
   assert.equal(ambiguo.status, 200);

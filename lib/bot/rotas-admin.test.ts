@@ -208,6 +208,7 @@ test("a página pública do convite existe e o bot só tem as rotas GET de leitu
   andar("app/api/bot");
   assert.deepEqual(achados.sort(), [
     "/api/bot/v1/calibracao",
+    "/api/bot/v1/cronograma",
     "/api/bot/v1/equipamentos/[tag]",
     "/api/bot/v1/health",
     "/api/bot/v1/meta/freshness",

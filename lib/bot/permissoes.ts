@@ -3,7 +3,7 @@
  * O papel é rótulo (A15): todo ativo recebe a mesma lista. Um mapa por papel
  * pode substituir o padrão depois, sem migração.
  */
-const ASSUNTOS_V1 = ["os", "equipamentos", "calibracao"] as const;
+const ASSUNTOS_V1 = ["os", "equipamentos", "calibracao", "cronograma"] as const;
 
 const POR_PAPEL: Readonly<Record<string, readonly string[]>> = {};
 

@@ -1,7 +1,8 @@
 /**
  * Apelidos de setor da API do bot. Vivem em `bot_setor_apelido`
- * (apelido → nome canônico do Effort). A migration 019 grava CC → Centro Cirúrgico.
- * A comparação é normalizada; um apelido com mais de um nome fica ambíguo.
+ * (apelido → nome canônico). A migration 019 grava CC → Centro Cirúrgico.
+ * O alvo casa por igualdade ou, se esse nome não existir na cópia, por
+ * substring: CENTRO CIRÚRGICO - 10A entra. Um apelido com mais de um nome fica ambíguo.
  */
 import { getDb } from "@/lib/db/client";
 
